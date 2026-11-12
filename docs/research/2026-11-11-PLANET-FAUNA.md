@@ -197,7 +197,12 @@ in water - the game tests the role's TileType 4, taken as "in water", unconfirme
 exist. Diet text fills %BIOME_PLANT% / %BIOME_MEAT% from `DietVeg` / `DietMeat` by biome (swamp and lava sub-biomes
 use 12 / 13). Notes are `UI_CREATURE_NOTE_<n>`. The owner's three scans on a Hikovsky planet (2026-11-11
 screenshots) are exact: Hasty / Solar Vine / Photosensitive, Methodical / Solar Vine / Drinks blood, Peaceful /
-Solar Vine / Can sense magnetic fields. Not yet: robots' behaviour and diet (UI_CREA_ROBOT_*), Age words, Produces.
+Solar Vine / Can sense magnetic fields. Not yet: robots' behaviour and diet (UI_CREA_ROBOT_*), Age words.
+
+**Produces** is per kind: `0x1412345f0` looks the spawned creature's id up in GcCreatureGlobals `HarvestingProducts`
+and keeps the index; `0x1412431d0` gives FOOD_V_MILK (Wild Milk) to kinds not listed. The owner's four scans match:
+SIXLEGCAT Leopard-Fruit, FLOATSPIDER Crab 'Apple', TWOLEGANTELOPE Wild Milk, WEIRDFLOAT Hexaberry. The catalog keeps
+the map and each product's NameLower ("Leopard-Fruit").
 
 Catalog format 80: gender, behaviour, diet and note words, the role's `ActiveTime` and its words. Fauna totals (986 / 986) and species names
 (881 / 904 this year) unchanged.

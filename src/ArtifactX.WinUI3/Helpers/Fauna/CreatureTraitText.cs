@@ -21,15 +21,17 @@ public static class CreatureTraitText
         return (rarity, activity);
     }
 
-    /// <summary>Behaviour, diet and notes as one line ("Hasty · eats Solar Vine · Photosensitive"), the analysis visor's
-    /// Behavior, Diet and Notes; empty on game data before format 80.</summary>
-    public static string About(PredictedCreature creature)
+    /// <summary>Behaviour, diet, notes and produce as one line ("Hasty · eats Solar Vine · Photosensitive · produces
+    /// Wild Milk"), the analysis visor's Behavior, Diet, Notes and Produces; empty on game data before format 80.</summary>
+    public static string About(PredictedCreature creature, CreatureTables? tables)
     {
         if (creature.Info is not { } info) return "";
         var parts = new List<string>();
         if (info.Behaviour.Length > 0) parts.Add(info.Behaviour);
         if (info.Diet.Length > 0) parts.Add($"eats {info.Diet}");
         if (info.Notes.Length > 0) parts.Add(info.Notes);
+        if (tables?.ProduceOf(creature) is string item && tables.ProduceNames?.GetValueOrDefault(item) is { Length: > 0 } product)
+            parts.Add($"produces {product}");
         return string.Join(" · ", parts);
     }
 

@@ -147,7 +147,17 @@ public sealed record CreatureTables(
     string[]? ActivityWords = null,
     string[]? RarityWords = null,
     string[]? RobotGenderWords = null,
-    CreatureTextWords? Text = null);
+    CreatureTextWords? Text = null,
+    Dictionary<string, string>? Produce = null,
+    Dictionary<string, string>? ProduceNames = null)
+{
+    /// <summary>The item a kind of creature produces when fed (the analysis visor's "Produces"): its HarvestingProducts
+    /// entry by the spawned creature's id, else Wild Milk (FOOD_V_MILK, NMS.exe 0x1412431d0's default); null on game
+    /// data before format 80.</summary>
+    public string? ProduceOf(PredictedCreature creature) => Produce is null ? null
+        : Produce.TryGetValue(string.IsNullOrEmpty(creature.SpeciesId) ? creature.Id : creature.SpeciesId, out var item) ? item
+        : Produce.TryGetValue(creature.Id, out item) ? item : "FOOD_V_MILK";
+}
 
 /// <summary>Behaviour and diet words (catalog format 80): per role and per diet the numbered words a creature's info
 /// picks from (GcCreatureGlobals Temperments / Diets / WaterDiets prefixes), and per biome the plant and meat words

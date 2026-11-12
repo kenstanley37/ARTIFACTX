@@ -325,7 +325,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 var creature = new Creature(Name: name, Rarity: same && rarity.Length > 0 ? rarity : "Discovered", Habitat: habitat,
                     Activity: same ? activity : "", Gender: "", Size: "", Picture: false, SeenAt: "Discovered");
                 allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true,
-                    about: same ? CreatureTraitText.About(pred!) : ""));
+                    about: same ? CreatureTraitText.About(pred!, PlanetTypesService.CreatureTables) : ""));
                 continue;
             }
 
@@ -342,7 +342,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 Size: predictedName is null ? "" : CreatureTraitText.Forms(pred, PlanetTypesService.CreatureTables),
                 Picture: false, SeenAt: "Unscanned");
             allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false,
-                about: predictedName is null ? "" : CreatureTraitText.About(pred)));
+                about: predictedName is null ? "" : CreatureTraitText.About(pred, PlanetTypesService.CreatureTables)));
         }
 
         Creatures = allCards;

@@ -298,6 +298,36 @@ public static partial class CatalogSteps
             Creatures: Creatures(creatures, decode, english));
     }
 
+    /// <summary>What each kind of creature produces when fed (the analysis visor's "Produces"): GcCreatureGlobals
+    /// HarvestingProducts by creature id, matched against the creature's own id when it spawns (NMS.exe 184271
+    /// 0x1412345f0 stores the index; 0x1412431d0 gives FOOD_V_MILK, Wild Milk, to kinds not listed). Checked on the
+    /// owner's 2026-11-11 scans: SIXLEGCAT Leopard-Fruit, FLOATSPIDER Crab 'Apple', TWOLEGANTELOPE Wild Milk.</summary>
+    private static Dictionary<string, string>? Produce(GcCreatureGlobals? cg)
+    {
+        if (cg?.HarvestingProducts is null) return null;
+        var produce = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in cg.HarvestingProducts)
+            if (!string.IsNullOrEmpty(p.CreatureType?.Value) && !string.IsNullOrEmpty(p.Item?.Value))
+                produce.TryAdd(p.CreatureType.Value, p.Item.Value);
+        return produce;
+    }
+
+    /// <summary>Each produced item's name as the analysis visor writes it (the product's NameLower, "Leopard-Fruit").</summary>
+    private static Dictionary<string, string>? ProduceNames(GcCreatureGlobals? cg, Func<string, NMSTemplate?> decode,
+        IReadOnlyDictionary<string, string> english)
+    {
+        if (cg?.HarvestingProducts is null
+            || decode("METADATA/REALITY/TABLES/NMS_REALITY_GCPRODUCTTABLE.MBIN") is not GcProductTable products) return null;
+        var wanted = cg.HarvestingProducts.Select(p => p.Item?.Value ?? "").Append("FOOD_V_MILK")
+            .Where(id => id.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in products.Table ?? [])
+            if (p.ID?.Value is { Length: > 0 } id && wanted.Contains(id)
+                && english.TryGetValue(p.NameLower?.Value ?? "", out var name) && name.Length > 0)
+                names.TryAdd(id, name);
+        return names;
+    }
+
     /// <summary>The Id of the creature component (GcCreatureComponentData) in a creature's scene, through the scene's
     /// ATTACHMENT entities, nodes in order: the creature's own id when the scene has a component for it (the weird
     /// creatures share scenes with one component each), else the first. Some scenes carry another kind's data only
@@ -499,7 +529,8 @@ public static partial class CatalogSteps
         var rarities = new[] { "COMMON", "UNCOMMON", "RARE" }.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
         return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes,
             genders.Count > 0 ? genders.ToArray() : null, activities.All(w => w.Length > 0) ? activities : null,
-            rarities.All(w => w.Length > 0) ? rarities : null, robotGenders.Count > 0 ? robotGenders.ToArray() : null, text);
+            rarities.All(w => w.Length > 0) ? rarities : null, robotGenders.Count > 0 ? robotGenders.ToArray() : null, text,
+            Produce(cg), ProduceNames(cg, decode, english));
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)
