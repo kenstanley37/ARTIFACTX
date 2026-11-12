@@ -63,7 +63,7 @@ public sealed partial class BaseStorageControl : UserControl
 
     private void MaxAllQtyBtn_Click(object sender, RoutedEventArgs e)
     {
-        ViewModel.Editor?.Inventory.MaxAllQuantities();
+        StorageGrid.MaxAllQuantities();
         StorageGrid.Refresh();
         UpdateReset();
     }

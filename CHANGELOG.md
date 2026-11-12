@@ -6,7 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
-- Items you add get the game's real stack size for the inventory they go in: Metal Plating now stacks to 40 in base storage containers (it stopped at 20), freighter and base storage sizes are right, and on Normal or Low inventory stack limits substances stop where the game stops them instead of 9999. Update your game data once to get this.
+- Items you add get the game's real stack size for the inventory they go in: Metal Plating now stacks to 40 in base storage containers (it stopped at 20), freighter and base storage sizes are right, and on Normal or Low inventory stack limits substances stop where the game stops them instead of 9999; Max Qty and Max All Qty also raise stacks an older version saved too small. Update your game data once to get this.
 
 ### Added
 

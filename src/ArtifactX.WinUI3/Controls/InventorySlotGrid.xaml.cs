@@ -414,7 +414,8 @@ public sealed partial class InventorySlotGrid : UserControl
         var maxQtyItem = new MenuFlyoutItem { Text = "Max Qty" };
         maxQtyItem.Click += (_, _) =>
         {
-            ViewModel?.StageAmount(cell.X, cell.Y, cell.MaxAmount);
+            int max = FullStackOf(cell) ?? cell.MaxAmount;
+            ViewModel?.StageAmount(cell.X, cell.Y, max, max);
             Refresh();
             CellChanged?.Invoke(this, EventArgs.Empty);
         };
@@ -651,6 +652,21 @@ public sealed partial class InventorySlotGrid : UserControl
     /// ProductStorageMultiplier and 9999.</summary>
     public int StackCapFor(string? categoryLabel, int? maxStackSize) =>
         InventoryStackLimitService.CapFor(categoryLabel, maxStackSize, ViewModel?.StackGroup, ProductStorageMultiplier);
+
+    /// <summary>A slot's real full stack here (products and substances, from the catalog and the game's stack
+    /// tables), or null for technology, procedural items and items the catalog doesn't know - those keep their own
+    /// MaxAmount. A slot saved by an older version can carry a smaller MaxAmount (Bug 78).</summary>
+    public int? FullStackOf(InventorySlotViewModel cell)
+    {
+        if (cell.ItemId is not { } id || id.Contains('#') || cell.CategoryLabel is not ("Product" or "Substance")) return null;
+        // Only where the game's tables cover this inventory: special containers and machine substances keep theirs.
+        if (InventoryStackLimitService.SizesFor(ViewModel?.StackGroup) is not { } sizes
+            || cell.CategoryLabel == "Substance" && sizes.Substance is null) return null;
+        return CatalogService.TryGetStackInfo(id.TrimStart('^')) is var (category, maxStack) ? StackCapFor(category, maxStack) : null;
+    }
+
+    /// <summary>Fills every stack to its real full stack (see <see cref="FullStackOf"/>).</summary>
+    public void MaxAllQuantities() => ViewModel?.MaxAllQuantities(FullStackOf);
 
     /// <summary>Unlocked slots with nothing in them.</summary>
     /// <summary>Locked slots this inventory could still unlock (within its

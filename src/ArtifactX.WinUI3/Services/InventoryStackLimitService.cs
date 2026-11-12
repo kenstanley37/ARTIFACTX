@@ -28,7 +28,8 @@ public static class InventoryStackLimitService
     /// save's setting; null when unknown (see Core InventoryStackLimits.Sizes).</summary>
     public static (int Product, int ProductLimit, int? Substance)? SizesFor(string? stackGroup)
     {
-        if (_tables is not { } tables) return null;
+        // Loaded at start-up; if the catalog wasn't found yet then, try again now (one small query).
+        if ((_tables ??= Read()) is not { } tables) return null;
         string setting = SaveSessionManager.GetValue(NmsDifficultySettings.InventoryStackLimitsPath)?.Value<string>() ?? "High";
         return InventoryStackLimits.Sizes(tables, stackGroup, setting);
     }
