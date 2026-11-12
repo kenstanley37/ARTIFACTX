@@ -89,6 +89,63 @@ if (Environment.GetEnvironmentVariable("NEARBY") is { Length: > 0 } nearbyArg)
     return;
 }
 
+// EQUIP=<system hex>:<region radius>: issue #60 cost check - ship pools (GenerateForSystem) and station multi-tool
+// pools for every system around the start; counts and time.
+if (Environment.GetEnvironmentVariable("EQUIP") is { Length: > 0 } equipArg)
+{
+    var parts = equipArg.Split(':');
+    ulong start = ulong.Parse(parts[0], NumberStyles.HexNumber);
+    int radius = int.Parse(parts[1]);
+    var settings = Row<GalaxyGenerationSettings>("GALAXYGENERATION");
+    var station = Row<StationEquipmentTables>("STATIONEQUIPMENT");
+    var inventory = Row<InventoryGenerationTables>("INVENTORYGENERATION");
+    var systems = NearbySystems.Around(start, radius, settings).ToList();
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var ships = new System.Collections.Concurrent.ConcurrentBag<SystemStarship>();
+    int noLayout = 0;
+    Parallel.ForEach(systems, s =>
+    {
+        var (portal, galaxy) = SystemProfiles.PortalOf(s.SystemAddress);
+        var a = SystemGenerator.Attributes(portal, galaxy);
+        var pool = SystemStarshipGenerator.GenerateForSystem(portal, galaxy, a.Race, a.Pirate, station.SolarLayout);
+        if (pool is null) Interlocked.Increment(ref noLayout); else foreach (var p in pool) ships.Add(p);
+    });
+    Console.WriteLine($"{systems.Count} systems: {ships.Count} ships ({ships.Count(x => x.Type == SystemStarshipType.Exotic)} exotic, " +
+        $"{ships.Count(x => x.Type == SystemStarshipType.Solar)} solar), no layout {noLayout}, {sw.ElapsedMilliseconds} ms");
+    sw.Restart();
+    int tools = 0;
+    Parallel.ForEach(systems, s => Interlocked.Add(ref tools,
+        SystemMultiToolGenerator.GeneratePool(s.SystemAddress & ~(0xFUL << 52), MultiToolPoolSource.SpaceStation, "Space Station",
+            definitions: inventory.MultiToolPools).Count));
+    Console.WriteLine($"station multi-tool pools: {tools} tools, {sw.ElapsedMilliseconds} ms");
+    return;
+}
+
+// MT=<system hex>:<region radius>: issue #60 multi-tool finder in Core (CabinetMultiToolSearch) around the start,
+// assuming the save's station rule is the current (non-legacy) layout: finds by kind and class, and time.
+if (Environment.GetEnvironmentVariable("MT") is { Length: > 0 } mtArg)
+{
+    var parts = mtArg.Split(':');
+    ulong start = ulong.Parse(parts[0], NumberStyles.HexNumber);
+    int radius = int.Parse(parts[1]);
+    var settings = Row<GalaxyGenerationSettings>("GALAXYGENERATION");
+    var station = Row<StationEquipmentTables>("STATIONEQUIPMENT");
+    var inventory = Row<InventoryGenerationTables>("INVENTORYGENERATION");
+    var kinds = new MultiToolKindClassifier(Row<MultiToolModelTables>("MULTITOOLMODEL"));
+    var systems = NearbySystems.Around(start, radius, settings).ToList();
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var finds = new System.Collections.Concurrent.ConcurrentBag<CabinetMultiToolFind>();
+    Parallel.ForEach(systems, s => { foreach (var f in CabinetMultiToolSearch.InSystem(s.SystemAddress, false, station, inventory, kinds)) finds.Add(f); });
+    Console.WriteLine($"{systems.Count} systems, {finds.Count} cabinet offers in {finds.Select(f => f.SystemAddress).Distinct().Count()} systems, {sw.ElapsedMilliseconds} ms");
+    foreach (var g in finds.GroupBy(f => f.Kind).OrderByDescending(g => g.Count()))
+        Console.WriteLine($"  {g.Key,-13} {g.Count(),6}  S-class {g.Count(f => f.ClassIndex == 3),5}  on arrival {g.Count(f => f.ReloadBody == 0),5}  S on arrival {g.Count(f => f.ClassIndex == 3 && f.ReloadBody == 0)}");
+    // The start system itself, for a check against Current System's cabinet list in the app.
+    ulong here = start & ~(0xFUL << 52);
+    foreach (var f in finds.Where(f => f.SystemAddress == here).OrderBy(f => f.ReloadBody).ThenBy(f => f.Cabinet))
+        Console.WriteLine($"  here: body {f.ReloadBody} cabinet {f.Cabinet} class {"CBAS"[f.ClassIndex]} {f.Kind} seed {f.Tool.Seed:X16}");
+    return;
+}
+
 // HEMI=<system hex>:<planet index from 1>: one planet's predicted creatures with names and hemispheres
 // ("Found in the North / South"), to check against the game's discovery list.
 if (Environment.GetEnvironmentVariable("HEMI") is { Length: > 0 } hemiArg)

@@ -444,6 +444,7 @@ public sealed partial class MainWindow : Window
         CabinetMultiToolsNavItem.Visibility = PlanetsNavItem.Visibility;
         PlanetFinderNavItem.Visibility = PlanetsNavItem.Visibility;
         CreatureFinderNavItem.Visibility = PlanetsNavItem.Visibility;
+        MultiToolFinderNavItem.Visibility = PlanetsNavItem.Visibility;
         NearCoreNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
         GalaxyTransferNavItem.Visibility = NearCoreNavItem.Visibility;
         RegionsNavItem.Visibility = NearCoreNavItem.Visibility;
