@@ -188,7 +188,7 @@ App:
 | Package | Licence | Project |
 |---|---|---|
 | Microsoft.WindowsAppSDK (WinUI 3) | MIT | https://github.com/microsoft/WindowsAppSDK |
-| .NET runtime, System.Text.Json | MIT | https://github.com/dotnet/runtime |
+| .NET runtime, System.Text.Json, System.IO.Hashing | MIT | https://github.com/dotnet/runtime |
 | CommunityToolkit.Mvvm, CommunityToolkit.WinUI.Controls.Primitives | MIT | https://github.com/CommunityToolkit |
 | Newtonsoft.Json | MIT | https://github.com/JamesNK/Newtonsoft.Json |
 | K4os.Compression.LZ4 (+ Streams) | MIT | https://github.com/MiloszKrajewski/K4os.Compression.LZ4 |
