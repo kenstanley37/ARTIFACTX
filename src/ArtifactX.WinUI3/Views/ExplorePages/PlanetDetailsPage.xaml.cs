@@ -1,5 +1,6 @@
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Controls;
+using ArtifactX.WinUI3.Helpers.Layout;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 using Microsoft.UI.Xaml;
@@ -43,6 +44,11 @@ public sealed partial class PlanetDetailsPage : Page
 
     private async void Previous_Click(object sender, RoutedEventArgs e) => await ViewModel.GoPreviousAsync();
     private async void Next_Click(object sender, RoutedEventArgs e) => await ViewModel.GoNextAsync();
+    // The pinned bar's summary shows once the header card has scrolled away.
+    private void Scroller_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => UpdateSummary();
+    private void HeaderCard_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateSummary();
+    private void UpdateSummary() => Summary.IsShown = PinnedHeader.IsScrolledAway(Scroller, HeaderCard);
+
     private void ToggleEditor_Click(object sender, RoutedEventArgs e) => ViewModel.ToggleEditor();
     private void CollapseFish_Click(object sender, RoutedEventArgs e) => ViewModel.SetFishCollapsed(true);
     private void ExpandFish_Click(object sender, RoutedEventArgs e) => ViewModel.SetFishCollapsed(false);

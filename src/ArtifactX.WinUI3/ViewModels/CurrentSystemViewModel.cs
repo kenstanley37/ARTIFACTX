@@ -97,6 +97,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial int CurrentPlanet { get; private set; }
     [ObservableProperty] public partial string Heading { get; private set; } = "";
     [ObservableProperty] public partial string Sub { get; private set; } = "";
+    /// <summary>The pinned summary bar's second line: the region and galaxy, then where you are in the system
+    /// ("You're on planet Gakiraw Yonez"), without the planet type Sub also carries.</summary>
+    [ObservableProperty] public partial string SummaryPlace { get; private set; } = "";
     /// <summary>The region's system total from the game's own generator, and how many of them you've visited.</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasRegionSystems))] public partial string RegionSystems { get; private set; } = "";
     public bool HasRegionSystems => RegionSystems.Length > 0;
@@ -350,7 +353,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         if (SystemAddress is not ulong system)
         {
             Heading = "Unknown location";
-            Sub = Facts = Station = SystemCode = "";
+            Sub = Facts = Station = SystemCode = SummaryPlace = "";
             Bodies = [];
             MapBodies = [];
             MapStation = null;
@@ -403,6 +406,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
                 : $"you're on {bodyKind} {curName}";
         }
         string galaxyText = $"{UniverseInfo.Region(system)} · {NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})";
+        string you = CurrentPlanet == 0 ? "You're in space"
+            : $"You're on {(BodyKindsService.IsMoon(system, CurrentPlanet) ? "moon" : "planet")} {UniverseInfo.PlanetName(system, CurrentPlanet)}";
+        SummaryPlace = $"{galaxyText}  ·  {you}";
         Sub = (planets.Count == 0 ? $"{galaxyText} · no planets discovered here yet" : $"{galaxyText} · {bodies} · {where}")
             + $" · about {NmsPlanets.DistanceToCoreLightYears(system):N0} ly from the galaxy core";
         SystemCode = S.PortalAddress(system, 0);

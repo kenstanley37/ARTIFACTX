@@ -44,11 +44,29 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     [ObservableProperty] public partial string GalaxyLabel { get; private set; } = "";
     [ObservableProperty] public partial string Coordinates { get; private set; } = "";
     [ObservableProperty] public partial string PortalCode { get; private set; } = "";
-    [ObservableProperty] public partial bool IsHere { get; private set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SummaryDetails))] public partial bool IsHere { get; private set; }
     [ObservableProperty] public partial string HereLabel { get; private set; } = "";
     [ObservableProperty] public partial ImageSource? SystemPicture { get; private set; }
 
-    [ObservableProperty] public partial IReadOnlyList<Fact> Conditions { get; private set; } = [];
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SummaryDetails))] public partial IReadOnlyList<Fact> Conditions { get; private set; } = [];
+
+    /// <summary>"Planet 2 of Hikovsky" / "Moon of Hikovsky", for the pinned summary bar.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SummaryDetails))] public partial string Position { get; private set; } = "";
+
+    /// <summary>The pinned summary bar's second line: where the planet is, then the two conditions that change how
+    /// you play there (sentinels, weather), then "You are here" when it's true. Unrecorded values are left out.</summary>
+    public string SummaryDetails
+    {
+        get
+        {
+            var parts = new List<string> { Position };
+            foreach (var label in new[] { "Sentinels", "Weather" })
+                if (Conditions.FirstOrDefault(f => f.Label == label) is { } fact && fact.Value.Length > 0 && fact.Value != NotRecorded)
+                    parts.Add($"{label} {fact.Value.Replace(" · ", ", ")}"); // "Extreme burning, occasional storms": one fact, not two
+            if (IsHere) parts.Add("You are here");
+            return string.Join("  ·  ", parts.Where(p => p.Length > 0));
+        }
+    }
     [ObservableProperty] public partial IReadOnlyList<string> Resources { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<Fact> Recorded { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<Fact> SaveFacts { get; private set; } = [];
@@ -151,7 +169,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         if (Planet is not { } planet) return;
         bool isMoon = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex);
         SystemName = UniverseInfo.SystemName(planet.SystemAddress);
-        Eyebrow = $"{(isMoon ? "MOON" : $"PLANET {planet.PlanetIndex}")} OF {SystemName.ToUpperInvariant()}";
+        Position = isMoon ? $"Moon of {SystemName}" : $"Planet {planet.PlanetIndex} of {SystemName}";
+        Eyebrow = Position.ToUpperInvariant();
         Title = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex);
         string generated = UniverseInfo.GeneratedPlanetName(planet.SystemAddress, planet.PlanetIndex);
         OriginalName = string.Equals(Title, generated, StringComparison.OrdinalIgnoreCase) ? "" : $"Originally {generated}";
