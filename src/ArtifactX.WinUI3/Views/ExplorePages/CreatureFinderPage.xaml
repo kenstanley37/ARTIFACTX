@@ -31,15 +31,22 @@
                                           Summary="{x:Bind ViewModel.ResultCount, Mode=OneWay}">
                         <StackPanel Padding="20,16,20,20" Spacing="14">
                             <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
-                                       Text="Creatures you can adopt as companions on every planet in your saves, and the other planets and moons in those systems, best for pet battles first. Fish, birds and other creatures that can't be companions are left out. Open a creature to see its planet, then dial the portal address to go there."/>
+                                       Text="Creatures you can adopt as companions on every planet in your saves, and the other planets and moons in those systems (or, with Search area, the star systems around you too), best for pet battles first. Fish, birds and other creatures that can't be companions are left out. Open a creature to see its planet, then dial the portal address to go there."/>
                             <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
                                 <TextBox Width="240" Header="Search" PlaceholderText="Creature, planet or system name"
                                          Text="{x:Bind ViewModel.Search, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <ComboBox Header="Search area" Width="300" SelectedIndex="{x:Bind ViewModel.AreaIndex, Mode=TwoWay}"
+                                          ToolTipService.ToolTip="Also search star systems nobody in your saves has visited, around where you are now. The wider area takes a few seconds.">
+                                    <ComboBoxItem Content="Planets in my saves"/>
+                                    <ComboBoxItem Content="Plus my region (about 600 systems)"/>
+                                    <ComboBoxItem Content="Plus the regions around me (about 10,000 systems)"/>
+                                </ComboBox>
                                 <ComboBox Header="Sort" Width="220" SelectedIndex="{x:Bind ViewModel.SortIndex, Mode=TwoWay}">
                                     <ComboBoxItem Content="Best Trait Potential first"/>
                                     <ComboBoxItem Content="Best Combat Effectiveness"/>
                                     <ComboBoxItem Content="Best Agility"/>
                                     <ComboBoxItem Content="Best Health"/>
+                                    <ComboBoxItem Content="Biggest first"/>
                                     <ComboBoxItem Content="Nearest to you first"/>
                                 </ComboBox>
                                 <ComboBox Header="Trait Potential" Width="180" SelectedIndex="{x:Bind ViewModel.PotentialIndex, Mode=TwoWay}">
@@ -48,6 +55,14 @@
                                     <ComboBoxItem Content="A or better"/>
                                     <ComboBoxItem Content="S only"/>
                                 </ComboBox>
+                                <ComboBox Header="Size" Width="180" SelectedIndex="{x:Bind ViewModel.SizeIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Any size"/>
+                                    <ComboBoxItem Content="Medium or bigger"/>
+                                    <ComboBoxItem Content="Large or bigger"/>
+                                    <ComboBoxItem Content="Huge only"/>
+                                </ComboBox>
+                                <ComboBox Header="{x:Bind ViewModel.Kind.Header}" Width="{x:Bind ViewModel.Kind.Width}"
+                                          ItemsSource="{x:Bind ViewModel.Kind.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Kind.Selected, Mode=TwoWay}"/>
                                 <ComboBox Header="{x:Bind ViewModel.Element.Header}" Width="{x:Bind ViewModel.Element.Width}"
                                           ItemsSource="{x:Bind ViewModel.Element.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Element.Selected, Mode=TwoWay}"/>
                                 <ComboBox Header="{x:Bind ViewModel.Galaxy.Header}" Width="{x:Bind ViewModel.Galaxy.Width}"
@@ -86,19 +101,42 @@
                                             Background="{ThemeResource ThemeVoidBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,12"
                                             AutomationProperties.Name="{x:Bind AutomationName}">
                                         <StackPanel Spacing="4">
-                                            <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"
-                                                       TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name}"/>
+                                            <Grid ColumnSpacing="6">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name}" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="1" Click="Pin_Click" Tag="{x:Bind}" Padding="6,4" Background="Transparent" BorderThickness="0"
+                                                        ToolTipService.ToolTip="{x:Bind PinName}" AutomationProperties.Name="{x:Bind PinName}">
+                                                    <FontIcon Glyph="{x:Bind PinGlyph}" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                            <Border Visibility="{x:Bind IsHere}" HorizontalAlignment="Left" CornerRadius="4" Padding="8,2"
+                                                    Background="{ThemeResource ThemeDoneBrush}">
+                                                <TextBlock Text="You're on this planet" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
+                                            </Border>
                                             <TextBlock Text="{x:Bind StatusLabel}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                            <!-- Galaxy badge: filled in your galaxy, outlined in the warning colour in another one. -->
+                                            <Border Visibility="{x:Bind IsThisGalaxy}" HorizontalAlignment="Left" CornerRadius="4" Padding="8,2"
+                                                    Background="{ThemeResource ThemeAccentBrush}">
+                                                <TextBlock Text="{x:Bind GalaxyLabel}" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource ThemeOnAccentBrush}"/>
+                                            </Border>
+                                            <Border Visibility="{x:Bind IsOtherGalaxy}" HorizontalAlignment="Left" CornerRadius="4" Padding="8,2"
+                                                    BorderThickness="1" BorderBrush="{ThemeResource ThemeWarningBrush}">
+                                                <TextBlock Text="{x:Bind GalaxyLabel}" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource ThemeWarningBrush}"/>
+                                            </Border>
                                             <TextBlock Text="{x:Bind PlanetLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="12"
                                                        TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind PlanetLabel}"/>
                                             <TextBlock Text="{x:Bind DistanceLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
                                                        TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind DistanceLabel}"/>
                                             <TextBlock Text="{x:Bind Traits}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{x:Bind SizeLabel}" Visibility="{x:Bind HasSize}" Style="{StaticResource ThemeBodyTextStyle}"
+                                                       FontSize="12" TextWrapping="Wrap"/>
                                             <controls:CreatureBattlePanel Battle="{x:Bind Battle}" Margin="0,4,0,4"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind PlanetLabel}" GlyphSize="18"/>
-                                                <controls:CopyCodeButton Code="{x:Bind PortalCode}"/>
-                                            </StackPanel>
+                                            <controls:GlyphStrip Code="{x:Bind PortalCode}" Title="{x:Bind PlanetLabel}" GlyphSize="18"/>
+                                            <controls:CopyCodeButton Code="{x:Bind PortalCode}" HorizontalAlignment="Left"/>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>

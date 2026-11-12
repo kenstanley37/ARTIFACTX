@@ -40,6 +40,52 @@ if (Environment.GetEnvironmentVariable("TIMING") == "1")
         }
     }
     Console.WriteLine($"300 systems, {bodies} bodies, {creatures} creatures: {sw.ElapsedMilliseconds} ms");
+    // Size classes of the creatures players can adopt (SizeClass 3 = Huge), and which kinds are Huge.
+    var tameable = new List<PredictedCreature>();
+    rnd = new Random(1);
+    for (int n = 0; n < 300; n++)
+    {
+        ulong code = ((ulong)rnd.Next(0x1000) << 32) | (uint)rnd.Next(0x7FFFFFFF);
+        var types = PlanetGenerator.Generate(code, 0, biomes);
+        var attributes = SystemGenerator.Attributes(code, 0);
+        var seeds = SystemGenerator.Bodies(code, 0).PlanetSeeds;
+        for (int i = 0; i < types.Length && i < seeds.Length; i++)
+            tameable.AddRange((PlanetProfileGenerator.Generate(seeds[i], i, types[i], (int)attributes.Star, PlanetGenerator.GalaxyType(0),
+                attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned).PredictedCreatures ?? [])
+                .Where(c => profiles.Creatures!.CanBattle(c) == true));
+    }
+    // KIND=<creature id>: that kind's sizes over the sample (size class counts, tallest forms).
+    if (Environment.GetEnvironmentVariable("KIND") is { Length: > 0 } kind)
+    {
+        var all = tameable.Where(c => c.Id == kind).ToList();
+        var entry = Array.Find(profiles.Creatures!.Creatures, c => c.Id == kind);
+        Console.WriteLine($"{kind}: {all.Count} adoptable, MinScale {entry?.MinScale} MaxScale {entry?.MaxScale}, " +
+            $"size classes {string.Join(", ", all.GroupBy(c => c.SizeClass).OrderBy(g => g.Key).Select(g => $"{g.Key}x{g.Count()}"))}");
+        foreach (var c in all.OrderByDescending(c => c.Info?.Height2 ?? 0).Take(5))
+            Console.WriteLine($"  scale {c.Scale:F2} class {c.SizeClass} height {c.Info?.Height2:F1} m weight {c.Info?.Weight2:F0} kg role {c.Role}");
+    }
+    foreach (var g in tameable.GroupBy(c => c.SizeClass).OrderBy(g => g.Key))
+        Console.WriteLine($"  size class {g.Key}: {g.Count()} ({100.0 * g.Count() / tameable.Count:F1}%)" +
+            (g.Key == 3 ? "  " + string.Join(", ", g.GroupBy(c => c.Id).OrderByDescending(k => k.Count()).Select(k => $"{k.Key} {k.Count()}")) : ""));
+    return;
+}
+
+// NEARBY=<system hex>:<region radius>: the Creature Finder's nearby search in Core (NearbySystems +
+// TameableCreatureSearch): systems, adoptable creatures, Huge ones and time.
+if (Environment.GetEnvironmentVariable("NEARBY") is { Length: > 0 } nearbyArg)
+{
+    var parts = nearbyArg.Split(':');
+    ulong start = ulong.Parse(parts[0], NumberStyles.HexNumber);
+    int radius = int.Parse(parts[1]);
+    var settings = Row<GalaxyGenerationSettings>("GALAXYGENERATION");
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var systems = NearbySystems.Around(start, radius, settings).ToList();
+    Console.WriteLine($"{systems.Count} systems ({systems.Count(s => s.Purple)} purple), start's system listed: " +
+        $"{systems.Any(s => s.SystemAddress == (start & ~(0xFUL << 52)))}, counted in {sw.ElapsedMilliseconds} ms");
+    var found = new System.Collections.Concurrent.ConcurrentBag<TameableCreature>();
+    Parallel.ForEach(systems, s => { foreach (var t in TameableCreatureSearch.InSystem(s.SystemAddress, biomes, profiles)) found.Add(t); });
+    Console.WriteLine($"{found.Count} adoptable creatures, {found.Count(t => t.Creature.SizeClass == 3)} Huge, " +
+        $"{found.Count(t => t.Potential == 3)} S potential, all three stats S: {found.Count(t => t.Classes.All(c => c == 3))}; total {sw.ElapsedMilliseconds} ms");
     return;
 }
 

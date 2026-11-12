@@ -45,23 +45,7 @@ public sealed record PredictedCreature(string Id, string Domain, int Role, ulong
         _ => "Ground"
     };
 
-    public string DefaultDisplayName => Id switch
-    {
-        "ROBOTANTELOPE" => "Robot Antelope",
-        "SIXLEGCOW" => "Six-legged Creature",
-        "SIXLEGCAT" => "Six-legged Feline",
-        "BONECAT" => "Bone Cat",
-        "TRICERATOPS" => "Triceratops",
-        "TWOLEGANTELOPE" => "Bipedal Antelope",
-        "FLYINGBEETLE" => "Flying Beetle",
-        "FLYINGLIZARD" => "Flying Lizard",
-        "FLYINGSNAKE" => "Flying Snake",
-        "SEASNAKE" => "Sea Snake",
-        "SWIMCOW" => "Aquatic Grazer",
-        "SWIMRODENT" => "Aquatic Rodent",
-        "FLOATSPIDER" => "Floating Spider",
-        _ => System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Id.ToLowerInvariant())
-    };
+    public string DefaultDisplayName => CreatureKindNames.Name(Id);
 }
 
 /// <summary>Global modifier lists for creature generation from GcCreatureGenerationData.</summary>

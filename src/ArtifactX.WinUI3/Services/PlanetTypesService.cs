@@ -29,6 +29,11 @@ public static class PlanetTypesService
     public static event Action? Loaded;
 
     public static bool IsReady => _tables is not null;
+
+    /// <summary>The planet-type and profile tables, for searches that generate many systems without caching them
+    /// (Creature Finder's nearby search); null until loaded.</summary>
+    public static BiomeTables? BiomeTables => _tables;
+    public static PlanetProfileTables? ProfileTables => _profileTables;
     public static InventoryGenerationTables? InventoryTables => _inventoryTables;
 
     /// <summary>The creature tables, with the gender, activity and rarity words a predicted creature's traits read
@@ -87,23 +92,8 @@ public static class PlanetTypesService
     {
         if (_profileTables is not { } tables) return null;
         system = S.ToSystemAddress(system);
-        var all = Profiles.GetOrAdd(system, a =>
-        {
-            var types = For(a);
-            var (portal, galaxy) = Portal(a);
-            var profiles = new PlanetProfile?[types.Length];
-            try
-            {
-                var attributes = SystemGenerator.Attributes(portal, galaxy);
-                var seeds = SystemGenerator.Bodies(portal, galaxy).PlanetSeeds;
-                for (int i = 0; i < types.Length && i < seeds.Length; i++)
-                    profiles[i] = PlanetProfileGenerator.Generate(seeds[i], i, types[i],
-                        (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy), attributes.GasGiantPlanet, tables,
-                        attributes.Uncharted, attributes.Abandoned);
-            }
-            catch { /* leave the rest unknown */ }
-            return profiles;
-        });
+        if (_tables is not { } biomes) return null;
+        var all = Profiles.GetOrAdd(system, a => SystemProfiles.Generate(a, biomes, tables));
         int index = planetIndex - 1;
         return index >= 0 && index < all.Length ? all[index] : null;
     }
