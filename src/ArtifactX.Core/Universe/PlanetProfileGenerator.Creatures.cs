@@ -12,7 +12,8 @@ namespace ArtifactX.Core.Universe;
 /// SpeciesId is the creature ID its species seed is made from: the scene's own creature component Id (CRAB spawns
 /// SPIDER's scene data), else Id.</summary>
 public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0,
-    int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0, string SpeciesId = "")
+    int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0, string SpeciesId = "", PredictedCreatureInfo? Info = null,
+    int Density = 0, float GroupsPerKm = 0, int ActiveTime = 2)
 {
     public string Habitat => Domain switch
     {
@@ -59,7 +60,11 @@ public sealed record CreatureGlobals(
 /// Type is its ForceType (what roles filter on); RealType (catalog format 78; 0 on older catalogs) is the type the
 /// spawned creature reports. MinScale/MaxScale (format 79) bound its spawn scale. TagRarities (format 79) is each
 /// tag's RarityOverride, the rarity a role requiring that tag weighs it by. SpeciesId (format 79; "" when unknown) is
-/// the Id in its scene's creature component, which names the species (the CRAB scene says SPIDER).</summary>
+/// the Id in its scene's creature component, which names the species (the CRAB scene says SPIDER). Scene (format 80)
+/// is its model, GcCreatureFilenameTable's Filename. ForcedAffinity (format 82) is its pet-battle element when set
+/// (GcPetBattlerAffinity, 1-8; 0 = by biome). PetBattler (format 83; null on older catalogs) is its
+/// CanBeUsedInPetBattler: whether players can adopt it as a battle pet (46 of 86 kinds in build 184271; no fish, birds,
+/// diggers, worms or deep-sea creatures).</summary>
 public sealed record CreatureEntry(
     string Id,
     int Type,
@@ -73,7 +78,10 @@ public sealed record CreatureEntry(
     float MinScale = 0,
     float MaxScale = 0,
     int[]? TagRarities = null,
-    string SpeciesId = "");
+    string SpeciesId = "",
+    string Scene = "",
+    int ForcedAffinity = 0,
+    bool? PetBattler = null);
 
 /// <summary>An archetype option entry with an ID and a weight.</summary>
 public sealed record CreatureWeightedEntry(string Id, float Weight);
@@ -119,7 +127,8 @@ public sealed record CreatureDomainArchetype(
     CreatureDomainAdditional[] Additional);
 
 /// <summary>A creature role candidate within an ecosystem role table (GcCreatureRoleDescriptionTable). MinSize and
-/// MaxSize (GcCreatureSizeClasses, catalog format 79; 0 on older catalogs) bound the creature's size class.</summary>
+/// MaxSize (GcCreatureSizeClasses, catalog format 79; 0 on older catalogs) bound the creature's size class.
+/// ActiveTime (GcCreatureActiveTime, format 80; AnyTime on older catalogs) is when it's about.</summary>
 public sealed record CreatureRoleCandidate(
     string ForceId,
     string ReqTag,
@@ -128,7 +137,8 @@ public sealed record CreatureRoleCandidate(
     float Prob,
     int Role,
     int MinSize = 0,
-    int MaxSize = 0);
+    int MaxSize = 0,
+    int ActiveTime = 2);
 
 /// <summary>All creature generation data extracted from the game files.</summary>
 public sealed record CreatureTables(
@@ -137,7 +147,45 @@ public sealed record CreatureTables(
     CreatureArchetypeLists ArchetypeLists,
     Dictionary<string, Dictionary<string, CreatureDomainArchetype>> DomainArchetypes,
     Dictionary<string, CreatureRoleCandidate[]> EcosystemTables,
-    CreatureSizeGlobals? Sizes = null);
+    CreatureSizeGlobals? Sizes = null,
+    string[]? GenderWords = null,
+    string[]? ActivityWords = null,
+    string[]? RarityWords = null,
+    string[]? RobotGenderWords = null,
+    CreatureTextWords? Text = null,
+    Dictionary<string, string>? Produce = null,
+    Dictionary<string, string>? ProduceNames = null,
+    PetBattleTables? PetBattle = null)
+{
+    /// <summary>The item a kind of creature produces when fed (the analysis visor's "Produces"): its HarvestingProducts
+    /// entry by the spawned creature's id, else Wild Milk (FOOD_V_MILK, NMS.exe 0x1412431d0's default); null on game
+    /// data before format 80.</summary>
+    public string? ProduceOf(PredictedCreature creature) => Produce is null ? null
+        : Produce.TryGetValue(string.IsNullOrEmpty(creature.SpeciesId) ? creature.Id : creature.SpeciesId, out var item) ? item
+        : Produce.TryGetValue(creature.Id, out item) ? item : "FOOD_V_MILK";
+
+    /// <summary>Whether players can adopt this kind of creature as a battle pet (the spawned creature data's
+    /// CanBeUsedInPetBattler, by species id then kind); null when the game data predates format 83.</summary>
+    public bool? CanBattle(PredictedCreature creature)
+    {
+        string id = string.IsNullOrEmpty(creature.SpeciesId) ? creature.Id : creature.SpeciesId;
+        var data = Array.Find(Creatures, c => c.Id == id) ?? Array.Find(Creatures, c => c.Id == creature.Id);
+        return data?.PetBattler;
+    }
+}
+
+/// <summary>Pet-battle tables (catalog format 82, GcGameTableGlobals): ClassRolls are the C/B/A/S weights per core stat
+/// (GcPetBattlerCoreStat order), BiomeAffinities the element per biome, AffinityWords the element words, Labels the
+/// stat names in the same order then the panel's heading ("Trait Potential").</summary>
+public sealed record PetBattleTables(int[][] ClassRolls, int[] BiomeAffinities, string[] AffinityWords, string[] Labels);
+
+/// <summary>Behaviour and diet words (catalog format 80): per role and per diet the numbered words a creature's info
+/// picks from (GcCreatureGlobals Temperments / Diets / WaterDiets prefixes), and per biome the plant and meat words
+/// that fill %BIOME_PLANT% / %BIOME_MEAT% (DietVeg / DietMeat); Notes are the UI_CREATURE_NOTE_&lt;n&gt; words, and the
+/// Robot* lists robots' (UI_CREA_ROBOT_BEHAVE_ / _DIET_ / _NOTE_), Ages AGE1..10 (Infant ... Perpetual).</summary>
+public sealed record CreatureTextWords(string[][] Behaviours, string[][] Diets, string[][] WaterDiets, string[] Plants, string[] Meats,
+    string[]? Notes = null, string[]? RobotBehaviours = null, string[]? RobotDiets = null, string[]? RobotNotes = null,
+    string[]? Ages = null);
 
 /// <summary>GcCreatureGlobals' size settings (catalog format 79; null on older catalogs): the scales where the
 /// Medium, Large and Huge size classes start, and the largest scale any creature spawns at.</summary>
@@ -151,10 +199,16 @@ public static partial class PlanetProfileGenerator
     {
         private readonly Rng[] _stack = new Rng[8];
         private int _count;
+        private Rng _root;
+
+        /// <summary>The generator's own stream (NMS.exe 184271 cGcPlanetGenerator +0xba4): two draws seed the stack,
+        /// then it carries on through every creature's info (<see cref="CreatureInfoFor"/>), creature by creature.</summary>
+        public ref Rng Root => ref _root;
 
         public RngStack(ulong rootSeed)
         {
-            var root = Rng.Start(rootSeed);
+            _root = Rng.Start(rootSeed);
+            ref var root = ref _root;
             ulong lo = root.Next(), hi = root.Next();
             ulong initSeed = Mix64((hi << 32) | lo);
             _stack[0] = Rng.Start(initSeed);
@@ -509,14 +563,20 @@ public static partial class PlanetProfileGenerator
                             : SpeciesScale(seed, picked, role.MinSize, role.MaxSize, tables.Sizes);
                         string speciesId = string.IsNullOrEmpty(picked?.SpeciesId) ? chosenId : picked.SpeciesId;
                         chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet, role.MinSize,
-                            role.MaxSize, scale, sizeClass, speciesId));
+                            role.MaxSize, scale, sizeClass, speciesId, Density: role.Density,
+                            GroupsPerKm: GroupsPerKm(tables.Globals, domain, role.Density, te.DensityMod, faunaLevel),
+                            ActiveTime: role.ActiveTime));
                     }
                 }
                 stack.Pop();
             }
             stack.Pop();
         }
-        return (chosenCreatures.Count, chosenCreatures.ToArray());
+        // Each creature's info, in order, from the generator's own stream (0x1416cfcc0 per creature).
+        var withInfo = new PredictedCreature[chosenCreatures.Count];
+        for (int i = 0; i < withInfo.Length; i++)
+            withInfo[i] = chosenCreatures[i] with { Info = CreatureInfoFor(ref stack.Root, chosenCreatures[i], ground, biome, subType, tables) };
+        return (withInfo.Length, withInfo);
     }
 
     /// <summary>
@@ -551,6 +611,15 @@ public static partial class PlanetProfileGenerator
         int star, int faunaLevel, float sea, bool hasCaves, bool emptySystem, bool abandonedSystem,
         CreatureTables tables) =>
         GenerateFauna(planetSeed, biome, subType, planetClass, star, faunaLevel, sea, hasCaves, emptySystem, abandonedSystem, tables).Count;
+
+    /// <summary>The role data's GroupsPerSquareKm (GenerateCreatureRoles, 184271): the domain's groups per km for the
+    /// role's density, times the table's density modifier, times the planet's fauna-level modifier.</summary>
+    private static float GroupsPerKm(CreatureGlobals g, string domain, int density, int densityMod, int faunaLevel)
+    {
+        float[] groups = domain switch { "air" => g.AirGroups, "water" => g.WaterGroups, "cave" => g.CaveGroups, _ => g.GroundGroups };
+        static float At(float[] a, int i) => i >= 0 && i < a.Length ? a[i] : 0;
+        return At(groups, density) * At(g.DensityMods, densityMod) * At(g.LifeDensity, faunaLevel);
+    }
 
     /// <summary>
     /// A creature's weight for a role, or -1 when it can't fill it (NMS.exe 184271 GenerateCreatureRoles,

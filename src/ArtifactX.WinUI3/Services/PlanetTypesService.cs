@@ -31,6 +31,10 @@ public static class PlanetTypesService
     public static bool IsReady => _tables is not null;
     public static InventoryGenerationTables? InventoryTables => _inventoryTables;
 
+    /// <summary>The creature tables, with the gender, activity and rarity words a predicted creature's traits read
+    /// (catalog format 80; null before the planet tables load).</summary>
+    public static CreatureTables? CreatureTables => _profileTables?.Creatures;
+
     /// <summary>Loads the tables once they exist. Tried again while they're missing, and
     /// again after a game data rebuild - the app asked before a rebuild had finished, kept
     /// "none" and never showed a type (2026-10-22).</summary>

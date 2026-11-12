@@ -348,7 +348,8 @@ if (args.Length > 2)
                 continue;
             }
             int jsv = root["vLc"]?["6f="]?["yhJ"]?["oZw"]?["jsv"]?.Value<int>() ?? 0;
-            foreach (int index in new[] { jsv - 1, jsv })
+            int[] indices = Environment.GetEnvironmentVariable("ALL_PLANETS") == "1" ? Enumerable.Range(0, 6).ToArray() : [jsv - 1, jsv];
+            foreach (int index in indices)
             {
             if (index < 0) continue;
             ulong here = systemHere;
@@ -371,7 +372,18 @@ if (args.Length > 2)
             {
                 ulong planetAddress = (here & ~(0xFUL << 52)) | ((ulong)(index + 1) << 52);
                 var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(c.Seed, c.SpeciesId, planetAddress, c.CreatureType, c.SizeClass);
-                Console.WriteLine($"  predicted on this planet: {ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, words)} ({c.Id}, {c.Habitat}, size {c.SizeClass})");
+                var t = profiles.Creatures!;
+                string W(string[]? list, int i) => list is not null && i >= 0 && i < list.Length ? list[i] : "?";
+                string traits = c.Info is { } inf
+                    ? $"{W(t.RarityWords, inf.Rarity)} · {c.Habitat} · {W(t.ActivityWords, c.ActiveTime)} | {W(t.GenderWords, inf.Gender1 - 1)} {inf.Size} or {W(t.GenderWords, inf.Gender2 - 1)} {inf.Size2} | behaviour {inf.Behaviour}, diet {inf.Diet}, notes {inf.Notes}, age {W(t.Text?.Ages, inf.AdultAge - 1)} (babies {W(t.Text?.Ages, inf.BabyAge - 1)})"
+                    : "no info";
+                Console.WriteLine($"  predicted on this planet: {ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, words)} ({c.Id}) {traits}");
+                int[][] rolls = t.PetBattle?.ClassRolls ?? [[30, 30, 25, 15], [30, 30, 25, 15], [30, 30, 25, 15]];
+                var (cls, pot) = ArtifactX.Core.Companions.PetBattlerClasses.Roll(sp, ge, rolls);
+                const string L = "CBAS";
+                string element = c.Info is { Element: >= 0 } ei && t.PetBattle is { } pb && ei.Element < pb.AffinityWords.Length ? pb.AffinityWords[ei.Element] : "?";
+                Console.WriteLine($"    seeds 0x{sp:X16} 0x{ge:X16}");
+                Console.WriteLine($"    battle classes [MaxHealth {L[cls[0]]}, Speed {L[cls[1]]}, CombatPotential {L[cls[2]]}] potential {L[pot]} element {element}");
             }
             }
         }
@@ -419,4 +431,120 @@ if (args.Length > 2)
     foreach (var k in part.Take(8)) Console.WriteLine($"  partial {k.Key:X}: found {k.Value.Item1}, missing {k.Value.Item2}");
     foreach (var k in all.Take(8)) Console.WriteLine($"  none {k.Key:X}: missing {k.Value.Item2}");
     foreach (var e in examples) Console.WriteLine("  " + e);
+}
+
+// TRAITS=1: predicted creature info (PlanetProfileGenerator.CreatureInfoFor) against the owner's captured creatures,
+// matched by species name on the same planet. Read-only.
+if (Environment.GetEnvironmentVariable("TRAITS") == "1")
+{
+    List<string> creWords;
+    using (var cc = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
+    {
+        cc.Open();
+        var cmd = cc.CreateCommand();
+        cmd.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords' AND i.NameEnglish='CRE'";
+        creWords = JsonSerializer.Deserialize<List<string>>((string)cmd.ExecuteScalar()!)!;
+    }
+    var genderWords = profiles.Creatures!.GenderWords ?? [];
+    var planetNames = new Dictionary<(ulong, int), Dictionary<string, PredictedCreature>>();
+    int matched = 0, unmatched = 0, sizeOk = 0, rarityOk = 0, genderOk = 0, genderAny = 0, heightOk = 0, variantOk = 0, noTraits = 0;
+    var variantMiss = new List<string>();
+    var rarityTable = new Dictionary<string, int>();
+    int activityOk = 0, activityAll = 0;
+    var activityMiss = new List<string>();
+    var densityTable = new Dictionary<string, int>();
+    var rarityPoints = new List<(float H1, int Size, float Scale, string Rarity, string Domain)>();
+    var miss = new List<string>();
+    using (var u = new SqliteConnection($"Data Source={userDb};Mode=ReadOnly"))
+    {
+        u.Open();
+        var cmd = u.CreateCommand();
+        cmd.CommandText = "SELECT system_address, planet_index, name, rarity, gender, size, activity FROM planet_creatures WHERE deleted = 0 AND name <> ''";
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            ulong system = ulong.Parse(r.GetString(0), NumberStyles.HexNumber) & ~(0xFUL << 52);
+            int index = r.GetInt32(1);
+            string name = r.GetString(2), rarity = r.GetString(3), gender = r.GetString(4), size = r.GetString(5), activity = r.GetString(6);
+            if (!planetNames.TryGetValue((system, index), out var byName))
+            {
+                byName = new Dictionary<string, PredictedCreature>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    var (code, galaxy) = Gen(system);
+                    var types = PlanetGenerator.Generate(code, galaxy, biomes);
+                    var attributes = SystemGenerator.Attributes(code, galaxy);
+                    var bodySeeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+                    int i = index - 1;
+                    if (i >= 0 && i < types.Length && i < bodySeeds.Length)
+                    {
+                        var p = PlanetProfileGenerator.Generate(bodySeeds[i], i, types[i], (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy),
+                            attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned);
+                        ulong planetAddress = system | ((ulong)index << 52);
+                        foreach (var c in p.PredictedCreatures ?? [])
+                        {
+                            var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(c.Seed, c.SpeciesId, planetAddress, c.CreatureType, c.SizeClass);
+                            if (ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, creWords) is string n) byName.TryAdd(n, c);
+                        }
+                    }
+                }
+                catch { }
+                planetNames[(system, index)] = byName;
+            }
+            if (!byName.TryGetValue(name, out var pc) || pc.Info is not { } info) { unmatched++; continue; }
+            matched++;
+            if (pc.Id is "ROBOTANTELOPE" or "WALKINGBUILDING" || pc.Diet == 3)
+            {
+                // Robot genders: which draw on the creature's own stream (StartState(seed)) picks them? 9 words.
+                string[] robotWords = ["Electronic", "Virtual", "Uninitialised", "Unmeasurable", "Circular", "Non-boolean", "Mutable", "Asynchronous", "Non-Euclidean"];
+                uint lo = (uint)pc.Seed, hi = (uint)(pc.Seed >> 32);
+                uint s0 = lo == 0 ? 1u : lo, s1 = ((lo << 16) | (lo >> 16)) ^ hi ^ lo;
+                var seq = new List<string>();
+                for (int k = 1; k <= 12; k++)
+                {
+                    ulong t = (ulong)s0 * 0x5A76F899UL + s1; s0 = (uint)t; s1 = (uint)(t >> 32);
+                    seq.Add($"{k}:{robotWords[(int)(((ulong)s0 * 9UL) >> 32)]}");
+                }
+                Console.WriteLine($"  robot {name} {pc.Id} diet {pc.Diet} captured {gender}: {string.Join(" ", seq)}");
+            }
+            var gw = pc.Info.RobotGenders ? profiles.Creatures.RobotGenderWords ?? [] : genderWords;
+            string g1 = pc.Info.Gender1 > 0 && pc.Info.Gender1 <= gw.Length ? gw[pc.Info.Gender1 - 1] : "?";
+            string g2 = pc.Info.Gender2 > 0 && pc.Info.Gender2 <= gw.Length ? gw[pc.Info.Gender2 - 1] : "?";
+            bool sOk = string.Equals(size.Trim(), info.Size, StringComparison.OrdinalIgnoreCase);
+            string size2 = info.Size2;
+            if (size.Trim().Length == 0 && gender.Length == 0) noTraits++;
+            else if ((sOk && SameWord(gender, g1)) || (string.Equals(size.Trim(), size2, StringComparison.OrdinalIgnoreCase) && SameWord(gender, g2)))
+                variantOk++;
+            else if (variantMiss.Count < 15)
+                variantMiss.Add($"{name,-20} {pc.Id,-14} captured [{gender,-11} {size,-17}] predicted [{g1} {info.Size} | {g2} {size2}]");
+            if (rarity.Length > 0) rarityPoints.Add((info.Height1, pc.SizeClass, pc.Scale, rarity, pc.Domain));
+            if (rarity.Length > 0) { string dk = $"density {pc.Density} -> {rarity}"; densityTable[dk] = densityTable.GetValueOrDefault(dk) + 1; }
+            float shownHeight = sOk ? info.Height1 : info.Height2;
+            string band = shownHeight > 2.0f ? ">2.0" : shownHeight > 1.1f ? "1.1-2.0" : "<=1.1";
+            string rk = $"{pc.Domain,-6} role {pc.Role} {band,-8} captured {rarity}";
+            rarityTable[rk] = rarityTable.GetValueOrDefault(rk) + 1;
+            if (sOk) sizeOk++;
+            if (size.Contains($"{info.Height1.ToString("0.0", CultureInfo.InvariantCulture)}m")) heightOk++;
+            if (string.Equals(rarity, RarityWord(info.Rarity), StringComparison.OrdinalIgnoreCase)) rarityOk++;
+            var words = profiles.Creatures.ActivityWords;
+            string predictedActivity = words is { Length: 5 } && pc.ActiveTime is >= 0 and < 5 ? words[pc.ActiveTime] : "?";
+            if (activity.Length > 0) { activityAll++; if (string.Equals(activity, predictedActivity, StringComparison.OrdinalIgnoreCase)) activityOk++; else if (activityMiss.Count < 8) activityMiss.Add($"{name} {pc.Id} {pc.Domain}: captured {activity}, predicted {predictedActivity}"); }
+            if (string.Equals(gender, g1, StringComparison.OrdinalIgnoreCase)) genderOk++;
+            if (string.Equals(gender, g1, StringComparison.OrdinalIgnoreCase) || string.Equals(gender, g2, StringComparison.OrdinalIgnoreCase)) genderAny++;
+            if ((!sOk || !string.Equals(rarity, RarityWord(info.Rarity), StringComparison.OrdinalIgnoreCase)) && miss.Count < 25)
+                miss.Add($"{name,-20} {pc.Id,-14} captured [{rarity,-8} {gender,-11} {size,-17}] predicted [{RarityWord(info.Rarity),-8} {g1}/{g2} {info.Size} | {info.Weight2:0.0}kg / {info.Height2:0.0}m]");
+        }
+    }
+    Console.WriteLine($"traits: captured creatures matched by name {matched} (not matched {unmatched}); size exact {sizeOk}, height {heightOk}, rarity {rarityOk}, gender = first {genderOk}, gender either {genderAny}");
+    string RarityWord(int r) => profiles.Creatures.RarityWords is { Length: 3 } rw && r is >= 0 and < 3 ? rw[r] : "?";
+    static bool SameWord(string a, string b) => string.Equals(a.Trim().TrimStart('•', ' ').Replace("ized", "ised"), b.Replace("ized", "ised"), StringComparison.OrdinalIgnoreCase);
+    Console.WriteLine($"traits: activity {activityOk} of {activityAll}");
+    foreach (var m in activityMiss) Console.WriteLine("  activity miss " + m);
+    Console.WriteLine($"traits: one whole variant (gender + size) matches {variantOk} of {matched - noTraits} with traits recorded");
+    foreach (var m in variantMiss) Console.WriteLine("  variant miss " + m);
+    foreach (var t in densityTable.OrderBy(k => k.Key)) Console.WriteLine($"  {t.Key} x{t.Value}");
+    foreach (var g in rarityPoints.GroupBy(p => p.Size).OrderBy(g => g.Key))
+        Console.WriteLine($"  size class {g.Key}: " + string.Join(", ", g.GroupBy(p => p.Rarity).Select(r => $"{r.Key} x{r.Count()}")));
+    File.WriteAllLines(Path.Combine(AppContext.BaseDirectory, "rarity_points.tsv"),
+        rarityPoints.OrderBy(p => p.H1).Select(p => $"{p.H1:0.000}	{p.Scale:0.000}	{p.Size}	{p.Domain}	{p.Rarity}"));
 }

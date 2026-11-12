@@ -122,8 +122,10 @@ public static partial class CatalogSteps
         return null;
     }
 
-    /// <summary>Merged English localisation lookup across all <c>language/nms_*_english.mbin</c> files
-    /// (excluding <c>usenglish</c>), cached for the current <paramref name="pcbanksPath"/>.</summary>
+    /// <summary>Merged English localisation lookup across all <c>language/nms_*_english.mbin</c> files, with the
+    /// game's US English text (<c>nms_*_usenglish.mbin</c>) taking over wherever it has an entry - the text a US player
+    /// sees ("Vectorized", not "Vectorised"; owner's choice 2026-11-12, catalog format 81; issue #64 for other languages). Cached for
+    /// the current <paramref name="pcbanksPath"/>.</summary>
     private static IReadOnlyDictionary<string, string> GetMergedEnglishLookup(string pcbanksPath)
     {
         lock (CacheLock)
@@ -133,16 +135,17 @@ public static partial class CatalogSteps
         }
 
         var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var us = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (pakPath, header, entries) in GetPakEntries(pcbanksPath))
         {
             var locEntries = entries.Where(e =>
                 !string.IsNullOrEmpty(e.FileName) &&
                 e.FileName.Contains("language/nms_", StringComparison.OrdinalIgnoreCase) &&
-                e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase) &&
-                !e.FileName.Contains("usenglish", StringComparison.OrdinalIgnoreCase));
+                e.FileName.Contains("english", StringComparison.OrdinalIgnoreCase));
 
             foreach (var entry in locEntries)
             {
+                bool isUs = entry.FileName!.Contains("usenglish", StringComparison.OrdinalIgnoreCase);
                 try
                 {
                     byte[]? bytes = SharedExtraction.ExtractEntryBytes(pakPath, entry, header);
@@ -152,8 +155,8 @@ public static partial class CatalogSteps
                     mbin.Load();
                     if (mbin.GetData() is { } locTemplate)
                     {
-                        foreach (var kv in LocalisationService.BuildEnglishLookup(locTemplate))
-                            lookup.TryAdd(kv.Key, kv.Value);
+                        foreach (var kv in LocalisationService.BuildEnglishLookup(locTemplate, isUs))
+                            (isUs ? us : lookup).TryAdd(kv.Key, kv.Value);
                     }
                 }
                 catch
@@ -162,6 +165,8 @@ public static partial class CatalogSteps
                 }
             }
         }
+        foreach (var kv in us)
+            if (!string.IsNullOrEmpty(kv.Value)) lookup[kv.Key] = kv.Value;
 
         lock (CacheLock)
         {

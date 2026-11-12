@@ -104,7 +104,7 @@ public static partial class CatalogSteps
                 Decode(BiomeArchiveFile) is GcBiomeFileList archive ? Options(archive) : null);
             rows.Add(new CatalogItem { GameId = "BIOMETABLES", NameEnglish = "BiomeTables", DescriptionEnglish = JsonSerializer.Serialize(tables) });
 
-            var details = ProfileTables(files, biomes, Decode);
+            var details = ProfileTables(files, biomes, Decode, GetMergedEnglishLookup(pcbanksPath));
             if (details is not null)
             {
                 var descTexts = EnglishTexts(index, extraction, DescriptorKeys);
@@ -237,7 +237,8 @@ public static partial class CatalogSteps
             MeasuredModelRadius.ContainsKey(c) ? ModelRadius(table, c, decode) : 0)).ToArray();
     }
 
-    private static PlanetProfileTables? ProfileTables(GcBiomeFileList files, GcBiomeListPerStarType biomes, Func<string, NMSTemplate?> decode)
+    private static PlanetProfileTables? ProfileTables(GcBiomeFileList files, GcBiomeListPerStarType biomes, Func<string, NMSTemplate?> decode,
+        IReadOnlyDictionary<string, string> english)
     {
         if (decode("GCTERRAINGLOBALS.GLOBAL.MBIN") is not GcTerrainGlobals terrain
             || decode("GCSOLARGENERATIONGLOBALS.GLOBAL.MBIN") is not GcSolarGenerationGlobals solar
@@ -294,7 +295,51 @@ public static partial class CatalogSteps
                 && (int)GcBuildingClassification.BuildingClassEnum.ScrapYard < buildings.BuildingPlacement.Length
                 ? buildings.BuildingPlacement[(int)GcBuildingClassification.BuildingClassEnum.ScrapYard].Density.ToArray()
                 : null,
-            Creatures: Creatures(creatures, decode));
+            Creatures: Creatures(creatures, decode, english));
+    }
+
+    /// <summary>What each kind of creature produces when fed (the analysis visor's "Produces"): GcCreatureGlobals
+    /// HarvestingProducts by creature id, matched against the creature's own id when it spawns (NMS.exe 184271
+    /// 0x1412345f0 stores the index; 0x1412431d0 gives FOOD_V_MILK, Wild Milk, to kinds not listed). Checked on the
+    /// owner's 2026-11-11 scans: SIXLEGCAT Leopard-Fruit, FLOATSPIDER Crab 'Apple', TWOLEGANTELOPE Wild Milk.</summary>
+    private static Dictionary<string, string>? Produce(GcCreatureGlobals? cg)
+    {
+        if (cg?.HarvestingProducts is null) return null;
+        var produce = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in cg.HarvestingProducts)
+            if (!string.IsNullOrEmpty(p.CreatureType?.Value) && !string.IsNullOrEmpty(p.Item?.Value))
+                produce.TryAdd(p.CreatureType.Value, p.Item.Value);
+        return produce;
+    }
+
+    /// <summary>The pet-battle tables the analysis visor's "Trait Potential" panel reads (GcGameTableGlobals): the class
+    /// weights per core stat, the element per biome, the element words and the panel's labels (catalog format 82).</summary>
+    private static PetBattleTables? PetBattle(Func<string, NMSTemplate?> decode, IReadOnlyDictionary<string, string> english)
+    {
+        if (decode("GCGAMETABLEGLOBALS.MBIN") is not GcGameTableGlobals gt) return null;
+        string Word(string? key) => !string.IsNullOrEmpty(key) && english.TryGetValue(key, out var w) ? w : "";
+        return new PetBattleTables(
+            (gt.CoreStatClassRollTable ?? []).Select(r => (r.Roll ?? []).ToArray()).ToArray(),
+            (gt.PetBiomeAffinities ?? []).Select(a => (int)a.PetBattlerAffinity).ToArray(),
+            (gt.PetAffinityLocLower ?? []).Select(k => Word(k?.Value)).ToArray(),
+            // GcPetBattlerCoreStat order (MaxHealth, Speed, CombatPotential), then the panel's heading.
+            [Word("UI_PB_STAT_HEADER_HEALTH"), Word("UI_PB_STAT_HEADER_SPEED"), Word("UI_PB_STAT_HEADER_BUDGET"), Word("UI_PB_BINOC_HEADER_WILD")]);
+    }
+
+    /// <summary>Each produced item's name as the analysis visor writes it (the product's NameLower, "Leopard-Fruit").</summary>
+    private static Dictionary<string, string>? ProduceNames(GcCreatureGlobals? cg, Func<string, NMSTemplate?> decode,
+        IReadOnlyDictionary<string, string> english)
+    {
+        if (cg?.HarvestingProducts is null
+            || decode("METADATA/REALITY/TABLES/NMS_REALITY_GCPRODUCTTABLE.MBIN") is not GcProductTable products) return null;
+        var wanted = cg.HarvestingProducts.Select(p => p.Item?.Value ?? "").Append("FOOD_V_MILK")
+            .Where(id => id.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in products.Table ?? [])
+            if (p.ID?.Value is { Length: > 0 } id && wanted.Contains(id)
+                && english.TryGetValue(p.NameLower?.Value ?? "", out var name) && name.Length > 0)
+                names.TryAdd(id, name);
+        return names;
     }
 
     /// <summary>The Id of the creature component (GcCreatureComponentData) in a creature's scene, through the scene's
@@ -323,7 +368,7 @@ public static partial class CatalogSteps
         return found.FirstOrDefault(id => string.Equals(id, ownId, StringComparison.OrdinalIgnoreCase)) ?? found.FirstOrDefault();
     }
 
-    private static CreatureTables? Creatures(GcCreatureGenerationData cgen, Func<string, NMSTemplate?> decode)
+    private static CreatureTables? Creatures(GcCreatureGenerationData cgen, Func<string, NMSTemplate?> decode, IReadOnlyDictionary<string, string> english)
     {
         if (decode(CreatureArchetypesFile) is not GcCreatureGenerationArchetypes carch
             || decode(CreatureDataTableFile) is not GcCreatureDataTable cdt
@@ -345,12 +390,14 @@ public static partial class CatalogSteps
 
         var validIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var sceneIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var scenes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (cfnt.Table is not null)
         {
             foreach (var f in cfnt.Table)
                 if (!string.IsNullOrEmpty(f.ID?.Value))
                 {
                     validIds.Add(f.ID.Value);
+                    if (!string.IsNullOrEmpty(f.Filename?.Value)) scenes.TryAdd(f.ID.Value, f.Filename.Value);
                     if (!string.IsNullOrEmpty(f.Filename?.Value) && CreatureComponentId(f.Filename.Value, f.ID.Value, decode) is string sceneId)
                         sceneIds[f.ID.Value] = sceneId;
                 }
@@ -378,7 +425,10 @@ public static partial class CatalogSteps
                     c.MinScale,
                     c.MaxScale,
                     tagRows.Select(t => (int)t.RarityOverride.CreatureRarity).ToArray(),
-                    sceneIds.GetValueOrDefault(id, "")));
+                    sceneIds.GetValueOrDefault(id, ""),
+                    scenes.GetValueOrDefault(id, ""),
+                    (int)c.PetBattlerForcedAffinity.PetBattlerAffinity,
+                    c.CanBeUsedInPetBattler));
             }
         }
 
@@ -454,15 +504,51 @@ public static partial class CatalogSteps
                     r.ProbabilityOfBeingEnabled,
                     (int)r.Role.CreatureRole,
                     (int)r.MinSize.CreatureSizeClass,
-                    (int)r.MaxSize.CreatureSizeClass)).ToArray();
+                    (int)r.MaxSize.CreatureSizeClass,
+                    (int)r.ActiveTime.CreatureActiveTime)).ToArray();
                 ecosystemTables[path] = roles;
             }
         }
 
-        var sizes = decode("GCCREATUREGLOBALS.MBIN") is GcCreatureGlobals cg
-            ? new CreatureSizeGlobals(cg.CreatureMedMinSize, cg.CreatureLargeMinSize, cg.CreatureHugeMinSize, cg.MaxCreatureSize)
-            : null;
-        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes);
+        var cg = decode("GCCREATUREGLOBALS.MBIN") as GcCreatureGlobals;
+        var sizes = cg is null ? null
+            : new CreatureSizeGlobals(cg.CreatureMedMinSize, cg.CreatureLargeMinSize, cg.CreatureHugeMinSize, cg.MaxCreatureSize);
+        // Behaviour and diet text: GcCreatureGlobals names a key prefix per role (Temperments) and per diet (Diets,
+        // WaterDiets); a creature's info picks PREFIX<n> among the keys that exist (NMS.exe 0x1416cdfb0). Diet
+        // text may hold %BIOME_PLANT% / %BIOME_MEAT%, filled from DietVeg / DietMeat by biome.
+        string[] Numbered(string prefix)
+        {
+            var words = new List<string>();
+            if (!string.IsNullOrEmpty(prefix))
+                for (int n = 1; english.TryGetValue(prefix + n, out var w); n++) words.Add(w);
+            return words.ToArray();
+        }
+        string Word(string key) => !string.IsNullOrEmpty(key) && english.TryGetValue(key, out var w) ? w : "";
+        CreatureTextWords? text = cg is null ? null : new CreatureTextWords(
+            (cg.Temperments ?? []).Select(p => Numbered(p?.Value ?? "")).ToArray(),
+            (cg.Diets ?? []).Select(p => Numbered(p?.Value ?? "")).ToArray(),
+            (cg.WaterDiets ?? []).Select(p => Numbered(p?.Value ?? "")).ToArray(),
+            (cg.DietVeg ?? []).Select(k => Word(k?.Value ?? "")).ToArray(),
+            (cg.DietMeat ?? []).Select(k => Word(k?.Value ?? "")).ToArray(),
+            Numbered("UI_CREATURE_NOTE_"),
+            Numbered("UI_CREA_ROBOT_BEHAVE_"), Numbered("UI_CREA_ROBOT_DIET_"), Numbered("UI_CREA_ROBOT_NOTE_"),
+            Numbered("AGE"));
+        // The gender words a creature's info draws from (NMS.exe 0x1416cfcc0 picks "SEX" + n, n from 1 up to the
+        // last key that exists: 16 in build 185034, Male to None).
+        var genders = new List<string>();
+        for (int n = 1; english.TryGetValue($"SEX{n}", out var word); n++) genders.Add(word);
+        // Robots' gender words ("UI_ROBOT_GENDER_" + n: 9 in build 185034, Electronic to Non-Euclidean).
+        var robotGenders = new List<string>();
+        for (int n = 1; english.TryGetValue($"UI_ROBOT_GENDER_{n}", out var word); n++) robotGenders.Add(word);
+        // The words for a role's ActiveTime, in GcCreatureActiveTime order (OnlyDay ... OnlyNight).
+        string[] activityKeys = ["UI_CRE_ACTIVE_DAY", "UI_CRE_ACTIVE_MOSTLY_DAY", "UI_CRE_ACTIVE_ANYTIME", "UI_CRE_ACTIVE_MOSTLY_NIGHT", "UI_CRE_ACTIVE_NIGHT"];
+        var activities = activityKeys.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
+        // The discovery list's rarity words, in GcRarity order (Common, Uncommon, Rare).
+        var rarities = new[] { "COMMON", "UNCOMMON", "RARE" }.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
+        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes,
+            genders.Count > 0 ? genders.ToArray() : null, activities.All(w => w.Length > 0) ? activities : null,
+            rarities.All(w => w.Length > 0) ? rarities : null, robotGenders.Count > 0 ? robotGenders.ToArray() : null, text,
+            Produce(cg), ProduceNames(cg, decode, english), PetBattle(decode, english));
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)

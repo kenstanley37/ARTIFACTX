@@ -1,6 +1,8 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Procedural;
 using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Controls;
+using ArtifactX.WinUI3.Helpers.Fauna;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Dispatching;
@@ -275,7 +277,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         var nameService = await CreatureNameService.LoadAsync();
 
         // 1. Collect save discoveries for this planet (bEr[0] is the creature's seed, bEr[2]/[3] its name seeds)
-        var saveDiscoveries = new List<(string SpeciesName, ulong Seed)>();
+        var saveDiscoveries = new List<(string SpeciesName, ulong Seed, ulong SpeciesSeed, ulong GenusSeed)>();
         if (_snapshot.Discoveries is JArray discoveries)
         {
             int fallbackIdx = 1;
@@ -298,7 +300,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 if (saveDiscoveries.Any(s => string.Equals(s.SpeciesName, species, StringComparison.OrdinalIgnoreCase)))
                     continue;
 
-                saveDiscoveries.Add((species, seed));
+                saveDiscoveries.Add((species, seed, seedA, seedB));
             }
         }
 
@@ -310,16 +312,24 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         {
             var pred = slot.Predicted;
             string rigId = pred is null ? FallbackRig(saveDiscoveries[slot.Discovery].SpeciesName)
-                : await CreatureModelService.ResolveRigAsync(pred.Id) ?? "antelope";
+                : await CreatureModelService.ResolveRigAsync(pred.Id,
+                    scenePath: PlanetTypesService.CreatureTables?.Creatures.FirstOrDefault(c => c.Id == pred.Id)?.Scene) ?? "antelope";
             string habitat = pred is null ? "Native Fauna" : $"{pred.Habitat} Fauna";
+            var (rarity, activity) = pred is null ? ("", "") : CreatureTraitText.RarityAndActivity(pred, PlanetTypesService.CreatureTables);
 
             if (slot.Discovery >= 0)
             {
                 string name = saveDiscoveries[slot.Discovery].SpeciesName;
                 if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, name)) continue;
-                var creature = new Creature(Name: name, Rarity: "Discovered", Habitat: habitat, Activity: "", Gender: "",
-                    Size: "", Picture: false, SeenAt: "Discovered");
-                allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true));
+                // Rarity and activity only when the discovery is this very creature (same seed), not a leftover slot.
+                bool same = pred is not null && saveDiscoveries[slot.Discovery].Seed == pred.Seed;
+                var creature = new Creature(Name: name, Rarity: same && rarity.Length > 0 ? rarity : "Discovered", Habitat: habitat,
+                    Activity: same ? activity : "", Gender: "", Size: "", Picture: false, SeenAt: "Discovered");
+                var disc = saveDiscoveries[slot.Discovery];
+                allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true,
+                    about: same ? CreatureTraitText.About(pred!, PlanetTypesService.CreatureTables) : "",
+                    battle: same ? Panel(CreatureTraitText.Battle(pred!, PlanetTypesService.CreatureTables, disc.SpeciesSeed, disc.GenusSeed)) : null,
+                    canTame: same ? PlanetTypesService.CreatureTables?.CanBattle(pred!) : null));
                 continue;
             }
 
@@ -329,18 +339,29 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
             string? predictedName = nameService.PredictedSpecies(pred, planet.Address);
             string unscannedName = predictedName ?? $"Unscanned {pred.DefaultDisplayName}";
             if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, unscannedName)) continue;
-            var unscanned = new Creature(Name: unscannedName, Rarity: predictedName is null ? "Undiscovered" : "Predicted",
-                Habitat: habitat, Activity: "", Gender: "", Size: "", Picture: false, SeenAt: "Unscanned");
-            allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false));
+            // Traits as the game's discovery list shows them, then the species' two forms (gender with weight and height).
+            var unscanned = new Creature(Name: unscannedName,
+                Rarity: predictedName is null ? "Undiscovered" : rarity.Length > 0 ? $"Predicted · {rarity}" : "Predicted",
+                Habitat: habitat, Activity: predictedName is null ? "" : activity, Gender: "",
+                Size: predictedName is null ? "" : CreatureTraitText.Forms(pred, PlanetTypesService.CreatureTables),
+                Picture: false, SeenAt: "Unscanned");
+            var (speciesSeed, genusSeed) = SpeciesNames.FaunaSeeds(pred.Seed, string.IsNullOrEmpty(pred.SpeciesId) ? pred.Id : pred.SpeciesId,
+                planet.Address, pred.CreatureType, pred.SizeClass);
+            allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false,
+                about: predictedName is null ? "" : CreatureTraitText.About(pred, PlanetTypesService.CreatureTables),
+                battle: predictedName is null ? null : Panel(CreatureTraitText.Battle(pred, PlanetTypesService.CreatureTables, speciesSeed, genusSeed)),
+                canTame: PlanetTypesService.CreatureTables?.CanBattle(pred)));
         }
 
+        // Creatures a player can adopt first (their battle stats are what people look for), the rest after; the
+        // sort is stable, so each group keeps the game's order.
+        allCards = allCards.OrderBy(c => c.CanTame ? 0 : 1).ToList();
         Creatures = allCards;
         ShowSpeciesLeft(planet, allCards);
     }
 
-    /// <summary>
-    /// Shows species count found vs total.
-    /// </summary>
+    private static CreatureBattleViewModel? Panel(CreatureBattle? battle) => battle is null ? null : new CreatureBattleViewModel(battle);
+
     /// <summary>A stable land model for a discovery the generator didn't predict, picked from its name.</summary>
     private static string FallbackRig(string speciesName)
     {
@@ -349,6 +370,9 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         return CreaturePreviewControl.LandRigs[hash % (uint)CreaturePreviewControl.LandRigs.Length];
     }
 
+    /// <summary>
+    /// Shows species count found vs total.
+    /// </summary>
     private void ShowSpeciesLeft(KnownPlanet planet, IReadOnlyList<CreatureCardViewModel> cards)
     {
         int? total = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.FaunaTotal

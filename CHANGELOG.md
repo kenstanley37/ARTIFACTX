@@ -6,6 +6,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Planet Details: creatures you haven't scanned yet also show their rarity and when they're about (for example "Predicted · Rare · Ground Fauna · Always Active"), the two forms the species comes in (each with its gender, weight and height), and its age, behaviour, diet, notes and what it produces when fed, as the analysis visor shows them ("Hasty · eats Solar Vine · Photosensitive · produces Wild Milk"), plus a panel with its pet-battle Trait Potential, its Combat Effectiveness, Agility and Health classes (in the game's class colours) and its element, laid out like the game's analysis visor so arena-worthy creatures stand out. Only creatures you can adopt show the battle panel, and they're listed first; creatures that can't be companions (fish, birds, burrowers and so on) come after them. Discovered creatures show their rarity and activity too, and fish, jellyfish, manta rays, moles and the stranger anomalous creatures show their own 3D model instead of a generic four-legged one. Update your game data once to get this.
+
 - Planet Details and Current System keep their top bar on screen while you scroll. Once the planet or system card is out of view, the bar also shows its name, type and key facts (sentinels, weather, star, economy, where you are), so you no longer have to scroll back up.
 
 - The Catalogue page is now part of the Catalog page: its technology is the Catalog's Technology section, which also tells you about broken technology placeholders and has a Forget broken technology button.
@@ -38,6 +40,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Planet Details POI Layout: Converted Portal, Crashed Ships, and Cabinet Multi-Tools from 100% full-width folding sections into compact responsive cards. They now render side-by-side in a responsive row, saving over 200px of vertical scrolling space while matching the 370px card format of the located sites and hotspots grids.
 
 ### Fixed
+
+- Game text now uses US English, as the game shows it to US players ("Vectorized", not "Vectorised"). Update your game data once to get it.
 
 - Current System no longer stops with a "file in use" error when a system picture is read while screen recording is saving a new one.
 

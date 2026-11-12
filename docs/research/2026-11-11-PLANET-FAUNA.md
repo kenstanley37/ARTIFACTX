@@ -164,6 +164,73 @@ matched the generator from a fresh decrypt. Shown in the app since `aa66a59` (ca
 Next (done: names on Planet Details), and match them one by one against
 the owner's captured creatures; then traits (rarity, gender, activity, height and weight from the scale).
 
+## Creature traits: rarity, activity, genders, weight and height (2026-11-12, overnight)
+
+Ghidra on 184271, measured with `fauna-check` (`TRAITS=1`) against the owner's captured creatures
+(`planet_creatures`), matched to predictions by species name on the same planet (479 of 519 matched):
+
+| Trait | Where it comes from | Exact |
+|---|---|---|
+| Rarity (discovery list) | spawn data `0x1416d9650`: groups per km / max(scale, 0.75), over the domain's very-dense groups per km (birds: air); below 0.33 Rare, below 0.66 Uncommon | 477 / 479 |
+| Activity | the role's `ActiveTime`, words `UI_CRE_ACTIVE_*` | 479 / 479 |
+| Gender + weight/height | `0x1416cfcc0`, see below | 407 / 446 whole forms (every complete capture) |
+
+`0x1416cfcc0` runs once per creature, in order, drawing from the planet generator's own stream (+0xba4: the
+stream `GenerateCreatureRoles` takes its two root draws from, i.e. `RngStack.Root`). Each text pick
+(`0x1416cdfb0`) counts the numbered keys PREFIX1..n and makes one draw. For a normal creature: behaviour and diet
+picks (one draw each), then Height1 = min(scale, 10) + f * 0.4 - 0.2, Weight1 = min(scale, 10) * 40 + f * 50,
+Height2 = Height1 + f * 0.2, Weight2 = Weight1 + f * 15; notes (one draw); gender 1 over `SEX1..16`, gender 2
+redrawn until different; age (one draw, <= 0.3). Robots (diet Robot, ROBOT worlds) pick on their own seed; with
+ROBOTANTELOPE and WALKINGBUILDING also notes and genders: on the creature's own stream (StartState(seed)) five text
+picks (three on a normal world), the robot note and its description, then gender 1 and 2 over `UI_ROBOT_GENDER_1..9`
+(no "must differ"). The owner's four robots (robot worlds) all show draw 8, gender 1.
+
+A species comes in **two forms**: gender 1 with weight/height 1, gender 2 with weight/height 2. The Discoveries
+page shows the form you scanned; the analysis visor shows the individual, close to one form. The 39 misses are all
+incomplete captures (gender without size or the reverse; the part recorded matches a form). Spelling is compared
+loosely: the owner's game is in US English ("Vectorized") while the catalog reads UK English ("Vectorised"). Sizes are
+formatted through double, as printf rounds the float's exact value (146.9499 -> 146.9).
+
+**Behaviour, diet, notes** (the analysis visor's lines): the same picks, now with their words. GcCreatureGlobals
+names a key prefix per role (`Temperments`: TEMPERAMENT_PREY...) and per diet (`Diets`, `WaterDiets` for creatures
+in water - the game tests the role's TileType 4, taken as "in water", unconfirmed); the pick draws only when keys
+exist. Diet text fills %BIOME_PLANT% / %BIOME_MEAT% from `DietVeg` / `DietMeat` by biome (swamp and lava sub-biomes
+use 12 / 13). Notes are `UI_CREATURE_NOTE_<n>`. The owner's three scans on a Hikovsky planet (2026-11-11
+screenshots) are exact: Hasty / Solar Vine / Photosensitive, Methodical / Solar Vine / Drinks blood, Peaceful /
+Solar Vine / Can sense magnetic fields. Robots' behaviour (draw 1, UI_CREA_ROBOT_BEHAVE_: binary words), diet
+(draw 4, UI_CREA_ROBOT_DIET_) and notes (draw 6, UI_CREA_ROBOT_NOTE_; draw 4 for a robot antelope or walking building
+on a normal world) follow the gender-confirmed draw order but aren't checked against a scan yet.
+
+**Age** (the visor's, 0x1412e3f40): one draw w from the role seed (StartState, one step). A baby shows AGE
+(w * 3 >> 32) + 1 (Infant, Young, Juvenile); an adult of a regular species (w * 3 >> 32) + 4 (Adult, Mature, Elderly);
+of a species with GcCreatureInfo.Age Weird - the info routine's age draw, <= 0.3 - (w >> 30) + 7 (Indeterminate,
+Constant, Fluctuating, Perpetual). The owner's five scans match: Perpetual x2, Elderly (adults), Juvenile, Infant
+(young ones).
+
+**Produces** is per kind: `0x1412345f0` looks the spawned creature's id up in GcCreatureGlobals `HarvestingProducts`
+and keeps the index; `0x1412431d0` gives FOOD_V_MILK (Wild Milk) to kinds not listed. The owner's four scans match:
+SIXLEGCAT Leopard-Fruit, FLOATSPIDER Crab 'Apple', TWOLEGANTELOPE Wild Milk, WEIRDFLOAT Hexaberry. The catalog keeps
+the map and each product's NameLower ("Leopard-Fruit").
+
+Catalog format 80: gender, behaviour, diet and note words, the role's `ActiveTime` and its words. Fauna totals (986 / 986) and species names
+(881 / 904 this year) unchanged.
+
+**Pet battle stats: SOLVED (2026-11-12).** Classes: seed = Hash128to64(low = genus, high = species);
+XXH3-64 (seed 0, default secret; `System.IO.Hashing`) of StartState(seed) + "CORE_STAT_CLASSES", then per stat
+XXH3-64 of StartState(that) + the 16-byte name (COMBAT, SPEED, HEALTH in GcPetBattlerCoreStat order MaxHealth,
+Speed, CombatPotential), one generator step, weighted C/B/A/S pick (GcGameTableGlobals CoreStatClassRollTable).
+Overall = highest of thresholds 0/1/4/7 the class sum reaches. The visor lists Combat Effectiveness =
+CombatPotential, Agility = Speed, Health = MaxHealth. Element: the creature data's PetBattlerForcedAffinity (1-8),
+else PetBiomeAffinities by biome (swamp 12, lava 13, anomaly 7). Four visor panels match exactly (Elephabatum,
+Dasiythrodia, Scrofbuyae, Warloxigesea). `Core/Companions/PetBattlerClasses`; catalog format 82.
+
+Earlier lead, kept for reference: the analysis visor's "Trait Potential" panel (Combat Effectiveness, Agility,
+Health classes and the element) is drawn by `0x140757700` (`UI_PB_BINOC_HEADER_WILD`) from stats its caller
+`0x1412da090` builds: pet data for the wild creature, then `0x1413cfa80` for the battler stats; the element is the
+creature data's `PetBattlerForcedAffinity` (+0xcc) unless 0 or 9, else a per-biome table (`0x145328c9c`). Ground
+truth: the owner's three 2026-11-11 visor screenshots (I. Elephabatum C/C/C Fire, N. Dasiythrodia B/A/S Fire,
+H. Scrofbuyae S/B/S Fire; trait potential C, A, S).
+
 ## Next layers
 
 1. ~~Waterworld air rule~~ (solved above).
