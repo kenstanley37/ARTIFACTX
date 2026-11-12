@@ -45,7 +45,7 @@ public sealed partial class CorvetteCacheControl : UserControl
 
         CacheGrid.CellChanged += (_, _) => PageResetBtn.Visibility = Visibility.Visible;
 
-        _ = new CargoStorageFeed(this, () => [_editor.Path], LoadGrid);
+        _ = new CargoStorageFeed(this, () => (string[][])[_editor.Path], LoadGrid);
 
         // Every part a corvette is built from, to click into the cache - and
         // the same list limits the right-click search. Filter by the game's part

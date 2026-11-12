@@ -195,7 +195,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         // Weather, sentinels and resources from the game's own generator where the game data
         // has its tables (format 16+); what was recorded otherwise.
         Conditions =
-        [
+        (Fact[])[
             new("Type", desc is { Length: > 0 }
                 ? (desc.EndsWith(" Moon", StringComparison.OrdinalIgnoreCase) || desc.EndsWith(" Planet", StringComparison.OrdinalIgnoreCase) || desc.EndsWith(" Anomaly", StringComparison.OrdinalIgnoreCase) ? desc : (isMoon ? $"{desc} Moon" : $"{desc} Planet"))
                 : (isMoon ? $"{planet.BiomeGroup} Moon" : $"{planet.BiomeGroup} Planet")),

@@ -90,7 +90,7 @@ public sealed partial class LanguageWordsControl : UserControl
     private void OnGameSaved(JObject disk)
     {
         if (_allWords is null) return;
-        if (LiveFieldsService.Adopt(disk, [NmsLanguagePaths.KnownWordsArrayPath]).Count == 0) return;
+        if (LiveFieldsService.Adopt(disk, (string[][])[NmsLanguagePaths.KnownWordsArrayPath]).Count == 0) return;
         ReadKnownEntries();
         foreach (var row in _allWords) row.IsKnown = _fullKnownIdSet.Contains(row.GameId);
         string? knownFilter = (KnownFilterBox.SelectedItem as ComboBoxItem)?.Content as string;

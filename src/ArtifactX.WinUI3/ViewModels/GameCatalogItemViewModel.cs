@@ -18,7 +18,7 @@ public sealed partial class GameCatalogItemViewModel : ObservableObject, IUnlock
         Detail = detail;
         Species = species;
         IconId = iconId ?? gameId;
-        ListIds = listIds ?? [gameId];
+        ListIds = listIds ?? (string[])[gameId];
         Name = name;
         IsUnlocked = known;
         CanEdit = canEdit;

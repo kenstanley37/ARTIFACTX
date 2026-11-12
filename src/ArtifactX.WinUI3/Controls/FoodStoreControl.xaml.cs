@@ -41,7 +41,7 @@ public sealed partial class FoodStoreControl : UserControl
         });
     }
 
-    public IEnumerable<string[]> InventoryPaths => _editor is null ? [] : [_editor.Path];
+    public IEnumerable<string[]> InventoryPaths => _editor is null ? [] : (string[][])[_editor.Path];
 
     public bool HasLocalChanges => _editor?.HasChanges == true;
 

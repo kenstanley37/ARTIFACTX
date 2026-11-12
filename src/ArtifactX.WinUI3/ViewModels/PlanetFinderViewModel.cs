@@ -51,7 +51,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     public ChoiceFilter Resource { get; } = new("Resource");
 
     /// <summary>The filters made from recorded and generated system and planet facts, in the order shown.</summary>
-    public IReadOnlyList<ChoiceFilter> ChoiceFilters => [Star, Economy, Wealth, Conflict, Race, Ship, Sentinels, Flora, Fauna, Resource];
+    public IReadOnlyList<ChoiceFilter> ChoiceFilters => (ChoiceFilter[])[Star, Economy, Wealth, Conflict, Race, Ship, Sentinels, Flora, Fauna, Resource];
 
     [ObservableProperty] public partial string Search { get; set; } = "";
     [ObservableProperty] public partial int SortIndex { get; set; }      // 0 nearest, 1 newest, 2 furthest from core, 3 nearest to core

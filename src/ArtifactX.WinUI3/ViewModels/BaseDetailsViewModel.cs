@@ -118,9 +118,9 @@ public sealed partial class BaseDetailsViewModel : ObservableObject
         return true;
     }
 
-    public bool DeleteBase() => CanDeleteBase && Row.Base is not null && BaseEditService.RemoveBases([Row.Base]);
+    public bool DeleteBase() => CanDeleteBase && Row.Base is not null && BaseEditService.RemoveBases((JObject[])[Row.Base]);
 
-    public bool DeleteObject() => CanDeleteObject && Row.LooseObject is not null && BaseEditService.RemoveLooseObjects([Row.LooseObject]);
+    public bool DeleteObject() => CanDeleteObject && Row.LooseObject is not null && BaseEditService.RemoveLooseObjects((JObject[])[Row.LooseObject]);
 
     private void ShowParts()
     {

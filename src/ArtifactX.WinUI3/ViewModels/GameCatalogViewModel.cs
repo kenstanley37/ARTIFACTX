@@ -337,11 +337,11 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         if (!item.CanEdit) return;
         if (SelectedSection?.Key == "UI_PORTAL_CAT_COLLECTION")
         {
-            Stage(() => WonderProblem = WonderUnlockService.Set([item], known) ?? "");
+            Stage(() => WonderProblem = WonderUnlockService.Set((GameCatalogItemViewModel[])[item], known) ?? "");
             return;
         }
         if (SelectedSection?.List is not { } list) return;
-        Stage(() => list.Set([item], known));
+        Stage(() => list.Set((IUnlockRow[])[item], known));
     }
 
     /// <summary>A mixed or empty scope learns everything; only a fully known one forgets it.</summary>

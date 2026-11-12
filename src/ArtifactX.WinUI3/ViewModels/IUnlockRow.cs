@@ -9,5 +9,5 @@ public interface IUnlockRow
 {
     string GameId { get; }
     bool IsUnlocked { get; set; }
-    IReadOnlyList<string> ListIds => [GameId];
+    IReadOnlyList<string> ListIds => (string[])[GameId];
 }

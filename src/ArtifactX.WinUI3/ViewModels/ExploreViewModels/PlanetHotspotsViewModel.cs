@@ -50,7 +50,7 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
     [ObservableProperty] public partial int SelectedSortIndex { get; set; } = 0;
 
     [ObservableProperty] public partial IReadOnlyList<string> SortChoices { get; private set; } =
-        ["Distance: Nearest First", "Portal: Closest to Portal", "Quality: Class (S → C)", "Resource: Name (A-Z)"];
+        (string[])["Distance: Nearest First", "Portal: Closest to Portal", "Quality: Class (S → C)", "Resource: Name (A-Z)"];
 
     public ObservableCollection<string> FilterChoices { get; } = new(["All", "⚡ Power", "⛏ Mineral", "☁ Gas", "★ S-Class"]);
 

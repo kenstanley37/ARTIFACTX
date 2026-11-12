@@ -33,6 +33,6 @@ public static class ExosuitCargoService
             cargo.StageAmount(stack.X, stack.Y, stack.Amount + 1);
             return ExosuitAddResult.Added;
         }
-        return cargo.AddItemsToFreeSlots([(id, category, 1, cap)]) > 0 ? ExosuitAddResult.Added : ExosuitAddResult.Full;
+        return cargo.AddItemsToFreeSlots(((string ItemId, string? CategoryLabel, int Amount, int MaxAmount)[])[(id, category, 1, cap)]) > 0 ? ExosuitAddResult.Added : ExosuitAddResult.Full;
     }
 }
