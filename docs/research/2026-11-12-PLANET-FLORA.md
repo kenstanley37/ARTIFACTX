@@ -26,12 +26,28 @@ N-th pair, N from 1 to about 50 on these planets (fauna-check `FLORASEED=<file>`
 - The same scene on one planet can carry several seeds (50 of 186 planet/scene pairs): several entries place the same
   model.
 
+## The routine (NMS.exe 184271, Ghidra 2026-11-12)
+
+- Planet data top routine **0x1416c5a40** reseeds the generator stream (+0xBA4/+0xBA8, StartState) from each child
+  seed (16-byte slots from local_248: slot 0 life 0x1416cc2e0, 4 terrain 0x1416cc040, 12 weather 0x1416cd3a0,
+  19 resources 0x1416cda00, ...) and, for **slot 8**, calls **0x1416d3b70**(gen, planet, input+0x3C20, +0x3C10,
+  +0x3C00, +0x3BF0) when the input data is present.
+- 0x1416d3b70: **0x1416d3300** gathers the planet's placed object lists (planet data +0x3210, count +0x3218, in the
+  object step's placement order): for each, the chosen option file (GcExternalObjectList), loaded and filtered per
+  sublist by **0x1416d3210** with the graphics level ("ULTRA" when setting 22 == 3, else "STANDARD" - quality variants;
+  check whether this changes entry counts). Then one MWC step, then for each file the four sublists in this order:
+  DetailObjects (+0x10), Objects (+0x40), Landmarks (+0x30), DistantObjects (+0x20), each through **0x1416d3f60**.
+- 0x1416d3f60 (one sublist): one pair -> Mix64 -> the sublist seed S. Per spawn entry (GcObjectSpawnData, 0x168):
+  one pair -> the entry seed; if the entry's Seed.UseSeedValue (+0xF8), Hash128-style mix of S with Seed.Seed (+0xF0)
+  instead. Per AltResource of the entry (+0x90, 0x48 each): one more pair (same override rule) -> that resource's seed.
+- So a plant's bEr[0] is its entry's (or alternative resource's) seed. The empirical pair index (FLORASEED) and this
+  draw pattern should line up once the files' entry/alt counts are known; the one-step before the loop vs the
+  harness's pairing from StartState still needs checking against the data.
+
 ## What's still needed for a prediction
 
-1. The routine that consumes child seed 8 (the planet generator's step after the object step 0x14169bf50, which uses
-   child 7) and the exact order in which it walks the placed lists, their chosen option files
-   (GcExternalObjectListOptions.Options) and the spawn entries inside (GcExternalObjectList.Objects =
-   GcEnvironmentSpawnData), and which entries/variants get a pair.
+1. The object step port (PlanetProfileGenerator.Objects PlacedHints) must keep which option file each placed list
+   chose (its "model" draw: index = draw * Options >> 32) and the placement order.
 2. A catalog step for the option files' spawn entries (resource scene, alternatives, quality variants, type), since the
    catalog keeps only each list's name and option count today.
 3. Which entries are discoverable flora vs minerals (the discovery type the key builder writes: 8 for this branch),
