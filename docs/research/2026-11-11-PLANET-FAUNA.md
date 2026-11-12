@@ -296,7 +296,8 @@ table) that forces its first choice; neither "take it without a draw", "narrow t
 matches" reproduces all the owner's floaters and rollers - read the selector's filter handling (0x142d6b5a0 area).
 Colours are not done: the owner's reroll tests say WTp also drives the colours (palettes, not ported).
 
-**Correction, same evening:** a wild creature's parts come from its **appearance seed = Mix64(role seed)**, which the
-discovery key stores as bEr[4] (363/365 records). The owner's G. Towerravusosa (Slot 8) showed it: the role seed gave a
-hippo head and turtle shell, the appearance seed the triceratops head with horns, diplodocus body and hippo tail seen
-in game. Companions split: 78 match ShipParts(WTp), 18 ShipParts(Mix64(WTp)) - they draw from their stored osl anyway.
+**Correction, same evening (and reverted):** bEr[4] = Mix64(bEr[0]) on 363/365 records, but it is **not** the parts
+seed: for G. Towerravusosa it picks a frilled triceratops head with one nose horn, where the game shows the hippo head
+with two horns, turtle body with back spikes and triceratops tail that the role seed bEr[0] picks (owner's screenshot
+2026-11-12). The role seed stays; bEr[4] is maybe the colour seed. The app's flat colour guesses (orange shell and
+accessory materials) made the right parts look wrong at first - colours are the next step.
