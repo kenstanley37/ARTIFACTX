@@ -24,6 +24,7 @@ public sealed partial class CreaturePreviewControl : UserControl
     public IReadOnlyList<CreatureModelService.CreatureRigOption> AvailableRigs => CreatureModelService.AvailableRigs;
 
     private List<string>? _companionDescriptors;
+    private bool _wild;   // a wild creature's parts were handed in: drawn without the pet harness
     private bool _loading = true;
 
     public CreaturePreviewControl(Creature creature, string? preferredRig = null, bool isSilhouette = false,
@@ -31,7 +32,7 @@ public sealed partial class CreaturePreviewControl : UserControl
     {
         Creature = creature;
         // A wild creature's body parts from its seed (CreatureModelService.PartsForSeedAsync), shown like a companion's.
-        if (parts is { Count: > 0 }) _companionDescriptors = parts.ToList();
+        if (parts is { Count: > 0 }) { _companionDescriptors = parts.ToList(); _wild = true; }
         PreferredRig = preferredRig;
         IsSilhouette = isSilhouette;
         InitializeComponent();
@@ -64,7 +65,7 @@ public sealed partial class CreaturePreviewControl : UserControl
         if (matchingOption is not null)
         {
             RigComboBox.SelectedItem = matchingOption;
-            await ModelPreview.ShowCreatureAsync(matchingOption.RigId, _companionDescriptors, silhouette: IsSilhouette);
+            await ModelPreview.ShowCreatureAsync(matchingOption.RigId, _companionDescriptors, silhouette: IsSilhouette, wild: _wild);
         }
     }
 
@@ -138,7 +139,7 @@ public sealed partial class CreaturePreviewControl : UserControl
         if (_loading) return;
         if (RigComboBox.SelectedItem is CreatureModelService.CreatureRigOption option)
         {
-            await ModelPreview.ShowCreatureAsync(option.RigId, _companionDescriptors, silhouette: IsSilhouette);
+            await ModelPreview.ShowCreatureAsync(option.RigId, _companionDescriptors, silhouette: IsSilhouette, wild: _wild);
         }
     }
 

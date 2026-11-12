@@ -123,7 +123,8 @@ public sealed partial class ModelPreviewPanel : UserControl
     }
 
     /// <summary>Builds and shows a creature or companion model from its rig and chosen descriptors.</summary>
-    public async Task ShowCreatureAsync(string rigId, IEnumerable<string>? chosenDescriptors = null, bool hologram = false, bool silhouette = false)
+    public async Task ShowCreatureAsync(string rigId, IEnumerable<string>? chosenDescriptors = null, bool hologram = false, bool silhouette = false,
+        bool wild = false)
     {
         int version = ++_version;
         if (GameDataService.Game is not { } game)
@@ -136,7 +137,7 @@ public sealed partial class ModelPreviewPanel : UserControl
         NoteTxt.Text = "";
         StartYawOffset = Math.PI;
 
-        var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, rigId, chosenDescriptors);
+        var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, rigId, chosenDescriptors, wild);
         if (version != _version) return;
         if (mesh is null)
         {

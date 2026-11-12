@@ -55,7 +55,7 @@ public sealed partial class CreatureCard : UserControl
             // The creature's own body parts from its seed (issue #15); the rig's defaults when not known.
             var parts = await CreatureModelService.PartsForSeedAsync(card.ModelScene, card.ModelSeed);
             if (version != _version) return;
-            var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, card.RigId, parts);
+            var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, card.RigId, parts, wild: true);
             if (version != _version) return;
             if (mesh is null) return;
 

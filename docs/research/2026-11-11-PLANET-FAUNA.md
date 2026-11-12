@@ -301,3 +301,9 @@ seed: for G. Towerravusosa it picks a frilled triceratops head with one nose hor
 with two horns, turtle body with back spikes and triceratops tail that the role seed bEr[0] picks (owner's screenshot
 2026-11-12). The role seed stays; bEr[4] is maybe the colour seed. The app's flat colour guesses (orange shell and
 accessory materials) made the right parts look wrong at first - colours are the next step.
+
+**Confirmed in game 2026-11-12 (owner, Slot 8):** G. Towerravusosa walking on Menuscuryd Setaj has exactly the parts the
+role seed picks (hippo head with head plate, turtle shell with spikes, triceratops tail) - "the app matches the
+creature walking around perfectly". The game's own Discoveries page draws the same species differently (horned head,
+other back spikes): the game is inconsistent there, not the port. The rig's pet harness (PETHARNESSMAT, not a
+selectable part) is now left off wild creatures. GameData.Checks `--creature-part-probe` shows what each part is.

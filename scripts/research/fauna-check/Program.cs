@@ -208,6 +208,7 @@ if (Environment.GetEnvironmentVariable("FLORASEED") is { Length: > 0 } floraFile
 // makes ShipParts pick its stored body parts (osl) from its scene's part tree (catalog format 87 creature trees).
 if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
 {
+    ArtifactX.Core.Procedural.ShipParts.SingleCandidateNoDraw = Environment.GetEnvironmentVariable("NODRAW") == "1";
     var trees = new Dictionary<string, IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>?>(StringComparer.OrdinalIgnoreCase);
     var treeJson = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     using (var cc = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
@@ -333,6 +334,7 @@ if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
 // PICK=<system hex>:<planet>:<species name>: a predicted creature's kind, scene, seed and the parts ShipParts picks.
 if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
 {
+    ArtifactX.Core.Procedural.ShipParts.SingleCandidateNoDraw = Environment.GetEnvironmentVariable("NODRAW") == "1";
     var parts = pickArg.Split(':');
     ulong sys = ulong.Parse(parts[0], NumberStyles.HexNumber);
     int index = int.Parse(parts[1]) - 1;

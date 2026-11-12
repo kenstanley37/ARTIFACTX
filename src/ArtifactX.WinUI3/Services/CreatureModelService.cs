@@ -148,7 +148,10 @@ public static class CreatureModelService
     }
 
     /// <summary>Builds a 3D mesh for a companion or creature from its rig and chosen descriptors.</summary>
-    public static async Task<ShipMesh?> BuildCreatureMeshAsync(GameInstall game, string rigId, IEnumerable<string>? chosenDescriptors = null)
+    /// <param name="wild">A wild creature: the pet harness that hangs off every rig's body (PETHARNESSMAT, 4,216 of
+    /// 12,708 triangles on the owner's G. Towerravusosa, 2026-11-12) is left out - only companions wear it.</param>
+    public static async Task<ShipMesh?> BuildCreatureMeshAsync(GameInstall game, string rigId, IEnumerable<string>? chosenDescriptors = null,
+        bool wild = false)
     {
         if (!RigScenes.TryGetValue(rigId, out string? scene)) return null;
 
@@ -200,7 +203,27 @@ public static class CreatureModelService
         }
 
         // A creature mesh is built off the UI thread
-        return await Task.Run(() => models.Build(scene, allOptions, chosen));
+        return await Task.Run(() =>
+        {
+            var mesh = models.Build(scene, allOptions, chosen);
+            return wild && mesh is not null ? WithoutPetHarness(mesh) : mesh;
+        });
+    }
+
+    /// <summary>The mesh without the triangles painted with the pet harness material (one material per triangle,
+    /// three corners and texture coordinates each).</summary>
+    private static ShipMesh? WithoutPetHarness(ShipMesh mesh)
+    {
+        var keep = Enumerable.Range(0, mesh.Materials.Length)
+            .Where(t => !Path.GetFileName(mesh.Materials[t]).Contains("PETHARNESS", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (keep.Count == mesh.Materials.Length) return mesh;
+        if (keep.Count == 0) return null;
+        T[] Corners<T>(T[] source) => source.Length < mesh.Materials.Length * 3 ? source
+            : keep.SelectMany(t => new[] { source[t * 3], source[t * 3 + 1], source[t * 3 + 2] }).ToArray();
+        return new ShipMesh(Corners(mesh.Corners), keep.Select(t => mesh.Materials[t]).ToArray())
+        {
+            Uvs = Corners(mesh.Uvs), Uvs2 = Corners(mesh.Uvs2),
+        };
     }
 
     /// <summary>
