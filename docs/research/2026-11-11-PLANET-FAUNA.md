@@ -340,3 +340,19 @@ draw gave the Gem; narrowing the group and still drawing gives the Pillar seen i
 floater and Structure roller as confirmed (ShipParts drawForced). Mix64(seed) also gives the Pillar, but it was
 already ruled out for ordinary bodies (G. Towerravusosa). One crystal so far: a second one where the two disagree
 would settle it.
+
+## Colours (issue #15), 2026-11-13
+
+Every creature material is a procedural texture list like a ship's or a multi-tool's: layers tinted from the palette
+table - Fur, Scale, Underbelly, Rock, Leaf, Feather, Metal, Custom_Head (GameData.Checks `--creature-part-probe` now
+lists each material's palette slots; cow, cat, triceratops and bird scenes checked). Only the pet harness and a few
+eyes are fixed textures. So creatures now go through the same painter (ShipModels.Painted): the seed picks layers and
+patterns (PickLayers), the palette table (ShipLook.PaletteTable) gives the colours. CreatureModelService.PaintAsync.
+
+Inputs: the role seed (WTp on a companion) for both; a companion's ColourBaseSeed (uAX) when its flag is on replaces
+the colour seed only - the owner's 2026-07-28 tests (NmsCompanionPaths) showed WTp changes pattern and colour, uAX only
+colour. **Not confirmed:** whether the palette table takes the seed itself (starships) or its first child seed
+(multi-tools, ModelPreviewService.ColourSeed); the port uses the child seed. Also unknown: whether wild creatures take
+any planet palette, and what GcCreatureSpawnData SwapPrimaryForRandomColour / SwapPrimaryForSecondaryColour do.
+Ghidra lead not followed yet: the readers of GcPetData +0xF8 (ColourBaseSeed) lead to the creature's palette table.
+Ground truth wanted: screenshots of live creatures (not Discoveries) next to the app's model.

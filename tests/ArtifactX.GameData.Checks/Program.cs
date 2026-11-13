@@ -130,8 +130,13 @@ if (args.Length >= 4 && args[0] == "--creature-part-probe")
         : args[3].Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
     var baseMesh = models.Build(scene, all, chosen) ?? throw new InvalidOperationException("no mesh");
     Console.WriteLine($"base: {baseMesh.Corners.Length / 3} triangles, {Box(baseMesh.Corners)}");
-    foreach (var m in baseMesh.Materials.GroupBy(x => Path.GetFileName(x)).OrderByDescending(g => g.Count()))
-        Console.WriteLine($"   {m.Count(),6} {m.Key}");
+    foreach (var m in baseMesh.Materials.GroupBy(x => x).OrderByDescending(g => g.Count()))
+    {
+        // Which palette colours the material's texture layers ask for (every layer, first option).
+        var asked = new SortedSet<string>();
+        bool painted = models.Painted(m.Key, (p, a) => { asked.Add($"{p}/{a}"); return [1f, 1f, 1f]; }, 16) is not null;
+        Console.WriteLine($"   {m.Count(),6} {Path.GetFileName(m.Key)}  {(painted ? asked.Count == 0 ? "fixed texture" : string.Join(" ", asked) : "no texture")}");
+    }
     foreach (string id in chosen.ToList().Concat(args.Skip(4)))
     {
         bool removing = chosen.Contains(id);

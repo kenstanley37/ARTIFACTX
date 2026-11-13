@@ -300,6 +300,36 @@ public static class CreatureModelService
     private static IEnumerable<(string Id, string Name)> OptionNames(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups) =>
         groups.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(OptionNames))));
 
+    /// <summary>
+    /// A creature's skin painted the way ships and multi-tools are (ShipModels.Painted): every creature material is a
+    /// stack of procedural texture layers tinted from the palette table - Fur, Scale, Underbelly, Rock, Leaf, Feather,
+    /// Metal, Custom_Head (GameData.Checks --creature-part-probe, 2026-11-13: cow, cat, triceratops and bird scenes; only
+    /// the pet harness and a few eyes are fixed textures). The seed picks the layers and patterns; the palette table
+    /// comes from the first child seed of <paramref name="colourSeed"/> when set, else of the seed - the multi-tool
+    /// rule (ModelPreviewService.ColourSeed). Evidence for the inputs: a companion's CreatureSeed (WTp) is its species'
+    /// role seed (132/132) and rerolling it changes pattern and colour; an active ColourBaseSeed (uAX) changes only the
+    /// colour (three rerolls on one pattern, 2026-07-28; NmsCompanionPaths). Raw seed vs child seed for the palette
+    /// table is NOT confirmed in game yet. Null without game data or palettes. <paramref name="size"/>: pixels per
+    /// material texture (small cards use less).
+    /// </summary>
+    public static async Task<Dictionary<string, ModelTexture?>?> PaintAsync(GameInstall game, ShipMesh mesh, ulong seed, ulong colourSeed = 0, int size = 512)
+    {
+        if (seed == 0) return null;
+        if (await ModelPreviewService.ModelsAsync(game) is not { } models) return null;
+        if (await ModelPreviewService.SeedColoursAsync(colourSeed != 0 ? colourSeed : seed) is not { } colours) return null;
+        return await ModelPreviewService.PaintAsync(models, mesh, colours, seed, size: size);
+    }
+
+    /// <summary>A companion's look seeds: CreatureSeed (WTp) and, when its active flag is on, ColourBaseSeed (uAX) -
+    /// see NmsCompanionPaths. 0 where missing or off.</summary>
+    public static (ulong Seed, ulong ColourSeed) CompanionLookSeeds(JToken? companion)
+    {
+        static ulong Seed(JToken? pair) =>
+            pair is JArray { Count: > 1 } a && ArtifactX.Core.NmsModels.NmsSeedGenerator.TryParse(a[1]?.ToString(), out ulong s) ? s : 0;
+        ulong colour = companion?["uAX"] is JArray { Count: > 1 } uax && uax[0]?.Type == JTokenType.Boolean && (bool)uax[0]! ? Seed(uax) : 0;
+        return (Seed(companion?["WTp"]), colour);
+    }
+
     /// <summary>Natural shading for creature materials: eyes, teeth, mouth, horns, pet harness and skin.</summary>
     public static uint CreatureMaterialColour(string material)
     {

@@ -26,13 +26,15 @@ public sealed partial class CreaturePreviewControl : UserControl
     private List<string>? _companionDescriptors;
     private bool _wild;   // a wild creature's parts were handed in: drawn without the pet harness
     private readonly CreatureModelService.ExtraModel? _extra;   // the scene spawned with it, drawn with its own rig only
+    private ulong _seed, _colourSeed;   // its look seeds (CreatureModelService.PaintAsync), for its own rig only
     private bool _loading = true;
 
     public CreaturePreviewControl(Creature creature, string? preferredRig = null, bool isSilhouette = false,
-        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null)
+        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null, ulong seed = 0)
     {
         Creature = creature;
         _extra = extra;
+        _seed = seed;
         // A wild creature's body parts from its seed (CreatureModelService.PartsForSeedAsync), shown like a companion's.
         if (parts is { Count: > 0 }) { _companionDescriptors = parts.ToList(); _wild = true; }
         PreferredRig = preferredRig;
@@ -67,14 +69,18 @@ public sealed partial class CreaturePreviewControl : UserControl
         if (matchingOption is not null)
         {
             RigComboBox.SelectedItem = matchingOption;
-            await ModelPreview.ShowCreatureAsync(matchingOption.RigId, _companionDescriptors, silhouette: IsSilhouette, wild: _wild,
-                extra: ExtraFor(matchingOption.RigId));
+            await ShowRigAsync(matchingOption.RigId);
         }
     }
 
-    /// <summary>The extra scene belongs to the creature's own rig; another rig picked in the box is drawn alone.</summary>
-    private CreatureModelService.ExtraModel? ExtraFor(string rigId) =>
-        string.Equals(rigId, PreferredRig, StringComparison.OrdinalIgnoreCase) ? _extra : null;
+    /// <summary>The extra scene and the seed colours belong to the creature's own rig (or the matched companion's);
+    /// another rig picked in the box is drawn alone, in plain shading.</summary>
+    private Task ShowRigAsync(string rigId)
+    {
+        bool own = string.Equals(rigId, PreferredRig, StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(PreferredRig);
+        return ModelPreview.ShowCreatureAsync(rigId, _companionDescriptors, silhouette: IsSilhouette, wild: _wild,
+            extra: own ? _extra : null, seed: own ? _seed : 0, colourSeed: own ? _colourSeed : 0);
+    }
 
     private async Task<string?> FindMatchingCompanionRigAsync()
     {
@@ -116,6 +122,7 @@ public sealed partial class CreaturePreviewControl : UserControl
                     }
                 }
                 _companionDescriptors = descriptors;
+                (_seed, _colourSeed) = CreatureModelService.CompanionLookSeeds(array[i]);
 
                 CompanionBadge.Visibility = Visibility.Visible;
                 CompanionBadgeTxt.Text = $"Owned Companion (Slot {i + 1})";
@@ -146,16 +153,15 @@ public sealed partial class CreaturePreviewControl : UserControl
         if (_loading) return;
         if (RigComboBox.SelectedItem is CreatureModelService.CreatureRigOption option)
         {
-            await ModelPreview.ShowCreatureAsync(option.RigId, _companionDescriptors, silhouette: IsSilhouette, wild: _wild,
-                extra: ExtraFor(option.RigId));
+            await ShowRigAsync(option.RigId);
         }
     }
 
     /// <summary>Displays a 3D creature anatomy viewer dialog.</summary>
     public static async Task ShowAsync(XamlRoot root, Creature creature, string? rigId = null, bool isSilhouette = false,
-        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null)
+        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null, ulong seed = 0)
     {
-        var control = new CreaturePreviewControl(creature, rigId, isSilhouette, parts, extra);
+        var control = new CreaturePreviewControl(creature, rigId, isSilhouette, parts, extra, seed);
         var dialog = new ContentDialog
         {
             Title = isSilhouette ? "Undiscovered Species 3D Silhouette" : "Creature 3D Anatomy",

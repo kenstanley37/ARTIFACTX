@@ -78,8 +78,8 @@ public static class ModelPreviewService
     /// <summary>Each material painted with the given colours (null where it has nothing to paint with).
     /// <paramref name="styles"/>: texture options a built ship was given ("STEALTH"), taken over the seed's.</summary>
     public static Task<Dictionary<string, ModelTexture?>> PaintAsync(ShipModels models, ShipMesh mesh,
-        Func<string, string, float[]?> colour, ulong? textureSeed, ISet<string>? styles = null) =>
-        Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m, m => models.Painted(m, colour, 512, textureSeed, styles)));
+        Func<string, string, float[]?> colour, ulong? textureSeed, ISet<string>? styles = null, int size = 512) =>
+        Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m, m => models.Painted(m, colour, size, textureSeed, styles)));
 
     /// <summary>A fixed-look model painted in its own textures - reward ships like the
     /// Boundary Herald, Starborn Runner and The Wraith keep their colours in the texture
