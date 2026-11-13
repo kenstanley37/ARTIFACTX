@@ -49,9 +49,11 @@ public static class ModelPreviewService
     /// Gives a (palette, slot) colour - ("Paint", "Alternative1") - as RGB 0-1, or null.
     /// <paramref name="rawSeed"/>: starships build the table from the seed itself, not its
     /// first child - six of seven ships checked in game on 2026-10-17 matched that way
-    /// (red/white/blue Fighter, yellow/blue Solar, teal/blue and blue Haulers...).</summary>
+    /// (red/white/blue Fighter, yellow/blue Solar, teal/blue and blue Haulers...).
+    /// <paramref name="lastSlot"/>: the last slot read as itself; later ones read slot 3 (ships). A creature reads all
+    /// five (4): NMS.exe 184271 FUN_1416d9f90 colours a texture option with its row's entry at its slot for slots 0-4.</summary>
     public static async Task<Func<string, string, float[]?>?> SeedColoursAsync(ulong seed, bool rawSeed = false,
-        IReadOnlyList<ColourPalette>? palettes = null)
+        IReadOnlyList<ColourPalette>? palettes = null, int lastSlot = 3)
     {
         if (seed == 0) return null;
         if (palettes is not { Count: > 0 }) palettes = await CatalogService.GetPalettesAsync();
@@ -60,7 +62,7 @@ public static class ModelPreviewService
         return (palette, slot) =>
         {
             int p = ShipModels.PaletteIndex(palette), a = ShipModels.SlotIndex(slot);
-            return p < 0 || p >= table.Length || table[p] is null || a is < 0 or > 5 ? null : table[p][Math.Min(a, 3)];
+            return p < 0 || p >= table.Length || table[p] is null || a is < 0 or > 5 ? null : table[p][a <= lastSlot ? a : Math.Min(a, 3)];
         };
     }
 

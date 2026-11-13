@@ -149,6 +149,52 @@ if (args.Length >= 4 && args[0] == "--creature-layer-probe")
     return;
 }
 
+if (args.Length == 2 && args[0] == "--creature-form-vectors")
+{
+    // Issue #15: --creature-form-vectors <catalog>. Both forms of the five Jinnie II species, as the running game's spawn
+    // table held them (GcCreatureSpawnData FemaleResource / Resource AltId, read-only memory read, 2026-11-14).
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.GetFullPath(args[1])};Mode=ReadOnly");
+    connection.Open();
+    var trees = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    using (var q = connection.CreateCommand())
+    {
+        q.CommandText = "SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='ShipDescriptors'";
+        using var r = q.ExecuteReader();
+        while (r.Read()) trees[r.GetString(0)] = r.GetString(1);
+    }
+    IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>? Load(string p) => trees.TryGetValue(p, out var j) ? ArtifactX.Core.Procedural.ShipParts.ParseTree(j) : null;
+    (string Scene, ulong Seed, string Female, string Male)[] species =
+    [
+        ("models/planets/creatures/catrig/cat.scene.mbin", 0x06B32B38D154FAB8,
+            "_BODY_CAT _SHAPE_1 _HEAD_CAT _HCACC_B _CATTOP_1 _HCTOPB_D _CHEARS2_C4 _TAIL_WOLF _MESH_CAT _BCA_14",
+            "_BODY_CAT _SHAPE_1 _HEAD_CAT _HCACC_B _CATTOP_1 _HCTOPB_NULL _CHEARS2_C4 _TAIL_HOG _THA_X2 _MESH_LIZ _BLBACK_2"),
+        ("models/planets/creatures/catrig/sixlegcat.scene.mbin", 0xBA8B615B845A31AC,
+            "_HEAD_WOLF _HWACC_B _HWMIDDLE_A _HWNOSE_B _HWEARS_A _BODY_SIXLEGCAT _B6CA_CRAGS _TAIL_HOG _THA_X2",
+            "_HEAD_WOLF _HWACC_A _HWTOP_D _BODY_SIXLEGCAT _B6CA_NULL _TAIL_HOG _THA_X1"),
+        ("models/planets/creatures/rodentrig/rodent.scene.mbin", 0x14B467941315CE0D,
+            "_HEAD_TAZ _HTAZEARS_2 _HTAZACC_2 _BODY_SLOTH _SBACK_6 _TAIL_RODENT",
+            "_HEAD_TAZ _HTAZEARS_2 _HTAZACC_3 _BODY_SLOTH _SBACK_5 _TAIL_RODENT"),
+        ("models/planets/creatures/triceratopsrig/triceratops.scene.mbin", 0xF38F273A1168581A,
+            "_HEAD_TURTLE _TTLEHNECK_0 _TTLEEAR_0 _TTLEHACC_0 _BODY_TAPIR _DECOR_4 _TAIL_RHINO",
+            "_HEAD_TURTLE _TTLEHNECK_0 _TTLEEAR_0 _TTLEHACC_3 _BODY_TAPIR _DECOR_0 _TAIL_RHINO"),
+        ("models/planets/biomes/floral/mediumcreature/floralcat.scene.mbin", 0x386A1BC70766DF20,
+            "_BODY_PLANT _SHAPE_XRARE _HEAD_PLANT1 _MESH_PLANT",
+            "_BODY_PLANT _SHAPE_XRARE _HEAD_PLANT4 _MESH_PLANT"),
+    ];
+    static HashSet<string> Set(IEnumerable<string> ids) => ids.Select(i => i.ToUpperInvariant()).ToHashSet();
+    int failed = 0;
+    foreach (var (scene, seed, female, male) in species)
+    {
+        var f = ArtifactX.Core.Procedural.ShipParts.Generate(scene, seed, Load).Select(p => p.Id);
+        var m = ArtifactX.Core.Procedural.ShipParts.GenerateMale(scene, seed, Load).Select(p => p.Id);
+        bool ok = Set(f).SetEquals(Set(female.Split(' '))) && Set(m).SetEquals(Set(male.Split(' ')));
+        if (!ok) failed++;
+        Console.WriteLine($"{(ok ? "PASS" : "FAIL")}: {Path.GetFileName(scene)} female [{string.Join(" ", f)}] male [{string.Join(" ", m)}]");
+    }
+    if (failed > 0) throw new InvalidOperationException($"{failed} creature form vector(s) failed");
+    return;
+}
+
 if (args.Length >= 4 && args[0] == "--creature-colour-probe")
 {
     // Issue #15 probe: --creature-colour-probe <catalog> <scene path> <role seed hex> [colour seed hex]

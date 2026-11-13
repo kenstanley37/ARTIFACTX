@@ -260,7 +260,10 @@ public static class CreatureModelService
     /// draws there (the draw is used up), then picks the rest. Evidence for the draw: the owner's R. Gentdiffoe
     /// (Aoedesdo, 2026-11-12) is the WEIRDRIG _CRYSTAL_PILLAR in the world; taking _WEIRD_CRYSTAL without a draw gave
     /// _CRYSTAL_GEM. The floater and roller already confirmed pick the same either way.</param>
-    public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong roleSeed, string filter = "", string subType = "")
+    /// <param name="male">The species' male form (ShipParts.GenerateMale, the spawn data's Resource) instead of the
+    /// female (FemaleResource), which the plain selector gives.</param>
+    public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong roleSeed, string filter = "", string subType = "",
+        bool male = false)
     {
         if (string.IsNullOrEmpty(scenePath) || roleSeed == 0) return null;
         await PartTreeService.EnsureAsync();
@@ -270,8 +273,10 @@ public static class CreatureModelService
         {
             IReadOnlyList<string>? forced = filter.Length == 0 && subType.Length == 0 ? null
                 : ArtifactX.Core.Universe.CreatureTables.ForcedOptions(OptionNames(root), filter, subType);
-            return (IReadOnlyList<string>)ArtifactX.Core.Procedural.ShipParts.Generate(scene, roleSeed, PartTreeService.Load, forced, drawForced: true)
-                .Select(p => p.Id).ToList();
+            var picked = male
+                ? ArtifactX.Core.Procedural.ShipParts.GenerateMale(scene, roleSeed, PartTreeService.Load, forced, drawForced: true)
+                : ArtifactX.Core.Procedural.ShipParts.Generate(scene, roleSeed, PartTreeService.Load, forced, drawForced: true);
+            return (IReadOnlyList<string>)picked.Select(p => p.Id).ToList();
         });
     }
 
@@ -285,11 +290,13 @@ public static class CreatureModelService
     /// WEIRDRIG's crystal with the ground piece of WEIRDRIGGROUND round its foot. Owner's R. Gentdiffoe on Aoedesdo
     /// (BoneSpire, 2026-11-12): a green pillar with bone spires coming out of the ground beside it; the Discoveries
     /// page shows only the spires. The two part lists stay apart: "_CRYSTAL_PILLAR" is an option in both scenes.
+    /// <paramref name="male"/>: the male form's own parts; the extra scene is drawn once for both forms (the game's
+    /// ExtraResource, FUN_1416d5080: the single selector).
     /// </summary>
     public static async Task<(IReadOnlyList<string>? Parts, ExtraModel? Extra)> ModelPartsAsync(string? scenePath, string? extraScenePath,
-        ulong roleSeed, string filter = "", string subType = "")
+        ulong roleSeed, string filter = "", string subType = "", bool male = false)
     {
-        var parts = await PartsForSeedAsync(scenePath, roleSeed, filter, subType);
+        var parts = await PartsForSeedAsync(scenePath, roleSeed, filter, subType, male);
         if (string.IsNullOrEmpty(extraScenePath) || await ResolveRigAsync(null, scenePath: extraScenePath) is not { } extraRig)
             return (parts, null);
         return (parts, new ExtraModel(extraRig, await PartsForSeedAsync(extraScenePath, roleSeed, filter, subType)));
@@ -327,14 +334,18 @@ public static class CreatureModelService
     /// slots - with the first child of the creature seed (ModelPreviewService.ColourSeed), not the seed itself: owner's
     /// Jinnie II shots (2026-11-13) - I. Homobocamosa is plain, no stripes (the seed itself picks MARKINGS=BELTS on
     /// TAPIRBODYMAT, the child GRADIENT); K. Bearxiumica's fin is spotted (child: FINFLAPS MARKINGS=SPOTS; the seed
-    /// itself GRADIENT, Mix64 SPIKES). A wild creature's palette table is its **planet's**: the palette generator (ShipLook.PaletteTable) over the
-    /// planet's biome palette file, seeded with the first child of the planet seed (ModelPreviewService.ColourSeed).
-    /// Evidence (owner's Jinnie II scans, 2026-11-13, base palettes, planet seed F9D9E98106914B45): K. Bearxiumica's
-    /// back fin (FINFLAPS: Scale Primary and Alternative1) is sky blue with brown spots - this rule gives brown #402E18
-    /// and teal #2E706C; the creature's own seed gives dark blue and olive, the raw planet seed grey and olive; its fur and
-    /// I. Homobocamosa's come out brown and olive as seen. Every creature on a planet shares the table, as in game.
-    /// Without a planet (companions) the table comes from <paramref name="colourSeed"/> (an active ColourBaseSeed, uAX)
-    /// or the creature seed, on the base palettes - unconfirmed. Null without game data or palettes.
+    /// itself GRADIENT, Mix64 SPIKES). A wild creature's palette table is its **planet's**: the palette generator
+    /// (ShipLook.PaletteTable) over the planet's biome palette file, seeded with the first child
+    /// (ModelPreviewService.ColourSeed) of the planet's third step seed (PlanetProfileGenerator.ChildSeeds[2]); each
+    /// texture option takes its row's entry at its own slot, 0-4, with no per-creature shift. Evidence: the table in
+    /// the running game's memory (Jinnie II, planet seed F9D9E98106914B45, base palettes, 2026-11-14) - this rule gives
+    /// all 66 x 5 colours exactly. NMS.exe 184271 FUN_1416d9f90 copies it per spawn entry, rotates it only when the
+    /// entry's SwapPrimaryFor*Colour flags are on (FUN_1416da170) - FUN_1416d9650 leaves them off and the live spawn
+    /// table has them off - and colours each option with row[slot]. Every creature on a planet shares the table.
+    /// (The first child of the planet seed itself, used before, matched only a few entries: that gave the white
+    /// bellies and seemed to need a per-creature offset.) Without a planet (companions) the table comes from
+    /// <paramref name="colourSeed"/> (an active ColourBaseSeed, uAX) or the creature seed, on the base palettes -
+    /// unconfirmed. Null without game data or palettes.
     /// <paramref name="size"/>: pixels per material texture (small cards use less).
     /// </summary>
     public static async Task<Dictionary<string, ModelTexture?>?> PaintAsync(GameInstall game, ShipMesh mesh, ulong seed, ulong colourSeed = 0,
@@ -343,8 +354,9 @@ public static class CreatureModelService
         if (seed == 0) return null;
         if (await ModelPreviewService.ModelsAsync(game) is not { } models) return null;
         var palettes = planet is null ? null : await CatalogService.GetBiomePalettesAsync(planet.Biome, planet.SubType);
-        ulong tableSeed = planet is { PlanetSeed: not 0 } ? planet.PlanetSeed : colourSeed != 0 ? colourSeed : seed;
-        if (await ModelPreviewService.SeedColoursAsync(tableSeed, palettes: palettes) is not { } colours) return null;
+        ulong tableSeed = planet is { PlanetSeed: not 0 } ? ArtifactX.Core.Universe.PlanetProfileGenerator.ChildSeeds(planet.PlanetSeed)[2]
+            : colourSeed != 0 ? colourSeed : seed;
+        if (await ModelPreviewService.SeedColoursAsync(tableSeed, palettes: palettes, lastSlot: 4) is not { } colours) return null;
         return await ModelPreviewService.PaintAsync(models, mesh, colours, ModelPreviewService.ColourSeed(seed), size: size);
     }
 

@@ -435,3 +435,37 @@ GcCreatureSpawnData, which only biome files' hand-placed GcEnvironmentSpawnData 
 time. Dead ends: identity-table stores (0x142c55620 is a BC7 block decoder), "gDiffuseMap" users in 0x1416a37f0 (planet
 atmosphere / terrain textures). Next lead: the creature spawner that copies a role into GcCreatureSpawnData and sets
 +0x146 / +0x147.
+
+**Live game memory, 2026-11-14 (NMS running on Jinnie II, read-only ReadProcessMemory, scratch tool "memscan").** The
+planet's GcCreatureSpawnData array (stride 0x148) sits in memory with every field filled: Resource (+0x90) and
+FemaleResource (+0x48) both hold the scene and the role seed (GcResourceElement.Seed +0x30), and each AltId (+0x00) holds
+the parts the game chose, e.g. Homobocamosa (TRICERATOPS, role 4) male "_HEAD_TURTLE _TTLEHNECK_0 _TTLEEAR_0 _TTLEHACC_3
+_BODY_TAPIR _DECOR_0 _TAIL_RHINO", female "... _TTLEHACC_0 _BODY_TAPIR _DECOR_4 ...". SwapPrimaryForRandomColour /
+SwapPrimaryForSecondaryColour (+0x146/+0x147) are 0 for all five species - the swap-flag reading of the colours is wrong.
+ProceduralTexture lists are empty. GcCreatureRoleData (stride 0x5D8) gives each species' CreatureId (TRICERATOPS,
+RODENT, CAT, SIXLEGCAT, FLORALCAT).
+
+**Gender forms solved (2026-11-14, 5/5 species exact).** FemaleResource = the plain selector with the role seed (what the
+app already drew as "form 1"). Resource (male) = NMS.exe 184271 FUN_142ddb8e0 -> FUN_142ddc700, a two-stream selector:
+stream A = role seed, stream B = Mix64(role seed) (built in FUN_1416d5940 when its flag param_12 is 0). Per group: B steps
+once (chance draw), A picks, B picks; B's pick wins when chance / 2^32 < p. A part's children and scenes get child seeds
+from both streams (two draws each, Mix64) and p' = min(max(0, p + inc), 1). Top level p = 0, so top-level parts always
+match the female. inc = DAT_14533d444, set at run time: 2.0 in the live game (read from memory), so every nested group
+takes B's pick. Checked: CAT, SIXLEGCAT, RODENT, TRICERATOPS, FLORALCAT male parts all exact (the cat alone is a
+~1-in-57,000 match by chance). The weight function is FUN_142dddfc0 (xRARE 1, xNEVER 0, xWEIRD 20, else 20); the single
+selector FUN_142ddd3b0 / FUN_142de10a0 also has a substring filter list and a "preferred" substring.
+
+**Creature colours solved (2026-11-14): the planet table seed was wrong, there is no per-creature offset.** The running
+game's planet colour table (66 palettes x 7 float4, 0x1CE0 bytes, in the planet data right after the planet seed) is
+ShipLook.PaletteTable over the base palettes seeded with ColourSeed(PlanetProfileGenerator.ChildSeeds(planet)[2]) - the
+first child of the planet's third step seed: 330/330 colours exact (Jinnie II). The app used ColourSeed(planet seed),
+which matched only a few entries, so the owner's sightings seemed to need an offset k per creature. Code path (NMS.exe
+184271): cGcPlanetGenerator setup FUN_1416bdef0 -> FUN_1416d94b0 -> FUN_1416d9650 (role -> spawn data; never sets
++0x146/+0x147) and FUN_1416d9f90, which per spawn entry copies the planet table, calls FUN_1416da170 (rotation by
+2/3/4 from the generator's running Mwc at +0xBA4 when SwapPrimaryForRandomColour is on; order 1,0,3,4,2 when only
+SwapPrimaryForSecondaryColour is on; nothing when both are off) and colours each texture option with row[palette*7 +
+slot] for slots 0-4 (Unique, MatchGround, None and OverrideColour left alone). The same remap runs for the hand-placed
+environment spawns (FUN_1416d9d30, flags at +0x164/+0x165). FUN_1416d5080 then loads each spawn entry's models with
+cGcPlanetGenerator::LoadModel (FUN_1416d5940; name in a std::function type string): Resource with the two-stream
+selector (male), FemaleResource and ExtraResource with the single one. With the right table I. Homobocamosa's Underbelly
+Primary is #4C5E5D (the owner's grey-teal belly patch) with no offset.

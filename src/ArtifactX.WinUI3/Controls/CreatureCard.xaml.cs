@@ -81,11 +81,7 @@ public sealed partial class CreatureCard : UserControl
             if (Preview3DRequested is not null)
                 Preview3DRequested.Invoke(this, new(creature, (FrameworkElement)sender));
             else
-            {
-                var (parts, extra) = await CreatureModelService.ModelPartsAsync(creature.ModelScene, creature.ModelExtraScene,
-                    creature.ModelSeed, creature.ModelFilter, creature.ModelSubType);
-                await CreaturePreviewControl.ShowAsync(XamlRoot, creature.Creature, creature.RigId, creature.IsSilhouette, parts, extra, creature.ModelSeed, creature.Planet);
-            }
+                await CreaturePreviewControl.ShowCardAsync(XamlRoot, creature);
         }
     }
 
