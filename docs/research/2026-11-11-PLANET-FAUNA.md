@@ -424,3 +424,14 @@ which gives the white bellies (Underbelly[0] #BEDBB6). Likely GcCreatureSpawnDat
 found: Mwc draws 0-15 of the role seed / its children / Mix64 (x5 multiply-high, mod 5, float), direct mod 5, list
 position (2/3/5) and role (3/4/1) - only chance-level hits. Next: Ghidra for where a creature's palette alt index is
 offset (reads of the spawn data's +0x146/+0x147 swap flags), or more sightings to test candidates.
+
+**Colour remap search, 2026-11-13 (later):** the remap structure exists - GcProceduralTextureColourIndices
+{ int Alts[8] } (enum GcPaletteColourAlt: Primary, Secondary, Alternative3-5, Unique, MatchGround, None): slot ->
+palette entry, used by no game file (runtime only). Its type-hash / "Alts" references in NMS.exe 184271
+(0x141b96dc0-0x141b9d8d0, 0x141ba5cd0) are the reflection serializer only. Another reading of the sightings:
+Bearxiumica = SwapPrimaryForSecondaryColour (Primary <-> entry 1: teal fin, olive fur; Secondary -> entry 0: brown
+spots), Homobocamosa / Gentaylatica = SwapPrimaryForRandomColour (Primary -> entry 3 / 4). Those flags live in
+GcCreatureSpawnData, which only biome files' hand-placed GcEnvironmentSpawnData use; procedural roles fill it at run
+time. Dead ends: identity-table stores (0x142c55620 is a BC7 block decoder), "gDiffuseMap" users in 0x1416a37f0 (planet
+atmosphere / terrain textures). Next lead: the creature spawner that copies a role into GcCreatureSpawnData and sets
++0x146 / +0x147.
