@@ -57,7 +57,14 @@ public static class HarvestSearch
         PlanetType[] types;
         try { types = PlanetGenerator.Generate(portal, galaxy, biomes); }
         catch { yield break; }
-        var profiles = SystemProfiles.Generate(systemAddress, biomes, tables);
+        foreach (var find in On(systemAddress, types, SystemProfiles.Generate(systemAddress, biomes, tables), itemId))
+            yield return find;
+    }
+
+    /// <summary>The same from a system's bodies and profiles already generated (so one pass can also look for
+    /// creature produce, <see cref="CreatureProduceSearch.On"/>).</summary>
+    public static IEnumerable<HarvestFind> On(ulong systemAddress, PlanetType[] types, PlanetProfile?[] profiles, string itemId)
+    {
         ulong system = systemAddress & ~(0xFUL << 52);
         for (int i = 0; i < profiles.Length && i < types.Length; i++)
             if (profiles[i]?.Harvest?.FirstOrDefault(h => h.ItemId == itemId) is { } harvest)

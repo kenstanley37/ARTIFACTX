@@ -11,7 +11,7 @@ namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>
 /// "Where to get it" for one raw ingredient (IngredientSourcePanel): the kinds of planet whose wild plants or objects
-/// give it, then the closest systems that have it, searched from where the save is (IngredientLocatorService). A newer
+/// give it, or the creatures to feed for it, then the closest systems that have it, searched from where the save is (IngredientLocatorService). A newer
 /// ingredient cancels an older search; the list fills in place when the search ends.
 /// </summary>
 public sealed partial class IngredientSourceViewModel : ObservableObject
@@ -42,6 +42,11 @@ public sealed partial class IngredientSourceViewModel : ObservableObject
             var rules = await IngredientLocatorService.RulesAsync(itemId);
             if (cancel.IsCancellationRequested) return;
             foreach (string line in HarvestPlaceText.Lines(rules)) Places.Add(line);
+            if (await IngredientLocatorService.IsProduceAsync(itemId))
+            {
+                if (cancel.IsCancellationRequested) return;
+                Places.Add(HarvestPlaceText.FeedLine);
+            }
             HasPlaces = Places.Count > 0;
             if (!HasPlaces) { Status = ""; IsSearching = false; return; }
             if (start is not ulong from) { Status = "Load a save to see the closest places that have it."; return; }

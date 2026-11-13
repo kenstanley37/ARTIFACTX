@@ -10,6 +10,9 @@ namespace ArtifactX.WinUI3.Helpers.Recipes;
 /// read as one line; start-planet exclusions are left out (they don't help a player choose where to go).</summary>
 internal static class HarvestPlaceText
 {
+    /// <summary>The line for an item creatures give when fed (Fresh Milk, Crab 'Apple', Creature Egg).</summary>
+    public const string FeedLine = "Feed creatures that produce it. The Analysis Visor shows what each one produces.";
+
     public static IReadOnlyList<string> Lines(IEnumerable<HarvestRule> rules) => rules
         .GroupBy(r => (Where: Where(r), r.TileType is 4 or 5 ? r.TileType : 0))
         .Select(g =>
