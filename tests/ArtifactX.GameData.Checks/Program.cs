@@ -200,7 +200,8 @@ if (args.Length >= 4 && args[0] == "--creature-colour-probe")
         }
         foreach (var m in mesh.Materials.GroupBy(x => x).OrderByDescending(g => g.Count()).Take(8))
         {
-            var t = models.Painted(m.Key, colour, 64, seed);
+            var used = new SortedSet<string>();
+            var t = models.Painted(m.Key, (p, a) => { var c = colour(p, a); used.Add($"{p}/{a}={(c is null ? "-" : Hex(c))}"); return c; }, 64, seed);
             string avg = "none";
             if (t is not null)
             {
@@ -208,7 +209,7 @@ if (args.Length >= 4 && args[0] == "--creature-colour-probe")
                 foreach (uint px in t.Pixels) { double a = (px >> 24) / 255.0; r += ((px >> 16) & 255) * a; g += ((px >> 8) & 255) * a; b += (px & 255) * a; n += a; }
                 avg = n > 0 ? $"#{(int)(r / n):X2}{(int)(g / n):X2}{(int)(b / n):X2}" : "clear";
             }
-            Console.WriteLine($"   {m.Count(),6} {Path.GetFileName(m.Key),-40} {avg}");
+            Console.WriteLine($"   {m.Count(),6} {Path.GetFileName(m.Key),-40} {avg}  {string.Join(" ", used)}");
         }
     }
     return;
