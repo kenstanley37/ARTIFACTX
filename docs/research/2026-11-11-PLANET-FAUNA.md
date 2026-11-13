@@ -369,3 +369,14 @@ layers and colour slots only. To port: the planet's biome file (biome + sub-type
 planet colour seed (raw / child of the planet seed - check against a few planets' flora and creatures).
 Parts are also off on Jinnie II (Radiotaylae back plates drawn as a small frill; Bearxiumica gets horns), so parts need
 fixing before colours can be judged. GameData.Checks `--mbin-dump <path part> [n]` lists / dumps game files.
+
+**Parts vs gender form (2026-11-13, owner's Jinnie II scans, planet 000412F6FCFFB005 index 2):** the two individuals
+scanned in their species' **first** form match the role-seed parts: K. Bearxiumica ("Radical") has the narrow scalloped
+back fin _SBACK_6 (FINFLAPS; Mix64 would give bulbs), I. Homobocamosa ("Radical") the hunched quilled body. The one in
+its **second** form, N. Radiotaylae ("Female"; forms "Exotic or Female"), has big stegosaurus plates (cat _BCA_11 /
+_BLBACK_7, BACKSPINE material) that neither the role seed (_HEAD_CAT, _BCA_14 fur tuft) nor Mix64 (_HEAD_WOLF,
+_BCA_X7 side fins) gives. Hypothesis: the second form is built from another seed. No simple transform (+-1, ^1, swap,
+child seeds 0-2, Hash128(seed, 0/1/2), Mix64 twice...) reproduces the companions the role seed misses (fauna-check
+PARTSGENDER=1) - but those misses may be rerolled or Egg-Sequencer pets. Ghidra: the wild -> pet copy (0x1405110b0,
+called from the visor's 0x1412da090) copies the body from the live creature, so the choice is made at spawn, not there.
+Not found yet: the code filling GcCreatureSpawnData.FemaleResource (seed at +0x78) next to Resource (+0xC0).

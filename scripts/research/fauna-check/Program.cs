@@ -263,7 +263,34 @@ if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
                 if (hits == stored.Count && picked.Count == stored.Count) { partsExact++; bySeed[name] = bySeed.GetValueOrDefault(name) + 1; best = name + " EXACT"; break; }
             }
             if (companions <= 12) Console.WriteLine($"  {id,-16} {scene,-60} stored {stored.Count}, best {best} ({bestHits})  [{string.Join(" ", stored)}]");
-            if (Environment.GetEnvironmentVariable("PARTSKIND") == "1") Console.WriteLine($"  KIND {id} {(best.EndsWith("EXACT") && best.StartsWith("WTp") ? "wtp-exact" : best.EndsWith("EXACT") ? "other-exact" : "miss")}");
+            if (Environment.GetEnvironmentVariable("PARTSKIND") == "1") Console.WriteLine($"  KIND {id} {(best.EndsWith("EXACT") ? best : "miss")}");
+            // PARTSGENDER=1: for a companion the role seed doesn't reproduce, which derived seed or skipped draws do
+            // (a pet adopted from a species' second form would store that form's parts).
+            if (Environment.GetEnvironmentVariable("PARTSGENDER") == "1" && seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } wg)
+            {
+                bool Same(IEnumerable<string> pk) { var l = pk.ToList(); return l.Count == stored.Count && stored.All(x => l.Contains(x, StringComparer.OrdinalIgnoreCase)); }
+                ulong gw = wg.Seed;
+                if (!Same(ArtifactX.Core.Procedural.ShipParts.Generate(scene, gw, Load).Select(p => p.Id)))
+                {
+                    static ulong Mix(ulong v) { v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL; v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL; return v ^ (v >> 33); }
+                    static ulong H(ulong lo, ulong hi) { const ulong k = 0x9DDFEA08EB382D69UL; ulong a = (lo ^ hi) * k; a ^= a >> 47; ulong b = (hi ^ a) * k; b ^= b >> 47; return b * k; }
+                    static (ulong, ulong) St(ulong sd) { ulong lo = sd & 0xFFFFFFFF, hi = sd >> 32; return (lo == 0 ? 1 : lo, (((lo << 16) | (lo >> 16)) & 0xFFFFFFFF) ^ hi ^ lo); }
+                    static ulong Nx(ref (ulong A, ulong B) st) { ulong t = st.A * 0x5A76F899UL + st.B; st = (t & 0xFFFFFFFF, t >> 32); return st.A; }
+                    static ulong Child(ulong sd, int n) { var st = St(sd); ulong c = 0; for (int i = 0; i <= n; i++) { ulong a = Nx(ref st); c = Mix((Nx(ref st) << 32) | a); } return c; }
+                    var cands = new List<(string, ulong)> { ("+1", gw + 1), ("-1", gw - 1), ("^1", gw ^ 1), ("swap", (gw << 32) | (gw >> 32)), ("child0", Child(gw, 0)), ("child1", Child(gw, 1)),
+                        ("child2", Child(gw, 2)), ("H(gw,1)", H(gw, 1)), ("H(1,gw)", H(1, gw)), ("H(gw,2)", H(gw, 2)), ("H(gw,0)", H(gw, 0)), ("mixmix", Mix(Mix(gw))), ("~gw", ~gw), ("gw^hi", gw ^ 0x8000000000000000UL),
+                        ("lo+1", (gw & 0xFFFFFFFF00000000UL) | ((gw + 1) & 0xFFFFFFFF)), ("hi+1", gw + (1UL << 32)) };
+                    var hits = cands.Where(c => Same(ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Item2, Load).Select(p => p.Id))).Select(c => c.Item1).ToList();
+                    Console.WriteLine($"  GENDER {id,-14} {Path.GetFileName(Path.GetDirectoryName(file))} seed {gw:X16} hits [{string.Join(" ", hits)}]  stored [{string.Join(" ", stored)}]");
+                }
+            }
+            // PARTSBOTH=1: per companion, whether the role seed (WTp) and its Mix64 each give the stored parts exactly.
+            if (Environment.GetEnvironmentVariable("PARTSBOTH") == "1" && seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } wb)
+            {
+                ulong mb = wb.Seed; mb = (mb ^ (mb >> 33)) * 0x64DD81482CBD31D7UL; mb = (mb ^ (mb >> 33)) * 0xE36AA5C613612997UL; mb ^= mb >> 33;
+                bool Exact(ulong sd) { var pk = ArtifactX.Core.Procedural.ShipParts.Generate(scene, sd, Load).Select(p => p.Id).ToList(); return pk.Count == stored.Count && stored.All(x => pk.Contains(x, StringComparer.OrdinalIgnoreCase)); }
+                Console.WriteLine($"  BOTH {id,-16} wtp {(Exact(wb.Seed) ? "Y" : "-")} mix {(Exact(mb) ? "Y" : "-")} uax {pet["uAX"]?[0]} name {pet["fH8"]} hhx {pet["HhX"]} type {pet["HbY"]?["HbY"]} egg {pet["Kb:"]} {Path.GetFileName(Path.GetDirectoryName(file))}/{Path.GetFileName(file)} seed {wb.Seed:X16}");
+            }
             // Role Filter test (weird rig: groundtableweird Filter FLOAT / ROLL / CRYSTAL): top choice only, or every match.
             if (Environment.GetEnvironmentVariable("PARTSFILTER") == "1" && id is "WEIRDFLOAT" or "WEIRDROLL" or "WEIRDCRYSTAL"
                 && seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } wf && Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } rootGroups)
