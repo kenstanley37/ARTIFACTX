@@ -23,7 +23,7 @@ namespace libMBIN.NMS.Globals
         [NMS(Index = 196)]
         /* 0x980 */ public GcFilename FreighterBaseSpawnOverride;
         // size: 0x4
-        public enum ActiveLodDistancesEnum : uint {
+        public enum ActiveLodDistancesEnum {
             Low,
             Medium,
             High,
@@ -32,7 +32,7 @@ namespace libMBIN.NMS.Globals
         [NMS(Index = 11, Size = 0x4, EnumType = typeof(ActiveLodDistancesEnum))]
         /* 0x990 */ public TkLODDistances[] ActiveLodDistances;
         // size: 0x4
-        public enum InactiveLodDistancesEnum : uint {
+        public enum InactiveLodDistancesEnum {
             Low,
             Medium,
             High,
@@ -41,7 +41,7 @@ namespace libMBIN.NMS.Globals
         [NMS(Index = 12, Size = 0x4, EnumType = typeof(InactiveLodDistancesEnum))]
         /* 0x9E0 */ public TkLODDistances[] InactiveLodDistances;
         // size: 0x4
-        public enum TotalPlanetFrameTimeForComplexityEnum : uint {
+        public enum TotalPlanetFrameTimeForComplexityEnum {
             Low,
             Medium,
             High,
@@ -50,7 +50,7 @@ namespace libMBIN.NMS.Globals
         [NMS(Index = 183, Size = 0x4, EnumType = typeof(TotalPlanetFrameTimeForComplexityEnum))]
         /* 0xA30 */ public float[] TotalPlanetFrameTimeForComplexity;
         // size: 0x4
-        public enum TotalSpaceFrameTimeForComplexityEnum : uint {
+        public enum TotalSpaceFrameTimeForComplexityEnum {
             Low,
             Medium,
             High,

@@ -1,12 +1,9 @@
-using System;
-
 namespace libMBIN.NMS.GameComponents
 {
     [NMS(GUID = 0xD6408105C3762AA7, NameHash = 0x88C80333)]
     public class GcStaticTag : NMSTemplate
     {
         // size: 0x19
-        [Flags]
         public enum StaticTagEnum : uint {
             None = 0x0,
             GravityLaserGrabbable = 0x1,

@@ -52,7 +52,7 @@ namespace libMBIN.NMS.GameComponents
         [NMS(Index = 94, Size = 0x5, EnumType = typeof(GcCatalogueGroups.CatalogueGroupEnum))]
         /* 0xC0A0 */ public GcFilename[] Catalogues;
         // size: 0x5
-        public enum StatsEnum : uint {
+        public enum StatsEnum {
             Suit,
             Weapon,
             Ship,

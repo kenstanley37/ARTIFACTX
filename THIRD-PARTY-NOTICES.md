@@ -143,6 +143,10 @@ Changes made by ArtifactX to its copy of libMBIN:
   `GcMoveableObjectComponentData`, `GcNetworkOwnershipPriority`); `Version.cs` set
   to 7.10.0.2. The new `MinNodesBufferFree` field in GcBuildingGlobals moved
   `MinRadius` and the fields after it; the old copy read 25 instead of 10.
+- **Upstream 7.14.0-pre1 (MBINCompiler tag `v7.14.0-pre1`, 2026-11-03), compared 2026-11-13**: same structures and
+  offsets as ArtifactX's generated 7.14 copy; 16 files taken from upstream for what it has and ours lacked - 16-byte
+  alignment on GcMultiColouriseComponentData and GcScanEffectComponentData, the audio event / RTPC enums with the
+  game's hash values, enum base types and names (GcDebugOptions, TkTestMetadata, GcStaticTag flags).
 - `Globals/GcDebugOptions.cs`: removed `HmdShowEyeAimTarget`, absent from
   installed build 180836 and its native serializer, and corrected subsequent
   offset comments. The extra byte shifted the legacy-station override and
