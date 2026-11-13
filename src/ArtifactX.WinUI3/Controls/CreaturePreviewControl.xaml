@@ -38,6 +38,17 @@
                           AutomationProperties.Name="Select creature 3D rig"/>
             </StackPanel>
 
+            <!-- A wild species' two forms: the game builds a female and a male body from one seed. -->
+            <StackPanel x:Name="FormPanel" Spacing="4" Visibility="Collapsed">
+                <TextBlock Text="FORM" Style="{StaticResource ThemeEyebrowStyle}"/>
+                <RadioButtons x:Name="FormPicker" MaxColumns="2" SelectedIndex="0"
+                              SelectionChanged="FormPicker_SelectionChanged"
+                              AutomationProperties.Name="Creature form">
+                    <x:String>Female</x:String>
+                    <x:String>Male</x:String>
+                </RadioButtons>
+            </StackPanel>
+
             <TextBlock Text="3D creature geometry extracted directly from your game install. Drag to rotate model."
                        Style="{StaticResource ThemeDimTextStyle}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
         </StackPanel>

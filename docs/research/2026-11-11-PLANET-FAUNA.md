@@ -340,3 +340,222 @@ draw gave the Gem; narrowing the group and still drawing gives the Pillar seen i
 floater and Structure roller as confirmed (ShipParts drawForced). Mix64(seed) also gives the Pillar, but it was
 already ruled out for ordinary bodies (G. Towerravusosa). One crystal so far: a second one where the two disagree
 would settle it.
+
+## Colours (issue #15), 2026-11-13
+
+Every creature material is a procedural texture list like a ship's or a multi-tool's: layers tinted from the palette
+table - Fur, Scale, Underbelly, Rock, Leaf, Feather, Metal, Custom_Head (GameData.Checks `--creature-part-probe` now
+lists each material's palette slots; cow, cat, triceratops and bird scenes checked). Only the pet harness and a few
+eyes are fixed textures. So creatures now go through the same painter (ShipModels.Painted): the seed picks layers and
+patterns (PickLayers), the palette table (ShipLook.PaletteTable) gives the colours. CreatureModelService.PaintAsync.
+
+Inputs: the role seed (WTp on a companion) for both; a companion's ColourBaseSeed (uAX) when its flag is on replaces
+the colour seed only - the owner's 2026-07-28 tests (NmsCompanionPaths) showed WTp changes pattern and colour, uAX only
+colour. **Not confirmed:** whether the palette table takes the seed itself (starships) or its first child seed
+(multi-tools, ModelPreviewService.ColourSeed); the port uses the child seed. Also unknown: whether wild creatures take
+any planet palette, and what GcCreatureSpawnData SwapPrimaryForRandomColour / SwapPrimaryForSecondaryColour do.
+Ghidra lead not followed yet: the readers of GcPetData +0xF8 (ColourBaseSeed) lead to the creature's palette table.
+Ground truth wanted: screenshots of live creatures (not Discoveries) next to the app's model.
+
+**Owner test on Jinnie II, 2026-11-13 (Kostima-Kuloft, 000412F6FCFFB005, Slot 8):** seed-palette colours don't match:
+every live creature there is red-brown / tan like the planet (N. Radiotaylae red-brown with stegosaurus back plates;
+I. Homobocamosa tan with quills; K. Bearxiumica yellow-olive fur, sky-blue spotted back frill), the app drew green,
+yellow-black stripes, red. The base palettes (colours/basecolourpalettes.mbin) hold only muted earth tones, so a vivid
+purple fur (an earlier live shot) can't come from them. Each biome has its own 66-palette file (GcBiomeData
+ColourPaletteFile, e.g. biomes/lush/lushcolourpalettes.mbin, GcPlanetColourData: 64 colours per palette, far richer -
+lush Fur has purple, gold, orange). **Next hypothesis:** creature (and flora) colours come from the planet's colour table
+= the palette-table generator over the planet's biome palette file with a planet seed; the creature seed picks texture
+layers and colour slots only. To port: the planet's biome file (biome + sub-type -> GcBiomeData), its palette file, the
+planet colour seed (raw / child of the planet seed - check against a few planets' flora and creatures).
+Parts are also off on Jinnie II (Radiotaylae back plates drawn as a small frill; Bearxiumica gets horns), so parts need
+fixing before colours can be judged. GameData.Checks `--mbin-dump <path part> [n]` lists / dumps game files.
+
+**Parts vs gender form (2026-11-13, owner's Jinnie II scans, planet 000412F6FCFFB005 index 2):** the two individuals
+scanned in their species' **first** form match the role-seed parts: K. Bearxiumica ("Radical") has the narrow scalloped
+back fin _SBACK_6 (FINFLAPS; Mix64 would give bulbs), I. Homobocamosa ("Radical") the hunched quilled body. The one in
+its **second** form, N. Radiotaylae ("Female"; forms "Exotic or Female"), has big stegosaurus plates (cat _BCA_11 /
+_BLBACK_7, BACKSPINE material) that neither the role seed (_HEAD_CAT, _BCA_14 fur tuft) nor Mix64 (_HEAD_WOLF,
+_BCA_X7 side fins) gives. Hypothesis: the second form is built from another seed. No simple transform (+-1, ^1, swap,
+child seeds 0-2, Hash128(seed, 0/1/2), Mix64 twice...) reproduces the companions the role seed misses (fauna-check
+PARTSGENDER=1) - but those misses may be rerolled or Egg-Sequencer pets. Ghidra: the wild -> pet copy (0x1405110b0,
+called from the visor's 0x1412da090) copies the body from the live creature, so the choice is made at spawn, not there.
+Not found yet: the code filling GcCreatureSpawnData.FemaleResource (seed at +0x78) next to Resource (+0xC0).
+Owner's photo-mode shot of the same Female N. Radiotaylae: back plates, a hog tail with two blade fins (_TAIL_HOG +
+_THA_X2, ACCFINS), lizard-like bumpy skin. fauna-check PICKSEARCH over 235 derived seeds (Mwc draws and child seeds
+0-31, Hash128 both ways with 0-31, seed +-^ 0-31, planet / species / genus mixes) for "hog tail + blade fins + plates
+(_BCA_11 / _BCW_4 / _BLBACK_7)": 6 hits, about chance (~2%). The suggestive ones: seed+3 (= seed^3: _HEAD_WOLF, _MESH_WOLF
+_BCW_4) and seed-3 (_HEAD_CAT, _MESH_LIZ _BLBACK_7) - if each individual's parts seed were the role seed plus its index
+in the group, individuals of a species would differ. Open question for the owner: do individuals in one herd look
+alike?
+
+**Two looks per species = the two gender forms (owner's herd shots, 2026-11-13).** An I. Homobocamosa herd shows
+exactly two looks: quilled ones scan "Radical" (form 1, 180.5 kg / 4.3 m) - the role-seed parts, which the app draws;
+smooth hunched ones without quills scan "None" (form 2, 193.7 kg / 4.4 m). So individuals don't vary freely: form 1
+is built from the role seed, form 2 from something else. Candidate: role seed - 3 (= seed ^ 13 for both seeds tried)
+fits both form-2 sightings - Radiotaylae plates + bladed hog tail (_HEAD_CAT _MESH_LIZ _BLBACK_7 _TAIL_HOG _THA_X2),
+Homobocamosa the same turtle head on a diplo body with a big smooth back plate (_BODY_DIPLO _DBACC_2,
+ACCPLATEBODY) - but it reproduces none of the companions the role seed misses on rich trees (cat, grunt, trex,
+triceratops, rodent, strider), so it is unproven (likely chance; those pets are probably rerolled or egg-born).
+Next: Ghidra for where a spawned individual's gender picks its model seed (GcCreatureSpawnData Resource +0x90 /
+FemaleResource +0x48, seeds at +0xC0 / +0x78); FindAccess on those offsets plus the swap-colour flags found only
+unrelated code (0x1404761a0...). The app shows form 1 - correct for half of each herd.
+
+**Planet colours (2026-11-13):** a wild creature's palette table is its planet's - ShipLook.PaletteTable over the
+planet's biome palette file (GcBiomeData.ColourPaletteFile; catalog format 91 "BiomePalettes", biome x sub-type ->
+file), seeded with ColourSeed(planet seed) (the first child seed). Jinnie II (biome 10 HugeToxic, base palettes, planet
+seed F9D9E98106914B45): K. Bearxiumica's back fin FINFLAPS (Scale Primary + Alternative1) comes out brown #402E18 and
+teal #2E706C - the owner's shot shows a sky-blue frill with brown spots; the creature's own seed gives dark blue +
+olive, the raw planet seed grey + olive (no blue). Fur brown / olive fits Bearxiumica and Homobocamosa. One planet so far:
+check another biome (one with its own palette file, e.g. lush) next. Companions keep their own seed on base palettes.
+
+**Pattern layers use the creature seed's child (2026-11-13):** GameData.Checks `--creature-layer-probe <material>
+<seeds...>` lists the layers a seed picks. I. Homobocamosa (owner: plain brown, no stripes): the role seed picks
+TAPIRBODYMAT MARKINGS=BELTS (the stripes the app drew), its first child (ColourSeed) GRADIENT on body and head.
+K. Bearxiumica (owner: frill with spots): child gives FINFLAPS MARKINGS=SPOTS; role seed GRADIENT, Mix64 SPIKES.
+So: parts from the role seed, pattern layers from ColourSeed(role seed), colours from the planet's table
+(ColourSeed(planet seed) over the biome palettes). Preview lighting moved to linear light (ShipPreview.Lit).
+
+**Colour slot offset per creature (2026-11-13, owner's close-ups):** with the planet table (Jinnie II, ColourSeed(planet
+seed), base palettes) every sighting fits "slot s reads palette entry (s + k) mod 5" with a per-creature k (Unique
+read as slot 3): I. Homobocamosa k=3 - Fur[3] #5F3624 orange-brown body, Underbelly[3] #4C5E5D grey-teal belly patch
+(close-up); K. Bearxiumica k=1 - Fur[1] #5F521D yellow-olive, fin base Scale[1] #2E706C teal with spots Scale[2]
+#704F05 brown; W. Gentaylatica k=4 - petals Grass[4] #245E71 blue and Leaf[(3+4)%5=2] #A64D00 orange. The app uses k=0,
+which gives the white bellies (Underbelly[0] #BEDBB6). Likely GcCreatureSpawnData.SwapPrimaryForRandomColour. k not
+found: Mwc draws 0-15 of the role seed / its children / Mix64 (x5 multiply-high, mod 5, float), direct mod 5, list
+position (2/3/5) and role (3/4/1) - only chance-level hits. Next: Ghidra for where a creature's palette alt index is
+offset (reads of the spawn data's +0x146/+0x147 swap flags), or more sightings to test candidates.
+
+**Colour remap search, 2026-11-13 (later):** the remap structure exists - GcProceduralTextureColourIndices
+{ int Alts[8] } (enum GcPaletteColourAlt: Primary, Secondary, Alternative3-5, Unique, MatchGround, None): slot ->
+palette entry, used by no game file (runtime only). Its type-hash / "Alts" references in NMS.exe 184271
+(0x141b96dc0-0x141b9d8d0, 0x141ba5cd0) are the reflection serializer only. Another reading of the sightings:
+Bearxiumica = SwapPrimaryForSecondaryColour (Primary <-> entry 1: teal fin, olive fur; Secondary -> entry 0: brown
+spots), Homobocamosa / Gentaylatica = SwapPrimaryForRandomColour (Primary -> entry 3 / 4). Those flags live in
+GcCreatureSpawnData, which only biome files' hand-placed GcEnvironmentSpawnData use; procedural roles fill it at run
+time. Dead ends: identity-table stores (0x142c55620 is a BC7 block decoder), "gDiffuseMap" users in 0x1416a37f0 (planet
+atmosphere / terrain textures). Next lead: the creature spawner that copies a role into GcCreatureSpawnData and sets
++0x146 / +0x147.
+
+**Live game memory, 2026-11-14 (NMS running on Jinnie II, read-only ReadProcessMemory, scratch tool "memscan").** The
+planet's GcCreatureSpawnData array (stride 0x148) sits in memory with every field filled: Resource (+0x90) and
+FemaleResource (+0x48) both hold the scene and the role seed (GcResourceElement.Seed +0x30), and each AltId (+0x00) holds
+the parts the game chose, e.g. Homobocamosa (TRICERATOPS, role 4) male "_HEAD_TURTLE _TTLEHNECK_0 _TTLEEAR_0 _TTLEHACC_3
+_BODY_TAPIR _DECOR_0 _TAIL_RHINO", female "... _TTLEHACC_0 _BODY_TAPIR _DECOR_4 ...". SwapPrimaryForRandomColour /
+SwapPrimaryForSecondaryColour (+0x146/+0x147) are 0 for all five species - the swap-flag reading of the colours is wrong.
+ProceduralTexture lists are empty. GcCreatureRoleData (stride 0x5D8) gives each species' CreatureId (TRICERATOPS,
+RODENT, CAT, SIXLEGCAT, FLORALCAT).
+
+**Gender forms solved (2026-11-14, 5/5 species exact).** FemaleResource = the plain selector with the role seed (what the
+app already drew as "form 1"). Resource (male) = NMS.exe 184271 FUN_142ddb8e0 -> FUN_142ddc700, a two-stream selector:
+stream A = role seed, stream B = Mix64(role seed) (built in FUN_1416d5940 when its flag param_12 is 0). Per group: B steps
+once (chance draw), A picks, B picks; B's pick wins when chance / 2^32 < p. A part's children and scenes get child seeds
+from both streams (two draws each, Mix64) and p' = min(max(0, p + inc), 1). Top level p = 0, so top-level parts always
+match the female. inc = DAT_14533d444, set at run time: 2.0 in the live game (read from memory), so every nested group
+takes B's pick. Checked: CAT, SIXLEGCAT, RODENT, TRICERATOPS, FLORALCAT male parts all exact (the cat alone is a
+~1-in-57,000 match by chance). The weight function is FUN_142dddfc0 (xRARE 1, xNEVER 0, xWEIRD 20, else 20); the single
+selector FUN_142ddd3b0 / FUN_142de10a0 also has a substring filter list and a "preferred" substring.
+
+**Creature colours solved (2026-11-14): the planet table seed was wrong, there is no per-creature offset.** The running
+game's planet colour table (66 palettes x 7 float4, 0x1CE0 bytes, in the planet data right after the planet seed) is
+ShipLook.PaletteTable over the base palettes seeded with ColourSeed(PlanetProfileGenerator.ChildSeeds(planet)[2]) - the
+first child of the planet's third step seed: 330/330 colours exact (Jinnie II). The app used ColourSeed(planet seed),
+which matched only a few entries, so the owner's sightings seemed to need an offset k per creature. Code path (NMS.exe
+184271): cGcPlanetGenerator setup FUN_1416bdef0 -> FUN_1416d94b0 -> FUN_1416d9650 (role -> spawn data; never sets
++0x146/+0x147) and FUN_1416d9f90, which per spawn entry copies the planet table, calls FUN_1416da170 (rotation by
+2/3/4 from the generator's running Mwc at +0xBA4 when SwapPrimaryForRandomColour is on; order 1,0,3,4,2 when only
+SwapPrimaryForSecondaryColour is on; nothing when both are off) and colours each texture option with row[palette*7 +
+slot] for slots 0-4 (Unique, MatchGround, None and OverrideColour left alone). The same remap runs for the hand-placed
+environment spawns (FUN_1416d9d30, flags at +0x164/+0x165). FUN_1416d5080 then loads each spawn entry's models with
+cGcPlanetGenerator::LoadModel (FUN_1416d5940; name in a std::function type string): Resource with the two-stream
+selector (male), FemaleResource and ExtraResource with the single one. With the right table I. Homobocamosa's Underbelly
+Primary is #4C5E5D (the owner's grey-teal belly patch) with no offset.
+
+**Correction, same day (owner's sunlit K. Bearxiumica shot):** the ChildSeeds[2] table is NOT the creature table. The
+frill is sky blue (Scale #2E706C in sun) with orange-brown spots (#402E18 / #704F05) and the fur cream-yellow (#5F521D):
+all in the ColourSeed(planet seed) table, none in the ChildSeeds[2] table. Both tables exist in game memory (the first
+in the duplicated-block area at 0x209BAE62000, the second after the planet seed); ChildSeeds[2] is probably terrain /
+flora. Reverted the app to ColourSeed(planet seed). The per-creature reordering is real and is FUN_1416da170's: Bearxiumica
+= order 1,0,3,4,2 (Primary -> teal frill, Alternative1 -> brown spots), Homobocamosa = rotation 3, Gentaylatica =
+rotation 4. Open: what picks each creature's mode - its live spawn entry (+0x146/+0x147) reads 0, so the remap is applied
+on another path (creature spawn / texture task), with its own flags or draw.
+
+**Creature colours solved for real (2026-11-14, later):** each creature builds its own palette table from its own
+seed. LoadModel (FUN_1416d5940) queues the creature's procedural texture task (FUN_140645760) with no palette table and
+no texture seed; the task runner FUN_140646250 (state 0) then builds one with FUN_140639e30 (same structure as
+ShipLook.PaletteTable: rows 0-51, the six sky rows, 0 and 51 again, 52-65 with 56 from the saved state) from the task's
+seed over the current planet's palettes (game state +0x521cf0), and paints each option with row[slot]. With the role
+seed used raw (no child) every owner sighting is an exact entry, no reordering: K. Bearxiumica Fur #353535 (dark grey
+fur), Underbelly #DBC89D (pale band), Scale #173340 (blue frill) + Alternative1 #706104 (ochre spots); I. Homobocamosa
+Fur #5F402E (brown), Underbelly #4C5E5D (grey-teal belly patch); W. Gentaylatica Grass #245E71 (blue petals). The
+per-creature "offsets" and the swap/rotate reading were fits to the wrong (planet-seed) table. FUN_1416da170's remap is
+used only where a spawn entry's flags are set (hand-placed spawns).
+
+**Lush planet check (2026-11-13, NMS build 185034, read-only memory reads on a lush planet):** the game's biome
+sub-type -> palette file map sits in memory as an array of pointers to the loaded palette files (one 32-entry row per
+biome). The Lush row points to exactly the files the catalog's BIOMEPALETTEFILES holds for each sub-type
+(1,2,13-15,19,22-24 lushcolourpalettes; 3 lushruins; 7 lushbubbles; 20/21 lushroom A/B; 25 swamp; 27 jungle) and holds
+null for the empty sub-types. The app fills an empty sub-type with the biome's first file; what the game does with a
+null entry is not confirmed (perhaps the base palettes). Per-creature palette tables do not stay in memory after the
+texture is built (no table for any of the 454 live spawn seeds, raw/child/Mix64 x base/lush files), so the creature
+rule on lush planets still needs an in-game sighting. The 184271 global (DAT_146f6b208) is stale on 185034.
+
+**Lush creature colours confirmed (2026-11-13, owner photo-mode shots of A. Orniirgium on a lush moon):** the live
+spawn table (found through pointers to its scene path strings) holds a triceratops-rig role seed 3D443CE270C6A44E whose
+female parts are _HEAD_TURTLE _TTLEHACC_3 _BODY_TRI _TRIBACK_7XRARE1 (the rare back frill in the shot). Its body
+materials paint Fur/Primary, Underbelly/Primary and Scale/Primary markings. Own-seed table over lushcolourpalettes:
+Fur #9D7F5A (brown fur), Underbelly #CCD4C6 (pale belly and frill), Scale #A7D3D2 (the pale stripes) - matches.
+Over the base palettes the belly would be #432907 (dark brown) - does not match. So creatures use the planet's biome
+palette file, as the app does.
+
+**Rig part filters (2026-11-13, NMS.exe 184271 + running game 185034):** the game keeps each creature's chosen parts as
+runs of 32-byte upper-case ids (FUN_142ddd3b0's list, a decimal hash after each run; male form first, then female) -
+readable in memory, unlike the spawn data's Resource AltId, which is empty for wild fauna on 185034. On the planet of
+the predator strider 8C510BE47B88D477 the antelope, two-legged antelope, bird and flying lizard lists matched
+ShipParts exactly, but the strider had _HEAD_FLATHEAD where the seed picks _HEAD_FISH (body, tail and both forms
+otherwise exact). Cause: cGcPlanetGenerator::LoadModel passes a filter name - the spawn Filter, else FUN_1416d4f90 by
+role: 1/2 "PREDATOR", 3/4 "HERBIBVORE" (sic - no HERBIVORE entry ever matches) - and FUN_142ddea90 turns the scene path
+into <scene>.FILTER.MBIN (TkResourceFilterList) and returns the first entry whose name contains it; FUN_142de10a0 then
+skips every option whose id contains one of its FilteredResources (no weight). Weights are otherwise fixed: 20, xRARE 1,
+xNEVER 0, xWEIRD 20 (FUN_142dddfc0); FUN_142de3370's tag check only concerns ids with "_X..." segments or an upper-case
+X. Sub-scenes get no filter (looked up with an empty name). strider PREDATOR = _HEAD_FISH; triceratops PREDATOR = STEG,
+HIPPO, TAPIR, TURTLE, DIPLO heads; weirdrig FLOAT/ROLL/CRYSTAL exclude the other two bodies (same pick and draw as the
+old forced body). Catalog format 92 "CreatureFilters"; CreatureTables.ExcludedParts.
+Resolved 2026-11-13: V. Snakwercus is not 5B0A6E3C129C03D5. With the owner standing next to one, the strider seed
+8C510BE47B88D477 sat in ~80 live records while 5B0A appeared 3 times; its spawn entry is role 1 (predator), rarity 2
+(the Discoveries page says "Rare / Ground", notes "an accomplished hunter"); 5B0A is role 3, rarity 0 - a second,
+common strider on the same planet. The game's chosen lists for 8C51 are the PREDATOR-filtered ones above (_HEAD_FLATHEAD
+_FHACC_1 ...), so the "big crested head" is the flat head and the fish head was the missing filter.
+
+### Creature texture picks (2026-11-13, open)
+
+V. Snakwercus (8C510BE47B88D477) in game is the male form, grey scaled body; the app paints it yellow with the
+markings layer HALF. Game memory names each creature texture it builds `<texture>.PROC.0.<n>.DDS`, where n is the
+decimal number after that form's chosen-part list (male 1934150958, female 1496393418), and keeps the layer images it
+loaded (`BUGBODY.MARKINGS.SCALES.DDS`...). The two forms load different textures, so the pick seed depends on the form.
+Scored against 53 loaded MARKINGS picks (17 creature forms matched to their spawn seeds): the app's seed
+(ModelPreviewService.ColourSeed, first child) 16/53, raw seed 33/53, Mix64 21, form seed 25, the list number itself
+22 - chance is about 22. Raw-seed misses often pick PATCHES/STRIPES where the game loaded GRADIENT. Next: decompile the
+creature texture pick (near FUN_1416d9f90 / FUN_140646250) for the seed and any option filter.
+Solved the same day: the game picks a creature's texture layers once for the whole model - every material's main
+list merged as ShipLook.Merge does (by layer name and group, in the model's material order) and picked with
+ShipLook.Pick on the raw creature seed; each material paints the option of that name. 42/42 loaded MARKINGS images
+(17 forms). Male and female differ only because their parts (so their merged lists) differ. A material without the
+picked option: its own pick with the same seed matched 7 of 10 (ACC_EAR1 loads GRADIENT where that gives HALF) -
+open. ShipLook.PickMerged, ShipModels.Painted(layerPicks), commit 14e170a.
+
+### Creature skin blend and palette set (2026-11-13)
+
+Blend: the game combines a creature texture with texture_frag_combine_diffuse_0.spv (NMSARC.Shaders.pak; SPIR-V read
+with a small disassembler). Per layer, in sRGB: hue = fract(image hue - average hue + colour hue), saturation =
+min(image, colour), value = image value + 0.476627 * 10^(-10 (v - 0.5)^2) * (colour value - average value); Multiply
+options multiply in linear light; layers mix by alpha in linear light (x^2.2), output x^(1/2.2). The option files
+leave AverageColour 0 with OverrideAverageColour false, so the image mean is used (unconfirmed). Ported as
+Core TextureRecolour (creatures only; ships keep the checked gain model).
+
+Palette set: LoadModel passes the descriptor result whose +0x10 seed is the spawn seed (FUN_142ddb8e0 copies
+plVar6[6..7]) - the raw spawn seed, as used. FUN_140639e30 is called with (palettes, 0x10, 0), and FUN_14063a560
+reads set [0x10][0], not the planet biome/sub-type. Memory on Marjorg (lush): the biome x sub-type table (16-byte
+{count, count, ptr} rows) row 16 entry 0 points at the loaded basecolourpalettes; the lush row at lushcolourpalettes.
+Owner shots: V. Snakwercus (grey scaled, yellow beak, pink frill) and W. Geoyugia (rust body, green legs) match only
+the base palettes. The app now paints wild creatures over the base palettes; the biome palette plumbing
+(PlanetColours, catalog BiomePalettes) is unused for colours until the slot is seen on another planet.

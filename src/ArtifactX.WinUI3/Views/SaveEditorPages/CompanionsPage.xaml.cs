@@ -143,7 +143,8 @@ public sealed partial class CompanionsPage : Page
             return;
         }
 
-        string key = $"{index}|{rig}|{string.Join(",", descriptors)}";
+        var (seed, colourSeed) = CreatureModelService.CompanionLookSeeds(SaveSessionManager.GetValue(NmsCompanionPaths.CompanionPath(index)));
+        string key = $"{index}|{rig}|{string.Join(",", descriptors)}|{seed:X}|{colourSeed:X}";
         if (key == _previewKey) return;
         _previewKey = key;
 
@@ -155,7 +156,7 @@ public sealed partial class CompanionsPage : Page
         else
             CompanionPreviewTitle.Text = "COMPANION 3D PREVIEW";
 
-        await CompanionPreview.ShowCreatureAsync(rig, descriptors);
+        await CompanionPreview.ShowCreatureAsync(rig, descriptors, seed: seed, colourSeed: colourSeed);
     }
 
     private void ShowResetButton() =>

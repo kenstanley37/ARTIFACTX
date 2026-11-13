@@ -263,7 +263,35 @@ if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
                 if (hits == stored.Count && picked.Count == stored.Count) { partsExact++; bySeed[name] = bySeed.GetValueOrDefault(name) + 1; best = name + " EXACT"; break; }
             }
             if (companions <= 12) Console.WriteLine($"  {id,-16} {scene,-60} stored {stored.Count}, best {best} ({bestHits})  [{string.Join(" ", stored)}]");
-            if (Environment.GetEnvironmentVariable("PARTSKIND") == "1") Console.WriteLine($"  KIND {id} {(best.EndsWith("EXACT") && best.StartsWith("WTp") ? "wtp-exact" : best.EndsWith("EXACT") ? "other-exact" : "miss")}");
+            if (Environment.GetEnvironmentVariable("PARTSKIND") == "1") Console.WriteLine($"  KIND {id} {(best.EndsWith("EXACT") ? best : "miss")}");
+            // PARTSGENDER=1: for a companion the role seed doesn't reproduce, which derived seed or skipped draws do
+            // (a pet adopted from a species' second form would store that form's parts).
+            if (Environment.GetEnvironmentVariable("PARTSGENDER") == "1" && seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } wg)
+            {
+                bool Same(IEnumerable<string> pk) { var l = pk.ToList(); return l.Count == stored.Count && stored.All(x => l.Contains(x, StringComparer.OrdinalIgnoreCase)); }
+                ulong gw = wg.Seed;
+                if (!Same(ArtifactX.Core.Procedural.ShipParts.Generate(scene, gw, Load).Select(p => p.Id)))
+                {
+                    static ulong Mix(ulong v) { v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL; v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL; return v ^ (v >> 33); }
+                    static ulong H(ulong lo, ulong hi) { const ulong k = 0x9DDFEA08EB382D69UL; ulong a = (lo ^ hi) * k; a ^= a >> 47; ulong b = (hi ^ a) * k; b ^= b >> 47; return b * k; }
+                    static (ulong, ulong) St(ulong sd) { ulong lo = sd & 0xFFFFFFFF, hi = sd >> 32; return (lo == 0 ? 1 : lo, (((lo << 16) | (lo >> 16)) & 0xFFFFFFFF) ^ hi ^ lo); }
+                    static ulong Nx(ref (ulong A, ulong B) st) { ulong t = st.A * 0x5A76F899UL + st.B; st = (t & 0xFFFFFFFF, t >> 32); return st.A; }
+                    static ulong Child(ulong sd, int n) { var st = St(sd); ulong c = 0; for (int i = 0; i <= n; i++) { ulong a = Nx(ref st); c = Mix((Nx(ref st) << 32) | a); } return c; }
+                    var cands = new List<(string, ulong)> { ("+1", gw + 1), ("-1", gw - 1), ("^1", gw ^ 1), ("swap", (gw << 32) | (gw >> 32)), ("child0", Child(gw, 0)), ("child1", Child(gw, 1)),
+                        ("child2", Child(gw, 2)), ("H(gw,1)", H(gw, 1)), ("H(1,gw)", H(1, gw)), ("H(gw,2)", H(gw, 2)), ("H(gw,0)", H(gw, 0)), ("mixmix", Mix(Mix(gw))), ("~gw", ~gw), ("gw^hi", gw ^ 0x8000000000000000UL),
+                        ("lo+1", (gw & 0xFFFFFFFF00000000UL) | ((gw + 1) & 0xFFFFFFFF)), ("hi+1", gw + (1UL << 32)),
+                        ("-2", gw - 2), ("-3", gw - 3), ("+3", gw + 3), ("^13", gw ^ 13), ("^3", gw ^ 3), ("^2", gw ^ 2), ("+2", gw + 2), ("-4", gw - 4), ("^5", gw ^ 5), ("^7", gw ^ 7) };
+                    var hits = cands.Where(c => Same(ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Item2, Load).Select(p => p.Id))).Select(c => c.Item1).ToList();
+                    Console.WriteLine($"  GENDER {id,-14} {Path.GetFileName(Path.GetDirectoryName(file))} seed {gw:X16} hits [{string.Join(" ", hits)}]  stored [{string.Join(" ", stored)}]");
+                }
+            }
+            // PARTSBOTH=1: per companion, whether the role seed (WTp) and its Mix64 each give the stored parts exactly.
+            if (Environment.GetEnvironmentVariable("PARTSBOTH") == "1" && seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } wb)
+            {
+                ulong mb = wb.Seed; mb = (mb ^ (mb >> 33)) * 0x64DD81482CBD31D7UL; mb = (mb ^ (mb >> 33)) * 0xE36AA5C613612997UL; mb ^= mb >> 33;
+                bool Exact(ulong sd) { var pk = ArtifactX.Core.Procedural.ShipParts.Generate(scene, sd, Load).Select(p => p.Id).ToList(); return pk.Count == stored.Count && stored.All(x => pk.Contains(x, StringComparer.OrdinalIgnoreCase)); }
+                Console.WriteLine($"  BOTH {id,-16} wtp {(Exact(wb.Seed) ? "Y" : "-")} mix {(Exact(mb) ? "Y" : "-")} uax {pet["uAX"]?[0]} name {pet["fH8"]} hhx {pet["HhX"]} type {pet["HbY"]?["HbY"]} egg {pet["Kb:"]} {Path.GetFileName(Path.GetDirectoryName(file))}/{Path.GetFileName(file)} seed {wb.Seed:X16}");
+            }
             // Role Filter test (weird rig: groundtableweird Filter FLOAT / ROLL / CRYSTAL): top choice only, or every match.
             if (Environment.GetEnvironmentVariable("PARTSFILTER") == "1" && id is "WEIRDFLOAT" or "WEIRDROLL" or "WEIRDCRYSTAL"
                 && seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } wf && Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } rootGroups)
@@ -423,6 +451,41 @@ if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
             Console.WriteLine("  app rule: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, c.Seed, Load, forcedMain, drawForced: true).Select(x => x.Id)));
             Console.WriteLine("  narrowed: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, c.Seed, p => string.Equals(p, mainDesc, StringComparison.OrdinalIgnoreCase) ? narrowed : Load(p)).Select(x => x.Id)));
             Console.WriteLine("  mix64:    " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, m, Load, forcedMain).Select(x => x.Id)));
+        }
+        // PICKDERIVED=1: the parts each derived seed gives (second gender form hunt).
+        if (Environment.GetEnvironmentVariable("PICKDERIVED") == "1")
+        {
+            static ulong Mx(ulong v) { v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL; v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL; return v ^ (v >> 33); }
+            static ulong Hh(ulong lo, ulong hi) { const ulong k = 0x9DDFEA08EB382D69UL; ulong a = (lo ^ hi) * k; a ^= a >> 47; ulong b = (hi ^ a) * k; b ^= b >> 47; return b * k; }
+            static ulong Ch(ulong sd, int n) { ulong lo = sd & 0xFFFFFFFF, hi = sd >> 32; ulong s0 = lo == 0 ? 1 : lo, s1 = (((lo << 16) | (lo >> 16)) & 0xFFFFFFFF) ^ hi ^ lo; ulong c = 0; for (int i = 0; i <= n; i++) { ulong t = s0 * 0x5A76F899UL + s1; s0 = t & 0xFFFFFFFF; s1 = t >> 32; ulong a = s0; t = s0 * 0x5A76F899UL + s1; s0 = t & 0xFFFFFFFF; s1 = t >> 32; c = Mx((s0 << 32) | a); } return c; }
+            ulong w = c.Seed;
+            foreach (var (nm, sd) in new (string, ulong)[] { ("+1", w + 1), ("-1", w - 1), ("^1", w ^ 1), ("swap", (w << 32) | (w >> 32)), ("child0", Ch(w, 0)), ("child1", Ch(w, 1)), ("child2", Ch(w, 2)),
+                ("H(w,0)", Hh(w, 0)), ("H(w,1)", Hh(w, 1)), ("H(1,w)", Hh(1, w)), ("H(w,2)", Hh(w, 2)), ("mix", Mx(w)), ("mixmix", Mx(Mx(w))), ("~w", ~w), ("hi+1", w + (1UL << 32)) })
+                Console.WriteLine($"  {nm,-8} {string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, sd, Load).Select(x => x.Id))}");
+        }
+        // PICKSEARCH=id,id|id,...: derived seeds whose parts hold every id of one alternative (groups split by '|' are
+        // "any of"; ',' within a group "all of"). E.g. "_TAIL_HOG,_THA_X2,_BCA_11|_TAIL_HOG,_THA_X2,_BCW_4".
+        if (Environment.GetEnvironmentVariable("PICKSEARCH") is { Length: > 0 } want)
+        {
+            var alts = want.Split('|').Select(a => a.Split(',')).ToList();
+            static ulong Mx2(ulong v) { v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL; v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL; return v ^ (v >> 33); }
+            static ulong Hh2(ulong lo, ulong hi) { const ulong k = 0x9DDFEA08EB382D69UL; ulong a = (lo ^ hi) * k; a ^= a >> 47; ulong b = (hi ^ a) * k; b ^= b >> 47; return b * k; }
+            ulong w = c.Seed;
+            var cands = new List<(string, ulong)>();
+            ulong lo0 = w & 0xFFFFFFFF, hi0 = w >> 32; ulong s0 = lo0 == 0 ? 1 : lo0, s1 = (((lo0 << 16) | (lo0 >> 16)) & 0xFFFFFFFF) ^ hi0 ^ lo0;
+            ulong Nx() { ulong t = s0 * 0x5A76F899UL + s1; s0 = t & 0xFFFFFFFF; s1 = t >> 32; return s0; }
+            var draws = new List<ulong>(); for (int i = 0; i < 64; i++) draws.Add(Nx());
+            for (int i = 0; i < 32; i++) { cands.Add(($"child{i}", Mx2((draws[2 * i + 1] << 32) | draws[2 * i]))); cands.Add(($"draw{i}", draws[i])); }
+            for (int i = 0; i < 32; i++) { cands.Add(($"H(w,{i})", Hh2(w, (ulong)i))); cands.Add(($"H({i},w)", Hh2((ulong)i, w))); cands.Add(($"w+{i}", w + (ulong)i)); cands.Add(($"w-{i}", w - (ulong)i)); cands.Add(($"w^{i}", w ^ (ulong)i)); }
+            cands.Add(("mix", Mx2(w))); cands.Add(("mixmix", Mx2(Mx2(w)))); cands.Add(("~w", ~w)); cands.Add(("swap", (w << 32) | (w >> 32)));
+            cands.Add(("planet", bodySeeds[index])); cands.Add(("H(w,planet)", Hh2(w, bodySeeds[index]))); cands.Add(("H(planet,w)", Hh2(bodySeeds[index], w)));
+            cands.Add(("species", sp)); cands.Add(("genus", ge)); cands.Add(("H(sp,ge)", Hh2(sp, ge))); cands.Add(("H(ge,sp)", Hh2(ge, sp)));
+            foreach (var (nm, sd) in cands)
+            {
+                var ids = ArtifactX.Core.Procedural.ShipParts.Generate(scene, sd, Load).Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (alts.Any(a => a.All(ids.Contains))) Console.WriteLine($"  HIT {nm,-12} {sd:X16} {string.Join(" ", ids)}");
+            }
+            Console.WriteLine($"  searched {cands.Count}");
         }
         if (Environment.GetEnvironmentVariable("PICKSEED") is { Length: > 0 } extra)
             Console.WriteLine("with " + extra + ": " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, ulong.Parse(extra, NumberStyles.HexNumber), Load).Select(x => $"{x.Group}={x.Id}")));
@@ -852,7 +915,7 @@ if (args.Length > 2)
                 cmd.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords' AND i.NameEnglish='CRE'";
                 words = JsonSerializer.Deserialize<List<string>>((string)cmd.ExecuteScalar()!)!;
             }
-            Console.WriteLine($"  player at {here:X16}, planet index {index}");
+            Console.WriteLine($"  player at {here:X16}, planet index {index}, planet seed {bodySeeds[index]:X16}");
             foreach (var c in p.PredictedCreatures ?? [])
             {
                 ulong planetAddress = (here & ~(0xFUL << 52)) | ((ulong)(index + 1) << 52);

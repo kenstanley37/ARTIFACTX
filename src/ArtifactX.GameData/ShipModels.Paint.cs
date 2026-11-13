@@ -26,6 +26,7 @@ public sealed partial class ShipModels
 {
     private readonly ConcurrentDictionary<string, (int W, int H, byte[] Rgba)?> _images = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Regex Extension = new(@"(\.[^./]*){1,4}$");
+    private readonly ConcurrentDictionary<string, float[]> _averages = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The material painted at <paramref name="size"/> pixels square, or null
     /// when it has nothing to paint with. <paramref name="colour"/> gives a palette
@@ -37,8 +38,15 @@ public sealed partial class ShipModels
     /// <param name="styles">Option names a ship built at a station was given (its T>1 list,
     /// "STEALTH" for paint style 3 - 2026-10-16): wherever a layer has such an option it is
     /// used, whatever the seed picks. The builder's styles are options found ships never get.</param>
+    /// <param name="layerGain">A fixed brightness for tinted layers (texture grey x colour x gain) instead of scaling
+    /// each image so its average gives the palette colour. Creatures use it: their pale Underbelly colours (#DBC2AF...)
+    /// scaled up to 4x came out pure white, where in game no land creature on Jinnie II shows white (owner, 2026-11-13).</param>
+    /// <param name="layerPicks">A whole model's picks (ShipLook.PickMerged - creatures): a layer named here paints the
+    /// option of that name, or nothing when the name is null. A material without that option falls back to its own
+    /// pick with <paramref name="textureSeed"/> - unconfirmed: it matched what the game loaded on 7 of 10 such
+    /// materials (2026-11-13; ACC_EAR1 loads GRADIENT where its own pick is HALF).</param>
     public ModelTexture? Painted(string material, Func<string, string, float[]?> colour, int size = 512, ulong? textureSeed = null,
-        ISet<string>? styles = null)
+        ISet<string>? styles = null, float? layerGain = null, IReadOnlyDictionary<string, string?>? layerPicks = null)
     {
         if (Decode(material) is not TkMaterialData data) return null;
         var samplers = data.Samplers ?? new();
@@ -65,9 +73,9 @@ public sealed partial class ShipModels
 
         // The main paint (gDiffuseMap); a decal material lays a second sheet over it
         // (gDiffuse2Map - the stripes along a tool's top, 2026-10-16).
-        if (ListIn("gDiffuseMap") is { } main && Layered(main, effectiveColour, size, textureSeed, styles) is { } painted)
+        if (ListIn("gDiffuseMap") is { } main && Layered(main, effectiveColour, size, textureSeed, styles, layerGain, layerPicks) is { } painted)
         {
-            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, effectiveColour, size, textureSeed, styles) is { } over
+            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, effectiveColour, size, textureSeed, styles, layerGain, layerPicks) is { } over
                 ? painted with { Decal = over } : painted;
         }
         // No layers: the plain diffuse image.
@@ -75,11 +83,47 @@ public sealed partial class ShipModels
         return diffuse is { Length: > 0 } && Image(diffuse) is { } img ? Resample(img, size, (r, g, b, _) => (r, g, b)) : null;
     }
 
+    /// <summary>The layers a seed paints on a material's main texture list - "LAYER=option (palette/slot)" - for
+    /// research probes (which pattern a creature gets); empty without a list.</summary>
+    public IReadOnlyList<string> PickedLayerNames(string material, ulong seed)
+    {
+        if (Decode(material) is not TkMaterialData data) return Array.Empty<string>();
+        var map = (data.Samplers ?? new()).FirstOrDefault(s => (s.Name?.Value ?? "") == "gDiffuseMap")?.Map?.Value;
+        if (map is not { Length: > 0 } || Decode(Extension.Replace(map.Replace('\\', '/'), "") + ".TEXTURE.MBIN") is not TkProceduralTextureList list)
+            return Array.Empty<string>();
+        var all = (list.Layers ?? Array.Empty<TkProceduralTextureLayer>()).Where(l => (l.Textures?.Count ?? 0) > 0).ToList();
+        return PickLayers(all, seed).Select(p => $"{p.Layer.Name?.Value}={p.Texture.Name?.Value} ({p.Texture.Palette.Palette}/{p.Texture.Palette.ColourAlt})").ToList();
+    }
+
+    /// <summary>A material's main texture list (gDiffuseMap) as ShipLook's layers - what ShipLook.PickMerged merges
+    /// over a whole model. Null for a material without one (a plain diffuse image).</summary>
+    public IReadOnlyList<ArtifactX.Core.Procedural.TextureLayer>? TextureLayers(string material)
+    {
+        if (Decode(material) is not TkMaterialData data) return null;
+        var map = (data.Samplers ?? new()).FirstOrDefault(s => (s.Name?.Value ?? "") == "gDiffuseMap")?.Map?.Value;
+        if (map is not { Length: > 0 } || Decode(Extension.Replace(map.Replace('\\', '/'), "") + ".TEXTURE.MBIN") is not TkProceduralTextureList list)
+            return null;
+        return (list.Layers ?? Array.Empty<TkProceduralTextureLayer>()).Select(l => new ArtifactX.Core.Procedural.TextureLayer(
+            l.Name?.Value ?? "", l.Group?.Value ?? "", l.Probability, l.SelectToMatchBase,
+            (l.Textures ?? new()).Select(t => new ArtifactX.Core.Procedural.TextureOption(t.Name?.Value ?? "", (int)t.Palette.ColourAlt,
+                (int)t.Palette.Palette, t.Probability, (int)t.TextureGameplayUse)).ToList())).ToList();
+    }
+
     private ModelTexture? Layered(TkProceduralTextureList list, Func<string, string, float[]?> colour, int size, ulong? textureSeed,
-        ISet<string>? styles = null)
+        ISet<string>? styles = null, float? layerGain = null, IReadOnlyDictionary<string, string?>? layerPicks = null)
     {
         var all = (list.Layers ?? Array.Empty<TkProceduralTextureLayer>()).Where(l => (l.Textures?.Count ?? 0) > 0).ToList();
         var picked = textureSeed is ulong seed ? PickLayers(all, seed) : all.Select(l => (l, l.Textures![0])).ToList();
+        // A whole model's picks: the named option where this list has it, nothing where the pick left the layer off,
+        // else this list's own pick.
+        if (layerPicks is not null)
+        {
+            var own = picked.ToDictionary(p => p.Item1, p => p.Item2);
+            picked = all.Select(l => (l, Texture: layerPicks.TryGetValue(l.Name?.Value ?? "", out var name)
+                    ? name is null ? null : l.Textures!.FirstOrDefault(t => (t.Name?.Value ?? "") == name) ?? own.GetValueOrDefault(l)
+                    : own.GetValueOrDefault(l)))
+                .Where(p => p.Texture is not null).Select(p => (p.l, p.Texture!)).ToList();
+        }
         // A built ship's style is painted on every layer that offers it, picked by the seed
         // or not: Titan Stripes (SEVENTEEN) sets an OVERLAYS layer found ships never get, and
         // without it the hull came out solid orange instead of striped (2026-10-16).
@@ -97,11 +141,20 @@ public sealed partial class ShipModels
         // A list with a BASE layer covers its whole surface; one without (decal sheets) only where its images do.
         bool hasBase = layers.Any(l => (l.Item1.Name?.Value ?? "") == "BASE");
         bool any = false;
+        // Creatures (a whole-model pick) are recoloured the game's way (TextureRecolour); ships and tools keep the gain
+        // model they were checked against in game.
+        bool recolour = layerPicks is not null;
         foreach (var (layer, texture) in layers)
         {
             if (Image(texture.TextureName?.Value ?? "") is not { } img) continue;
             bool isBase = hasBase && !any;
             var tint = colour(texture.Palette.Palette.ToString(), texture.Palette.ColourAlt.ToString());
+            if (recolour)
+            {
+                ArtifactX.Core.Procedural.TextureRecolour.Layer(img, size, tint, texture.Multiply, AverageColour(texture, img), isBase, acc, cover);
+                any = true;
+                continue;
+            }
             // A Rock layer marked "None" is still tinted with Rock's first colour in game:
             // untinted, Hidden Oboya's front frame came out light grey instead of near black.
             if (tint is null && texture.Palette.Palette == TkPaletteTexture.PaletteEnum.Rock
@@ -126,8 +179,8 @@ public sealed partial class ShipModels
                 }
                 return 0.299f * r + 0.587f * g + 0.114f * b;
             }
-            float gain = 2f;
-            if (tint is not null)
+            float gain = layerGain ?? 2f;
+            if (tint is not null && layerGain is null)
             {
                 double sumL = 0, sumA = 0;
                 for (int k = 0; k + 3 < img.Rgba.Length; k += 4 * 7)
@@ -156,11 +209,26 @@ public sealed partial class ShipModels
             any = true;
         }
         if (!any) return null;
+        if (recolour) ArtifactX.Core.Procedural.TextureRecolour.ToSrgb(acc);
         var px = new uint[size * size];
         for (int i = 0; i < px.Length; i++)
             px[i] = (uint)(Math.Clamp(cover[i], 0f, 1f) * 255) << 24
                 | (uint)(acc[i * 3] * 255) << 16 | (uint)(acc[i * 3 + 1] * 255) << 8 | (uint)(acc[i * 3 + 2] * 255);
         return new ModelTexture(size, size, px, Overlay: !hasBase);
+    }
+
+    /// <summary>A texture option's average colour (sRGB 0-1): its own when the file overrides it, else the image's
+    /// mean - the files leave it zero (STRIDERRIG/BUGBODY, FLATHEAD: AverageColour 0, OverrideAverageColour false), so
+    /// the game must take it from the image. Mean of all pixels - unconfirmed against the game's own value.</summary>
+    private float[] AverageColour(TkProceduralTexture texture, (int W, int H, byte[] Rgba) img)
+    {
+        if (texture.OverrideAverageColour) return [texture.AverageColour.R, texture.AverageColour.G, texture.AverageColour.B];
+        return _averages.GetOrAdd(texture.TextureName?.Value ?? "", _ =>
+        {
+            double r = 0, g = 0, b = 0; int n = 0;
+            for (int k = 0; k + 3 < img.Rgba.Length; k += 4 * 3) { r += img.Rgba[k]; g += img.Rgba[k + 1]; b += img.Rgba[k + 2]; n++; }
+            return n == 0 ? [0.5f, 0.5f, 0.5f] : [(float)(r / n / 255), (float)(g / n / 255), (float)(b / n / 255)];
+        });
     }
 
     /// <summary>The layers a seed paints and the option it picks for each, in file

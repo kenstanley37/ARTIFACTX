@@ -21,21 +21,31 @@ public sealed partial class CreaturePreviewControl : UserControl
     public Creature Creature { get; }
     public string? PreferredRig { get; }
     public bool IsSilhouette { get; }
-    public IReadOnlyList<CreatureModelService.CreatureRigOption> AvailableRigs => CreatureModelService.AvailableRigs;
+    /// <summary>The known rigs, plus the creature's own model when it is a scene outside them (the floral cat, robots).</summary>
+    public IReadOnlyList<CreatureModelService.CreatureRigOption> AvailableRigs { get; }
 
     private List<string>? _companionDescriptors;
+    private readonly IReadOnlyList<string>? _femaleParts, _maleParts;   // a wild creature's two forms (Form picker)
     private bool _wild;   // a wild creature's parts were handed in: drawn without the pet harness
     private readonly CreatureModelService.ExtraModel? _extra;   // the scene spawned with it, drawn with its own rig only
+    private ulong _seed, _colourSeed;   // its look seeds (CreatureModelService.PaintAsync), for its own rig only
     private bool _loading = true;
 
     public CreaturePreviewControl(Creature creature, string? preferredRig = null, bool isSilhouette = false,
-        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null)
+        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null, ulong seed = 0,
+        IReadOnlyList<string>? maleParts = null)
     {
         Creature = creature;
         _extra = extra;
+        _seed = seed;
         // A wild creature's body parts from its seed (CreatureModelService.PartsForSeedAsync), shown like a companion's.
         if (parts is { Count: > 0 }) { _companionDescriptors = parts.ToList(); _wild = true; }
+        _femaleParts = parts;
+        _maleParts = maleParts;
         PreferredRig = preferredRig;
+        AvailableRigs = preferredRig is not null && CreatureModelService.IsScenePath(preferredRig)
+            ? (CreatureModelService.CreatureRigOption[])[new(preferredRig, CreatureModelService.HumanizeRig(preferredRig)), .. CreatureModelService.AvailableRigs]
+            : CreatureModelService.AvailableRigs;
         IsSilhouette = isSilhouette;
         InitializeComponent();
         Loaded += CreaturePreviewControl_Loaded;
@@ -47,6 +57,10 @@ public sealed partial class CreaturePreviewControl : UserControl
         var traits = new[] { Creature.Rarity, Creature.Habitat, Creature.Activity, Creature.Gender, Creature.Size }
             .Where(s => !string.IsNullOrEmpty(s));
         CreatureTraitsTxt.Text = string.Join(" · ", traits);
+        // The picker only when the two forms differ (a model without nested part groups has one look).
+        if (_femaleParts is { Count: > 0 } && _maleParts is { Count: > 0 }
+            && !_femaleParts.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(_maleParts))
+            FormPanel.Visibility = Visibility.Visible;
 
         string? initialRig = PreferredRig;
         if (string.IsNullOrEmpty(initialRig))
@@ -67,14 +81,18 @@ public sealed partial class CreaturePreviewControl : UserControl
         if (matchingOption is not null)
         {
             RigComboBox.SelectedItem = matchingOption;
-            await ModelPreview.ShowCreatureAsync(matchingOption.RigId, _companionDescriptors, silhouette: IsSilhouette, wild: _wild,
-                extra: ExtraFor(matchingOption.RigId));
+            await ShowRigAsync(matchingOption.RigId);
         }
     }
 
-    /// <summary>The extra scene belongs to the creature's own rig; another rig picked in the box is drawn alone.</summary>
-    private CreatureModelService.ExtraModel? ExtraFor(string rigId) =>
-        string.Equals(rigId, PreferredRig, StringComparison.OrdinalIgnoreCase) ? _extra : null;
+    /// <summary>The extra scene and the seed colours belong to the creature's own rig (or the matched companion's);
+    /// another rig picked in the box is drawn alone, in plain shading.</summary>
+    private Task ShowRigAsync(string rigId)
+    {
+        bool own = string.Equals(rigId, PreferredRig, StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(PreferredRig);
+        return ModelPreview.ShowCreatureAsync(rigId, _companionDescriptors, silhouette: IsSilhouette, wild: _wild,
+            extra: own ? _extra : null, seed: own ? _seed : 0, colourSeed: own ? _colourSeed : 0);
+    }
 
     private async Task<string?> FindMatchingCompanionRigAsync()
     {
@@ -116,6 +134,7 @@ public sealed partial class CreaturePreviewControl : UserControl
                     }
                 }
                 _companionDescriptors = descriptors;
+                (_seed, _colourSeed) = CreatureModelService.CompanionLookSeeds(array[i]);
 
                 CompanionBadge.Visibility = Visibility.Visible;
                 CompanionBadgeTxt.Text = $"Owned Companion (Slot {i + 1})";
@@ -146,16 +165,35 @@ public sealed partial class CreaturePreviewControl : UserControl
         if (_loading) return;
         if (RigComboBox.SelectedItem is CreatureModelService.CreatureRigOption option)
         {
-            await ModelPreview.ShowCreatureAsync(option.RigId, _companionDescriptors, silhouette: IsSilhouette, wild: _wild,
-                extra: ExtraFor(option.RigId));
+            await ShowRigAsync(option.RigId);
         }
+    }
+
+    /// <summary>Female or male: the creature's own rig redrawn with that form's parts.</summary>
+    private async void FormPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || _femaleParts is null || _maleParts is null) return;
+        _companionDescriptors = (FormPicker.SelectedIndex == 1 ? _maleParts : _femaleParts).ToList();
+        if (RigComboBox.SelectedItem is CreatureModelService.CreatureRigOption option)
+            await ShowRigAsync(option.RigId);
+    }
+
+    /// <summary>A planet creature card's 3D view, with both forms' parts from its scene and seed.</summary>
+    public static async Task ShowCardAsync(XamlRoot root, ViewModels.ExploreViewModels.CreatureCardViewModel card)
+    {
+        var (parts, extra) = await CreatureModelService.ModelPartsAsync(card.ModelScene, card.ModelExtraScene, card.ModelSeed,
+            card.ModelFilter, card.ModelSubType);
+        var maleParts = await CreatureModelService.PartsForSeedAsync(card.ModelScene, card.ModelSeed, card.ModelFilter,
+            card.ModelSubType, male: true);
+        await ShowAsync(root, card.Creature, card.RigId, card.IsSilhouette, parts, extra, card.ModelSeed, maleParts);
     }
 
     /// <summary>Displays a 3D creature anatomy viewer dialog.</summary>
     public static async Task ShowAsync(XamlRoot root, Creature creature, string? rigId = null, bool isSilhouette = false,
-        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null)
+        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null, ulong seed = 0,
+        IReadOnlyList<string>? maleParts = null)
     {
-        var control = new CreaturePreviewControl(creature, rigId, isSilhouette, parts, extra);
+        var control = new CreaturePreviewControl(creature, rigId, isSilhouette, parts, extra, seed, maleParts);
         var dialog = new ContentDialog
         {
             Title = isSilhouette ? "Undiscovered Species 3D Silhouette" : "Creature 3D Anatomy",

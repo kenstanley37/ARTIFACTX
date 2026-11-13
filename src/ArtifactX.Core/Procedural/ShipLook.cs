@@ -98,6 +98,20 @@ public static class ShipLook
 
     // -------------------------------------------------------- texture picks
 
+    /// <summary>One pick per layer over several texture lists merged as <see cref="Merge"/> does: layer name -> the
+    /// option name the seed gives, null where the seed leaves the layer off. A creature's whole model is picked this
+    /// way, once, with its own seed - every material's main list merged in the model's material order - and each
+    /// material then paints the option of that name. Evidence (NMS 185034 memory, 2026-11-13): the game names a built
+    /// creature texture &lt;list&gt;.PROC.0.&lt;n&gt;.DDS and keeps the layer images it loaded; for 17 creature forms
+    /// matched to their spawn seeds, this pick named the loaded MARKINGS image on 42 of 42 materials that offer it
+    /// (a per-material pick: 33/53 with the raw seed, 16/53 with its first child).</summary>
+    public static IReadOnlyDictionary<string, string?> PickMerged(IEnumerable<IReadOnlyList<TextureLayer>> lists, ulong seed)
+    {
+        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var (layer, option) in Pick(Merge(lists), seed)) result.TryAdd(layer.Name, option?.Name);
+        return result;
+    }
+
     private sealed class MergedLayer
     {
         public required TextureLayer Layer;

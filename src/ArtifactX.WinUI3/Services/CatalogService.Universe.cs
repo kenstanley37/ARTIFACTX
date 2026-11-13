@@ -11,6 +11,45 @@ namespace ArtifactX.WinUI3.Services;
 
 public static partial class CatalogService
 {
+    private static Task<Dictionary<string, List<(string Name, IReadOnlyList<string> Parts)>>?>? _creatureFilters;
+
+    /// <summary>A creature scene's part filters, in file order (catalog "CreatureFilters", format 92): the entries of
+    /// its &lt;scene&gt;.FILTER.MBIN, each a name and the parts a creature with that filter can't have
+    /// (CreatureTables.ExcludedParts). Empty for a scene without one or on older game data.</summary>
+    public static async Task<IReadOnlyList<(string Name, IReadOnlyList<string> Parts)>> GetCreatureFiltersAsync(string scenePath)
+    {
+        if (await (_creatureFilters ??= Task.Run(LoadCreatureFilters)) is not { } all) return [];
+        // The game's own lookup (NMS.exe 184271 FUN_142ddea90): the scene path with SCENE.MBIN made FILTER.MBIN.
+        string path = scenePath.ToLowerInvariant().Replace(".scene.mbin", ".filter.mbin", StringComparison.Ordinal);
+        return all.TryGetValue(path, out var filters) ? filters : [];
+    }
+
+    private static Dictionary<string, List<(string Name, IReadOnlyList<string> Parts)>>? LoadCreatureFilters()
+    {
+        if (ResolveDbPath() is not { } dbPath) return null;
+        try
+        {
+            var filters = new Dictionary<string, List<(string Name, IReadOnlyList<string> Parts)>>(StringComparer.OrdinalIgnoreCase);
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i
+                JOIN Categories c ON c.Id = i.CategoryId WHERE c.TemplateType = 'CreatureFilters'";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+                filters[reader.GetString(0)] = (System.Text.Json.JsonSerializer.Deserialize<List<CreatureFilterRow>>(reader.GetString(1)) ?? new())
+                    .Select(f => (f.n, (IReadOnlyList<string>)f.p)).ToList();
+            return filters;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] LoadCreatureFilters failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    private sealed record CreatureFilterRow(string n, List<string> p);
+
     /// <summary>What planet types are picked from (catalog "PlanetGeneration", step
     /// "Planet generation"); null on game data built before it was collected.</summary>
     public static Task<ArtifactX.Core.Universe.BiomeTables?> GetBiomeTablesAsync() =>

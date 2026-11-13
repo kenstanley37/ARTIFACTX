@@ -1,3 +1,4 @@
+using ArtifactX.Core.Procedural;
 using ArtifactX.GameData;
 using Newtonsoft.Json.Linq;
 using System;
@@ -108,9 +109,21 @@ public static class CreatureModelService
         ["fishbowl_pet3"] = "anteloperobot",
     };
 
-    /// <summary>Resolves a creature species archetype and/or its descriptor list to a known rig ID.</summary>
+    /// <summary>Resolves a creature species archetype and/or its descriptor list to a known rig ID. The creature's own
+    /// scene from the game's filename table wins when given: a scene outside the known rigs is its own rig id (the
+    /// lower-case scene path), so PLANTCAT draws MODELS/PLANETS/BIOMES/FLORAL/MEDIUMCREATURE/FLORALCAT - the old
+    /// "plantcat" -> blob alias drew the owner's W. Gentaylatica (a root-bodied plant creature) as a blob (2026-11-13).</summary>
     public static async Task<string?> ResolveRigAsync(string? archetype, IEnumerable<string>? descriptors = null, string? scenePath = null)
     {
+        if (!string.IsNullOrEmpty(scenePath))
+        {
+            string path = scenePath.Replace('\\', '/').ToLowerInvariant();
+            string stem = Path.GetFileName(path);
+            int dot = stem.IndexOf('.');
+            if (dot > 0) stem = stem[..dot];
+            return RigScenes.TryGetValue(stem, out string? known) && known == path ? stem : path;
+        }
+
         if (!string.IsNullOrWhiteSpace(archetype))
         {
             string raw = archetype.TrimStart('^').Trim();
@@ -134,16 +147,6 @@ public static class CreatureModelService
             }
         }
 
-        // The creature's own scene from the game's filename table (catalog format 80): WEIRDCRYSTAL ->
-        // WEIRD/WEIRDRIGGROUND.SCENE.MBIN -> "weirdrigground", so kinds without an alias get their real model.
-        if (!string.IsNullOrEmpty(scenePath))
-        {
-            string stem = Path.GetFileName(scenePath.Replace('\\', '/'));
-            int dot = stem.IndexOf('.');
-            if (dot > 0) stem = stem[..dot];
-            if (RigScenes.ContainsKey(stem)) return stem.ToLowerInvariant();
-        }
-
         return null;
     }
 
@@ -157,13 +160,23 @@ public static class CreatureModelService
         if (extra is not null)
             return Merge(await BuildCreatureMeshAsync(game, rigId, chosenDescriptors, wild),
                 await BuildCreatureMeshAsync(game, extra.RigId, extra.Parts, wild));
-        if (!RigScenes.TryGetValue(rigId, out string? scene)) return null;
+        string? scene = RigScenes.TryGetValue(rigId, out string? known) ? known : IsScenePath(rigId) ? rigId : null;
+        if (scene is null) return null;
 
         var models = await ModelPreviewService.ModelsAsync(game);
         if (models is null) return null;
 
         var tree = await CatalogService.GetCreatureDescriptorTreeAsync(rigId);
         var allOptions = tree.Select(n => n.OptionId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // A scene outside the companion rig table (the floral cat, robots): its options from its part tree, so the parts
+        // it didn't pick are left out instead of all drawn at once.
+        if (allOptions.Count == 0)
+        {
+            await PartTreeService.EnsureAsync();
+            if (PartTreeService.Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } root)
+                allOptions = ModelPreviewService.AllOptionIds(root, PartTreeService.Load, StringComparer.OrdinalIgnoreCase)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
 
         HashSet<string> chosen;
         if (chosenDescriptors is not null && chosenDescriptors.Any())
@@ -214,6 +227,9 @@ public static class CreatureModelService
         });
     }
 
+    /// <summary>A rig id that is a scene path itself (a creature scene outside the known rigs).</summary>
+    public static bool IsScenePath(string rigId) => rigId.EndsWith(".scene.mbin", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>The mesh without the triangles painted with the pet harness material (one material per triangle,
     /// three corners and texture coordinates each).</summary>
     private static ShipMesh? WithoutPetHarness(ShipMesh mesh)
@@ -237,26 +253,33 @@ public static class CreatureModelService
     /// stored descriptor list (osl) for 78 of 182 companions; the owner's G. Towerravusosa (Slot 8, 2026-11-12) shows
     /// the hippo head with two horn accessories, turtle body with back spikes and triceratops tail this picks. The
     /// discovery's fifth value, Mix64(bEr[0]), picks a different head (frilled triceratops) - not the body seed;
-    /// maybe the colour seed (to check). Companions draw from their stored parts. Not yet: the anomalous rig's role
-    /// Filter (FLOAT / ROLL / CRYSTAL). Null without the part tree (game data before format 87).
+    /// maybe the colour seed (to check). Companions draw from their stored parts. Null without the part tree (game
+    /// data before format 87).
     /// </summary>
-    /// <param name="filter">The role's descriptor Filter and <paramref name="subType"/> the exotic planet's sub-type
-    /// name (CreatureTables.ForcedPartTerms): they narrow their groups to the parts they name, and the seed still
-    /// draws there (the draw is used up), then picks the rest. Evidence for the draw: the owner's R. Gentdiffoe
-    /// (Aoedesdo, 2026-11-12) is the WEIRDRIG _CRYSTAL_PILLAR in the world; taking _WEIRD_CRYSTAL without a draw gave
-    /// _CRYSTAL_GEM. The floater and roller already confirmed pick the same either way.</param>
-    public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong roleSeed, string filter = "", string subType = "")
+    /// <param name="filter">The creature's rig filter name (CreatureTables.ForcedPartTerms / PartFilterName: the role's
+    /// Filter, else PREDATOR or the game's HERBIBVORE): the scene's filter file entry it names lists parts the creature
+    /// can't have (CreatureTables.ExcludedParts), left out of their groups before the seed draws - the anomalous rig's
+    /// FLOAT / ROLL / CRYSTAL leave one body, still with a draw (the owner's R. Gentdiffoe, Aoedesdo, 2026-11-12, is
+    /// the WEIRDRIG _CRYSTAL_PILLAR; no draw gave _CRYSTAL_GEM), and a predator strider never has the fish head.
+    /// <paramref name="subType"/>: the exotic planet's sub-type name, which forces the parts it names.</param>
+    /// <param name="male">The species' male form (ShipParts.GenerateMale, the spawn data's Resource) instead of the
+    /// female (FemaleResource), which the plain selector gives.</param>
+    public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong roleSeed, string filter = "", string subType = "",
+        bool male = false)
     {
         if (string.IsNullOrEmpty(scenePath) || roleSeed == 0) return null;
         await PartTreeService.EnsureAsync();
         string scene = scenePath.ToLowerInvariant();
         if (PartTreeService.Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is not { } root) return null;
+        var excluded = ArtifactX.Core.Universe.CreatureTables.ExcludedParts(await CatalogService.GetCreatureFiltersAsync(scene), filter);
         return await Task.Run(() =>
         {
-            IReadOnlyList<string>? forced = filter.Length == 0 && subType.Length == 0 ? null
-                : ArtifactX.Core.Universe.CreatureTables.ForcedOptions(OptionNames(root), filter, subType);
-            return (IReadOnlyList<string>)ArtifactX.Core.Procedural.ShipParts.Generate(scene, roleSeed, PartTreeService.Load, forced, drawForced: true)
-                .Select(p => p.Id).ToList();
+            IReadOnlyList<string>? forced = subType.Length == 0 ? null
+                : ArtifactX.Core.Universe.CreatureTables.ForcedOptions(OptionNames(root), subType);
+            var picked = male
+                ? ArtifactX.Core.Procedural.ShipParts.GenerateMale(scene, roleSeed, PartTreeService.Load, forced, drawForced: true, excluded)
+                : ArtifactX.Core.Procedural.ShipParts.Generate(scene, roleSeed, PartTreeService.Load, forced, drawForced: true, excluded);
+            return (IReadOnlyList<string>)picked.Select(p => p.Id).ToList();
         });
     }
 
@@ -270,11 +293,13 @@ public static class CreatureModelService
     /// WEIRDRIG's crystal with the ground piece of WEIRDRIGGROUND round its foot. Owner's R. Gentdiffoe on Aoedesdo
     /// (BoneSpire, 2026-11-12): a green pillar with bone spires coming out of the ground beside it; the Discoveries
     /// page shows only the spires. The two part lists stay apart: "_CRYSTAL_PILLAR" is an option in both scenes.
+    /// <paramref name="male"/>: the male form's own parts; the extra scene is drawn once for both forms (the game's
+    /// ExtraResource, FUN_1416d5080: the single selector).
     /// </summary>
     public static async Task<(IReadOnlyList<string>? Parts, ExtraModel? Extra)> ModelPartsAsync(string? scenePath, string? extraScenePath,
-        ulong roleSeed, string filter = "", string subType = "")
+        ulong roleSeed, string filter = "", string subType = "", bool male = false)
     {
-        var parts = await PartsForSeedAsync(scenePath, roleSeed, filter, subType);
+        var parts = await PartsForSeedAsync(scenePath, roleSeed, filter, subType, male);
         if (string.IsNullOrEmpty(extraScenePath) || await ResolveRigAsync(null, scenePath: extraScenePath) is not { } extraRig)
             return (parts, null);
         return (parts, new ExtraModel(extraRig, await PartsForSeedAsync(extraScenePath, roleSeed, filter, subType)));
@@ -300,6 +325,48 @@ public static class CreatureModelService
     private static IEnumerable<(string Id, string Name)> OptionNames(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups) =>
         groups.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(OptionNames))));
 
+    /// <summary>
+    /// A creature's skin painted the way ships and multi-tools are (ShipModels.Painted): every creature material is a
+    /// stack of procedural texture layers tinted from a palette table - Fur, Scale, Underbelly, Rock, Leaf, Feather,
+    /// Metal, Custom_Head (GameData.Checks --creature-part-probe, 2026-11-13: cow, cat, triceratops and bird scenes; only
+    /// the pet harness and a few eyes are fixed textures). The creature's own seed picks the layers and patterns once
+    /// for the whole model (ShipLook.PickMerged over every material's list), so body, head and tail share one MARKINGS
+    /// pattern - 42 of 42 checked against the textures the running game loaded (2026-11-13, see PickMerged). The first
+    /// child seed used before matched only by chance (16/53). Each creature has its **own** palette table: the palette generator
+    /// (ShipLook.PaletteTable) seeded with the creature's raw spawn seed over the **base** palettes
+    /// (basecolourpalettes - CatalogService.GetPalettesAsync), and each texture option takes its row's entry at its
+    /// own slot (0-4). NMS.exe 184271: LoadModel (FUN_1416d5940) hands the texture task the descriptor result whose
+    /// +0x10 seed is the spawn seed (FUN_142ddb8e0 copies plVar6[6..7]); the task (FUN_140646250, state 0) builds the
+    /// table with FUN_140639e30(palettes, 0x10, 0, seed), and FUN_14063a560 reads palette set [0x10][0] - not the
+    /// planet's biome and sub-type. Running game (185034, on the lush planet Marjorg, 2026-11-13): the biome x sub-type
+    /// file table's row 16 entry 0 points at the loaded basecolourpalettes, the lush row at lushcolourpalettes. Owner's
+    /// Marjorg shots agree: V. Snakwercus grey scaled body with a yellow beak, W. Geoyugia rust body with green legs
+    /// only come out over the base palettes; the slot held the base file on a second planet too. Companions use <paramref name="colourSeed"/> (an active
+    /// ColourBaseSeed, uAX) or their creature seed the same way - unconfirmed. Null without game data or palettes.
+    /// <paramref name="size"/>: pixels per material texture (small cards use less).
+    /// </summary>
+    public static async Task<Dictionary<string, ModelTexture?>?> PaintAsync(GameInstall game, ShipMesh mesh, ulong seed, ulong colourSeed = 0,
+        int size = 512)
+    {
+        if (seed == 0) return null;
+        if (await ModelPreviewService.ModelsAsync(game) is not { } models) return null;
+        ulong tableSeed = colourSeed != 0 ? colourSeed : seed;
+        if (await ModelPreviewService.SeedColoursAsync(tableSeed, rawSeed: true, lastSlot: 4) is not { } colours) return null;
+        var picks = await Task.Run(() => ShipLook.PickMerged(
+            mesh.Materials.Distinct().Select(models.TextureLayers).OfType<IReadOnlyList<TextureLayer>>(), seed));
+        return await ModelPreviewService.PaintAsync(models, mesh, colours, seed, size: size, layerPicks: picks);
+    }
+
+    /// <summary>A companion's look seeds: CreatureSeed (WTp) and, when its active flag is on, ColourBaseSeed (uAX) -
+    /// see NmsCompanionPaths. 0 where missing or off.</summary>
+    public static (ulong Seed, ulong ColourSeed) CompanionLookSeeds(JToken? companion)
+    {
+        static ulong Seed(JToken? pair) =>
+            pair is JArray { Count: > 1 } a && ArtifactX.Core.NmsModels.NmsSeedGenerator.TryParse(a[1]?.ToString(), out ulong s) ? s : 0;
+        ulong colour = companion?["uAX"] is JArray { Count: > 1 } uax && uax[0]?.Type == JTokenType.Boolean && (bool)uax[0]! ? Seed(uax) : 0;
+        return (Seed(companion?["WTp"]), colour);
+    }
+
     /// <summary>Natural shading for creature materials: eyes, teeth, mouth, horns, pet harness and skin.</summary>
     public static uint CreatureMaterialColour(string material)
     {
@@ -324,7 +391,7 @@ public static class CreatureModelService
     }
 
     /// <summary>Clean display name for a creature rig.</summary>
-    public static string HumanizeRig(string rigId) => rigId.ToLowerInvariant() switch
+    public static string HumanizeRig(string rigId) => IsScenePath(rigId) ? HumanizeRig(Path.GetFileName(rigId).Split('.')[0]) : rigId.ToLowerInvariant() switch
     {
         "anteloperobot" => "Robot Antelope",
         "antelopeglow" => "Glowing Antelope",

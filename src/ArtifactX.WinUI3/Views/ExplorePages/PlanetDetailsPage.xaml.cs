@@ -67,13 +67,8 @@ public sealed partial class PlanetDetailsPage : Page
         if (await dialog.ShowAsync() == ContentDialogResult.Primary) ViewModel.DeleteCreature(request.Creature);
     }
 
-    private async void Creature_Preview3DRequested(object? sender, CreatureCardRequest request)
-    {
-        var card = request.Creature;
-        var (parts, extra) = await CreatureModelService.ModelPartsAsync(card.ModelScene, card.ModelExtraScene, card.ModelSeed,
-            card.ModelFilter, card.ModelSubType);
-        await CreaturePreviewControl.ShowAsync(XamlRoot, card.Creature, card.RigId, card.IsSilhouette, parts, extra);
-    }
+    private async void Creature_Preview3DRequested(object? sender, CreatureCardRequest request) =>
+        await CreaturePreviewControl.ShowCardAsync(XamlRoot, request.Creature);
 
     private void PlanetEquipment_CrashedShipsRequested(object? sender, EventArgs e)
     {

@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Controls;
@@ -61,8 +62,10 @@ public sealed partial class CreatureCard : UserControl
             if (mesh is null) return;
 
             Preview.StartYawOffset = Math.PI;
+            var textures = card.IsSilhouette ? null : await CreatureModelService.PaintAsync(game, mesh, card.ModelSeed, size: 128);
+            if (version != _version) return;
             Preview.Show(mesh, material => CreatureModelService.CreatureMaterialColour(material),
-                silhouette: card.IsSilhouette);
+                textures is null ? null : (Func<string, ArtifactX.GameData.ModelTexture?>)(m => textures.GetValueOrDefault(m)), silhouette: card.IsSilhouette);
             _shownRig = shown;
         }
         catch (Exception ex)
@@ -78,11 +81,7 @@ public sealed partial class CreatureCard : UserControl
             if (Preview3DRequested is not null)
                 Preview3DRequested.Invoke(this, new(creature, (FrameworkElement)sender));
             else
-            {
-                var (parts, extra) = await CreatureModelService.ModelPartsAsync(creature.ModelScene, creature.ModelExtraScene,
-                    creature.ModelSeed, creature.ModelFilter, creature.ModelSubType);
-                await CreaturePreviewControl.ShowAsync(XamlRoot, creature.Creature, creature.RigId, creature.IsSilhouette, parts, extra);
-            }
+                await CreaturePreviewControl.ShowCardAsync(XamlRoot, creature);
         }
     }
 

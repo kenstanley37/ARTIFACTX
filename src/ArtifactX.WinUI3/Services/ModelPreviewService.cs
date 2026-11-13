@@ -49,15 +49,20 @@ public static class ModelPreviewService
     /// Gives a (palette, slot) colour - ("Paint", "Alternative1") - as RGB 0-1, or null.
     /// <paramref name="rawSeed"/>: starships build the table from the seed itself, not its
     /// first child - six of seven ships checked in game on 2026-10-17 matched that way
-    /// (red/white/blue Fighter, yellow/blue Solar, teal/blue and blue Haulers...).</summary>
-    public static async Task<Func<string, string, float[]?>?> SeedColoursAsync(ulong seed, bool rawSeed = false)
+    /// (red/white/blue Fighter, yellow/blue Solar, teal/blue and blue Haulers...).
+    /// <paramref name="lastSlot"/>: the last slot read as itself; later ones read slot 3 (ships). A creature reads all
+    /// five (4): NMS.exe 184271 FUN_1416d9f90 colours a texture option with its row's entry at its slot for slots 0-4.</summary>
+    public static async Task<Func<string, string, float[]?>?> SeedColoursAsync(ulong seed, bool rawSeed = false,
+        IReadOnlyList<ColourPalette>? palettes = null, int lastSlot = 3)
     {
-        if (seed == 0 || await CatalogService.GetPalettesAsync() is not { Count: > 0 } palettes) return null;
+        if (seed == 0) return null;
+        if (palettes is not { Count: > 0 }) palettes = await CatalogService.GetPalettesAsync();
+        if (palettes is not { Count: > 0 }) return null;
         var table = ShipLook.PaletteTable(rawSeed ? seed : ColourSeed(seed), palettes);
         return (palette, slot) =>
         {
             int p = ShipModels.PaletteIndex(palette), a = ShipModels.SlotIndex(slot);
-            return p < 0 || p >= table.Length || table[p] is null || a is < 0 or > 5 ? null : table[p][Math.Min(a, 3)];
+            return p < 0 || p >= table.Length || table[p] is null || a is < 0 or > 5 ? null : table[p][a <= lastSlot ? a : Math.Min(a, 3)];
         };
     }
 
@@ -76,10 +81,12 @@ public static class ModelPreviewService
     }
 
     /// <summary>Each material painted with the given colours (null where it has nothing to paint with).
-    /// <paramref name="styles"/>: texture options a built ship was given ("STEALTH"), taken over the seed's.</summary>
+    /// <paramref name="styles"/>: texture options a built ship was given ("STEALTH"), taken over the seed's.
+    /// <paramref name="layerPicks"/>: one pick for the whole model (ShipLook.PickMerged - creatures).</summary>
     public static Task<Dictionary<string, ModelTexture?>> PaintAsync(ShipModels models, ShipMesh mesh,
-        Func<string, string, float[]?> colour, ulong? textureSeed, ISet<string>? styles = null) =>
-        Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m, m => models.Painted(m, colour, 512, textureSeed, styles)));
+        Func<string, string, float[]?> colour, ulong? textureSeed, ISet<string>? styles = null, int size = 512,
+        IReadOnlyDictionary<string, string?>? layerPicks = null) =>
+        Task.Run(() => mesh.Materials.Distinct().ToDictionary(m => m, m => models.Painted(m, colour, size, textureSeed, styles, layerPicks: layerPicks)));
 
     /// <summary>A fixed-look model painted in its own textures - reward ships like the
     /// Boundary Herald, Starborn Runner and The Wraith keep their colours in the texture

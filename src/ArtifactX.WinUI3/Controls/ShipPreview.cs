@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
@@ -178,6 +179,29 @@ public sealed class ShipPreview : UserControl
             }));
     }
 
+    /// <summary>Sky light and sun strength for painted surfaces (linear light): a surface facing away gets Ambient,
+    /// one facing the sun Ambient + Key.</summary>
+    private const float Ambient = 0.9f, Key = 1.4f;
+
+    /// <summary>sRGB byte to linear light.</summary>
+    private static readonly float[] ToLinear = Enumerable.Range(0, 256).Select(i =>
+    {
+        float c = i / 255f;
+        return c <= 0.04045f ? c / 12.92f : MathF.Pow((c + 0.055f) / 1.055f, 2.4f);
+    }).ToArray();
+
+    /// <summary>Linear light (1 = white) to an sRGB byte through a lookup of 4096 steps; a soft shoulder above 0.8
+    /// keeps strongly lit pale paint from clipping to flat white.</summary>
+    private static readonly byte[] SrgbTable = Enumerable.Range(0, 4096).Select(i =>
+    {
+        float x = i / 4095f * 2f; // 0..2 linear
+        float y = x <= 0.8f ? x : 0.8f + 0.2f * (1f - MathF.Exp(-(x - 0.8f) / 0.2f));
+        float s = y <= 0.0031308f ? y * 12.92f : 1.055f * MathF.Pow(y, 1f / 2.4f) - 0.055f;
+        return (byte)Math.Clamp((int)MathF.Round(s * 255f), 0, 255);
+    }).ToArray();
+
+    private static byte ToSrgb(float linear) => SrgbTable[Math.Clamp((int)(linear * (4095f / 2f)), 0, 4095)];
+
     /// <summary>Rotate, fit to the frame, z-buffer, light from above-front.</summary>
     private static byte[] Render(ShipMesh mesh, uint[] colours, ModelTexture?[] textures, Vector3 centre, float yaw, float pitch, int w, int h, bool hologram = false, bool silhouette = false)
     {
@@ -209,7 +233,12 @@ public sealed class ShipPreview : UserControl
             var n = Vector3.Cross(b - a, c - a);
             float len = n.Length();
             if (len < 1e-12f) continue;
-            float lit = 0.38f + 0.62f * MathF.Abs(Vector3.Dot(n / len, light));
+            float facing = MathF.Abs(Vector3.Dot(n / len, light));
+            // Painted surfaces are lit in linear light (Lit): sky light plus a sun stronger than 1, as the game's
+            // palette colours are dark albedo that its lighting and exposure lift (owner, 2026-11-13: "the colors are
+            // all very dark" - the old 0.38-1.0 multiply on sRGB never got brighter than the paint itself).
+            float sun = Ambient + Key * facing;
+            float lit = 0.38f + 0.62f * facing;
             uint col = colours[t];
             if (hologram)
             {
@@ -231,7 +260,7 @@ public sealed class ShipPreview : UserControl
                 col = (uint)cr << 16 | (uint)cg << 8 | (uint)cb;
                 lit = 0.45f + 0.55f * rim;
             }
-            uint argb = Shade(col, lit);
+            uint argb = hologram || silhouette ? Shade(col, lit) : Lit(col, sun);
             var tex = (hologram || silhouette) ? null : t < textures.Length ? textures[t] : null;
             Vector2 ta = default, tb = default, tc = default, da = default, db = default, dc = default;
             if (tex is not null) { ta = mesh.Uvs[3 * t]; tb = mesh.Uvs[3 * t + 1]; tc = mesh.Uvs[3 * t + 2]; }
@@ -280,11 +309,15 @@ public sealed class ShipPreview : UserControl
                                 }
                             }
                             zbuf[i] = MathF.Min(z, zbuf[i]);
-                            px[i] = Shade(texel, lit);
+                            px[i] = Lit(texel, sun);
                         }
                     }
                 }
         }
+        static uint Lit(uint c, float sun) => 0xFF000000u
+            | (uint)ToSrgb(ToLinear[(c >> 16) & 0xFF] * sun) << 16
+            | (uint)ToSrgb(ToLinear[(c >> 8) & 0xFF] * sun) << 8
+            | (uint)ToSrgb(ToLinear[c & 0xFF] * sun);
         static uint Shade(uint c, float lit) => 0xFF000000u
             | (uint)MathF.Min(255, ((c >> 16) & 0xFF) * lit) << 16
             | (uint)MathF.Min(255, ((c >> 8) & 0xFF) * lit) << 8

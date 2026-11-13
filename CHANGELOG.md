@@ -6,6 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Fixed
 
+- 3D models (creatures, ships, multi-tools, freighters) are lit more like the game: brighter and less murky, with highlights that no longer wash out.
 - Screen capture no longer files a planet's creature list under another planet whose name is an ordinary word (a planet called "Heat" took a list whose notes said "despite the heat").
 - Items you add get the game's real stack size for the inventory they go in: Metal Plating now stacks to 40 in base storage containers (it stopped at 20), freighter and base storage sizes are right, and on Normal or Low inventory stack limits substances stop where the game stops them instead of 9999; Max Qty and Max All Qty also raise stacks an older version saved too small. Update your game data once to get this.
 
@@ -13,6 +14,12 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 - Planet Details: creature 3D models now have the body parts the game gives that species (head, body, tail and the rest picked from the creature's seed), instead of the same default parts for every creature of a kind. Update your game data once to get this.
 - Planet Details: the anomalous creatures of exotic planets (floating, rolling and crystal ones) show the body that belongs to their kind of planet, crystals with the growth round their base, and the strange burrowing creatures and flocks show the animal itself. Update your game data once to get this.
+- Planet Details and Companions: creature 3D models are painted in the game's own skin patterns (fur, scales, underbelly, horns), coloured as in game - each creature's own colours drawn from its planet's colour palettes - instead of one flat colour per part. Update your game data once to get this. A companion with a colour override set shows that colour.
+- Planet Details: a creature's 3D view lets you switch between its two forms (female and male), each with the body parts the game gives it.
+- Planet Details: predator creatures no longer show parts the game never gives them (a predator strider has its flat head, not a fish head). Update your game data once to get this.
+- Planet Details: creature 3D models wear the same skin pattern as in game, one pattern across body, head and tail (a scaled strider is scaled all over instead of plain yellow).
+- Planet Details: creature skins blend their colours the way the game does, so dark skins stay dark instead of being brightened to the full palette colour, and take their colours from the same palette set the game uses.
+- Planet Details: plant creatures (the floral cat with its root body and leaf plumes) and robot creatures show their own model instead of a stand-in blob or antelope. Update your game data once to get this.
 - Multi-Tool Finder (Explore): the multi-tools space station cabinets sell in the star systems around you, visited or not, with each cabinet's class and the tool's kind (Alien, Experimental, Rifle, Pistol...). Filter by kind and class, and see where to save and reload for the cabinet to sell it.
 - Creature Finder (Explore): every creature you can adopt on the planets in your saves and the rest of their systems, ranked by its pet-battle Trait Potential, Combat Effectiveness, Agility and Health, with filters for class, element, galaxy and whether you've discovered it. Click one to open its planet and dial the portal address to go there.
 - Creature Finder: filter by size (up to Huge only), sort biggest first, and see each creature's size class and both forms' weight and height on its card. The portal address's Copy button is no longer cut off, and each card shows its galaxy as a badge, marked when it isn't the galaxy you're in.
