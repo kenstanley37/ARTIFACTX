@@ -279,7 +279,8 @@ if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
                     static ulong Child(ulong sd, int n) { var st = St(sd); ulong c = 0; for (int i = 0; i <= n; i++) { ulong a = Nx(ref st); c = Mix((Nx(ref st) << 32) | a); } return c; }
                     var cands = new List<(string, ulong)> { ("+1", gw + 1), ("-1", gw - 1), ("^1", gw ^ 1), ("swap", (gw << 32) | (gw >> 32)), ("child0", Child(gw, 0)), ("child1", Child(gw, 1)),
                         ("child2", Child(gw, 2)), ("H(gw,1)", H(gw, 1)), ("H(1,gw)", H(1, gw)), ("H(gw,2)", H(gw, 2)), ("H(gw,0)", H(gw, 0)), ("mixmix", Mix(Mix(gw))), ("~gw", ~gw), ("gw^hi", gw ^ 0x8000000000000000UL),
-                        ("lo+1", (gw & 0xFFFFFFFF00000000UL) | ((gw + 1) & 0xFFFFFFFF)), ("hi+1", gw + (1UL << 32)) };
+                        ("lo+1", (gw & 0xFFFFFFFF00000000UL) | ((gw + 1) & 0xFFFFFFFF)), ("hi+1", gw + (1UL << 32)),
+                        ("-2", gw - 2), ("-3", gw - 3), ("+3", gw + 3), ("^13", gw ^ 13), ("^3", gw ^ 3), ("^2", gw ^ 2), ("+2", gw + 2), ("-4", gw - 4), ("^5", gw ^ 5), ("^7", gw ^ 7) };
                     var hits = cands.Where(c => Same(ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Item2, Load).Select(p => p.Id))).Select(c => c.Item1).ToList();
                     Console.WriteLine($"  GENDER {id,-14} {Path.GetFileName(Path.GetDirectoryName(file))} seed {gw:X16} hits [{string.Join(" ", hits)}]  stored [{string.Join(" ", stored)}]");
                 }

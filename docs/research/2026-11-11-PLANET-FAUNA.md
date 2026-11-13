@@ -387,3 +387,15 @@ _THA_X2, ACCFINS), lizard-like bumpy skin. fauna-check PICKSEARCH over 235 deriv
 _BCW_4) and seed-3 (_HEAD_CAT, _MESH_LIZ _BLBACK_7) - if each individual's parts seed were the role seed plus its index
 in the group, individuals of a species would differ. Open question for the owner: do individuals in one herd look
 alike?
+
+**Two looks per species = the two gender forms (owner's herd shots, 2026-11-13).** An I. Homobocamosa herd shows
+exactly two looks: quilled ones scan "Radical" (form 1, 180.5 kg / 4.3 m) - the role-seed parts, which the app draws;
+smooth hunched ones without quills scan "None" (form 2, 193.7 kg / 4.4 m). So individuals don't vary freely: form 1
+is built from the role seed, form 2 from something else. Candidate: role seed - 3 (= seed ^ 13 for both seeds tried)
+fits both form-2 sightings - Radiotaylae plates + bladed hog tail (_HEAD_CAT _MESH_LIZ _BLBACK_7 _TAIL_HOG _THA_X2),
+Homobocamosa the same turtle head on a diplo body with a big smooth back plate (_BODY_DIPLO _DBACC_2,
+ACCPLATEBODY) - but it reproduces none of the companions the role seed misses on rich trees (cat, grunt, trex,
+triceratops, rodent, strider), so it is unproven (likely chance; those pets are probably rerolled or egg-born).
+Next: Ghidra for where a spawned individual's gender picks its model seed (GcCreatureSpawnData Resource +0x90 /
+FemaleResource +0x48, seeds at +0xC0 / +0x78); FindAccess on those offsets plus the swap-colour flags found only
+unrelated code (0x1404761a0...). The app shows form 1 - correct for half of each herd.
