@@ -19,9 +19,9 @@ public sealed record IngredientPlace(ulong SystemAddress, string SystemName, str
 }
 
 /// <summary>
-/// Where to go for a wild ingredient or creature produce (the Ingredient Finder, catalog format 93): the systems nearest
+/// Where to go for a wild ingredient, creature produce or fish (the Ingredient Finder, catalog format 93): the systems nearest
 /// a starting system whose planets give it, from the game's own generators (Core NearbySystems, HarvestSearch and
-/// CreatureProduceSearch, which the mobile app can run from a typed or scanned address). The start's region is searched first, then the regions around it only when
+/// CreatureProduceSearch, FishSearch, which the mobile app can run from a typed or scanned address). The start's region is searched first, then the regions around it only when
 /// it holds too few. Distances inside the start's region are the galaxy map's light-years (RegionStarPositions, checked
 /// on the map 2026-10-27); farther systems read "1 region away".
 /// </summary>
@@ -46,6 +46,10 @@ public static class IngredientLocatorService
         return (CreatureProduceSearch.IsProduce(itemId, PlanetTypesService.ProfileTables?.Creatures), (await HuntIdsAsync(itemId)).Count > 0);
     }
 
+    /// <summary>The fish <paramref name="itemId"/> is, when it can be caught outside a mission (catalog "Fish").</summary>
+    public static async Task<FishInfo?> FishAsync(string itemId) =>
+        (await CatalogService.GetFishAsync()).FirstOrDefault(f => !f.NeedsMission && string.Equals(f.Id, itemId, StringComparison.OrdinalIgnoreCase));
+
     private static async Task<HashSet<string>> HuntIdsAsync(string itemId) => CreatureProduceSearch.HuntIds(itemId,
         (await RecipeIngredientSourcesService.CreatureSourcesAsync()).Where(s => s.Method == "Hunt").Select(s => (s.ItemId, s.CreatureId)));
 
@@ -62,7 +66,8 @@ public static class IngredientLocatorService
         var huntIds = await HuntIdsAsync(itemId);
         var creatures = fed || huntIds.Count > 0 ? tables.Creatures : null;
         bool plants = tables.Objects?.Harvest is not null;
-        if (creatures is null && !plants) return [];
+        var fish = await FishAsync(itemId);
+        if (creatures is null && !plants && fish is null) return [];
         var names = creatures is null ? null : await CreatureNameService.LoadAsync();
         var stars = await RegionSystemsService.GetStarsAsync(start);
         ulong startSystem = start & ~(0xFUL << 52);
@@ -93,6 +98,10 @@ public static class IngredientLocatorService
                             bodies[f.PlanetIndex] = (bodies.TryGetValue(f.PlanetIndex, out var b) ? b : Body(portal, galaxy, f.PlanetIndex, f.Body))
                                 + ": " + string.Join(" · ", new[] { Species("feed", f.Fed, f.PlanetAddress, names),
                                     Species("hunt", f.Hunted, f.PlanetAddress, names) }.Where(t => t.Length > 0));
+                    if (fish is not null)
+                        foreach (var f in FishSearch.On(system.SystemAddress, types, profiles, fish.Biomes, fish.NeedsStorm))
+                            bodies[f.PlanetIndex] = (bodies.TryGetValue(f.PlanetIndex, out var b) ? b + " · fish" : Body(portal, galaxy, f.PlanetIndex, f.Body))
+                                + (fish.NeedsStorm ? " (in storms)" : "");
                     if (bodies.Count > 0) found.Add(Place(system, [.. bodies.Values], startSystem, startIndex, stars, here));
                 });
                 if (found.Count(p => !p.IsHere) >= Wanted) break;

@@ -1,5 +1,6 @@
 using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Universe;
+using ArtifactX.WinUI3.Services;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -12,6 +13,18 @@ internal static class HarvestPlaceText
 {
     /// <summary>The line for an item creatures give when fed (Fresh Milk, Crab 'Apple', Creature Egg).</summary>
     public const string FeedLine = "Feed creatures that produce it. The Analysis Visor shows what each one produces.";
+
+    /// <summary>A fish's line: "Fish in the water of Lush planets · at night · in storms" (time and storms only when
+    /// they matter; the four haunted biomes read as one, NmsPlanets.TypeList).</summary>
+    public static string FishLine(FishInfo fish)
+    {
+        string where = fish.Biomes.Contains(FishInfo.AnyPlanet) ? "Fish in the water of any planet"
+            : fish.Biomes.All(b => b == FishSearch.GasGiant) ? "Fish on gas giants"
+            : $"Fish in the water of {NmsPlanets.TypeList(fish.Biomes, " or ")} planets";
+        if (fish.Time is "Day" or "Night") where += fish.Time == "Day" ? " · by day" : " · at night";
+        if (fish.NeedsStorm) where += " · in storms";
+        return where;
+    }
 
     /// <summary>The line for an item creatures drop when hunted (Raw Steak, Scaly Meat).</summary>
     public const string HuntLine = "Hunt the creatures that drop it.";
