@@ -542,3 +542,20 @@ ShipLook.Pick on the raw creature seed; each material paints the option of that 
 (17 forms). Male and female differ only because their parts (so their merged lists) differ. A material without the
 picked option: its own pick with the same seed matched 7 of 10 (ACC_EAR1 loads GRADIENT where that gives HALF) -
 open. ShipLook.PickMerged, ShipModels.Painted(layerPicks), commit 14e170a.
+
+### Creature skin blend and palette set (2026-11-13)
+
+Blend: the game combines a creature texture with texture_frag_combine_diffuse_0.spv (NMSARC.Shaders.pak; SPIR-V read
+with a small disassembler). Per layer, in sRGB: hue = fract(image hue - average hue + colour hue), saturation =
+min(image, colour), value = image value + 0.476627 * 10^(-10 (v - 0.5)^2) * (colour value - average value); Multiply
+options multiply in linear light; layers mix by alpha in linear light (x^2.2), output x^(1/2.2). The option files
+leave AverageColour 0 with OverrideAverageColour false, so the image mean is used (unconfirmed). Ported as
+Core TextureRecolour (creatures only; ships keep the checked gain model).
+
+Palette set: LoadModel passes the descriptor result whose +0x10 seed is the spawn seed (FUN_142ddb8e0 copies
+plVar6[6..7]) - the raw spawn seed, as used. FUN_140639e30 is called with (palettes, 0x10, 0), and FUN_14063a560
+reads set [0x10][0], not the planet biome/sub-type. Memory on Marjorg (lush): the biome x sub-type table (16-byte
+{count, count, ptr} rows) row 16 entry 0 points at the loaded basecolourpalettes; the lush row at lushcolourpalettes.
+Owner shots: V. Snakwercus (grey scaled, yellow beak, pink frill) and W. Geoyugia (rust body, green legs) match only
+the base palettes. The app now paints wild creatures over the base palettes; the biome palette plumbing
+(PlanetColours, catalog BiomePalettes) is unused for colours until the slot is seen on another planet.

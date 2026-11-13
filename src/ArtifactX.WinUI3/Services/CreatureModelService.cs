@@ -338,15 +338,16 @@ public static class CreatureModelService
     /// for the whole model (ShipLook.PickMerged over every material's list), so body, head and tail share one MARKINGS
     /// pattern - 42 of 42 checked against the textures the running game loaded (2026-11-13, see PickMerged). The first
     /// child seed used before matched only by chance (16/53). Each creature has its **own** palette table: the palette generator
-    /// (ShipLook.PaletteTable) seeded with the creature seed itself (no child seed) over its planet's palettes (the
-    /// biome palette file), and each texture option takes its row's entry at its own slot (0-4). NMS.exe 184271: a
-    /// creature model is loaded by cGcPlanetGenerator::LoadModel (FUN_1416d5940) without a palette table, so its
-    /// procedural texture task (FUN_140646250, state 0) builds one with FUN_140639e30 - ShipLook.PaletteTable's
-    /// structure - from the task's seed over the current planet's palettes. Evidence (owner's Jinnie II shots,
-    /// 2026-11-13/14): K. Bearxiumica dark grey fur (Fur #353535), pale band (Underbelly #DBC89D), blue frill (Scale
-    /// #173340) with ochre spots (#706104); I. Homobocamosa brown fur (#5F402E) and grey-teal belly patch (#4C5E5D);
-    /// W. Gentaylatica blue petals (Grass #245E71) - all exact entries of each one's own table. (Planet-seed tables
-    /// fitted only with a made-up per-creature shift.) Companions use <paramref name="colourSeed"/> (an active
+    /// (ShipLook.PaletteTable) seeded with the creature's raw spawn seed over the **base** palettes
+    /// (basecolourpalettes - CatalogService.GetPalettesAsync), and each texture option takes its row's entry at its
+    /// own slot (0-4). NMS.exe 184271: LoadModel (FUN_1416d5940) hands the texture task the descriptor result whose
+    /// +0x10 seed is the spawn seed (FUN_142ddb8e0 copies plVar6[6..7]); the task (FUN_140646250, state 0) builds the
+    /// table with FUN_140639e30(palettes, 0x10, 0, seed), and FUN_14063a560 reads palette set [0x10][0] - not the
+    /// planet's biome and sub-type. Running game (185034, on the lush planet Marjorg, 2026-11-13): the biome x sub-type
+    /// file table's row 16 entry 0 points at the loaded basecolourpalettes, the lush row at lushcolourpalettes. Owner's
+    /// Marjorg shots agree: V. Snakwercus grey scaled body with a yellow beak, W. Geoyugia rust body with green legs
+    /// only come out over the base palettes. <paramref name="planet"/> no longer changes the colours (kept until the
+    /// [0x10][0] slot is seen on a second planet). Companions use <paramref name="colourSeed"/> (an active
     /// ColourBaseSeed, uAX) or their creature seed the same way - unconfirmed. Null without game data or palettes.
     /// <paramref name="size"/>: pixels per material texture (small cards use less).
     /// </summary>
@@ -355,9 +356,8 @@ public static class CreatureModelService
     {
         if (seed == 0) return null;
         if (await ModelPreviewService.ModelsAsync(game) is not { } models) return null;
-        var palettes = planet is null ? null : await CatalogService.GetBiomePalettesAsync(planet.Biome, planet.SubType);
         ulong tableSeed = colourSeed != 0 ? colourSeed : seed;
-        if (await ModelPreviewService.SeedColoursAsync(tableSeed, rawSeed: true, palettes: palettes, lastSlot: 4) is not { } colours) return null;
+        if (await ModelPreviewService.SeedColoursAsync(tableSeed, rawSeed: true, lastSlot: 4) is not { } colours) return null;
         var picks = await Task.Run(() => ShipLook.PickMerged(
             mesh.Materials.Distinct().Select(models.TextureLayers).OfType<IReadOnlyList<TextureLayer>>(), seed));
         return await ModelPreviewService.PaintAsync(models, mesh, colours, seed, size: size, layerPicks: picks);
