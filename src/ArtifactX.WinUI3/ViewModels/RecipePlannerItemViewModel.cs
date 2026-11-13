@@ -75,14 +75,16 @@ public sealed partial class RecipePlannerItemViewModel : ObservableObject
 }
 
 /// <summary>A node of the ingredient tree: an item and the ingredients it is made from (the same item can appear
-/// under several steps). Last ends the connector line at its tile.</summary>
+/// under several steps). First/Last end the line joining a row of siblings.</summary>
 public sealed class RecipeTreeNode
 {
     public RecipePlannerItemViewModel Item { get; init; } = new();
     public IReadOnlyList<RecipeTreeNode> Children { get; init; } = [];
+    public bool IsFirst { get; init; } = true;
     public bool IsLast { get; init; } = true;
     public Visibility ChildrenVisibility => Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility LowerLineVisibility => IsLast ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility LeftLineVisibility => IsFirst ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility RightLineVisibility => IsLast ? Visibility.Collapsed : Visibility.Visible;
 }
 
 public sealed record RecipePlannerEffect(string Id, string Name)
