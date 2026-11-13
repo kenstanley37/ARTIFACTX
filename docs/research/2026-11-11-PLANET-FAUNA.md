@@ -380,3 +380,10 @@ child seeds 0-2, Hash128(seed, 0/1/2), Mix64 twice...) reproduces the companions
 PARTSGENDER=1) - but those misses may be rerolled or Egg-Sequencer pets. Ghidra: the wild -> pet copy (0x1405110b0,
 called from the visor's 0x1412da090) copies the body from the live creature, so the choice is made at spawn, not there.
 Not found yet: the code filling GcCreatureSpawnData.FemaleResource (seed at +0x78) next to Resource (+0xC0).
+Owner's photo-mode shot of the same Female N. Radiotaylae: back plates, a hog tail with two blade fins (_TAIL_HOG +
+_THA_X2, ACCFINS), lizard-like bumpy skin. fauna-check PICKSEARCH over 235 derived seeds (Mwc draws and child seeds
+0-31, Hash128 both ways with 0-31, seed +-^ 0-31, planet / species / genus mixes) for "hog tail + blade fins + plates
+(_BCA_11 / _BCW_4 / _BLBACK_7)": 6 hits, about chance (~2%). The suggestive ones: seed+3 (= seed^3: _HEAD_WOLF, _MESH_WOLF
+_BCW_4) and seed-3 (_HEAD_CAT, _MESH_LIZ _BLBACK_7) - if each individual's parts seed were the role seed plus its index
+in the group, individuals of a species would differ. Open question for the owner: do individuals in one herd look
+alike?

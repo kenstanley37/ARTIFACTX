@@ -451,6 +451,41 @@ if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
             Console.WriteLine("  narrowed: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, c.Seed, p => string.Equals(p, mainDesc, StringComparison.OrdinalIgnoreCase) ? narrowed : Load(p)).Select(x => x.Id)));
             Console.WriteLine("  mix64:    " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, m, Load, forcedMain).Select(x => x.Id)));
         }
+        // PICKDERIVED=1: the parts each derived seed gives (second gender form hunt).
+        if (Environment.GetEnvironmentVariable("PICKDERIVED") == "1")
+        {
+            static ulong Mx(ulong v) { v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL; v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL; return v ^ (v >> 33); }
+            static ulong Hh(ulong lo, ulong hi) { const ulong k = 0x9DDFEA08EB382D69UL; ulong a = (lo ^ hi) * k; a ^= a >> 47; ulong b = (hi ^ a) * k; b ^= b >> 47; return b * k; }
+            static ulong Ch(ulong sd, int n) { ulong lo = sd & 0xFFFFFFFF, hi = sd >> 32; ulong s0 = lo == 0 ? 1 : lo, s1 = (((lo << 16) | (lo >> 16)) & 0xFFFFFFFF) ^ hi ^ lo; ulong c = 0; for (int i = 0; i <= n; i++) { ulong t = s0 * 0x5A76F899UL + s1; s0 = t & 0xFFFFFFFF; s1 = t >> 32; ulong a = s0; t = s0 * 0x5A76F899UL + s1; s0 = t & 0xFFFFFFFF; s1 = t >> 32; c = Mx((s0 << 32) | a); } return c; }
+            ulong w = c.Seed;
+            foreach (var (nm, sd) in new (string, ulong)[] { ("+1", w + 1), ("-1", w - 1), ("^1", w ^ 1), ("swap", (w << 32) | (w >> 32)), ("child0", Ch(w, 0)), ("child1", Ch(w, 1)), ("child2", Ch(w, 2)),
+                ("H(w,0)", Hh(w, 0)), ("H(w,1)", Hh(w, 1)), ("H(1,w)", Hh(1, w)), ("H(w,2)", Hh(w, 2)), ("mix", Mx(w)), ("mixmix", Mx(Mx(w))), ("~w", ~w), ("hi+1", w + (1UL << 32)) })
+                Console.WriteLine($"  {nm,-8} {string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, sd, Load).Select(x => x.Id))}");
+        }
+        // PICKSEARCH=id,id|id,...: derived seeds whose parts hold every id of one alternative (groups split by '|' are
+        // "any of"; ',' within a group "all of"). E.g. "_TAIL_HOG,_THA_X2,_BCA_11|_TAIL_HOG,_THA_X2,_BCW_4".
+        if (Environment.GetEnvironmentVariable("PICKSEARCH") is { Length: > 0 } want)
+        {
+            var alts = want.Split('|').Select(a => a.Split(',')).ToList();
+            static ulong Mx2(ulong v) { v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL; v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL; return v ^ (v >> 33); }
+            static ulong Hh2(ulong lo, ulong hi) { const ulong k = 0x9DDFEA08EB382D69UL; ulong a = (lo ^ hi) * k; a ^= a >> 47; ulong b = (hi ^ a) * k; b ^= b >> 47; return b * k; }
+            ulong w = c.Seed;
+            var cands = new List<(string, ulong)>();
+            ulong lo0 = w & 0xFFFFFFFF, hi0 = w >> 32; ulong s0 = lo0 == 0 ? 1 : lo0, s1 = (((lo0 << 16) | (lo0 >> 16)) & 0xFFFFFFFF) ^ hi0 ^ lo0;
+            ulong Nx() { ulong t = s0 * 0x5A76F899UL + s1; s0 = t & 0xFFFFFFFF; s1 = t >> 32; return s0; }
+            var draws = new List<ulong>(); for (int i = 0; i < 64; i++) draws.Add(Nx());
+            for (int i = 0; i < 32; i++) { cands.Add(($"child{i}", Mx2((draws[2 * i + 1] << 32) | draws[2 * i]))); cands.Add(($"draw{i}", draws[i])); }
+            for (int i = 0; i < 32; i++) { cands.Add(($"H(w,{i})", Hh2(w, (ulong)i))); cands.Add(($"H({i},w)", Hh2((ulong)i, w))); cands.Add(($"w+{i}", w + (ulong)i)); cands.Add(($"w-{i}", w - (ulong)i)); cands.Add(($"w^{i}", w ^ (ulong)i)); }
+            cands.Add(("mix", Mx2(w))); cands.Add(("mixmix", Mx2(Mx2(w)))); cands.Add(("~w", ~w)); cands.Add(("swap", (w << 32) | (w >> 32)));
+            cands.Add(("planet", bodySeeds[index])); cands.Add(("H(w,planet)", Hh2(w, bodySeeds[index]))); cands.Add(("H(planet,w)", Hh2(bodySeeds[index], w)));
+            cands.Add(("species", sp)); cands.Add(("genus", ge)); cands.Add(("H(sp,ge)", Hh2(sp, ge))); cands.Add(("H(ge,sp)", Hh2(ge, sp)));
+            foreach (var (nm, sd) in cands)
+            {
+                var ids = ArtifactX.Core.Procedural.ShipParts.Generate(scene, sd, Load).Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (alts.Any(a => a.All(ids.Contains))) Console.WriteLine($"  HIT {nm,-12} {sd:X16} {string.Join(" ", ids)}");
+            }
+            Console.WriteLine($"  searched {cands.Count}");
+        }
         if (Environment.GetEnvironmentVariable("PICKSEED") is { Length: > 0 } extra)
             Console.WriteLine("with " + extra + ": " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, ulong.Parse(extra, NumberStyles.HexNumber), Load).Select(x => $"{x.Group}={x.Id}")));
         if (Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } root)
