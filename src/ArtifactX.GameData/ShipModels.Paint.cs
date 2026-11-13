@@ -26,6 +26,7 @@ public sealed partial class ShipModels
 {
     private readonly ConcurrentDictionary<string, (int W, int H, byte[] Rgba)?> _images = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Regex Extension = new(@"(\.[^./]*){1,4}$");
+    private readonly ConcurrentDictionary<string, float[]> _averages = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The material painted at <paramref name="size"/> pixels square, or null
     /// when it has nothing to paint with. <paramref name="colour"/> gives a palette
@@ -140,11 +141,20 @@ public sealed partial class ShipModels
         // A list with a BASE layer covers its whole surface; one without (decal sheets) only where its images do.
         bool hasBase = layers.Any(l => (l.Item1.Name?.Value ?? "") == "BASE");
         bool any = false;
+        // Creatures (a whole-model pick) are recoloured the game's way (TextureRecolour); ships and tools keep the gain
+        // model they were checked against in game.
+        bool recolour = layerPicks is not null;
         foreach (var (layer, texture) in layers)
         {
             if (Image(texture.TextureName?.Value ?? "") is not { } img) continue;
             bool isBase = hasBase && !any;
             var tint = colour(texture.Palette.Palette.ToString(), texture.Palette.ColourAlt.ToString());
+            if (recolour)
+            {
+                ArtifactX.Core.Procedural.TextureRecolour.Layer(img, size, tint, texture.Multiply, AverageColour(texture, img), isBase, acc, cover);
+                any = true;
+                continue;
+            }
             // A Rock layer marked "None" is still tinted with Rock's first colour in game:
             // untinted, Hidden Oboya's front frame came out light grey instead of near black.
             if (tint is null && texture.Palette.Palette == TkPaletteTexture.PaletteEnum.Rock
@@ -199,11 +209,26 @@ public sealed partial class ShipModels
             any = true;
         }
         if (!any) return null;
+        if (recolour) ArtifactX.Core.Procedural.TextureRecolour.ToSrgb(acc);
         var px = new uint[size * size];
         for (int i = 0; i < px.Length; i++)
             px[i] = (uint)(Math.Clamp(cover[i], 0f, 1f) * 255) << 24
                 | (uint)(acc[i * 3] * 255) << 16 | (uint)(acc[i * 3 + 1] * 255) << 8 | (uint)(acc[i * 3 + 2] * 255);
         return new ModelTexture(size, size, px, Overlay: !hasBase);
+    }
+
+    /// <summary>A texture option's average colour (sRGB 0-1): its own when the file overrides it, else the image's
+    /// mean - the files leave it zero (STRIDERRIG/BUGBODY, FLATHEAD: AverageColour 0, OverrideAverageColour false), so
+    /// the game must take it from the image. Mean of all pixels - unconfirmed against the game's own value.</summary>
+    private float[] AverageColour(TkProceduralTexture texture, (int W, int H, byte[] Rgba) img)
+    {
+        if (texture.OverrideAverageColour) return [texture.AverageColour.R, texture.AverageColour.G, texture.AverageColour.B];
+        return _averages.GetOrAdd(texture.TextureName?.Value ?? "", _ =>
+        {
+            double r = 0, g = 0, b = 0; int n = 0;
+            for (int k = 0; k + 3 < img.Rgba.Length; k += 4 * 3) { r += img.Rgba[k]; g += img.Rgba[k + 1]; b += img.Rgba[k + 2]; n++; }
+            return n == 0 ? [0.5f, 0.5f, 0.5f] : [(float)(r / n / 255), (float)(g / n / 255), (float)(b / n / 255)];
+        });
     }
 
     /// <summary>The layers a seed paints and the option it picks for each, in file
