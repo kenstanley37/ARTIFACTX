@@ -39,20 +39,22 @@ public static class ShipParts
     /// <param name="storedParts">Parts the save keeps for this model, which win over
     /// the seed: a staff's crafted head, core and pole ("^STAFF_HEAD_1", in the
     /// tool's 7DH.SMP list, 2026-10-16). Matched to options ignoring '^', '_' and case.</param>
+    /// <param name="drawForced">A lone stored part still takes its draw: a creature role's descriptor filter narrows
+    /// the group, then the game draws among what's left (see CreatureModelService.PartsForSeedAsync).</param>
     public static List<PickedPart> Generate(string scenePath, ulong seed, Func<string, IReadOnlyList<PartGroup>?> loadTree,
-        IEnumerable<string>? storedParts = null)
+        IEnumerable<string>? storedParts = null, bool drawForced = false)
     {
         var out_ = new List<PickedPart>();
         var preferred = new HashSet<string>((storedParts ?? Enumerable.Empty<string>()).Select(Plain), StringComparer.Ordinal);
         if (loadTree(DescriptorFor(scenePath)) is { } root)
-            Select(root, seed, out_, new HashSet<string>(StringComparer.Ordinal), loadTree, 0, preferred);
+            Select(root, seed, out_, new HashSet<string>(StringComparer.Ordinal), loadTree, 0, preferred, drawForced);
         return out_;
     }
 
     private static string Plain(string id) => id.Replace("^", "").Replace("_", "").ToUpperInvariant();
 
     private static void Select(IReadOnlyList<PartGroup> groups, ulong seed, List<PickedPart> out_, HashSet<string> seen,
-        Func<string, IReadOnlyList<PartGroup>?> loadTree, int depth, HashSet<string> preferred)
+        Func<string, IReadOnlyList<PartGroup>?> loadTree, int depth, HashSet<string> preferred, bool drawForced)
     {
         var rng = new Mwc(seed);
         foreach (var g in groups)
@@ -68,7 +70,11 @@ public static class ShipParts
             // xNEVER sub-wing (_SubWingR_AxNEVER...), so all four looked alike (2026-10-17).
             if ((total == 0 && wanted.Count == 0) || g.Options.Any(o => seen.Contains(o.Id))) continue;
             PartOption pick = g.Options[^1];
-            if (wanted.Count == 1) pick = wanted[0];
+            if (wanted.Count == 1)
+            {
+                if (drawForced) rng.Next();
+                pick = wanted[0];
+            }
             else if (wanted.Count > 1) pick = wanted[(int)((rng.Next() * (ulong)wanted.Count) >> 32)];
             else
             {
@@ -82,12 +88,12 @@ public static class ShipParts
             string stored = StoredId(pick.Id);
             if (seen.Add(stored)) out_.Add(new PickedPart(g.Type, stored, depth));
             foreach (var kid in pick.Children)
-                Select(kid, rng.ChildSeed(), out_, seen, loadTree, depth + 1, preferred);
+                Select(kid, rng.ChildSeed(), out_, seen, loadTree, depth + 1, preferred, drawForced);
             foreach (var scene in pick.Scenes)
             {
                 ulong child = rng.ChildSeed();
                 if (loadTree(DescriptorFor(scene)) is { } sub)
-                    Select(sub, child, out_, seen, loadTree, depth + 1, preferred);
+                    Select(sub, child, out_, seen, loadTree, depth + 1, preferred, drawForced);
             }
         }
     }

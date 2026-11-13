@@ -329,3 +329,14 @@ ForcedOptions matches on option names, and "Shards" also matches "ShardSingle". 
 (CreatureEntry.ModelScene); Planet Details draws from it when present. fauna-check PICK for that creature now gives
 _CRYSTAL_BONESP (448 triangles, BONEFORMSTATIC materials) where the seed alone gave _CRYSTAL_BEAM. Not yet seen by the
 owner; the block in the screenshot could also be _Crystal_Pillar (MINERALMAT), which no sub-type names.
+
+**Crystal = two scenes (owner, 2026-11-12):** the live R. Gentdiffoe is a green crystal pillar with bone spires
+coming out of the ground round its foot; the Discoveries page shows only the spires. The game draws the creature's own
+scene (WEIRDRIG: _WEIRD_CRYSTAL -> _CRYSTAL_PILLAR / _CRYSTAL_GEM) and spawns its ExtraFilename scene with it
+(WEIRDRIGGROUND: the sub-type's ground piece, _Crystal_BoneSpire here). The flock scenes (BIRDFLOCK, FISHFLOCK,
+BUTTERFLYFLOCK) and WEIRDDIGGER have no geometry of their own (--creature-part-probe "*"), so "draw both" also gives a
+flock's single animal and the digger's GROUNDCREATURE. Pillar vs Gem: taking the filtered _WEIRD_CRYSTAL without a
+draw gave the Gem; narrowing the group and still drawing gives the Pillar seen in game, and leaves the HydroGarden
+floater and Structure roller as confirmed (ShipParts drawForced). Mix64(seed) also gives the Pillar, but it was
+already ruled out for ordinary bodies (G. Towerravusosa). One crystal so far: a second one where the two disagree
+would settle it.

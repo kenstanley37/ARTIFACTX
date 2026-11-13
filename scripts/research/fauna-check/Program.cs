@@ -405,7 +405,24 @@ if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
             var terms = profiles.Creatures!.ForcedPartTerms(c, types[index].Biome, types[index].SubType);
             var forced = CreatureTables.ForcedOptions(Ids(forcedRoot), terms.Filter, terms.SubType);
             Console.WriteLine($"forced terms '{terms.Filter}' '{terms.SubType}' -> [{string.Join(" ", forced)}]: " +
-                string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Seed, Load, forced).Select(x => x.Id)));
+                string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Seed, Load, forced, drawForced: true).Select(x => x.Id)));
+        }
+        // The creature's own scene too (an anomalous crystal is WEIRDRIG's body plus its ground scene), drawn three
+        // ways: forced without a draw, the forced group narrowed to the match and drawn, and with Mix64 of the seed.
+        if (entry is not null && Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(entry.Scene)) is { } mainRoot)
+        {
+            var terms = profiles.Creatures!.ForcedPartTerms(c, types[index].Biome, types[index].SubType);
+            IEnumerable<(string, string)> Opts(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> gs) => gs.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(Opts))));
+            var forcedMain = CreatureTables.ForcedOptions(Opts(mainRoot), terms.Filter, terms.SubType);
+            string mainDesc = ArtifactX.Core.Procedural.ShipParts.DescriptorFor(entry.Scene);
+            var narrowed = mainRoot.Select(g => g.Options.Any(o => forcedMain.Contains(o.Id))
+                ? g with { Options = g.Options.Where(o => forcedMain.Contains(o.Id)).ToList() } : g).ToList();
+            ulong m = c.Seed; m = (m ^ (m >> 33)) * 0x64DD81482CBD31D7UL; m = (m ^ (m >> 33)) * 0xE36AA5C613612997UL; m ^= m >> 33;
+            Console.WriteLine($"main {entry.Scene} weights: {string.Join(" ", mainRoot.SelectMany(g => g.Options).Where(o => forcedMain.Contains(o.Id)).SelectMany(o => o.Children.SelectMany(k => k.SelectMany(g => g.Options))).Select(o => $"{o.Id}({o.Weight})"))}");
+            Console.WriteLine("  forced:   " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, c.Seed, Load, forcedMain).Select(x => x.Id)));
+            Console.WriteLine("  app rule: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, c.Seed, Load, forcedMain, drawForced: true).Select(x => x.Id)));
+            Console.WriteLine("  narrowed: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, c.Seed, p => string.Equals(p, mainDesc, StringComparison.OrdinalIgnoreCase) ? narrowed : Load(p)).Select(x => x.Id)));
+            Console.WriteLine("  mix64:    " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, m, Load, forcedMain).Select(x => x.Id)));
         }
         if (Environment.GetEnvironmentVariable("PICKSEED") is { Length: > 0 } extra)
             Console.WriteLine("with " + extra + ": " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, ulong.Parse(extra, NumberStyles.HexNumber), Load).Select(x => $"{x.Group}={x.Id}")));

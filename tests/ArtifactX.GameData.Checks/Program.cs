@@ -125,7 +125,9 @@ if (args.Length >= 4 && args[0] == "--creature-part-probe")
         var min = list.Aggregate(System.Numerics.Vector3.Min); var max = list.Aggregate(System.Numerics.Vector3.Max);
         return $"x {min.X:F2}..{max.X:F2} y {min.Y:F2}..{max.Y:F2} z {min.Z:F2}..{max.Z:F2}";
     }
-    var chosen = args[3].Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    // "*" chooses every option: everything the scene can draw.
+    var chosen = args[3] == "*" ? new HashSet<string>(all, StringComparer.OrdinalIgnoreCase)
+        : args[3].Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
     var baseMesh = models.Build(scene, all, chosen) ?? throw new InvalidOperationException("no mesh");
     Console.WriteLine($"base: {baseMesh.Corners.Length / 3} triangles, {Box(baseMesh.Corners)}");
     foreach (var m in baseMesh.Materials.GroupBy(x => Path.GetFileName(x)).OrderByDescending(g => g.Count()))

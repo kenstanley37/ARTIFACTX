@@ -44,6 +44,9 @@ public sealed partial class CreatureCardViewModel : ObservableObject
     public string ModelScene { get; init; } = "";
     public ulong ModelSeed { get; init; }
 
+    /// <summary>The scene the game spawns with it (a flock's animal, a crystal's ground piece); "" for none.</summary>
+    public string ModelExtraScene { get; init; } = "";
+
     /// <summary>The body the creature's role and exotic planet force (CreatureTables.ForcedPartTerms); "" for none.</summary>
     public string ModelFilter { get; init; } = "";
     public string ModelSubType { get; init; } = "";
