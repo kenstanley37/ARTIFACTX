@@ -269,7 +269,7 @@ namespace libMBIN.NMS.Globals
         /* 0x0910 */ public int ScreenshotForUploadWidth;
         // size: 0x9
         public enum ServerEnvEnum : uint {
-            @default,
+            Default,
             dev,
             qa,
             prodqa,

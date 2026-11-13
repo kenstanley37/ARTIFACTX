@@ -59,7 +59,7 @@ namespace libMBIN.NMS.Toolkit
         [NMS(Index = 54, Size = 0x5, EnumType = typeof(TkEqualityEnum.EqualityEnumEnum))]
         /* 0x0270 */ public float[] TestExternalEnumArray;
         // size: 0x4
-        public enum TestEnumArrayEnum : uint {
+        public enum TestEnumArrayEnum {
             Default,
             Option1,
             Option2,
@@ -93,10 +93,10 @@ namespace libMBIN.NMS.Toolkit
         /* 0x02AC */ public GcAudioWwiseEvents TestAudioEvent;
         // size: 0x4
         public enum TestEnumEnum : uint {
-            Default = 0,
-            Option1 = 1,
-            Option2 = 69,
-            Option3 = 70,
+            Default = 0x0,
+            Option1 = 0x1,
+            Option2 = 0x45,
+            Option3 = 0x46,
         }
         [NMS(Index = 10)]
         /* 0x02B0 */ public TestEnumEnum TestEnum;
@@ -110,7 +110,6 @@ namespace libMBIN.NMS.Toolkit
         [NMS(Index = 11)]
         /* 0x02B4 */ public TestEnumClassEnum TestEnumClass;
         // size: 0x4
-        [Flags]
         public enum TestEnumUInt32BitFieldEnum : uint {
             None = 0x0,
             Enum1 = 0x1,

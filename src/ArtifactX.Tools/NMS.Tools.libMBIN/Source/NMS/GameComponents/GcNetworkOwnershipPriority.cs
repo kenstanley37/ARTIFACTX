@@ -1,12 +1,9 @@
-using System;
-
 namespace libMBIN.NMS.GameComponents
 {
     [NMS(GUID = 0x2407553FEC1F9C70, NameHash = 0x94497FE7)]
     public class GcNetworkOwnershipPriority : NMSTemplate
     {
         // size: 0xA
-        [Flags]
         public enum NetworkOwnershipPriorityEnum : ushort {
             None = 0x0,
             CargoAlwaysRequiresPermission = 0x1,
