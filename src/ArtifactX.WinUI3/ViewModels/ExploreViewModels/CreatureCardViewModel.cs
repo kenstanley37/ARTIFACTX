@@ -44,6 +44,9 @@ public sealed partial class CreatureCardViewModel : ObservableObject
     public string ModelScene { get; init; } = "";
     public ulong ModelSeed { get; init; }
 
+    /// <summary>The planet whose colour table paints it (CreatureModelService.PaintAsync); null where not known.</summary>
+    public CreatureModelService.PlanetColours? Planet { get; init; }
+
     /// <summary>The scene the game spawns with it (a flock's animal, a crystal's ground piece); "" for none.</summary>
     public string ModelExtraScene { get; init; } = "";
 

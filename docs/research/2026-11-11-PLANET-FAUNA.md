@@ -399,3 +399,11 @@ triceratops, rodent, strider), so it is unproven (likely chance; those pets are 
 Next: Ghidra for where a spawned individual's gender picks its model seed (GcCreatureSpawnData Resource +0x90 /
 FemaleResource +0x48, seeds at +0xC0 / +0x78); FindAccess on those offsets plus the swap-colour flags found only
 unrelated code (0x1404761a0...). The app shows form 1 - correct for half of each herd.
+
+**Planet colours (2026-11-13):** a wild creature's palette table is its planet's - ShipLook.PaletteTable over the
+planet's biome palette file (GcBiomeData.ColourPaletteFile; catalog format 91 "BiomePalettes", biome x sub-type ->
+file), seeded with ColourSeed(planet seed) (the first child seed). Jinnie II (biome 10 HugeToxic, base palettes, planet
+seed F9D9E98106914B45): K. Bearxiumica's back fin FINFLAPS (Scale Primary + Alternative1) comes out brown #402E18 and
+teal #2E706C - the owner's shot shows a sky-blue frill with brown spots; the creature's own seed gives dark blue +
+olive, the raw planet seed grey + olive (no blue). Fur brown / olive fits Bearxiumica and Homobocamosa. One planet so far:
+check another biome (one with its own palette file, e.g. lush) next. Companions keep their own seed on base palettes.

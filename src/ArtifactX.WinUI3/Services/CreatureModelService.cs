@@ -315,23 +315,33 @@ public static class CreatureModelService
     private static IEnumerable<(string Id, string Name)> OptionNames(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups) =>
         groups.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(OptionNames))));
 
+    /// <summary>The planet a wild creature lives on, as far as its colours go: the planet's seed and its biome and
+    /// sub-type (which biome palette file its colour table is built from - CatalogService.GetBiomePalettesAsync).</summary>
+    public sealed record PlanetColours(ulong PlanetSeed, int Biome, int SubType);
+
     /// <summary>
     /// A creature's skin painted the way ships and multi-tools are (ShipModels.Painted): every creature material is a
-    /// stack of procedural texture layers tinted from the palette table - Fur, Scale, Underbelly, Rock, Leaf, Feather,
+    /// stack of procedural texture layers tinted from a palette table - Fur, Scale, Underbelly, Rock, Leaf, Feather,
     /// Metal, Custom_Head (GameData.Checks --creature-part-probe, 2026-11-13: cow, cat, triceratops and bird scenes; only
-    /// the pet harness and a few eyes are fixed textures). The seed picks the layers and patterns; the palette table
-    /// comes from the first child seed of <paramref name="colourSeed"/> when set, else of the seed - the multi-tool
-    /// rule (ModelPreviewService.ColourSeed). Evidence for the inputs: a companion's CreatureSeed (WTp) is its species'
-    /// role seed (132/132) and rerolling it changes pattern and colour; an active ColourBaseSeed (uAX) changes only the
-    /// colour (three rerolls on one pattern, 2026-07-28; NmsCompanionPaths). Raw seed vs child seed for the palette
-    /// table is NOT confirmed in game yet. Null without game data or palettes. <paramref name="size"/>: pixels per
-    /// material texture (small cards use less).
+    /// the pet harness and a few eyes are fixed textures). The creature's seed picks the layers, patterns and colour
+    /// slots. A wild creature's palette table is its **planet's**: the palette generator (ShipLook.PaletteTable) over the
+    /// planet's biome palette file, seeded with the first child of the planet seed (ModelPreviewService.ColourSeed).
+    /// Evidence (owner's Jinnie II scans, 2026-11-13, base palettes, planet seed F9D9E98106914B45): K. Bearxiumica's
+    /// back fin (FINFLAPS: Scale Primary and Alternative1) is sky blue with brown spots - this rule gives brown #402E18
+    /// and teal #2E706C; the creature's own seed gives dark blue and olive, the raw planet seed grey and olive; its fur and
+    /// I. Homobocamosa's come out brown and olive as seen. Every creature on a planet shares the table, as in game.
+    /// Without a planet (companions) the table comes from <paramref name="colourSeed"/> (an active ColourBaseSeed, uAX)
+    /// or the creature seed, on the base palettes - unconfirmed. Null without game data or palettes.
+    /// <paramref name="size"/>: pixels per material texture (small cards use less).
     /// </summary>
-    public static async Task<Dictionary<string, ModelTexture?>?> PaintAsync(GameInstall game, ShipMesh mesh, ulong seed, ulong colourSeed = 0, int size = 512)
+    public static async Task<Dictionary<string, ModelTexture?>?> PaintAsync(GameInstall game, ShipMesh mesh, ulong seed, ulong colourSeed = 0,
+        int size = 512, PlanetColours? planet = null)
     {
         if (seed == 0) return null;
         if (await ModelPreviewService.ModelsAsync(game) is not { } models) return null;
-        if (await ModelPreviewService.SeedColoursAsync(colourSeed != 0 ? colourSeed : seed) is not { } colours) return null;
+        var palettes = planet is null ? null : await CatalogService.GetBiomePalettesAsync(planet.Biome, planet.SubType);
+        ulong tableSeed = planet is { PlanetSeed: not 0 } ? planet.PlanetSeed : colourSeed != 0 ? colourSeed : seed;
+        if (await ModelPreviewService.SeedColoursAsync(tableSeed, palettes: palettes) is not { } colours) return null;
         return await ModelPreviewService.PaintAsync(models, mesh, colours, seed, size: size);
     }
 

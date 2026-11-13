@@ -62,7 +62,7 @@ public sealed partial class CreatureCard : UserControl
             if (mesh is null) return;
 
             Preview.StartYawOffset = Math.PI;
-            var textures = card.IsSilhouette ? null : await CreatureModelService.PaintAsync(game, mesh, card.ModelSeed, size: 128);
+            var textures = card.IsSilhouette ? null : await CreatureModelService.PaintAsync(game, mesh, card.ModelSeed, size: 128, planet: card.Planet);
             if (version != _version) return;
             Preview.Show(mesh, material => CreatureModelService.CreatureMaterialColour(material),
                 textures is null ? null : (Func<string, ArtifactX.GameData.ModelTexture?>)(m => textures.GetValueOrDefault(m)), silhouette: card.IsSilhouette);
@@ -84,7 +84,7 @@ public sealed partial class CreatureCard : UserControl
             {
                 var (parts, extra) = await CreatureModelService.ModelPartsAsync(creature.ModelScene, creature.ModelExtraScene,
                     creature.ModelSeed, creature.ModelFilter, creature.ModelSubType);
-                await CreaturePreviewControl.ShowAsync(XamlRoot, creature.Creature, creature.RigId, creature.IsSilhouette, parts, extra, creature.ModelSeed);
+                await CreaturePreviewControl.ShowAsync(XamlRoot, creature.Creature, creature.RigId, creature.IsSilhouette, parts, extra, creature.ModelSeed, creature.Planet);
             }
         }
     }

@@ -97,6 +97,14 @@ if (args.Length == 1 && args[0] == "--planet-shop-survey-check")
 }
 
 
+if (args.Length == 2 && args[0] == "--palettes-step")
+{
+    // Runs the palette catalog step (base + biome palettes) on the given catalog - use a copy, it is written.
+    var game = GameInstall.Find() ?? throw new InvalidOperationException("No game install found.");
+    CatalogSteps.AddPalettes(Path.GetFullPath(args[1]), game.PcbanksPath);
+    return;
+}
+
 if (args.Length >= 2 && args[0] == "--mbin-dump")
 {
     // Research probe: --mbin-dump <path substring> [n]: lists matching game files; with n, dumps the n-th as JSON
@@ -121,6 +129,7 @@ if (args.Length >= 2 && args[0] == "--mbin-dump")
         var bytes = new ArtifactX.GameData.Services.PakExtractionService().ExtractEntryBytes(hits[n].Pak, hits[n].Entry, hits[n].Header)!;
         using var mbin = new MBINFile(new MemoryStream(bytes));
         mbin.Load();
+        Console.WriteLine("type " + mbin.GetData()?.GetType().FullName);
         Console.WriteLine(JsonSerializer.Serialize((object?)mbin.GetData(), new JsonSerializerOptions
         {
             IncludeFields = true, WriteIndented = true, MaxDepth = 64,

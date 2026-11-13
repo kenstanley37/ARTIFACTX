@@ -50,9 +50,12 @@ public static class ModelPreviewService
     /// <paramref name="rawSeed"/>: starships build the table from the seed itself, not its
     /// first child - six of seven ships checked in game on 2026-10-17 matched that way
     /// (red/white/blue Fighter, yellow/blue Solar, teal/blue and blue Haulers...).</summary>
-    public static async Task<Func<string, string, float[]?>?> SeedColoursAsync(ulong seed, bool rawSeed = false)
+    public static async Task<Func<string, string, float[]?>?> SeedColoursAsync(ulong seed, bool rawSeed = false,
+        IReadOnlyList<ColourPalette>? palettes = null)
     {
-        if (seed == 0 || await CatalogService.GetPalettesAsync() is not { Count: > 0 } palettes) return null;
+        if (seed == 0) return null;
+        if (palettes is not { Count: > 0 }) palettes = await CatalogService.GetPalettesAsync();
+        if (palettes is not { Count: > 0 }) return null;
         var table = ShipLook.PaletteTable(rawSeed ? seed : ColourSeed(seed), palettes);
         return (palette, slot) =>
         {

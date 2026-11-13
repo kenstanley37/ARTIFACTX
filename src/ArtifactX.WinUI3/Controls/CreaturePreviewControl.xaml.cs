@@ -28,12 +28,15 @@ public sealed partial class CreaturePreviewControl : UserControl
     private bool _wild;   // a wild creature's parts were handed in: drawn without the pet harness
     private readonly CreatureModelService.ExtraModel? _extra;   // the scene spawned with it, drawn with its own rig only
     private ulong _seed, _colourSeed;   // its look seeds (CreatureModelService.PaintAsync), for its own rig only
+    private readonly CreatureModelService.PlanetColours? _planet;   // the planet whose colour table paints a wild creature
     private bool _loading = true;
 
     public CreaturePreviewControl(Creature creature, string? preferredRig = null, bool isSilhouette = false,
-        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null, ulong seed = 0)
+        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null, ulong seed = 0,
+        CreatureModelService.PlanetColours? planet = null)
     {
         Creature = creature;
+        _planet = planet;
         _extra = extra;
         _seed = seed;
         // A wild creature's body parts from its seed (CreatureModelService.PartsForSeedAsync), shown like a companion's.
@@ -83,7 +86,7 @@ public sealed partial class CreaturePreviewControl : UserControl
     {
         bool own = string.Equals(rigId, PreferredRig, StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(PreferredRig);
         return ModelPreview.ShowCreatureAsync(rigId, _companionDescriptors, silhouette: IsSilhouette, wild: _wild,
-            extra: own ? _extra : null, seed: own ? _seed : 0, colourSeed: own ? _colourSeed : 0);
+            extra: own ? _extra : null, seed: own ? _seed : 0, colourSeed: own ? _colourSeed : 0, planet: own ? _planet : null);
     }
 
     private async Task<string?> FindMatchingCompanionRigAsync()
@@ -163,9 +166,9 @@ public sealed partial class CreaturePreviewControl : UserControl
 
     /// <summary>Displays a 3D creature anatomy viewer dialog.</summary>
     public static async Task ShowAsync(XamlRoot root, Creature creature, string? rigId = null, bool isSilhouette = false,
-        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null, ulong seed = 0)
+        IReadOnlyList<string>? parts = null, CreatureModelService.ExtraModel? extra = null, ulong seed = 0, CreatureModelService.PlanetColours? planet = null)
     {
-        var control = new CreaturePreviewControl(creature, rigId, isSilhouette, parts, extra, seed);
+        var control = new CreaturePreviewControl(creature, rigId, isSilhouette, parts, extra, seed, planet);
         var dialog = new ContentDialog
         {
             Title = isSilhouette ? "Undiscovered Species 3D Silhouette" : "Creature 3D Anatomy",

@@ -166,6 +166,62 @@ public static partial class CatalogSteps
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "Palettes", "GcPaletteData", file.ToLowerInvariant(), rows);
         ConsoleStyle.Success($"Wrote {rows.Count} colour palettes to {catalogPath}.");
+        AddBiomePalettes(catalogPath, pcbanksPath);
+    }
+
+    /// <summary>
+    /// Each biome file's own colour palettes (catalog format 91): GcBiomeData.ColourPaletteFile, a GcPaletteList like
+    /// the base one (biomes/lush/lushcolourpalettes.mbin...; many files point at the base palettes). A planet's colour
+    /// table - what its creatures are painted from - is the palette generator over its biome file's palettes.
+    /// Category "BiomePalettes": GameId "BIOMEPALETTEFILES" = JSON string[biome][sub-type] of lower-case palette paths
+    /// ("" where none), indexed like biomefilenames.mbin's options (PlanetProfileGenerator's biome files); GameId
+    /// "BIOMEPALETTE:" + path = JSON [{"n": NumColours, "c": [[r,g,b] x 64]}] for the file's 66 palettes.
+    /// </summary>
+    private static void AddBiomePalettes(string catalogPath, string pcbanksPath)
+    {
+        const string listFile = "METADATA/SIMULATION/SOLARSYSTEM/BIOMES/BIOMEFILENAMES.MBIN";
+        if (DecodeMbin(pcbanksPath, listFile) is not libMBIN.NMS.GameComponents.GcBiomeFileList files)
+        {
+            ConsoleStyle.Warning("Biome file list not found - biome colour palettes left out.");
+            return;
+        }
+        static string Mbin(string path) => System.Text.RegularExpressions.Regex.Replace(path, @"\.MXML$", ".MBIN",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase).ToUpperInvariant();
+        var biomeData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var map = new string[files.BiomeFiles.Length][];
+        for (int b = 0; b < map.Length; b++)
+        {
+            var options = files.BiomeFiles[b].FileOptions ?? new();
+            map[b] = new string[options.Count == 0 ? 0 : options.Max(o => (int)o.SubType.BiomeSubType) + 1];
+            Array.Fill(map[b], "");
+            foreach (var o in options)
+            {
+                string path = Mbin(o.Filename?.Value ?? "");
+                if (!biomeData.TryGetValue(path, out string? palette))
+                    biomeData[path] = palette = DecodeMbin(pcbanksPath, path) is libMBIN.NMS.GameComponents.GcBiomeData data
+                        ? Mbin(data.ColourPaletteFile?.Value ?? "").ToLowerInvariant() : "";
+                map[b][(int)o.SubType.BiomeSubType] = palette;
+            }
+        }
+        var rows = new List<CatalogItem>
+        {
+            new() { GameId = "BIOMEPALETTEFILES", NameEnglish = "BiomePaletteFiles", DescriptionEnglish = JsonSerializer.Serialize(map) },
+        };
+        foreach (string path in map.SelectMany(m => m).Where(p => p.Length > 0).Distinct())
+            if (DecodeMbin(pcbanksPath, path.ToUpperInvariant()) is libMBIN.NMS.GameComponents.GcPaletteList list)
+                rows.Add(new CatalogItem
+                {
+                    GameId = "BIOMEPALETTE:" + path,
+                    NameEnglish = path,
+                    DescriptionEnglish = JsonSerializer.Serialize(list.Palettes.Select(p => new
+                    {
+                        n = p.NumColours.ToString(),
+                        c = p.Colours.Select(c => new[] { c.R, c.G, c.B }),
+                    })),
+                });
+        using var db = new CatalogDbContext(catalogPath);
+        Replace(db, "BiomePalettes", "GcPaletteList", "metadata/simulation/solarsystem/biomes/*colourpalettes.mbin", rows);
+        ConsoleStyle.Success($"Wrote {rows.Count - 1} biome colour palette files to {catalogPath}.");
     }
 }
 

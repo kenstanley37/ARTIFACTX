@@ -11,6 +11,53 @@ namespace ArtifactX.WinUI3.Services;
 
 public static partial class CatalogService
 {
+    private static Task<(string[][] Files, Dictionary<string, List<ArtifactX.Core.Procedural.ColourPalette>> Palettes)?>? _biomePalettes;
+
+    /// <summary>The colour palettes a planet of this biome and sub-type is painted from: its biome file's
+    /// ColourPaletteFile (catalog "BiomePalettes", format 91), the sub-type's own file or else the biome's first, as
+    /// the biome file itself is picked. Null on older game data or a biome without one - callers use the base palettes.</summary>
+    public static async Task<List<ArtifactX.Core.Procedural.ColourPalette>?> GetBiomePalettesAsync(int biome, int subType)
+    {
+        if (await (_biomePalettes ??= Task.Run(LoadBiomePalettes)) is not { } all) return null;
+        if (biome < 0 || biome >= all.Files.Length) return null;
+        var bySub = all.Files[biome];
+        string path = subType >= 0 && subType < bySub.Length && bySub[subType].Length > 0 ? bySub[subType]
+            : bySub.FirstOrDefault(p => p.Length > 0) ?? "";
+        return all.Palettes.GetValueOrDefault(path);
+    }
+
+    private static (string[][] Files, Dictionary<string, List<ArtifactX.Core.Procedural.ColourPalette>> Palettes)? LoadBiomePalettes()
+    {
+        if (ResolveDbPath() is not { } dbPath) return null;
+        try
+        {
+            string[][]? files = null;
+            var palettes = new Dictionary<string, List<ArtifactX.Core.Procedural.ColourPalette>>(StringComparer.OrdinalIgnoreCase);
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"SELECT i.GameId, i.NameEnglish, i.DescriptionEnglish FROM Items i
+                JOIN Categories c ON c.Id = i.CategoryId WHERE c.TemplateType = 'BiomePalettes'";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                if (reader.GetString(0) == "BIOMEPALETTEFILES")
+                    files = System.Text.Json.JsonSerializer.Deserialize<string[][]>(reader.GetString(2));
+                else
+                    palettes[reader.GetString(1)] = (System.Text.Json.JsonSerializer.Deserialize<List<BiomePaletteRow>>(reader.GetString(2)) ?? new())
+                        .Select(p => new ArtifactX.Core.Procedural.ColourPalette(p.c, p.n)).ToList();
+            }
+            return files is null ? null : (files, palettes);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] LoadBiomePalettes failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    private sealed record BiomePaletteRow(string n, float[][] c);
+
     /// <summary>What planet types are picked from (catalog "PlanetGeneration", step
     /// "Planet generation"); null on game data built before it was collected.</summary>
     public static Task<ArtifactX.Core.Universe.BiomeTables?> GetBiomeTablesAsync() =>

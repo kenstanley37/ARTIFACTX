@@ -136,6 +136,19 @@ public static class PlanetTypesService
         return false;
     }
 
+    /// <summary>A body's seed (planet index from 1) - what its colour table is generated from
+    /// (CreatureModelService.PlanetColours); 0 for a body the system doesn't have.</summary>
+    public static ulong PlanetSeed(ulong system, int planetIndex)
+    {
+        var (portal, galaxy) = Portal(S.ToSystemAddress(system));
+        try
+        {
+            var seeds = ArtifactX.Core.Universe.SystemGenerator.Bodies(portal, galaxy).PlanetSeeds;
+            return planetIndex >= 1 && planetIndex <= seeds.Length ? seeds[planetIndex - 1] : 0;
+        }
+        catch { return 0; }
+    }
+
     private static (ulong Portal, int Galaxy) Portal(ulong system) =>
         ((((system >> 40) & 0xFFF) << 32) | (system & 0xFFFFFFFF), (int)((system >> 32) & 0xFF));
 
