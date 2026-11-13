@@ -469,3 +469,12 @@ environment spawns (FUN_1416d9d30, flags at +0x164/+0x165). FUN_1416d5080 then l
 cGcPlanetGenerator::LoadModel (FUN_1416d5940; name in a std::function type string): Resource with the two-stream
 selector (male), FemaleResource and ExtraResource with the single one. With the right table I. Homobocamosa's Underbelly
 Primary is #4C5E5D (the owner's grey-teal belly patch) with no offset.
+
+**Correction, same day (owner's sunlit K. Bearxiumica shot):** the ChildSeeds[2] table is NOT the creature table. The
+frill is sky blue (Scale #2E706C in sun) with orange-brown spots (#402E18 / #704F05) and the fur cream-yellow (#5F521D):
+all in the ColourSeed(planet seed) table, none in the ChildSeeds[2] table. Both tables exist in game memory (the first
+in the duplicated-block area at 0x209BAE62000, the second after the planet seed); ChildSeeds[2] is probably terrain /
+flora. Reverted the app to ColourSeed(planet seed). The per-creature reordering is real and is FUN_1416da170's: Bearxiumica
+= order 1,0,3,4,2 (Primary -> teal frill, Alternative1 -> brown spots), Homobocamosa = rotation 3, Gentaylatica =
+rotation 4. Open: what picks each creature's mode - its live spawn entry (+0x146/+0x147) reads 0, so the remap is applied
+on another path (creature spawn / texture task), with its own flags or draw.
