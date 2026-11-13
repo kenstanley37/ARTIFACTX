@@ -489,3 +489,12 @@ fur), Underbelly #DBC89D (pale band), Scale #173340 (blue frill) + Alternative1 
 Fur #5F402E (brown), Underbelly #4C5E5D (grey-teal belly patch); W. Gentaylatica Grass #245E71 (blue petals). The
 per-creature "offsets" and the swap/rotate reading were fits to the wrong (planet-seed) table. FUN_1416da170's remap is
 used only where a spawn entry's flags are set (hand-placed spawns).
+
+**Lush planet check (2026-11-13, NMS build 185034, read-only memory reads on a lush planet):** the game's biome
+sub-type -> palette file map sits in memory as an array of pointers to the loaded palette files (one 32-entry row per
+biome). The Lush row points to exactly the files the catalog's BIOMEPALETTEFILES holds for each sub-type
+(1,2,13-15,19,22-24 lushcolourpalettes; 3 lushruins; 7 lushbubbles; 20/21 lushroom A/B; 25 swamp; 27 jungle) and holds
+null for the empty sub-types. The app fills an empty sub-type with the biome's first file; what the game does with a
+null entry is not confirmed (perhaps the base palettes). Per-creature palette tables do not stay in memory after the
+texture is built (no table for any of the 454 live spawn seeds, raw/child/Mix64 x base/lush files), so the creature
+rule on lush planets still needs an in-game sighting. The 184271 global (DAT_146f6b208) is stale on 185034.
