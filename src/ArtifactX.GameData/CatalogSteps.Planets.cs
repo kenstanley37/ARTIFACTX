@@ -391,6 +391,7 @@ public static partial class CatalogSteps
         var validIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var sceneIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var scenes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var modelScenes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (cfnt.Table is not null)
         {
             foreach (var f in cfnt.Table)
@@ -398,6 +399,7 @@ public static partial class CatalogSteps
                 {
                     validIds.Add(f.ID.Value);
                     if (!string.IsNullOrEmpty(f.Filename?.Value)) scenes.TryAdd(f.ID.Value, f.Filename.Value);
+                    if (!string.IsNullOrEmpty(f.ExtraFilename?.Value)) modelScenes.TryAdd(f.ID.Value, f.ExtraFilename.Value);
                     if (!string.IsNullOrEmpty(f.Filename?.Value) && CreatureComponentId(f.Filename.Value, f.ID.Value, decode) is string sceneId)
                         sceneIds[f.ID.Value] = sceneId;
                 }
@@ -428,7 +430,8 @@ public static partial class CatalogSteps
                     sceneIds.GetValueOrDefault(id, ""),
                     scenes.GetValueOrDefault(id, ""),
                     (int)c.PetBattlerForcedAffinity.PetBattlerAffinity,
-                    c.CanBeUsedInPetBattler));
+                    c.CanBeUsedInPetBattler,
+                    modelScenes.GetValueOrDefault(id, "")));
             }
         }
 

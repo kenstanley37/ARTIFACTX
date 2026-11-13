@@ -12,6 +12,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ### Added
 
 - Planet Details: creature 3D models now have the body parts the game gives that species (head, body, tail and the rest picked from the creature's seed), instead of the same default parts for every creature of a kind. Update your game data once to get this.
+- Planet Details: the anomalous creatures of exotic planets (floating, rolling and crystal ones) show the body that belongs to their kind of planet. Update your game data once to get this.
 - Multi-Tool Finder (Explore): the multi-tools space station cabinets sell in the star systems around you, visited or not, with each cabinet's class and the tool's kind (Alien, Experimental, Rifle, Pistol...). Filter by kind and class, and see where to save and reload for the cabinet to sell it.
 - Creature Finder (Explore): every creature you can adopt on the planets in your saves and the rest of their systems, ranked by its pet-battle Trait Potential, Combat Effectiveness, Agility and Health, with filters for class, element, galaxy and whether you've discovered it. Click one to open its planet and dial the portal address to go there.
 - Creature Finder: filter by size (up to Huge only), sort biggest first, and see each creature's size class and both forms' weight and height on its card. The portal address's Copy button is no longer cut off, and each card shows its galaxy as a badge, marked when it isn't the galaxy you're in.

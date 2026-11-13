@@ -287,14 +287,18 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         foreach (var slot in slots)
         {
             var pred = slot.Predicted;
-            string? scene = pred is null ? null : PlanetTypesService.CreatureTables?.Creatures.FirstOrDefault(c => c.Id == pred.Id)?.Scene;
+            // The scene actually drawn: the creature's model scene when it has one (a flock's single animal, the
+            // ground crystal), else its own scene.
+            var creatureEntry = pred is null ? null : PlanetTypesService.CreatureTables?.Creatures.FirstOrDefault(c => c.Id == pred.Id);
+            string? scene = creatureEntry is null ? null : creatureEntry.ModelScene.Length > 0 ? creatureEntry.ModelScene : creatureEntry.Scene;
             // The body its role and an exotic planet's sub-type force (anomalous floaters, rollers and crystals).
             var bodyType = PlanetTypesService.For(planet.SystemAddress) is { } bodyTypes && planet.PlanetIndex >= 1 && planet.PlanetIndex <= bodyTypes.Length
                 ? bodyTypes[planet.PlanetIndex - 1] : null;
             var forced = pred is not null && bodyType is not null && PlanetTypesService.CreatureTables is { } creatureTables
                 ? creatureTables.ForcedPartTerms(pred, bodyType.Biome, bodyType.SubType) : (Filter: "", SubType: "");
             string rigId = pred is null ? FallbackRig(saveDiscoveries[slot.Discovery].SpeciesName)
-                : await CreatureModelService.ResolveRigAsync(pred.Id, scenePath: scene) ?? "antelope";
+                : await CreatureModelService.ResolveRigAsync(creatureEntry is { ModelScene.Length: > 0 } ? null : pred.Id, scenePath: scene)
+                    ?? await CreatureModelService.ResolveRigAsync(pred.Id, scenePath: scene) ?? "antelope";
             string habitat = pred is null ? "Native Fauna" : $"{PlanetTypesService.CreatureTables?.HabitatOf(pred) ?? pred.Habitat} Fauna";
             var (rarity, activity) = pred is null ? ("", "") : CreatureTraitText.RarityAndActivity(pred, PlanetTypesService.CreatureTables);
 

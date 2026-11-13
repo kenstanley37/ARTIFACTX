@@ -247,12 +247,15 @@ public static class CreatureModelService
         return await Task.Run(() =>
         {
             IReadOnlyList<string>? forced = filter.Length == 0 && subType.Length == 0 ? null
-                : ArtifactX.Core.Universe.CreatureTables.ForcedOptions(
-                    ModelPreviewService.AllOptionIds(root, PartTreeService.Load, StringComparer.OrdinalIgnoreCase), filter, subType);
+                : ArtifactX.Core.Universe.CreatureTables.ForcedOptions(OptionNames(root), filter, subType);
             return (IReadOnlyList<string>)ArtifactX.Core.Procedural.ShipParts.Generate(scene, roleSeed, PartTreeService.Load, forced)
                 .Select(p => p.Id).ToList();
         });
     }
+
+    /// <summary>Every option of a part tree with its name, through nested groups.</summary>
+    private static IEnumerable<(string Id, string Name)> OptionNames(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups) =>
+        groups.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(OptionNames))));
 
     /// <summary>Natural shading for creature materials: eyes, teeth, mouth, horns, pet harness and skin.</summary>
     public static uint CreatureMaterialColour(string material)

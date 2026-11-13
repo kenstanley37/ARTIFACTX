@@ -70,7 +70,9 @@ public sealed record CreatureGlobals(
 /// is its model, GcCreatureFilenameTable's Filename. ForcedAffinity (format 82) is its pet-battle element when set
 /// (GcPetBattlerAffinity, 1-8; 0 = by biome). PetBattler (format 83; null on older catalogs) is its
 /// CanBeUsedInPetBattler: whether players can adopt it as a battle pet (46 of 86 kinds in build 184271; no fish, birds,
-/// diggers, worms or deep-sea creatures).</summary>
+/// diggers, worms or deep-sea creatures). ModelScene (format 89; "" when none) is GcCreatureFilenameTable's
+/// ExtraFilename: the model actually drawn when Scene is a flock or a shared rig (fish flock -> small fish, the
+/// anomalous crystal -> WEIRDRIGGROUND, whose bodies are Beam / BoneSpire / Hexagon / Pillar / ShardSingle).</summary>
 public sealed record CreatureEntry(
     string Id,
     int Type,
@@ -87,7 +89,8 @@ public sealed record CreatureEntry(
     string SpeciesId = "",
     string Scene = "",
     int ForcedAffinity = 0,
-    bool? PetBattler = null);
+    bool? PetBattler = null,
+    string ModelScene = "");
 
 /// <summary>An archetype option entry with an ID and a weight.</summary>
 public sealed record CreatureWeightedEntry(string Id, float Weight);
@@ -184,14 +187,17 @@ public sealed record CreatureTables(
     public (string Filter, string SubType) ForcedPartTerms(PredictedCreature creature, int biome, int subType) =>
         (creature.Filter, biome == 7 && BiomeSubTypeNames is { } names && subType >= 0 && subType < names.Length ? names[subType] : "");
 
-    /// <summary>The option ids those terms force in a part tree: an option ending in "_" + Filter ("_WEIRD_FLOAT"),
-    /// and one containing the sub-type name ("_FLOAT_HYDROGARDENXOR", "_ROLL_BEAMSTONE").</summary>
-    public static IReadOnlyList<string> ForcedOptions(IEnumerable<string> optionIds, string filter, string subType)
+    /// <summary>The option ids those terms force in a part tree, matched on the options' names (ids are cut to 15
+    /// characters: "_CRYSTAL_BONESP" is named "_Crystal_BoneSpire"): a name ending in "_" + Filter ("_Weird_Float"),
+    /// and one containing the sub-type name ("_Float_HydroGardenxOR", "_Roll_BeamStone", "_Crystal_BoneSpire").</summary>
+    public static IReadOnlyList<string> ForcedOptions(IEnumerable<(string Id, string Name)> options, string filter, string subType)
     {
         var forced = new List<string>();
-        foreach (string id in optionIds)
-            if ((filter.Length > 0 && id.EndsWith("_" + filter, StringComparison.OrdinalIgnoreCase))
-                || (subType.Length > 0 && id.Contains(subType, StringComparison.OrdinalIgnoreCase)))
+        foreach (var (id, name) in options)
+            if ((filter.Length > 0 && name.EndsWith("_" + filter, StringComparison.OrdinalIgnoreCase))
+                || (subType.Length > 0 && name.Contains(subType, StringComparison.OrdinalIgnoreCase))
+                // "Shards" names the crystal body "_Crystal_ShardSingle".
+                || (subType.Length > 3 && subType.EndsWith('s') && name.Contains(subType[..^1], StringComparison.OrdinalIgnoreCase)))
                 forced.Add(id);
         return forced;
     }

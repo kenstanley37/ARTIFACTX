@@ -395,12 +395,13 @@ if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
         var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(c.Seed, c.SpeciesId, planetAddress, c.CreatureType, c.SizeClass);
         string name = ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, creWords) ?? "?";
         if (!name.Equals(parts[2], StringComparison.OrdinalIgnoreCase)) continue;
-        string scene = Array.Find(profiles.Creatures!.Creatures, e => e.Id == c.Id)?.Scene ?? "";
-        Console.WriteLine($"{name}: {c.Id} species {c.SpeciesId} scene {scene} seed {c.Seed:X16}");
+        var entry = Array.Find(profiles.Creatures!.Creatures, e => e.Id == c.Id);
+        string scene = entry is { ModelScene.Length: > 0 } ? entry.ModelScene : entry?.Scene ?? "";
+        Console.WriteLine($"{name}:{c.Id} species {c.SpeciesId} scene {scene} seed {c.Seed:X16}");
         Console.WriteLine("picked: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Seed, Load).Select(x => $"{x.Group}={x.Id}")));
         if (Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } forcedRoot)
         {
-            IEnumerable<string> Ids(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> gs) => gs.SelectMany(g => g.Options.SelectMany(o => new[] { o.Id }.Concat(o.Children.SelectMany(Ids))));
+            IEnumerable<(string, string)> Ids(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> gs) => gs.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(Ids))));
             var terms = profiles.Creatures!.ForcedPartTerms(c, types[index].Biome, types[index].SubType);
             var forced = CreatureTables.ForcedOptions(Ids(forcedRoot), terms.Filter, terms.SubType);
             Console.WriteLine($"forced terms '{terms.Filter}' '{terms.SubType}' -> [{string.Join(" ", forced)}]: " +

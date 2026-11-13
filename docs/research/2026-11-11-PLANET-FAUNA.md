@@ -319,3 +319,13 @@ ForcedOptions feed ShipParts' stored-parts path. Crystal bodies (Pillar / Gem) h
 **Roller confirmed in game 2026-11-12 (owner, Slot 8):** K. Larvalamia on the Structure planet Ailsdoni
 (Angeym-Kuhovd II, portal 3045FBFFA005, found with fauna-check EXOTIC) is the _ROLL_STRUCTURE body in the world and in
 the app. Two of two anomalous checks (HydroGarden floater, Structure roller); crystals (Pillar / Gem) still unchecked.
+
+**Crystals use their own scene (2026-11-12, to confirm in game):** the owner's R. Gentdiffoe on the BoneSpire planet
+Aoedesdo (Iladdu-Bulga, portal 116EFBFFA005) is a tall block in the world; the app drew WEIRDRIG's _CRYSTAL_GEM (an
+"egg"). WEIRDCRYSTAL's creature row has an ExtraFilename scene, MODELS/PLANETS/CREATURES/WEIRD/WEIRDRIGGROUND, whose
+_CRYSTAL_ group holds _Crystal_Beam, _Crystal_BoneSpire, _Crystal_Hexagon, _Crystal_Pillar and _Crystal_ShardSingle -
+sub-type names again. Their ids are cut to 15 characters (_CRYSTAL_BONESP, _CRYSTAL_HEXAGO, _CRYSTAL_SHARDS), so
+ForcedOptions matches on option names, and "Shards" also matches "ShardSingle". Catalog format 89 stores the scene
+(CreatureEntry.ModelScene); Planet Details draws from it when present. fauna-check PICK for that creature now gives
+_CRYSTAL_BONESP (448 triangles, BONEFORMSTATIC materials) where the seed alone gave _CRYSTAL_BEAM. Not yet seen by the
+owner; the block in the screenshot could also be _Crystal_Pillar (MINERALMAT), which no sub-type names.
