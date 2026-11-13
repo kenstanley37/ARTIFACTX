@@ -37,8 +37,11 @@ public sealed partial class ShipModels
     /// <param name="styles">Option names a ship built at a station was given (its T>1 list,
     /// "STEALTH" for paint style 3 - 2026-10-16): wherever a layer has such an option it is
     /// used, whatever the seed picks. The builder's styles are options found ships never get.</param>
+    /// <param name="layerGain">A fixed brightness for tinted layers (texture grey x colour x gain) instead of scaling
+    /// each image so its average gives the palette colour. Creatures use it: their pale Underbelly colours (#DBC2AF...)
+    /// scaled up to 4x came out pure white, where in game no land creature on Jinnie II shows white (owner, 2026-11-13).</param>
     public ModelTexture? Painted(string material, Func<string, string, float[]?> colour, int size = 512, ulong? textureSeed = null,
-        ISet<string>? styles = null)
+        ISet<string>? styles = null, float? layerGain = null)
     {
         if (Decode(material) is not TkMaterialData data) return null;
         var samplers = data.Samplers ?? new();
@@ -65,9 +68,9 @@ public sealed partial class ShipModels
 
         // The main paint (gDiffuseMap); a decal material lays a second sheet over it
         // (gDiffuse2Map - the stripes along a tool's top, 2026-10-16).
-        if (ListIn("gDiffuseMap") is { } main && Layered(main, effectiveColour, size, textureSeed, styles) is { } painted)
+        if (ListIn("gDiffuseMap") is { } main && Layered(main, effectiveColour, size, textureSeed, styles, layerGain) is { } painted)
         {
-            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, effectiveColour, size, textureSeed, styles) is { } over
+            return ListIn("gDiffuse2Map") is { } decal && Layered(decal, effectiveColour, size, textureSeed, styles, layerGain) is { } over
                 ? painted with { Decal = over } : painted;
         }
         // No layers: the plain diffuse image.
@@ -88,7 +91,7 @@ public sealed partial class ShipModels
     }
 
     private ModelTexture? Layered(TkProceduralTextureList list, Func<string, string, float[]?> colour, int size, ulong? textureSeed,
-        ISet<string>? styles = null)
+        ISet<string>? styles = null, float? layerGain = null)
     {
         var all = (list.Layers ?? Array.Empty<TkProceduralTextureLayer>()).Where(l => (l.Textures?.Count ?? 0) > 0).ToList();
         var picked = textureSeed is ulong seed ? PickLayers(all, seed) : all.Select(l => (l, l.Textures![0])).ToList();
@@ -138,8 +141,8 @@ public sealed partial class ShipModels
                 }
                 return 0.299f * r + 0.587f * g + 0.114f * b;
             }
-            float gain = 2f;
-            if (tint is not null)
+            float gain = layerGain ?? 2f;
+            if (tint is not null && layerGain is null)
             {
                 double sumL = 0, sumA = 0;
                 for (int k = 0; k + 3 < img.Rgba.Length; k += 4 * 7)

@@ -203,7 +203,7 @@ if (args.Length >= 4 && args[0] == "--creature-colour-probe")
             return pi < 0 || pi >= table.Length || table[pi] is null || ai is < 0 or > 5 ? null : table[pi][Math.Min(ai, 3)];
         };
         Console.WriteLine($"== {rule} {tableSeed:X16}");
-        foreach (string p in new[] { "Fur", "Scale", "Underbelly", "Rock", "Feather" })
+        foreach (string p in new[] { "Fur", "Scale", "Underbelly", "Rock", "Feather", "Grass", "Leaf", "Plant", "SailShip_Sails" })
         {
             int pi = ShipModels.PaletteIndex(p);
             Console.WriteLine($"   {p,-11} {string.Join(" ", table[pi].Select(Hex))}");
@@ -211,7 +211,8 @@ if (args.Length >= 4 && args[0] == "--creature-colour-probe")
         foreach (var m in mesh.Materials.GroupBy(x => x).OrderByDescending(g => g.Count()).Take(8))
         {
             var used = new SortedSet<string>();
-            var t = models.Painted(m.Key, (p, a) => { var c = colour(p, a); used.Add($"{p}/{a}={(c is null ? "-" : Hex(c))}"); return c; }, 64, seed);
+            var t = models.Painted(m.Key, (p, a) => { var c = colour(p, a); used.Add($"{p}/{a}={(c is null ? "-" : Hex(c))}"); return c; }, 64, Environment.GetEnvironmentVariable("CHILDLAYERS") == "1" ? Child(seed) : seed,
+                layerGain: float.TryParse(Environment.GetEnvironmentVariable("GAIN"), System.Globalization.CultureInfo.InvariantCulture, out float lg) ? lg : null);
             string avg = "none";
             if (t is not null)
             {

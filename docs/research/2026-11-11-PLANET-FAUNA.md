@@ -414,3 +414,13 @@ TAPIRBODYMAT MARKINGS=BELTS (the stripes the app drew), its first child (ColourS
 K. Bearxiumica (owner: frill with spots): child gives FINFLAPS MARKINGS=SPOTS; role seed GRADIENT, Mix64 SPIKES.
 So: parts from the role seed, pattern layers from ColourSeed(role seed), colours from the planet's table
 (ColourSeed(planet seed) over the biome palettes). Preview lighting moved to linear light (ShipPreview.Lit).
+
+**Colour slot offset per creature (2026-11-13, owner's close-ups):** with the planet table (Jinnie II, ColourSeed(planet
+seed), base palettes) every sighting fits "slot s reads palette entry (s + k) mod 5" with a per-creature k (Unique
+read as slot 3): I. Homobocamosa k=3 - Fur[3] #5F3624 orange-brown body, Underbelly[3] #4C5E5D grey-teal belly patch
+(close-up); K. Bearxiumica k=1 - Fur[1] #5F521D yellow-olive, fin base Scale[1] #2E706C teal with spots Scale[2]
+#704F05 brown; W. Gentaylatica k=4 - petals Grass[4] #245E71 blue and Leaf[(3+4)%5=2] #A64D00 orange. The app uses k=0,
+which gives the white bellies (Underbelly[0] #BEDBB6). Likely GcCreatureSpawnData.SwapPrimaryForRandomColour. k not
+found: Mwc draws 0-15 of the role seed / its children / Mix64 (x5 multiply-high, mod 5, float), direct mod 5, list
+position (2/3/5) and role (3/4/1) - only chance-level hits. Next: Ghidra for where a creature's palette alt index is
+offset (reads of the spawn data's +0x146/+0x147 swap flags), or more sightings to test candidates.
