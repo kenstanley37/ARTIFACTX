@@ -139,6 +139,16 @@ if (args.Length >= 2 && args[0] == "--mbin-dump")
     return;
 }
 
+if (args.Length >= 4 && args[0] == "--creature-layer-probe")
+{
+    // Issue #15 probe: --creature-layer-probe <material path> <seed hex> [seed hex ...]: the pattern layers each seed
+    // picks on one material (BASE, overlays such as stripes) - which seed the game uses for a creature's patterns.
+    var models = new ShipModels(GameInstall.Find() ?? throw new InvalidOperationException("No game install found."));
+    foreach (string sd in args.Skip(2))
+        Console.WriteLine($"{sd}: {string.Join(" | ", models.PickedLayerNames(args[1], Convert.ToUInt64(sd.Replace("0x", ""), 16)))}");
+    return;
+}
+
 if (args.Length >= 4 && args[0] == "--creature-colour-probe")
 {
     // Issue #15 probe: --creature-colour-probe <catalog> <scene path> <role seed hex> [colour seed hex]

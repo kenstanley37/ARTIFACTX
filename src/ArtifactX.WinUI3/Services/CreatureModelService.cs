@@ -324,7 +324,10 @@ public static class CreatureModelService
     /// stack of procedural texture layers tinted from a palette table - Fur, Scale, Underbelly, Rock, Leaf, Feather,
     /// Metal, Custom_Head (GameData.Checks --creature-part-probe, 2026-11-13: cow, cat, triceratops and bird scenes; only
     /// the pet harness and a few eyes are fixed textures). The creature's seed picks the layers, patterns and colour
-    /// slots. A wild creature's palette table is its **planet's**: the palette generator (ShipLook.PaletteTable) over the
+    /// slots - with the first child of the creature seed (ModelPreviewService.ColourSeed), not the seed itself: owner's
+    /// Jinnie II shots (2026-11-13) - I. Homobocamosa is plain, no stripes (the seed itself picks MARKINGS=BELTS on
+    /// TAPIRBODYMAT, the child GRADIENT); K. Bearxiumica's fin is spotted (child: FINFLAPS MARKINGS=SPOTS; the seed
+    /// itself GRADIENT, Mix64 SPIKES). A wild creature's palette table is its **planet's**: the palette generator (ShipLook.PaletteTable) over the
     /// planet's biome palette file, seeded with the first child of the planet seed (ModelPreviewService.ColourSeed).
     /// Evidence (owner's Jinnie II scans, 2026-11-13, base palettes, planet seed F9D9E98106914B45): K. Bearxiumica's
     /// back fin (FINFLAPS: Scale Primary and Alternative1) is sky blue with brown spots - this rule gives brown #402E18
@@ -342,7 +345,7 @@ public static class CreatureModelService
         var palettes = planet is null ? null : await CatalogService.GetBiomePalettesAsync(planet.Biome, planet.SubType);
         ulong tableSeed = planet is { PlanetSeed: not 0 } ? planet.PlanetSeed : colourSeed != 0 ? colourSeed : seed;
         if (await ModelPreviewService.SeedColoursAsync(tableSeed, palettes: palettes) is not { } colours) return null;
-        return await ModelPreviewService.PaintAsync(models, mesh, colours, seed, size: size);
+        return await ModelPreviewService.PaintAsync(models, mesh, colours, ModelPreviewService.ColourSeed(seed), size: size);
     }
 
     /// <summary>A companion's look seeds: CreatureSeed (WTp) and, when its active flag is on, ColourBaseSeed (uAX) -

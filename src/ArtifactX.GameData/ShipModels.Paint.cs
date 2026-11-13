@@ -75,6 +75,18 @@ public sealed partial class ShipModels
         return diffuse is { Length: > 0 } && Image(diffuse) is { } img ? Resample(img, size, (r, g, b, _) => (r, g, b)) : null;
     }
 
+    /// <summary>The layers a seed paints on a material's main texture list - "LAYER=option (palette/slot)" - for
+    /// research probes (which pattern a creature gets); empty without a list.</summary>
+    public IReadOnlyList<string> PickedLayerNames(string material, ulong seed)
+    {
+        if (Decode(material) is not TkMaterialData data) return Array.Empty<string>();
+        var map = (data.Samplers ?? new()).FirstOrDefault(s => (s.Name?.Value ?? "") == "gDiffuseMap")?.Map?.Value;
+        if (map is not { Length: > 0 } || Decode(Extension.Replace(map.Replace('\\', '/'), "") + ".TEXTURE.MBIN") is not TkProceduralTextureList list)
+            return Array.Empty<string>();
+        var all = (list.Layers ?? Array.Empty<TkProceduralTextureLayer>()).Where(l => (l.Textures?.Count ?? 0) > 0).ToList();
+        return PickLayers(all, seed).Select(p => $"{p.Layer.Name?.Value}={p.Texture.Name?.Value} ({p.Texture.Palette.Palette}/{p.Texture.Palette.ColourAlt})").ToList();
+    }
+
     private ModelTexture? Layered(TkProceduralTextureList list, Func<string, string, float[]?> colour, int size, ulong? textureSeed,
         ISet<string>? styles = null)
     {

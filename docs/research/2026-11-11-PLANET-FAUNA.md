@@ -407,3 +407,10 @@ seed F9D9E98106914B45): K. Bearxiumica's back fin FINFLAPS (Scale Primary + Alte
 teal #2E706C - the owner's shot shows a sky-blue frill with brown spots; the creature's own seed gives dark blue +
 olive, the raw planet seed grey + olive (no blue). Fur brown / olive fits Bearxiumica and Homobocamosa. One planet so far:
 check another biome (one with its own palette file, e.g. lush) next. Companions keep their own seed on base palettes.
+
+**Pattern layers use the creature seed's child (2026-11-13):** GameData.Checks `--creature-layer-probe <material>
+<seeds...>` lists the layers a seed picks. I. Homobocamosa (owner: plain brown, no stripes): the role seed picks
+TAPIRBODYMAT MARKINGS=BELTS (the stripes the app drew), its first child (ColourSeed) GRADIENT on body and head.
+K. Bearxiumica (owner: frill with spots): child gives FINFLAPS MARKINGS=SPOTS; role seed GRADIENT, Mix64 SPIKES.
+So: parts from the role seed, pattern layers from ColourSeed(role seed), colours from the planet's table
+(ColourSeed(planet seed) over the biome palettes). Preview lighting moved to linear light (ShipPreview.Lit).
