@@ -1,71 +1,114 @@
 <UserControl x:Class="ArtifactX.WinUI3.Controls.RecipePlanner"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:vm="using:ArtifactX.WinUI3.ViewModels" xmlns:controls="using:ArtifactX.WinUI3.Controls" xmlns:ct="using:CommunityToolkit.WinUI.Controls"
+ xmlns:vm="using:ArtifactX.WinUI3.ViewModels" xmlns:controls="using:ArtifactX.WinUI3.Controls"
  Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
- <UserControl.Resources><DataTemplate x:Key="RecipeCard" x:DataType="vm:RecipePlannerItemViewModel"><controls:RecipePlannerCard ViewModel="{x:Bind}"/></DataTemplate></UserControl.Resources>
-  <Grid Padding="28,26,28,24" RowSpacing="12">
-   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-   <TextBlock Text="{x:Bind ViewModel.PageTitle, Mode=OneWay}" Style="{StaticResource ThemePageTitleStyle}"/>
-   <controls:RecipePlannerBrowser Grid.Row="1" ViewModel="{x:Bind ViewModel}"/>
-   <TextBlock Grid.Row="2" Text="{x:Bind ViewModel.Status, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-   <StackPanel Grid.Row="3" Visibility="{x:Bind ViewModel.PlannerVisibility, Mode=OneWay}" Spacing="12">
-    <controls:FoldingCard Title="RECIPE DETAILS" Summary="{x:Bind ViewModel.RecipeSummary, Mode=OneWay}"
-     IsExpanded="{x:Bind ViewModel.IsSummaryExpanded, Mode=TwoWay}">
-    <Border Style="{StaticResource ThemeCardStyle}" Padding="16">
-     <ct:WrapPanel HorizontalSpacing="18" VerticalSpacing="14">
-      <StackPanel Spacing="6" Width="320"><TextBlock Text="YOU'RE MAKING" Style="{StaticResource ThemeEyebrowStyle}"/><TextBlock Text="{x:Bind ViewModel.TargetName, Mode=OneWay}" FontSize="21" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/><TextBlock Text="{x:Bind ViewModel.PlanSummary, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/></StackPanel>
-      <NumberBox Width="240" Header="Quantity to make" Value="{x:Bind ViewModel.Quantity, Mode=TwoWay}" Minimum="1" Maximum="99999" SpinButtonPlacementMode="Inline" AutomationProperties.Name="Quantity of the main recipe to make"/>
-      <StackPanel Width="340" Spacing="6" Visibility="{x:Bind ViewModel.IngestorVisibility, Mode=OneWay}"><TextBlock Text="NUTRIENT INGESTOR EFFECT" Style="{StaticResource ThemeEyebrowStyle}"/><TextBlock Text="{x:Bind ViewModel.TargetBuff, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="Place this food in the Nutrient Ingestor. Eating it directly has a different effect." Foreground="{ThemeResource ThemeTextBrush}" FontSize="12" TextWrapping="Wrap"/></StackPanel>
-     </ct:WrapPanel>
-    </Border>
-    </controls:FoldingCard>
-    <StackPanel Spacing="8">
-     <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="← Back" Command="{x:Bind ViewModel.BackCommand}" IsEnabled="{x:Bind ViewModel.CanGoBack, Mode=OneWay}"/><Button Content="Main recipe" Command="{x:Bind ViewModel.MainRecipeCommand}"/></StackPanel>
-     <ItemsControl ItemsSource="{x:Bind ViewModel.Breadcrumbs}">
-      <ItemsControl.ItemsPanel><ItemsPanelTemplate><ct:WrapPanel HorizontalSpacing="8" VerticalSpacing="5"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-      <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerCrumb"><Button Content="{x:Bind Name}" Command="{x:Bind NavigateCommand}"/></DataTemplate></ItemsControl.ItemTemplate>
-     </ItemsControl>
-    </StackPanel>
-   </StackPanel>
-    <Grid x:Name="Workspace" Grid.Row="4" Visibility="{x:Bind ViewModel.PlannerVisibility, Mode=OneWay}" ColumnSpacing="18" RowSpacing="12">
-     <Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="*"/><ColumnDefinition Width="290"/></Grid.ColumnDefinitions>
-     <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-     <VisualStateManager.VisualStateGroups><VisualStateGroup x:Name="WorkspaceStates">
-      <VisualState x:Name="WidePlanner"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1250"/></VisualState.StateTriggers></VisualState>
-      <VisualState x:Name="CompactPlanner"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0"/></VisualState.StateTriggers><VisualState.Setters>
-       <Setter Target="Details.(Grid.Row)" Value="1"/><Setter Target="Details.(Grid.Column)" Value="0"/><Setter Target="Details.(Grid.ColumnSpan)" Value="3"/>
-       <Setter Target="Details.MaxHeight" Value="240"/>
-       <Setter Target="MapPanel.(Grid.ColumnSpan)" Value="2"/>
-      </VisualState.Setters></VisualState>
-     </VisualStateGroup></VisualStateManager.VisualStateGroups>
-     <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-     <Border VerticalAlignment="Top" Style="{StaticResource ThemeCardStyle}" Padding="12">
-      <StackPanel Spacing="10"><TextBlock Text="GATHER INGREDIENTS" Style="{StaticResource ThemeEyebrowStyle}"/><TextBlock Text="Totals for your main recipe" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-       <ItemsControl ItemsSource="{x:Bind ViewModel.Gather}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerItemViewModel">
-        <Button Command="{x:Bind SelectCommand}" AutomationProperties.Name="{x:Bind SelectionName, Mode=OneWay}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,3" Padding="{x:Bind CardPadding, Mode=OneWay}"
-          BorderBrush="{x:Bind CardBorder, Mode=OneWay}" BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}" Background="{x:Bind CardBackground, Mode=OneWay}">
-         <StackPanel Spacing="5"><TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="✓ Selected" Foreground="{ThemeResource ThemeAccentBrush}" Visibility="{x:Bind SelectionVisibility, Mode=OneWay}" FontSize="12"/><TextBlock Text="{x:Bind Inventory, Mode=OneWay}" TextWrapping="Wrap" FontSize="12"/></StackPanel>
-        </Button>
-       </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+ <!-- Split screen (owner's design, 2026-11-13): the ingredient tree at full height on the left, the recipe and the
+      selected step on the right. -->
+ <Grid Padding="28,24,24,20" RowSpacing="12">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <TextBlock Text="{x:Bind ViewModel.PageTitle}" Style="{StaticResource ThemePageTitleStyle}"/>
+  <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.Status, Mode=OneWay}" Visibility="{x:Bind ViewModel.StatusVisibility, Mode=OneWay}"
+   Foreground="{ThemeResource ThemeWarningBrush}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+
+  <Grid Grid.Row="2" ColumnSpacing="18">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="SideColumn" Width="430"/></Grid.ColumnDefinitions>
+   <VisualStateManager.VisualStateGroups><VisualStateGroup>
+    <VisualState><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1400"/></VisualState.StateTriggers></VisualState>
+    <VisualState><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0"/></VisualState.StateTriggers>
+     <VisualState.Setters><Setter Target="SideColumn.Width" Value="360"/></VisualState.Setters></VisualState>
+   </VisualStateGroup></VisualStateManager.VisualStateGroups>
+
+   <!-- The tree -->
+   <Border Style="{StaticResource ThemeCardStyle}" Padding="0">
+    <Grid>
+     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+     <Grid Padding="16,12" ColumnSpacing="14" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="0,0,0,1">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="INGREDIENT TREE" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+      <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.PlanSummary, Mode=OneWay}" Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="14" Visibility="{x:Bind ViewModel.PlannerVisibility, Mode=OneWay}">
+       <TextBlock FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"><Run Text="●" Foreground="{ThemeResource ThemeDoneBrush}"/> have enough</TextBlock>
+       <TextBlock FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"><Run Text="●" Foreground="{ThemeResource ThemeWarningBrush}"/> some</TextBlock>
+       <TextBlock FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"><Run Text="●" Foreground="{ThemeResource ThemeDamagedBrush}"/> none</TextBlock>
       </StackPanel>
-     </Border>
-     </ScrollViewer>
-     <Grid x:Name="MapPanel" Grid.Column="1" RowSpacing="12">
-      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-      <TextBlock Text="{x:Bind ViewModel.MapHeading, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
-      <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8"><Button Content="Map" Command="{x:Bind ViewModel.ShowMapCommand}"/><Button Content="Step order" Command="{x:Bind ViewModel.ShowOrderCommand}"/></StackPanel>
-      <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Recipe requirements map and steps">
-       <Grid>
-      <controls:RecipePlannerMap ViewModel="{x:Bind ViewModel}" Visibility="{x:Bind ViewModel.MapVisibility, Mode=OneWay}"/>
-      <ItemsControl ItemsSource="{x:Bind ViewModel.Cards}" Visibility="{x:Bind ViewModel.OrderVisibility, Mode=OneWay}" ItemTemplate="{StaticResource RecipeCard}">
-       <ItemsControl.ItemsPanel><ItemsPanelTemplate><ct:WrapPanel HorizontalSpacing="12" VerticalSpacing="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+     </Grid>
+     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto" VerticalScrollBarVisibility="Auto"
+      AutomationProperties.Name="Ingredient tree">
+      <ItemsControl ItemsSource="{x:Bind ViewModel.Tree}" Margin="20" VerticalAlignment="Center" IsTabStop="False">
+       <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipeTreeNode"><controls:RecipeTreeBranch Node="{x:Bind}"/></DataTemplate></ItemsControl.ItemTemplate>
       </ItemsControl>
+     </ScrollViewer>
+     <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.EmptyHint}" Visibility="{x:Bind ViewModel.EmptyVisibility, Mode=OneWay}"
+      Foreground="{ThemeResource ThemeTextDimBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="24"/>
+    </Grid>
+   </Border>
+
+   <!-- The recipe and the selected step -->
+   <Grid Grid.Column="1" RowSpacing="14">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <Border Style="{StaticResource ThemeCardStyle}" Padding="16">
+     <StackPanel Spacing="12">
+      <Grid ColumnSpacing="8">
+       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <TextBlock Text="RECIPE" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
+       <Button Grid.Column="1" Content="{x:Bind ViewModel.PickerButtonText, Mode=OneWay}" Command="{x:Bind ViewModel.TogglePickerCommand}"
+        Visibility="{x:Bind ViewModel.PickerButtonVisibility, Mode=OneWay}"/>
+       <ToggleButton Grid.Column="2" IsChecked="{x:Bind ViewModel.IsTargetPinned, Mode=OneWay}" Command="{x:Bind ViewModel.TogglePinTargetCommand}"
+        Visibility="{x:Bind ViewModel.PlannerVisibility, Mode=OneWay}" AutomationProperties.Name="Pin this recipe" ToolTipService.ToolTip="Pin this recipe"
+        Padding="9,6"><FontIcon Glyph="&#xE718;" FontSize="14"/></ToggleButton>
+      </Grid>
+      <controls:RecipePlannerBrowser ViewModel="{x:Bind ViewModel}" Visibility="{x:Bind ViewModel.PickerVisibility, Mode=OneWay}"/>
+      <StackPanel Spacing="10" Visibility="{x:Bind ViewModel.PlannerVisibility, Mode=OneWay}">
+       <Grid ColumnSpacing="12">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+        <Image Source="{x:Bind ViewModel.TargetIcon, Mode=OneWay}" Width="48" Height="48" VerticalAlignment="Center"/>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+         <TextBlock Text="{x:Bind ViewModel.TargetName, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
+         <TextBlock Text="{x:Bind ViewModel.TargetBuff, Mode=OneWay}" Visibility="{x:Bind ViewModel.IngestorVisibility, Mode=OneWay}"
+          Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+        </StackPanel>
        </Grid>
+       <TextBlock Text="Its effect applies in the Nutrient Ingestor; eating it directly does something else." Visibility="{x:Bind ViewModel.IngestorVisibility, Mode=OneWay}"
+        Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="12" TextWrapping="Wrap"/>
+       <TextBlock Text="{x:Bind ViewModel.HaveSummary, Mode=OneWay}" Foreground="{x:Bind ViewModel.HaveSummaryBrush, Mode=OneWay}" FontWeight="SemiBold"
+        TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+      </StackPanel>
+     </StackPanel>
+    </Border>
+
+    <Border Grid.Row="1" Style="{StaticResource ThemeCardStyle}" Padding="0" Visibility="{x:Bind ViewModel.PlannerVisibility, Mode=OneWay}">
+     <Grid>
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+      <SelectorBar x:Name="Tabs" SelectionChanged="Tabs_SelectionChanged" Margin="8,4,8,0">
+       <SelectorBarItem x:Name="SelectedTab" Text="Selected step" IsSelected="True"/>
+       <SelectorBarItem x:Name="ShoppingTab" Text="Shopping list"/>
+      </SelectorBar>
+      <ScrollViewer x:Name="TabScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+       <Border Padding="16">
+        <Grid>
+         <controls:RecipePlannerDetails Item="{x:Bind ViewModel.SelectedItem, Mode=OneWay}" Source="{x:Bind ViewModel.Source}"
+          Visibility="{x:Bind ViewModel.SelectedTabVisibility, Mode=OneWay}"/>
+         <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.ShoppingTabVisibility, Mode=OneWay}">
+          <TextBlock Text="Every raw ingredient the recipe needs. Select one to see where to find it." Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+          <ItemsControl ItemsSource="{x:Bind ViewModel.Gather}" IsTabStop="False">
+           <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerItemViewModel">
+            <Button Command="{x:Bind SelectCommand}" AutomationProperties.Name="{x:Bind TileName, Mode=OneWay}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,3" Padding="10,8">
+             <Grid ColumnSpacing="10">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <Image Source="{x:Bind Icon}" Width="28" Height="28"/>
+              <TextBlock Grid.Column="1" Text="{x:Bind Name}" Foreground="{ThemeResource ThemeTextBrush}" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap"/>
+              <TextBlock Grid.Column="2" Text="{x:Bind TileStatus, Mode=OneWay}" Foreground="{x:Bind TileStatusBrush, Mode=OneWay}" VerticalAlignment="Center"/>
+             </Grid>
+            </Button>
+           </DataTemplate></ItemsControl.ItemTemplate>
+          </ItemsControl>
+         </StackPanel>
+        </Grid>
+       </Border>
       </ScrollViewer>
      </Grid>
-     <ScrollViewer x:Name="Details" Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Selected ingredient details">
-      <controls:RecipePlannerDetails VerticalAlignment="Top" Item="{x:Bind ViewModel.SelectedItem, Mode=OneWay}" RecipeChanged="RecipeChanged" SelectionChanged="DetailsSelectionChanged"/>
-     </ScrollViewer>
-    </Grid>
+    </Border>
+   </Grid>
   </Grid>
+ </Grid>
 </UserControl>

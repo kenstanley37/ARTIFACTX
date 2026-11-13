@@ -12,6 +12,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 
+- Cooking and Refiner Recipes: redesigned as a split screen. The recipe's ingredient tree fills the left at full height with the game's item icons, each raw ingredient showing what you have against what it needs (green enough, amber some, red none); the right shows the recipe, whether you have every raw ingredient, and the step you click. A Shopping list tab lists every raw ingredient. The quantity box, Back/Main buttons and breadcrumbs are gone.
+- Cooking Recipes: click a wild ingredient (Frozen Tubers, Sweetroot, Hexaberry, Hadal Core...) to see where it is found - which kinds of planet, underwater or in caves - and the closest star systems that have it, starting with your own system, nearest first. Update your game data once to get this.
 - Planet Details: creature 3D models now have the body parts the game gives that species (head, body, tail and the rest picked from the creature's seed), instead of the same default parts for every creature of a kind. Update your game data once to get this.
 - Planet Details: the anomalous creatures of exotic planets (floating, rolling and crystal ones) show the body that belongs to their kind of planet, crystals with the growth round their base, and the strange burrowing creatures and flocks show the animal itself. Update your game data once to get this.
 - Planet Details and Companions: creature 3D models are painted in the game's own skin patterns (fur, scales, underbelly, horns), coloured as in game - each creature's own colours drawn from its planet's colour palettes - instead of one flat colour per part. Update your game data once to get this. A companion with a colour override set shows that colour.

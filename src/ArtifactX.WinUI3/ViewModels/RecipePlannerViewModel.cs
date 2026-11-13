@@ -4,26 +4,30 @@ using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
+using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>Single-page recipe browser and planner. User navigation changes the
-/// branch; background inventory updates only change quantities on existing rows.</summary>
+/// <summary>
+/// The Cooking and Refiner Recipes page (redesigned 2026-11-13 with the owner): the open recipe's ingredient tree on the
+/// left at full height, and on the right the recipe card (search, pin, Ingestor effect, whether you have every raw
+/// ingredient) over two tabs, Selected step and Shopping list. One of the recipe, always: players want the recipe and
+/// whether they have what it needs, not batch sizes. Live saves only change the have/need numbers in place.
+/// </summary>
 public sealed partial class RecipePlannerViewModel : ObservableObject
 {
     private readonly IRecipePlannerCatalog _catalogService;
     private readonly RecipePlannerMode _mode;
     private RecipePlannerCatalog? _catalog;
     private readonly Dictionary<string, string> _choices = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string> _supplyChoices = new(StringComparer.OrdinalIgnoreCase);
-    private readonly List<string> _path = [];
     private readonly Dictionary<string, RecipePlannerItemViewModel> _allCards = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (FoodIngestorDefinition Food, float Bonus)> _buffs = new(StringComparer.OrdinalIgnoreCase);
     private RecipeInfo? _target;
@@ -36,6 +40,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     private int _inventoryVersion;
     private object? _inventoryOwner;
     private bool _planPending;
+    private ulong? _here;
     public bool IsReady => _catalog is not null && _catalogRevision == CatalogService.Revision;
 
     public RecipePlannerViewModel(RecipePlannerMode mode) : this(new RecipePlannerCatalogService(), mode) { }
@@ -44,50 +49,58 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     private bool IsCooking => _mode == RecipePlannerMode.Cooking;
     private string RootKind => IsCooking ? "Cooking" : "Refiner";
     public string PageTitle => IsCooking ? "COOKING RECIPES" : "REFINER RECIPES";
-    public string SearchHeader => IsCooking ? "Find a food or ingredient" : "Find a material";
-    public string BrowserInstruction => IsCooking
-        ? "Choose an effect to compare foods, strongest first. Select a recipe to see how to make every ingredient."
-        : "Refining recipes for minerals, gases and other materials. Select a material to see its ingredients and required refiner.";
+    public string SearchPlaceholder => IsCooking ? "Search foods and ingredients" : "Search materials";
+    public string EmptyHint => IsCooking ? "Choose a recipe on the right to see everything it needs."
+        : "Choose a material on the right to see how to refine it.";
     public Visibility EffectVisibility => IsCooking ? Visibility.Visible : Visibility.Collapsed;
-    public ObservableCollection<RecipePlannerItemViewModel> Results { get; } = [];
-    public ObservableCollection<RecipePlannerItemViewModel> Gather { get; } = [];
-    public ObservableCollection<RecipePlannerItemViewModel> Cards { get; } = [];
-    public ObservableCollection<RecipePlannerLevel> Levels { get; } = [];
-    public ObservableCollection<RecipePlannerCrumb> Breadcrumbs { get; } = [];
-    public ObservableCollection<RecipePlannerEffect> Effects { get; } = [];
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(BrowserSummary))] public partial string Search { get; set; } = "";
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(BrowserSummary))] public partial RecipePlannerEffect? SelectedEffect { get; set; }
-    [ObservableProperty] public partial string Status { get; set; } = "Loading recipes…";
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(RecipeSummary))] public partial string TargetName { get; set; } = "Choose a recipe to start";
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(RecipeSummary))] public partial string TargetBuff { get; set; } = "";
-    [ObservableProperty] public partial Visibility IngestorVisibility { get; set; } = Visibility.Collapsed;
-    [ObservableProperty] public partial double Quantity { get; set; } = 1;
-    [ObservableProperty] public partial RecipePlannerItemViewModel? SelectedItem { get; set; }
-    [ObservableProperty] public partial Visibility PlannerVisibility { get; set; } = Visibility.Collapsed;
-    [ObservableProperty] public partial Visibility MapVisibility { get; set; } = Visibility.Visible;
-    [ObservableProperty] public partial Visibility OrderVisibility { get; set; } = Visibility.Collapsed;
-    [ObservableProperty] public partial bool CanGoBack { get; set; }
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(BrowserSummary))] public partial string ResultCount { get; set; } = "";
-    [ObservableProperty] public partial bool PinnedOnly { get; set; }
-    [ObservableProperty] public partial bool IsBrowserExpanded { get; set; } = true;
-    [ObservableProperty] public partial bool IsSummaryExpanded { get; set; } = true;
-    public string BrowserSummary => string.Join(" · ", new[]
-    {
-        Search.Trim(), SelectedEffect is { Id.Length: > 0 } effect ? effect.Name : "", ResultCount
-    }.Where(text => text.Length > 0));
-    public string RecipeSummary => string.IsNullOrEmpty(TargetBuff) ? TargetName : $"{TargetName} · {TargetBuff}";
-    [ObservableProperty] public partial string MapHeading { get; set; } = "All requirements";
-    [ObservableProperty] public partial string PlanSummary { get; set; } = "";
 
-    partial void OnSearchChanged(string value) { IsBrowserExpanded = true; Filter(); }
-    partial void OnPinnedOnlyChanged(bool value) { IsBrowserExpanded = true; Filter(); }
-    partial void OnSelectedEffectChanged(RecipePlannerEffect? value) { if (!_loadingCatalog) IsBrowserExpanded = true; Filter(); }
-    partial void OnQuantityChanged(double value)
+    public ObservableCollection<RecipePlannerItemViewModel> Results { get; } = [];
+    /// <summary>The Shopping list: every raw ingredient of the recipe with its total.</summary>
+    public ObservableCollection<RecipePlannerItemViewModel> Gather { get; } = [];
+    /// <summary>The tree's root (none until a recipe is open).</summary>
+    public ObservableCollection<RecipeTreeNode> Tree { get; } = [];
+    public ObservableCollection<RecipePlannerEffect> Effects { get; } = [];
+    public IngredientSourceViewModel Source { get; } = new();
+
+    [ObservableProperty] public partial string Search { get; set; } = "";
+    [ObservableProperty] public partial RecipePlannerEffect? SelectedEffect { get; set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(StatusVisibility))] public partial string Status { get; set; } = "Loading recipes…";
+    public Visibility StatusVisibility => Status.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    [ObservableProperty] public partial string TargetName { get; set; } = "";
+    [ObservableProperty] public partial ImageSource? TargetIcon { get; set; }
+    [ObservableProperty] public partial string TargetBuff { get; set; } = "";
+    [ObservableProperty] public partial Visibility IngestorVisibility { get; set; } = Visibility.Collapsed;
+    [ObservableProperty] public partial bool IsTargetPinned { get; set; }
+    [ObservableProperty] public partial RecipePlannerItemViewModel? SelectedItem { get; set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(PlannerVisibility), nameof(EmptyVisibility))] public partial bool HasRecipe { get; set; }
+    public Visibility PlannerVisibility => HasRecipe ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility EmptyVisibility => HasRecipe ? Visibility.Collapsed : Visibility.Visible;
+    [ObservableProperty] public partial string PlanSummary { get; set; } = "";
+    [ObservableProperty] public partial string ResultCount { get; set; } = "";
+    [ObservableProperty] public partial bool PinnedOnly { get; set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(PickerVisibility), nameof(PickerButtonText), nameof(PickerButtonVisibility))]
+    public partial bool IsPickerOpen { get; set; } = true;
+    public Visibility PickerVisibility => IsPickerOpen ? Visibility.Visible : Visibility.Collapsed;
+    public string PickerButtonText => IsPickerOpen ? "Close search" : "Change recipe";
+    public Visibility PickerButtonVisibility => HasRecipe ? Visibility.Visible : Visibility.Collapsed;
+    partial void OnHasRecipeChanged(bool value) => OnPropertyChanged(nameof(PickerButtonVisibility));
+    [ObservableProperty] public partial string HaveSummary { get; set; } = "";
+    [ObservableProperty] public partial Brush? HaveSummaryBrush { get; set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SelectedTabVisibility), nameof(ShoppingTabVisibility))]
+    public partial bool ShowShoppingList { get; set; }
+    public Visibility SelectedTabVisibility => ShowShoppingList ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility ShoppingTabVisibility => ShowShoppingList ? Visibility.Visible : Visibility.Collapsed;
+
+    partial void OnSearchChanged(string value) => Filter();
+    partial void OnPinnedOnlyChanged(bool value) => Filter();
+    partial void OnSelectedEffectChanged(RecipePlannerEffect? value) => Filter();
+    partial void OnSelectedItemChanged(RecipePlannerItemViewModel? value)
     {
-        double whole = double.IsFinite(value) ? Math.Clamp(Math.Truncate(value), 1, 99999) : 1;
-        if (value != whole) { Quantity = whole; return; }
-        if (_target is not null) _ = RebuildAsync();
+        if (value is { IsRaw: true, IsSupply: false }) _ = Source.ShowAsync(value.Id, _here);
     }
+
+    [RelayCommand] private void TogglePicker() => IsPickerOpen = !IsPickerOpen || !HasRecipe;
+    [RelayCommand] private async Task TogglePinTargetAsync() { if (_target is not null) await TogglePinAsync(_target.Id); }
 
     public async Task LoadAsync()
     {
@@ -114,8 +127,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
             if (version != _loadVersion) return;
             _loadingCatalog = false;
             Filter();
-            Status = !catalog.Recipes.Any(r => r.Kind == RootKind) ? "No recipes available. Update game data to load them."
-                : IsCooking ? "Choose a recipe, or search for the Ingestor effect you want." : "Choose a material to see how to refine it.";
+            Status = !catalog.Recipes.Any(r => r.Kind == RootKind) ? "No recipes available. Update game data to load them." : "";
             if (_target is not null)
             {
                 _target = catalog.Recipes.FirstOrDefault(r => r.Id == _target.Id);
@@ -149,7 +161,8 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
             .Where(r => !PinnedOnly || _pinned.Contains(r.Id))
             .Where(r => Name(r.Result.Id).Contains(Search.Trim(), StringComparison.CurrentCultureIgnoreCase))
             .Where(r => effect.Length == 0 || _buffs.TryGetValue(r.Result.Id, out var food) && food.Food.Effect == effect)
-            .OrderByDescending(r => effect.Length > 0 && _buffs.TryGetValue(r.Result.Id, out var food)
+            .OrderByDescending(r => _pinned.Contains(r.Id))
+            .ThenByDescending(r => effect.Length > 0 && _buffs.TryGetValue(r.Result.Id, out var food)
                 ? food.Bonus * (food.Food.LowerIsBetter ? -1 : 1) : 0)
             .ThenByDescending(r => effect.Length > 0 && _buffs.TryGetValue(r.Result.Id, out var food) ? food.Food.CookingValue : 0)
             .ThenBy(r => Name(r.Result.Id), StringComparer.CurrentCultureIgnoreCase).ToArray();
@@ -164,10 +177,11 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
 
     private void Open(RecipeInfo recipe)
     {
-        _target = recipe; _choices.Clear(); _supplyChoices.Clear(); _path.Clear(); _path.Add(recipe.Result.Id);
+        _target = recipe; _choices.Clear();
         SelectedItem = null;
-        IsBrowserExpanded = false;
-        PlannerVisibility = Visibility.Visible;
+        IsPickerOpen = false;
+        ShowShoppingList = false;
+        IsTargetPinned = _pinned.Contains(recipe.Id);
         _ = RebuildAsync();
     }
 
@@ -176,21 +190,20 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
         bool pinned = await Task.Run(() => PinnedRecipesService.Toggle(recipeId));
         if (pinned) _pinned.Add(recipeId); else _pinned.Remove(recipeId);
         foreach (var row in Results.Where(r => r.RecipeId == recipeId)) row.IsPinned = pinned;
+        if (_target?.Id == recipeId) IsTargetPinned = pinned;
         if (PinnedOnly && !pinned) Filter();
     }
 
-    public void Stop() { ++_loadVersion; _planning?.Cancel(); }
+    public void Stop() { ++_loadVersion; _planning?.Cancel(); Source.Stop(); }
     public Task ResumeAsync() => _planPending ? RebuildAsync() : Task.CompletedTask;
+
+    /// <summary>What the save holds of every item on the page, and where the save is (the start of the "closest to
+    /// you" search). Changes numbers in place; the tree and selection stay.</summary>
     public async Task RefreshOwnedAsync(PlanetSnapshot? snapshot = null)
     {
         int version = ++_inventoryVersion;
         object? owner = SaveSessionManager.SessionIdentity;
-        if (!ReferenceEquals(_inventoryOwner, owner))
-        {
-            _owned = null; _inventoryOwner = owner;
-            if (_supplyChoices.Count > 0)
-            { _supplyChoices.Clear(); await RebuildAsync(); return; }
-        }
+        if (!ReferenceEquals(_inventoryOwner, owner)) { _owned = null; _inventoryOwner = owner; }
         try
         {
             var player = snapshot?.CargoSupplies is null && _owned is null
@@ -206,23 +219,39 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
             }
             if (version != _inventoryVersion || !ReferenceEquals(owner, SaveSessionManager.SessionIdentity)) return;
             _owned = supplies;
+            ulong? here = SaveSessionManager.IsSaveLoaded ? S.ReadSystemAddress((snapshot ?? LiveSaveWatcher.FromSession()).Universe) : null;
+            if (here != _here)
+            {
+                _here = here;
+                if (SelectedItem is { IsRaw: true, IsSupply: false } raw) _ = Source.ShowAsync(raw.Id, _here);
+            }
+            bool loaded = SaveSessionManager.IsSaveLoaded;
             foreach (var item in _allCards.Values.Concat(Gather).Distinct())
             {
                 var locations = supplies.Where(s => s.ItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase)).ToArray();
-                long total = locations.Sum(s => s.Amount);
-                item.Inventory = SaveSessionManager.IsSaveLoaded
-                    ? $"{item.Required:N0} needed / {total:N0} owned; {Math.Max(0, item.Required - total):N0} to gather"
-                    : $"{item.Required:N0} needed; load a save to compare inventory";
-                item.InventoryLocations = SaveSessionManager.IsSaveLoaded && locations.Length > 0
-                    ? string.Join("\n", locations.Select(s => $"{s.Location}: {s.Amount:N0}"))
-                        + "\nStored supplies may need to be collected from these locations."
-                    : "";
+                item.Owned = loaded ? locations.Sum(s => s.Amount) : null;
+                item.InventoryLocations = loaded && locations.Length > 0
+                    ? string.Join("\n", locations.Select(s => $"{s.Location}: {s.Amount:N0}")) : "";
                 item.BaseSources = string.Join("\n", baseSources.Where(s => s.ItemId.Equals(item.Id, StringComparison.OrdinalIgnoreCase))
                     .Select(s => $"{s.BaseName}: {s.Extractors:N0} {(s.Kind == "Gas" ? "gas" : "mineral")} extractor{(s.Extractors == 1 ? "" : "s")}"));
-                UpdateSupplyOptions(item, baseSources, total);
             }
+            UpdateHaveSummary();
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Recipe inventory] {ex}"); }
+    }
+
+    private void UpdateHaveSummary()
+    {
+        if (!SaveSessionManager.IsSaveLoaded || Gather.Count == 0)
+        {
+            HaveSummary = Gather.Count == 0 ? "" : "Load a save to see whether you have the ingredients.";
+            HaveSummaryBrush = ThemeResources.Brush("ThemeTextDimBrush");
+            return;
+        }
+        int missing = Gather.Count(g => !g.HaveEnough);
+        HaveSummary = missing == 0 ? "✓ You have every raw ingredient for this recipe."
+            : missing == 1 ? "1 raw ingredient short: see the Shopping list." : $"{missing} raw ingredients short: see the Shopping list.";
+        HaveSummaryBrush = ThemeResources.Brush(missing == 0 ? "ThemeDoneBrush" : "ThemeWarningBrush");
     }
 
     private string Station(RecipeInfo r) => _catalog?.Names.GetValueOrDefault(MachineId(r)) ?? "Required equipment";

@@ -35,7 +35,19 @@ internal static class PlanetHarvestChecks
 
         Require(PlanetProfileGenerator.Harvest([List("FARMLUSH", 0, Farm)], tables with { Harvest = null }).Length == 0,
             "catalogs before format 93 give nothing");
-        Console.WriteLine("Planet harvest: lists, underwater, multi-file and old catalogs OK");
+        // Where an item is (HarvestSearch.Rules): the frozen group's wild list, and a common underwater list.
+        const string Tubers = "PLANT/FROZENWILD.MBIN";
+        var withPlaces = tables with
+        {
+            Harvest = new Dictionary<string, HarvestItem[]>(harvest) { [Tubers] = [new("FOOD_P_COLDWILD", 5, 10)] },
+            Common = [List("WATER_HAZ", 4, Water)],
+            Groups = [new ObjectGroup("FROZEN", [List("WILDSNOW", 0, Tubers)], 2, 2, 4, 1f, [], ObjectGroupRules.NotOnInfested)],
+        };
+        var tubers = HarvestSearch.Rules("FOOD_P_COLDWILD", withPlaces);
+        Require(tubers is [{ Biome: 4, TileType: 0, Min: 5, Max: 10, Rules: ObjectGroupRules.NotOnInfested }], "Frozen Tubers on frozen planets");
+        Require(HarvestSearch.Rules("CLAMPEARL", withPlaces) is [{ Biome: 16, TileType: 4 }], "clam pearls underwater anywhere");
+        Require(HarvestSearch.Rules("NOTHING", withPlaces).Length == 0, "an item nothing gives has no places");
+        Console.WriteLine("Planet harvest: lists, underwater, multi-file, places and old catalogs OK");
     }
 
     private static void Require(bool condition, string message)

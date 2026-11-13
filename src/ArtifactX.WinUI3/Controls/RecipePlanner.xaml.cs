@@ -3,6 +3,7 @@ using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.ComponentModel;
 
 namespace ArtifactX.WinUI3.Controls;
 
@@ -29,6 +30,7 @@ public sealed partial class RecipePlanner : UserControl
         CatalogService.Reloaded += CatalogReloaded;
         FishCatchRecorder.SnapshotSeen += SnapshotSeen;
         SaveSessionManager.ActiveSessionChanged += SessionChanged;
+        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         if (!ViewModel.IsReady) await ViewModel.LoadAsync();
         else await ViewModel.ResumeAsync();
         if (IsLoaded) await ViewModel.RefreshOwnedAsync(LiveSaveWatcher.LatestSnapshot);
@@ -38,11 +40,22 @@ public sealed partial class RecipePlanner : UserControl
         CatalogService.Reloaded -= CatalogReloaded;
         FishCatchRecorder.SnapshotSeen -= SnapshotSeen;
         SaveSessionManager.ActiveSessionChanged -= SessionChanged;
+        ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.Stop();
     }
     private void CatalogReloaded() => DispatcherQueue.TryEnqueue(async () => { if (IsLoaded) await ViewModel.LoadAsync(); });
     private async void SnapshotSeen(PlanetSnapshot snapshot) => await ViewModel.RefreshOwnedAsync(snapshot);
     private async void SessionChanged(object? sender, EventArgs e) => await ViewModel.RefreshOwnedAsync();
-    private void RecipeChanged(string item, string recipe) => ViewModel.ChooseRecipe(item, recipe);
-    private void DetailsSelectionChanged() => Details.ChangeView(null, 0, null, disableAnimation: true);
+
+    private void Tabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) =>
+        ViewModel.ShowShoppingList = ReferenceEquals(sender.SelectedItem, ShoppingTab);
+
+    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // Selecting a tile (also from the Shopping list) shows the Selected step tab from its top.
+        if (e.PropertyName == nameof(RecipePlannerViewModel.ShowShoppingList))
+            Tabs.SelectedItem = ViewModel.ShowShoppingList ? ShoppingTab : SelectedTab;
+        else if (e.PropertyName == nameof(RecipePlannerViewModel.SelectedItem))
+            TabScroller.ChangeView(null, 0, null, disableAnimation: true);
+    }
 }
