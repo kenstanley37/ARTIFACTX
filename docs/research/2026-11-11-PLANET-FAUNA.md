@@ -478,3 +478,14 @@ flora. Reverted the app to ColourSeed(planet seed). The per-creature reordering 
 = order 1,0,3,4,2 (Primary -> teal frill, Alternative1 -> brown spots), Homobocamosa = rotation 3, Gentaylatica =
 rotation 4. Open: what picks each creature's mode - its live spawn entry (+0x146/+0x147) reads 0, so the remap is applied
 on another path (creature spawn / texture task), with its own flags or draw.
+
+**Creature colours solved for real (2026-11-14, later):** each creature builds its own palette table from its own
+seed. LoadModel (FUN_1416d5940) queues the creature's procedural texture task (FUN_140645760) with no palette table and
+no texture seed; the task runner FUN_140646250 (state 0) then builds one with FUN_140639e30 (same structure as
+ShipLook.PaletteTable: rows 0-51, the six sky rows, 0 and 51 again, 52-65 with 56 from the saved state) from the task's
+seed over the current planet's palettes (game state +0x521cf0), and paints each option with row[slot]. With the role
+seed used raw (no child) every owner sighting is an exact entry, no reordering: K. Bearxiumica Fur #353535 (dark grey
+fur), Underbelly #DBC89D (pale band), Scale #173340 (blue frill) + Alternative1 #706104 (ochre spots); I. Homobocamosa
+Fur #5F402E (brown), Underbelly #4C5E5D (grey-teal belly patch); W. Gentaylatica Grass #245E71 (blue petals). The
+per-creature "offsets" and the swap/rotate reading were fits to the wrong (planet-seed) table. FUN_1416da170's remap is
+used only where a spawn entry's flags are set (hand-placed spawns).

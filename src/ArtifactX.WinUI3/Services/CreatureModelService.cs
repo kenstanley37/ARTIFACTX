@@ -322,8 +322,9 @@ public static class CreatureModelService
     private static IEnumerable<(string Id, string Name)> OptionNames(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups) =>
         groups.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(OptionNames))));
 
-    /// <summary>The planet a wild creature lives on, as far as its colours go: the planet's seed and its biome and
-    /// sub-type (which biome palette file its colour table is built from - CatalogService.GetBiomePalettesAsync).</summary>
+    /// <summary>The planet a wild creature lives on, as far as its colours go: its biome and sub-type (which biome
+    /// palette file the creature's own colour table is built over - CatalogService.GetBiomePalettesAsync). The planet
+    /// seed is kept for reference; the table's seed is the creature's (PaintAsync).</summary>
     public sealed record PlanetColours(ulong PlanetSeed, int Biome, int SubType);
 
     /// <summary>
@@ -334,16 +335,17 @@ public static class CreatureModelService
     /// slots - with the first child of the creature seed (ModelPreviewService.ColourSeed), not the seed itself: owner's
     /// Jinnie II shots (2026-11-13) - I. Homobocamosa is plain, no stripes (the seed itself picks MARKINGS=BELTS on
     /// TAPIRBODYMAT, the child GRADIENT); K. Bearxiumica's fin is spotted (child: FINFLAPS MARKINGS=SPOTS; the seed
-    /// itself GRADIENT, Mix64 SPIKES). A wild creature's palette table is its **planet's**: the palette generator
-    /// (ShipLook.PaletteTable) over the planet's biome palette file, seeded with the first child of the planet seed
-    /// (ModelPreviewService.ColourSeed). Evidence (Jinnie II, owner's sunlit shot 2026-11-14): K. Bearxiumica's frill
-    /// is sky blue (teal #2E706C in sun) with orange-brown spots (#402E18 / #704F05), its fur cream-yellow (#5F521D) -
-    /// all in this table, none in the table seeded from ChildSeeds[2] (that one matches a 66 x 5 table in the game's
-    /// memory exactly, so the planet keeps it for something else - terrain or flora). Not yet: each creature reorders
-    /// the five entries (NMS.exe 184271 FUN_1416da170: order 1,0,3,4,2, or a rotation by 2-4): Bearxiumica fits the
-    /// first, I. Homobocamosa a rotation by 3, W. Gentaylatica by 4; what picks it is unknown, so slots read their own
-    /// entry. Without a planet (companions) the table comes from <paramref name="colourSeed"/> (an active
-    /// ColourBaseSeed, uAX) or the creature seed, on the base palettes - unconfirmed. Null without game data or palettes.
+    /// itself GRADIENT, Mix64 SPIKES). Each creature has its **own** palette table: the palette generator
+    /// (ShipLook.PaletteTable) seeded with the creature seed itself (no child seed) over its planet's palettes (the
+    /// biome palette file), and each texture option takes its row's entry at its own slot (0-4). NMS.exe 184271: a
+    /// creature model is loaded by cGcPlanetGenerator::LoadModel (FUN_1416d5940) without a palette table, so its
+    /// procedural texture task (FUN_140646250, state 0) builds one with FUN_140639e30 - ShipLook.PaletteTable's
+    /// structure - from the task's seed over the current planet's palettes. Evidence (owner's Jinnie II shots,
+    /// 2026-11-13/14): K. Bearxiumica dark grey fur (Fur #353535), pale band (Underbelly #DBC89D), blue frill (Scale
+    /// #173340) with ochre spots (#706104); I. Homobocamosa brown fur (#5F402E) and grey-teal belly patch (#4C5E5D);
+    /// W. Gentaylatica blue petals (Grass #245E71) - all exact entries of each one's own table. (Planet-seed tables
+    /// fitted only with a made-up per-creature shift.) Companions use <paramref name="colourSeed"/> (an active
+    /// ColourBaseSeed, uAX) or their creature seed the same way - unconfirmed. Null without game data or palettes.
     /// <paramref name="size"/>: pixels per material texture (small cards use less).
     /// </summary>
     public static async Task<Dictionary<string, ModelTexture?>?> PaintAsync(GameInstall game, ShipMesh mesh, ulong seed, ulong colourSeed = 0,
@@ -352,8 +354,8 @@ public static class CreatureModelService
         if (seed == 0) return null;
         if (await ModelPreviewService.ModelsAsync(game) is not { } models) return null;
         var palettes = planet is null ? null : await CatalogService.GetBiomePalettesAsync(planet.Biome, planet.SubType);
-        ulong tableSeed = planet is { PlanetSeed: not 0 } ? planet.PlanetSeed : colourSeed != 0 ? colourSeed : seed;
-        if (await ModelPreviewService.SeedColoursAsync(tableSeed, palettes: palettes, lastSlot: 4) is not { } colours) return null;
+        ulong tableSeed = colourSeed != 0 ? colourSeed : seed;
+        if (await ModelPreviewService.SeedColoursAsync(tableSeed, rawSeed: true, palettes: palettes, lastSlot: 4) is not { } colours) return null;
         return await ModelPreviewService.PaintAsync(models, mesh, colours, ModelPreviewService.ColourSeed(seed), size: size);
     }
 
