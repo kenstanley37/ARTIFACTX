@@ -41,24 +41,38 @@ public static class ShipParts
     /// tool's 7DH.SMP list, 2026-10-16). Matched to options ignoring '^', '_' and case.</param>
     /// <param name="drawForced">A lone stored part still takes its draw: a creature role's descriptor filter narrows
     /// the group, then the game draws among what's left (see CreatureModelService.PartsForSeedAsync).</param>
+    /// <param name="excluded">Parts a creature can't have: its rig filter entry's FilteredResources
+    /// (CreatureTables.ExcludedParts). An option whose id contains one is left out of its group as if it weren't
+    /// there - no weight, never picked - in the scene's own tree, not in the scenes it references (the game looks
+    /// those up with an empty filter name). NMS.exe 184271 FUN_142de10a0 (the exclusion list, strstr on the option id).</param>
     public static List<PickedPart> Generate(string scenePath, ulong seed, Func<string, IReadOnlyList<PartGroup>?> loadTree,
-        IEnumerable<string>? storedParts = null, bool drawForced = false)
+        IEnumerable<string>? storedParts = null, bool drawForced = false, IReadOnlyCollection<string>? excluded = null)
     {
         var out_ = new List<PickedPart>();
         var preferred = new HashSet<string>((storedParts ?? Enumerable.Empty<string>()).Select(Plain), StringComparer.Ordinal);
         if (loadTree(DescriptorFor(scenePath)) is { } root)
-            Select(root, seed, out_, new HashSet<string>(StringComparer.Ordinal), loadTree, 0, preferred, drawForced);
+            Select(root, seed, out_, new HashSet<string>(StringComparer.Ordinal), loadTree, 0, preferred, drawForced, excluded);
         return out_;
     }
 
     private static string Plain(string id) => id.Replace("^", "").Replace("_", "").ToUpperInvariant();
 
+    /// <summary>The group as the picker sees it: without the excluded options (the same group when none are).</summary>
+    private static PartGroup Allowed(PartGroup g, IReadOnlyCollection<string>? excluded) =>
+        excluded is not { Count: > 0 } || !g.Options.Any(o => IsExcluded(o, excluded)) ? g
+            : g with { Options = g.Options.Where(o => !IsExcluded(o, excluded)).ToList() };
+
+    private static bool IsExcluded(PartOption o, IReadOnlyCollection<string> excluded) =>
+        excluded.Any(e => e.Length > 0 && o.Id.Contains(e, StringComparison.Ordinal));
+
     private static void Select(IReadOnlyList<PartGroup> groups, ulong seed, List<PickedPart> out_, HashSet<string> seen,
-        Func<string, IReadOnlyList<PartGroup>?> loadTree, int depth, HashSet<string> preferred, bool drawForced)
+        Func<string, IReadOnlyList<PartGroup>?> loadTree, int depth, HashSet<string> preferred, bool drawForced,
+        IReadOnlyCollection<string>? excluded)
     {
         var rng = new Mwc(seed);
-        foreach (var g in groups)
+        foreach (var whole in groups)
         {
+            var g = Allowed(whole, excluded);
             int total = g.Options.Sum(o => o.Weight);
             // A stored part is taken without a draw, as the game's selector does
             // with a single candidate (NMS.exe 0x142d6b5a0); several draw among themselves.
@@ -68,17 +82,17 @@ public static class ShipParts
             // at weight 0: builder-only parts are "xNEVER" (never on a found ship) -
             // the Explorer's Skywave/Prismatic/Planar/Vortex wings differ only in an
             // xNEVER sub-wing (_SubWingR_AxNEVER...), so all four looked alike (2026-10-17).
-            if ((total == 0 && wanted.Count == 0) || g.Options.Any(o => seen.Contains(o.Id))) continue;
+            if ((total == 0 && wanted.Count == 0) || whole.Options.Any(o => seen.Contains(o.Id))) continue;
             PartOption pick = Pick(g, total, wanted, rng, drawForced);
             string stored = StoredId(pick.Id);
             if (seen.Add(stored)) out_.Add(new PickedPart(g.Type, stored, depth));
             foreach (var kid in pick.Children)
-                Select(kid, rng.ChildSeed(), out_, seen, loadTree, depth + 1, preferred, drawForced);
+                Select(kid, rng.ChildSeed(), out_, seen, loadTree, depth + 1, preferred, drawForced, excluded);
             foreach (var scene in pick.Scenes)
             {
                 ulong child = rng.ChildSeed();
                 if (loadTree(DescriptorFor(scene)) is { } sub)
-                    Select(sub, child, out_, seen, loadTree, depth + 1, preferred, drawForced);
+                    Select(sub, child, out_, seen, loadTree, depth + 1, preferred, drawForced, null);
             }
         }
     }
@@ -117,27 +131,30 @@ public static class ShipParts
     /// FLORALCAT male parts (Resource.AltId) all came out exactly; the cat alone is a ~1-in-57,000 match by chance.
     /// </summary>
     public static List<PickedPart> GenerateMale(string scenePath, ulong seed, Func<string, IReadOnlyList<PartGroup>?> loadTree,
-        IEnumerable<string>? storedParts = null, bool drawForced = false)
+        IEnumerable<string>? storedParts = null, bool drawForced = false, IReadOnlyCollection<string>? excluded = null)
     {
         var out_ = new List<PickedPart>();
         var preferred = new HashSet<string>((storedParts ?? Enumerable.Empty<string>()).Select(Plain), StringComparer.Ordinal);
         if (loadTree(DescriptorFor(scenePath)) is { } root)
-            SelectTwo(root, seed, Mix64(seed), 0f, out_, new HashSet<string>(StringComparer.Ordinal), loadTree, 0, preferred, drawForced);
+            SelectTwo(root, seed, Mix64(seed), 0f, out_, new HashSet<string>(StringComparer.Ordinal), loadTree, 0, preferred, drawForced,
+                excluded);
         return out_;
     }
 
     private static void SelectTwo(IReadOnlyList<PartGroup> groups, ulong seedA, ulong seedB, float odds, List<PickedPart> out_,
-        HashSet<string> seen, Func<string, IReadOnlyList<PartGroup>?> loadTree, int depth, HashSet<string> preferred, bool drawForced)
+        HashSet<string> seen, Func<string, IReadOnlyList<PartGroup>?> loadTree, int depth, HashSet<string> preferred, bool drawForced,
+        IReadOnlyCollection<string>? excluded)
     {
         var a = new Mwc(seedA);
         var b = new Mwc(seedB);
         float nextOdds = Math.Min(Math.Max(0f, odds + MaleSwapStep), 1f);
-        foreach (var g in groups)
+        foreach (var whole in groups)
         {
             ulong draw = b.Next();   // always taken, even for a group that is then skipped
+            var g = Allowed(whole, excluded);
             int total = g.Options.Sum(o => o.Weight);
             var wanted = preferred.Count == 0 ? new List<PartOption>() : g.Options.Where(o => preferred.Contains(Plain(o.Id))).ToList();
-            if ((total == 0 && wanted.Count == 0) || g.Options.Any(o => seen.Contains(o.Id))) continue;
+            if ((total == 0 && wanted.Count == 0) || whole.Options.Any(o => seen.Contains(o.Id))) continue;
             var fromA = Pick(g, total, wanted, a, drawForced);
             var fromB = Pick(g, total, wanted, b, drawForced);
             var pick = (float)(draw * (1.0 / 4294967295.0)) < odds ? fromB : fromA;
@@ -146,13 +163,13 @@ public static class ShipParts
             foreach (var kid in pick.Children)
             {
                 ulong childA = a.ChildSeed(), childB = b.ChildSeed();
-                SelectTwo(kid, childA, childB, nextOdds, out_, seen, loadTree, depth + 1, preferred, drawForced);
+                SelectTwo(kid, childA, childB, nextOdds, out_, seen, loadTree, depth + 1, preferred, drawForced, excluded);
             }
             foreach (var scene in pick.Scenes)
             {
                 ulong childA = a.ChildSeed(), childB = b.ChildSeed();
                 if (loadTree(DescriptorFor(scene)) is { } sub)
-                    SelectTwo(sub, childA, childB, nextOdds, out_, seen, loadTree, depth + 1, preferred, drawForced);
+                    SelectTwo(sub, childA, childB, nextOdds, out_, seen, loadTree, depth + 1, preferred, drawForced, null);
             }
         }
     }

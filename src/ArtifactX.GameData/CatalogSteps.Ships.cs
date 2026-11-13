@@ -94,6 +94,52 @@ public static partial class CatalogSteps
         Replace(db, "ShipDescriptors", "TkModelDescriptorList", "models/common/spacecraft/*.descriptor.mbin", rows);
         ConsoleStyle.Success($"Wrote {rows.Count} starship part trees to {catalogPath}.");
     }
+
+    /// <summary>
+    /// The creature rigs' part filters (catalog format 92): each &lt;scene&gt;.FILTER.MBIN under MODELS/
+    /// (TkResourceFilterList) - named entries (PREDATOR, HERBIVORE, the anomalous rig's FLOAT / ROLL / CRYSTAL) listing
+    /// parts a creature with that filter can't have (CreatureTables.ExcludedParts; NMS.exe 184271 FUN_142ddea90 turns
+    /// the scene path into the filter path). Category "CreatureFilters": GameId "FILTER:" + lower-case filter path,
+    /// NameEnglish = the path, DescriptionEnglish = JSON [{"n":name,"p":[part ids]}] in file order.
+    /// </summary>
+    public static void AddCreatureFilters(string catalogPath, string pcbanksPath)
+    {
+        if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
+        var rows = new List<CatalogItem>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (pakPath, header, entries) in GetPakEntries(pcbanksPath))
+            foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
+                         && e.FileName.StartsWith("MODELS/", StringComparison.OrdinalIgnoreCase)
+                         && e.FileName.EndsWith(".FILTER.MBIN", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!seen.Add(entry.FileName)) continue;
+                try
+                {
+                    var bytes = SharedExtraction.ExtractEntryBytes(pakPath, entry, header);
+                    if (bytes is null || bytes.Length == 0) continue;
+                    var mbin = new MBINFile(new MemoryStream(bytes));
+                    mbin.Load();
+                    if (mbin.GetData() is not libMBIN.NMS.Toolkit.TkResourceFilterList list) continue;
+                    string path = entry.FileName.ToLowerInvariant();
+                    var filters = (list.Filters ?? new()).Select(f => new Dictionary<string, object>
+                    {
+                        ["n"] = f.FilterName?.Value ?? "",
+                        ["p"] = (f.FilteredResources ?? new()).Select(r => r?.Value ?? "").Where(r => r.Length > 0).ToList(),
+                    }).ToList();
+                    rows.Add(new CatalogItem
+                    {
+                        GameId = "FILTER:" + path,
+                        NameEnglish = path,
+                        UsageCategory = "Creature",
+                        DescriptionEnglish = JsonSerializer.Serialize(filters),
+                    });
+                }
+                catch (Exception ex) { ConsoleStyle.Warning($"{entry.FileName}: {ex.Message}"); }
+            }
+        using var db = new CatalogDbContext(catalogPath);
+        Replace(db, "CreatureFilters", "TkResourceFilterList", "models/**/*.filter.mbin", rows);
+        ConsoleStyle.Success($"Wrote {rows.Count} creature part filters to {catalogPath}.");
+    }
 }
 
 public static partial class CatalogSteps

@@ -40,6 +40,7 @@ public static partial class CatalogService
         _unlockableItemsCache = null;
         _guideTopicsCache = null;
         _biomePalettes = null;
+        _creatureFilters = null;
         _pathChecked = false;
         _dbPath = null;
         Reloaded?.Invoke();

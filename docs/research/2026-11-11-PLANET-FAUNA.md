@@ -506,3 +506,20 @@ materials paint Fur/Primary, Underbelly/Primary and Scale/Primary markings. Own-
 Fur #9D7F5A (brown fur), Underbelly #CCD4C6 (pale belly and frill), Scale #A7D3D2 (the pale stripes) - matches.
 Over the base palettes the belly would be #432907 (dark brown) - does not match. So creatures use the planet's biome
 palette file, as the app does.
+
+**Rig part filters (2026-11-13, NMS.exe 184271 + running game 185034):** the game keeps each creature's chosen parts as
+runs of 32-byte upper-case ids (FUN_142ddd3b0's list, a decimal hash after each run; male form first, then female) -
+readable in memory, unlike the spawn data's Resource AltId, which is empty for wild fauna on 185034. On the planet of
+the predator strider 8C510BE47B88D477 the antelope, two-legged antelope, bird and flying lizard lists matched
+ShipParts exactly, but the strider had _HEAD_FLATHEAD where the seed picks _HEAD_FISH (body, tail and both forms
+otherwise exact). Cause: cGcPlanetGenerator::LoadModel passes a filter name - the spawn Filter, else FUN_1416d4f90 by
+role: 1/2 "PREDATOR", 3/4 "HERBIBVORE" (sic - no HERBIVORE entry ever matches) - and FUN_142ddea90 turns the scene path
+into <scene>.FILTER.MBIN (TkResourceFilterList) and returns the first entry whose name contains it; FUN_142de10a0 then
+skips every option whose id contains one of its FilteredResources (no weight). Weights are otherwise fixed: 20, xRARE 1,
+xNEVER 0, xWEIRD 20 (FUN_142dddfc0); FUN_142de3370's tag check only concerns ids with "_X..." segments or an upper-case
+X. Sub-scenes get no filter (looked up with an empty name). strider PREDATOR = _HEAD_FISH; triceratops PREDATOR = STEG,
+HIPPO, TAPIR, TURTLE, DIPLO heads; weirdrig FLOAT/ROLL/CRYSTAL exclude the other two bodies (same pick and draw as the
+old forced body). Catalog format 92 "CreatureFilters"; CreatureTables.ExcludedParts.
+Still open: the owner's V. Snakwercus (Marjorg, Prey, seed 5B0A6E3C129C03D5) has the fish head's rare crest
+(_FIN_1XRARE or _FISH_2XRARE: a TILEABLEB fin to y 2.92) where both forms pick _FISH_1/_FIN_NONE - needs its chosen
+list read while the owner stands near one.

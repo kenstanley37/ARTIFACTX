@@ -31,5 +31,32 @@ internal static class CreatureFormChecks
         if (differ < 150)
             throw new InvalidOperationException($"only {differ}/200 seeds gave the male different nested parts");
         Console.WriteLine($"Creature forms: top level shared, nested parts differ for {differ}/200 seeds OK");
+        CheckExcluded(Load);
+    }
+
+    /// <summary>A rig filter's parts (CreatureTables.ExcludedParts) are never picked, the group still draws among the
+    /// rest, and a seed whose pick wasn't excluded keeps it - in both forms.</summary>
+    private static void CheckExcluded(Func<string, IReadOnlyList<PartGroup>?> load)
+    {
+        string[] excluded = ["_HEAD_1", "_EARS_23"];
+        int kept = 0;
+        for (ulong seed = 1; seed <= 200; seed++)
+        {
+            ulong s = seed * 0x9E3779B97F4A7C15UL;
+            foreach (var (plain, filtered) in new[]
+            {
+                (ShipParts.Generate("creature.scene.mbin", s, load), ShipParts.Generate("creature.scene.mbin", s, load, excluded: excluded)),
+                (ShipParts.GenerateMale("creature.scene.mbin", s, load), ShipParts.GenerateMale("creature.scene.mbin", s, load, excluded: excluded)),
+            })
+            {
+                if (filtered.Any(p => excluded.Contains(p.Id)))
+                    throw new InvalidOperationException($"seed {seed}: picked an excluded part ({string.Join(" ", filtered.Select(p => p.Id))})");
+                if (filtered.Count != 3) throw new InvalidOperationException($"seed {seed}: expected head, ears and horns");
+                if (plain.SequenceEqual(filtered)) kept++;
+            }
+        }
+        // Dropping one head of five shifts every later head's range, so only some seeds keep their parts.
+        if (kept is < 20 or > 380) throw new InvalidOperationException($"{kept}/400 forms unchanged by the filter");
+        Console.WriteLine($"Creature filters: excluded parts never picked, {kept}/400 forms unchanged OK");
     }
 }

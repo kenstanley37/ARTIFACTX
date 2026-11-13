@@ -177,25 +177,54 @@ public sealed record CreatureTables(
     string[]? BiomeSubTypeNames = null)
 {
     /// <summary>
-    /// The parts a creature's model must take before its seed picks the rest (issue #15): the role's Filter (the
-    /// anomalous rig's FLOAT / ROLL / CRYSTAL body) and, on an exotic (Weird, biome 7) planet, the planet's sub-type -
-    /// the anomalous bodies are named after the exotic sub-biomes (GcBiomeSubType: FractCube, Bubble, Shards, WireCell,
-    /// HydroGarden floaters; Structure, Contour, Beam rollers; names from catalog format 88). Owner's B. Bloatlexia on
+    /// What narrows a creature's parts before its seed picks (issue #15): its rig filter name
+    /// (<see cref="PartFilterName"/>; <see cref="ExcludedParts"/> turns it into parts left out) and, on an exotic
+    /// (Weird, biome 7) planet, the planet's sub-type - the anomalous bodies are named after the exotic sub-biomes
+    /// (GcBiomeSubType: FractCube, Bubble, Shards, WireCell, HydroGarden floaters; Structure, Contour, Beam rollers;
+    /// names from catalog format 88), which the sub-type forces (<see cref="ForcedOptions"/>). Owner's B. Bloatlexia on
     /// the HydroGarden planet Azzaviu XII (2026-11-12) is the glowing-orb floater, _FLOAT_HYDROGARDENXOR, where the
-    /// seed alone picked _FLOAT_SHARDS. Returns the terms; <see cref="ForcedOptions"/> matches them to a tree.
+    /// seed alone picked _FLOAT_SHARDS.
     /// </summary>
     public (string Filter, string SubType) ForcedPartTerms(PredictedCreature creature, int biome, int subType) =>
-        (creature.Filter, biome == 7 && BiomeSubTypeNames is { } names && subType >= 0 && subType < names.Length ? names[subType] : "");
+        (PartFilterName(creature), biome == 7 && BiomeSubTypeNames is { } names && subType >= 0 && subType < names.Length ? names[subType] : "");
 
-    /// <summary>The option ids those terms force in a part tree, matched on the options' names (ids are cut to 15
-    /// characters: "_CRYSTAL_BONESP" is named "_Crystal_BoneSpire"): a name ending in "_" + Filter ("_Weird_Float"),
-    /// and one containing the sub-type name ("_Float_HydroGardenxOR", "_Roll_BeamStone", "_Crystal_BoneSpire").</summary>
-    public static IReadOnlyList<string> ForcedOptions(IEnumerable<(string Id, string Name)> options, string filter, string subType)
+    /// <summary>
+    /// The name a creature's rig filter entry is looked up by (NMS.exe 184271 FUN_1416d5080): the role's Filter when it
+    /// has one (the anomalous rig's FLOAT / ROLL / CRYSTAL), else by role - Predator and PlayerPredator (1, 2)
+    /// "PREDATOR", Prey and Passive (3, 4) "HERBIBVORE" (FUN_1416d4f90; the game's own spelling, so no HERBIVORE entry
+    /// ever matches), "" for the rest.
+    /// </summary>
+    public static string PartFilterName(PredictedCreature creature) =>
+        creature.Filter.Length > 0 ? creature.Filter
+        : creature.Role is 1 or 2 ? "PREDATOR"
+        : creature.Role is 3 or 4 ? "HERBIBVORE" : "";
+
+    /// <summary>
+    /// The parts a creature can't have: the FilteredResources of the first entry of its rig's filter file
+    /// (&lt;scene&gt;.FILTER.MBIN, TkResourceFilterList) whose name contains <paramref name="filterName"/> (NMS.exe
+    /// 184271 FUN_142ddea90; ShipParts leaves them out). Evidence: the running game's chosen-part lists (2026-11-13) -
+    /// a predator strider (role seed 8C510BE47B88D477, strider.filter.mbin PREDATOR = _HEAD_FISH) has the flat head
+    /// where the seed alone picks the fish head; every other species on its planet matched without a filter; the
+    /// owner's herbivore V. Snakwercus (5B0A6E3C129C03D5) keeps its fish head and rare crest. A weird-rig FLOAT filter
+    /// leaves only _WEIRD_FLOAT in its group, still with a draw - as the owner's R. Gentdiffoe showed (2026-11-12).
+    /// </summary>
+    public static IReadOnlyList<string> ExcludedParts(IEnumerable<(string Name, IReadOnlyList<string> Parts)>? filters, string filterName)
+    {
+        if (filters is null || filterName.Length == 0) return Array.Empty<string>();
+        foreach (var (name, parts) in filters)
+            if (name.Contains(filterName, StringComparison.Ordinal)) return parts;
+        return Array.Empty<string>();
+    }
+
+    /// <summary>The option ids an exotic planet's sub-type forces in a part tree, matched on the options' names (ids
+    /// are cut to 15 characters: "_CRYSTAL_BONESP" is named "_Crystal_BoneSpire"): a name containing the sub-type name
+    /// ("_Float_HydroGardenxOR", "_Roll_BeamStone", "_Crystal_BoneSpire"). The role's filter excludes instead
+    /// (<see cref="ExcludedParts"/>).</summary>
+    public static IReadOnlyList<string> ForcedOptions(IEnumerable<(string Id, string Name)> options, string subType)
     {
         var forced = new List<string>();
         foreach (var (id, name) in options)
-            if ((filter.Length > 0 && name.EndsWith("_" + filter, StringComparison.OrdinalIgnoreCase))
-                || (subType.Length > 0 && name.Contains(subType, StringComparison.OrdinalIgnoreCase))
+            if ((subType.Length > 0 && name.Contains(subType, StringComparison.OrdinalIgnoreCase))
                 // "Shards" names the crystal body "_Crystal_ShardSingle".
                 || (subType.Length > 3 && subType.EndsWith('s') && name.Contains(subType[..^1], StringComparison.OrdinalIgnoreCase)))
                 forced.Add(id);

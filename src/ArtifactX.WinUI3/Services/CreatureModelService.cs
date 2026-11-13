@@ -252,14 +252,15 @@ public static class CreatureModelService
     /// stored descriptor list (osl) for 78 of 182 companions; the owner's G. Towerravusosa (Slot 8, 2026-11-12) shows
     /// the hippo head with two horn accessories, turtle body with back spikes and triceratops tail this picks. The
     /// discovery's fifth value, Mix64(bEr[0]), picks a different head (frilled triceratops) - not the body seed;
-    /// maybe the colour seed (to check). Companions draw from their stored parts. Not yet: the anomalous rig's role
-    /// Filter (FLOAT / ROLL / CRYSTAL). Null without the part tree (game data before format 87).
+    /// maybe the colour seed (to check). Companions draw from their stored parts. Null without the part tree (game
+    /// data before format 87).
     /// </summary>
-    /// <param name="filter">The role's descriptor Filter and <paramref name="subType"/> the exotic planet's sub-type
-    /// name (CreatureTables.ForcedPartTerms): they narrow their groups to the parts they name, and the seed still
-    /// draws there (the draw is used up), then picks the rest. Evidence for the draw: the owner's R. Gentdiffoe
-    /// (Aoedesdo, 2026-11-12) is the WEIRDRIG _CRYSTAL_PILLAR in the world; taking _WEIRD_CRYSTAL without a draw gave
-    /// _CRYSTAL_GEM. The floater and roller already confirmed pick the same either way.</param>
+    /// <param name="filter">The creature's rig filter name (CreatureTables.ForcedPartTerms / PartFilterName: the role's
+    /// Filter, else PREDATOR or the game's HERBIBVORE): the scene's filter file entry it names lists parts the creature
+    /// can't have (CreatureTables.ExcludedParts), left out of their groups before the seed draws - the anomalous rig's
+    /// FLOAT / ROLL / CRYSTAL leave one body, still with a draw (the owner's R. Gentdiffoe, Aoedesdo, 2026-11-12, is
+    /// the WEIRDRIG _CRYSTAL_PILLAR; no draw gave _CRYSTAL_GEM), and a predator strider never has the fish head.
+    /// <paramref name="subType"/>: the exotic planet's sub-type name, which forces the parts it names.</param>
     /// <param name="male">The species' male form (ShipParts.GenerateMale, the spawn data's Resource) instead of the
     /// female (FemaleResource), which the plain selector gives.</param>
     public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong roleSeed, string filter = "", string subType = "",
@@ -269,13 +270,14 @@ public static class CreatureModelService
         await PartTreeService.EnsureAsync();
         string scene = scenePath.ToLowerInvariant();
         if (PartTreeService.Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is not { } root) return null;
+        var excluded = ArtifactX.Core.Universe.CreatureTables.ExcludedParts(await CatalogService.GetCreatureFiltersAsync(scene), filter);
         return await Task.Run(() =>
         {
-            IReadOnlyList<string>? forced = filter.Length == 0 && subType.Length == 0 ? null
-                : ArtifactX.Core.Universe.CreatureTables.ForcedOptions(OptionNames(root), filter, subType);
+            IReadOnlyList<string>? forced = subType.Length == 0 ? null
+                : ArtifactX.Core.Universe.CreatureTables.ForcedOptions(OptionNames(root), subType);
             var picked = male
-                ? ArtifactX.Core.Procedural.ShipParts.GenerateMale(scene, roleSeed, PartTreeService.Load, forced, drawForced: true)
-                : ArtifactX.Core.Procedural.ShipParts.Generate(scene, roleSeed, PartTreeService.Load, forced, drawForced: true);
+                ? ArtifactX.Core.Procedural.ShipParts.GenerateMale(scene, roleSeed, PartTreeService.Load, forced, drawForced: true, excluded)
+                : ArtifactX.Core.Procedural.ShipParts.Generate(scene, roleSeed, PartTreeService.Load, forced, drawForced: true, excluded);
             return (IReadOnlyList<string>)picked.Select(p => p.Id).ToList();
         });
     }
