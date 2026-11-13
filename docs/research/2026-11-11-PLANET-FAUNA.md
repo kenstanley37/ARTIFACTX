@@ -536,3 +536,9 @@ Scored against 53 loaded MARKINGS picks (17 creature forms matched to their spaw
 (ModelPreviewService.ColourSeed, first child) 16/53, raw seed 33/53, Mix64 21, form seed 25, the list number itself
 22 - chance is about 22. Raw-seed misses often pick PATCHES/STRIPES where the game loaded GRADIENT. Next: decompile the
 creature texture pick (near FUN_1416d9f90 / FUN_140646250) for the seed and any option filter.
+Solved the same day: the game picks a creature's texture layers once for the whole model - every material's main
+list merged as ShipLook.Merge does (by layer name and group, in the model's material order) and picked with
+ShipLook.Pick on the raw creature seed; each material paints the option of that name. 42/42 loaded MARKINGS images
+(17 forms). Male and female differ only because their parts (so their merged lists) differ. A material without the
+picked option: its own pick with the same seed matched 7 of 10 (ACC_EAR1 loads GRADIENT where that gives HALF) -
+open. ShipLook.PickMerged, ShipModels.Painted(layerPicks), commit 14e170a.
