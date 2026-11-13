@@ -109,6 +109,22 @@ public static class NmsPlanets
     /// internal names: it shows these worlds as anomalies - Aukel (Green, grey and blue
     /// to look at) is a "Planetary Anomaly" in the game's Discoveries (2026-10-21) - so
     /// they're grouped as Anomaly rather than by a colour the player never sees.</summary>
+    /// <summary>The worlds the game's fishing text calls "haunted homeworlds" (UI_FISH_BIOME_ODD_DESC, the ODD fish's
+    /// GcFishTable biomes 7-10): Exotic (Weird) and the Red, Green and Blue anomalies. Not a planet setting of its own.</summary>
+    public static bool IsHaunted(int biome) => biome is 7 or 8 or 9 or 10;
+
+    /// <summary>What players search the haunted worlds by.</summary>
+    public const string HauntedName = "Exotic or anomaly (haunted)";
+
+    /// <summary>A list of biomes in words ("Lush, Swamp"); the four haunted biomes together read as
+    /// <see cref="HauntedName"/>.</summary>
+    public static string TypeList(IEnumerable<int> biomes, string separator = ", ")
+    {
+        var list = biomes.ToList();
+        if (list.Count > 1 && list.All(IsHaunted) && Enumerable.Range(7, 4).All(list.Contains)) return HauntedName;
+        return string.Join(separator, list.Select(TypeName));
+    }
+
     public static string BiomeGroup(int biome) => biome switch
     {
         8 or 9 or 10 => "Anomaly",

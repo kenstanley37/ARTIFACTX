@@ -36,7 +36,9 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         JumpPlanner.RangeChanged += Apply;
     }
 
-    public ChoiceFilter Type { get; } = new("Planet type", 220);
+    public ChoiceFilter Type { get; } = new("Planet type", 260);
+    /// <summary>The Type choice for every haunted world (<see cref="NmsPlanets.IsHaunted"/>).</summary>
+    private const string HauntedType = "haunted";
     public ChoiceFilter Galaxy { get; } = new("Galaxy", 220);
     public ChoiceFilter Region { get; } = new("Region", 240);
     public ChoiceFilter Star { get; } = new("Star colour");
@@ -149,9 +151,12 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
 
     private void FillChoices()
     {
+        int haunted = _all.Count(p => NmsPlanets.IsHaunted(p.BiomeIndex));
         Type.Refill($"All types ({_all.Count})", NmsPlanets.SelectableTypes
             .Select(t => (Type: t, Count: _all.Count(p => p.BiomeIndex == t))).Where(t => t.Count > 0)
-            .Select(t => new ChoiceItem($"{NmsPlanets.TypeName(t.Type)} ({t.Count})", t.Type.ToString(CultureInfo.InvariantCulture))));
+            .Select(t => new ChoiceItem($"{NmsPlanets.TypeName(t.Type)} ({t.Count})", t.Type.ToString(CultureInfo.InvariantCulture)))
+            // The game's fishing text sends players to "haunted homeworlds": Exotic and the three anomalies together.
+            .Concat(haunted > 0 ? (ChoiceItem[])[new ChoiceItem($"{NmsPlanets.HauntedName} ({haunted})", HauntedType)] : (ChoiceItem[])[]));
         Region.Refill("All regions", _all.GroupBy(p => RegionMapService.RegionKey(p.SystemAddress))
             .OrderByDescending(g => g.Count()).ThenBy(g => UniverseInfo.Region(g.First().SystemAddress), StringComparer.CurrentCulture)
             .Select(g => new ChoiceItem($"{UniverseInfo.Region(g.First().SystemAddress)} ({g.Count():N0})", g.Key.ToString(CultureInfo.InvariantCulture))));
@@ -228,6 +233,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     private void Apply()
     {
         if (_quiet) return;
+        bool hauntedOnly = Type.Value == HauntedType;
         int type = int.TryParse(Type.Value, out int t) ? t : -1;
         int galaxy = int.TryParse(Galaxy.Value, out int g) ? g : -1;
         ulong? region = ulong.TryParse(Region.Value, out ulong rk) ? rk : null;
@@ -238,6 +244,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
 
         var filtered = _all
             .Where(p => type < 0 || p.BiomeIndex == type)
+            .Where(p => !hauntedOnly || NmsPlanets.IsHaunted(p.BiomeIndex))
             .Where(p => galaxy < 0 || p.Galaxy == galaxy)
             .Where(p => region is null || RegionMapService.RegionKey(p.SystemAddress) == region)
             .Where(p => !RingsOnly || p.HasRings)
