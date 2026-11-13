@@ -29,9 +29,6 @@ public static class MultiToolKinds
 {
     public const string MainModel = "MODELS/COMMON/WEAPONS/MULTITOOL/MULTITOOL.SCENE.MBIN";
 
-    private static Dictionary<string, string>? _trees;
-    private static DateTime? _stamp;
-    private static readonly Dictionary<string, IReadOnlyList<PartGroup>> Cache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The game's own type names (BASESTATS_*_L strings) for the other
     /// models, matched by model file - Atlas = Atlantid, Royal = Exotic, Robot =
@@ -91,25 +88,10 @@ public static class MultiToolKinds
         return MultiToolNames.Generate(seed, staff, list => words.GetValueOrDefault(list));
     }
 
-    /// <summary>Reads the part trees from the catalog - again after a game-data
-    /// rebuild (the old data had no multi-tool trees).</summary>
-    public static async Task EnsureTreesAsync()
-    {
-        var stamp = GameDataService.Info?.BuiltAtUtc;
-        if (_trees is not null && _trees.Count > 0 && stamp == _stamp) return;
-        _stamp = stamp;
-        lock (Cache) Cache.Clear();
-        _trees = await CatalogService.GetShipPartTreesAsync();
-    }
+    /// <summary>Reads the part trees from the catalog (PartTreeService) - again after a game-data rebuild.</summary>
+    public static Task EnsureTreesAsync() => PartTreeService.EnsureAsync();
 
     /// <summary>A model's part tree by descriptor path, once EnsureTreesAsync has run.</summary>
-    public static IReadOnlyList<PartGroup>? Load(string path)
-    {
-        lock (Cache)
-        {
-            if (Cache.TryGetValue(path, out var tree)) return tree;
-            if (_trees is null || !_trees.TryGetValue(path, out var json)) return null;
-            return Cache[path] = ShipParts.ParseTree(json);
-        }
-    }
+    public static IReadOnlyList<PartGroup>? Load(string path) => PartTreeService.Load(path);
+
 }

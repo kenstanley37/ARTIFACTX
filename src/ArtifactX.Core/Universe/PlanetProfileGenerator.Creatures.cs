@@ -14,7 +14,7 @@ namespace ArtifactX.Core.Universe;
 /// the discovery list's "Found in the North / South" (see <see cref="PlanetProfileGenerator.HemiSphereFor"/>).</summary>
 public sealed record PredictedCreature(string Id, string Domain, int Role, ulong Seed = 0, int CreatureType = 0, int Diet = 0,
     int MinSize = 0, int MaxSize = 0, float Scale = 0, int SizeClass = 0, string SpeciesId = "", PredictedCreatureInfo? Info = null,
-    int Density = 0, float GroupsPerKm = 0, int ActiveTime = 2, int HemiSphere = 0, int TileType = -1)
+    int Density = 0, float GroupsPerKm = 0, int ActiveTime = 2, int HemiSphere = 0, int TileType = -1, string Filter = "")
 {
     /// <summary>The terrain the habitat word is read from (NMS.exe 184271 0x14077b2e0): Air (0) for creatures of type
     /// Bird, FlyingLizard, FlyingSnake, Butterfly (1-4) or ProtoFlyer (48), wherever they spawn; else the role's
@@ -70,7 +70,9 @@ public sealed record CreatureGlobals(
 /// is its model, GcCreatureFilenameTable's Filename. ForcedAffinity (format 82) is its pet-battle element when set
 /// (GcPetBattlerAffinity, 1-8; 0 = by biome). PetBattler (format 83; null on older catalogs) is its
 /// CanBeUsedInPetBattler: whether players can adopt it as a battle pet (46 of 86 kinds in build 184271; no fish, birds,
-/// diggers, worms or deep-sea creatures).</summary>
+/// diggers, worms or deep-sea creatures). ModelScene (format 89; "" when none) is GcCreatureFilenameTable's
+/// ExtraFilename: the model actually drawn when Scene is a flock or a shared rig (fish flock -> small fish, the
+/// anomalous crystal -> WEIRDRIGGROUND, whose bodies are Beam / BoneSpire / Hexagon / Pillar / ShardSingle).</summary>
 public sealed record CreatureEntry(
     string Id,
     int Type,
@@ -87,7 +89,8 @@ public sealed record CreatureEntry(
     string SpeciesId = "",
     string Scene = "",
     int ForcedAffinity = 0,
-    bool? PetBattler = null);
+    bool? PetBattler = null,
+    string ModelScene = "");
 
 /// <summary>An archetype option entry with an ID and a weight.</summary>
 public sealed record CreatureWeightedEntry(string Id, float Weight);
@@ -135,7 +138,9 @@ public sealed record CreatureDomainArchetype(
 /// <summary>A creature role candidate within an ecosystem role table (GcCreatureRoleDescriptionTable). MinSize and
 /// MaxSize (GcCreatureSizeClasses, catalog format 79; 0 on older catalogs) bound the creature's size class.
 /// ActiveTime (GcCreatureActiveTime, format 80; AnyTime on older catalogs) is when it's about. TileType (format 85;
-/// -1 on older catalogs) is its table's GcTerrainTileType, which the role data copies and the habitat word reads.</summary>
+/// -1 on older catalogs) is its table's GcTerrainTileType, which the role data copies and the habitat word reads.
+/// Filter (format 88) is the role's descriptor filter ("FLOAT", "ROLL", "CRYSTAL" on the anomalous tables): the body
+/// its model must take.</summary>
 public sealed record CreatureRoleCandidate(
     string ForceId,
     string ReqTag,
@@ -146,7 +151,8 @@ public sealed record CreatureRoleCandidate(
     int MinSize = 0,
     int MaxSize = 0,
     int ActiveTime = 2,
-    int TileType = -1);
+    int TileType = -1,
+    string Filter = "");
 
 /// <summary>All creature generation data extracted from the game files. HemiSphereWords (catalog format 84; null before)
 /// are UI_CRE_HEMISPHERE_NORTH / _SOUTH ("Found in the North", "Found in the South"); TerrainWords (format 85) the
@@ -167,8 +173,35 @@ public sealed record CreatureTables(
     Dictionary<string, string>? ProduceNames = null,
     PetBattleTables? PetBattle = null,
     string[]? HemiSphereWords = null,
-    string[]? TerrainWords = null)
+    string[]? TerrainWords = null,
+    string[]? BiomeSubTypeNames = null)
 {
+    /// <summary>
+    /// The parts a creature's model must take before its seed picks the rest (issue #15): the role's Filter (the
+    /// anomalous rig's FLOAT / ROLL / CRYSTAL body) and, on an exotic (Weird, biome 7) planet, the planet's sub-type -
+    /// the anomalous bodies are named after the exotic sub-biomes (GcBiomeSubType: FractCube, Bubble, Shards, WireCell,
+    /// HydroGarden floaters; Structure, Contour, Beam rollers; names from catalog format 88). Owner's B. Bloatlexia on
+    /// the HydroGarden planet Azzaviu XII (2026-11-12) is the glowing-orb floater, _FLOAT_HYDROGARDENXOR, where the
+    /// seed alone picked _FLOAT_SHARDS. Returns the terms; <see cref="ForcedOptions"/> matches them to a tree.
+    /// </summary>
+    public (string Filter, string SubType) ForcedPartTerms(PredictedCreature creature, int biome, int subType) =>
+        (creature.Filter, biome == 7 && BiomeSubTypeNames is { } names && subType >= 0 && subType < names.Length ? names[subType] : "");
+
+    /// <summary>The option ids those terms force in a part tree, matched on the options' names (ids are cut to 15
+    /// characters: "_CRYSTAL_BONESP" is named "_Crystal_BoneSpire"): a name ending in "_" + Filter ("_Weird_Float"),
+    /// and one containing the sub-type name ("_Float_HydroGardenxOR", "_Roll_BeamStone", "_Crystal_BoneSpire").</summary>
+    public static IReadOnlyList<string> ForcedOptions(IEnumerable<(string Id, string Name)> options, string filter, string subType)
+    {
+        var forced = new List<string>();
+        foreach (var (id, name) in options)
+            if ((filter.Length > 0 && name.EndsWith("_" + filter, StringComparison.OrdinalIgnoreCase))
+                || (subType.Length > 0 && name.Contains(subType, StringComparison.OrdinalIgnoreCase))
+                // "Shards" names the crystal body "_Crystal_ShardSingle".
+                || (subType.Length > 3 && subType.EndsWith('s') && name.Contains(subType[..^1], StringComparison.OrdinalIgnoreCase)))
+                forced.Add(id);
+        return forced;
+    }
+
     /// <summary>The discovery list's habitat word ("Flying", "Underground"), from the game's words when the game data
     /// has them (format 85), else the English fallback (<see cref="PredictedCreature.Habitat"/>).</summary>
     public string HabitatOf(PredictedCreature creature) =>
@@ -582,7 +615,7 @@ public static partial class PlanetProfileGenerator
                         chosenCreatures.Add(new PredictedCreature(chosenId, domain, role.Role, seed, type, diet, role.MinSize,
                             role.MaxSize, scale, sizeClass, speciesId, Density: role.Density,
                             GroupsPerKm: GroupsPerKm(tables.Globals, domain, role.Density, te.DensityMod, faunaLevel),
-                            ActiveTime: role.ActiveTime, HemiSphere: hemiSphere, TileType: role.TileType));
+                            ActiveTime: role.ActiveTime, HemiSphere: hemiSphere, TileType: role.TileType, Filter: role.Filter));
                     }
                 }
                 stack.Pop();

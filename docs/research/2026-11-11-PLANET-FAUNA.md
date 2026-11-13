@@ -281,3 +281,62 @@ Owner's Unst Prime (BBFAFCFFA004 planet 2) list: large butterflies and a small b
 now predicted the same. Catalog format 85 (TileType per role table, habitat words). The water diet list now keys on
 TileType 4 too. Habitat fit vs captures 87 -> 94 of 104 planets; the rest are blank captures and a few Underground vs
 Ground cases still unexplained.
+
+## Body parts (issue #15), 2026-11-12
+
+A creature's body parts are picked by the same descriptor selector as ships and multi-tools (Core ShipParts, ported
+from NMS.exe's selector) on its scene's part tree with its **role seed** (discovery bEr[0], PredictedCreature.Seed).
+Evidence (owner's seven saves, fauna-check `PARTS=1`): a companion's CreatureSeed WTp equals its species' discovery
+bEr[0] for 132/132 companions that have a discovery; ShipParts with WTp reproduces the stored descriptor list (osl)
+exactly for 90 of 182 companions (112 with any of its seeds), the rest mostly whole rerolls (seed or parts changed
+after adoption). Creature part trees are in the catalog from format 87 (ShipDescriptors, UsageCategory Creature).
+
+Open: the anomalous rig (WEIRDRIG) takes a role **Filter** ("FLOAT", "ROLL", "CRYSTAL", from the role description
+table) that forces its first choice; neither "take it without a draw", "narrow then draw" nor "redraw until it
+matches" reproduces all the owner's floaters and rollers - read the selector's filter handling (0x142d6b5a0 area).
+Colours are not done: the owner's reroll tests say WTp also drives the colours (palettes, not ported).
+
+**Correction, same evening (and reverted):** bEr[4] = Mix64(bEr[0]) on 363/365 records, but it is **not** the parts
+seed: for G. Towerravusosa it picks a frilled triceratops head with one nose horn, where the game shows the hippo head
+with two horns, turtle body with back spikes and triceratops tail that the role seed bEr[0] picks (owner's screenshot
+2026-11-12). The role seed stays; bEr[4] is maybe the colour seed. The app's flat colour guesses (orange shell and
+accessory materials) made the right parts look wrong at first - colours are the next step.
+
+**Confirmed in game 2026-11-12 (owner, Slot 8):** G. Towerravusosa walking on Menuscuryd Setaj has exactly the parts the
+role seed picks (hippo head with head plate, turtle shell with spikes, triceratops tail) - "the app matches the
+creature walking around perfectly". The game's own Discoveries page draws the same species differently (horned head,
+other back spikes): the game is inconsistent there, not the port. The rig's pet harness (PETHARNESSMAT, not a
+selectable part) is now left off wild creatures. GameData.Checks `--creature-part-probe` shows what each part is.
+
+**Anomalous rig solved 2026-11-12:** the WEIRDRIG bodies are named after the exotic sub-biomes (GcBiomeSubType:
+FractCube, Bubble, Shards, WireCell, HydroGarden floaters; Structure, Contour, Beam rollers). The role's Filter (FLOAT /
+ROLL / CRYSTAL, role description table) forces the first choice and the planet's sub-type the variant - not a draw,
+which is why no draw rule fitted the owner's anomalous companions. Owner's B. Bloatlexia on the HydroGarden planet
+Azzaviu XII (4F8FBFFA005 planet 4): glowing orbs in game = _FLOAT_HYDROGARDENXOR (VORTEXLIGHT / CORELIGHT materials);
+the seed alone picked _FLOAT_SHARDS. Catalog format 88 (role Filter, sub-type names); CreatureTables.ForcedPartTerms /
+ForcedOptions feed ShipParts' stored-parts path. Crystal bodies (Pillar / Gem) have no sub-type name: seed-picked.
+
+**Roller confirmed in game 2026-11-12 (owner, Slot 8):** K. Larvalamia on the Structure planet Ailsdoni
+(Angeym-Kuhovd II, portal 3045FBFFA005, found with fauna-check EXOTIC) is the _ROLL_STRUCTURE body in the world and in
+the app. Two of two anomalous checks (HydroGarden floater, Structure roller); crystals (Pillar / Gem) still unchecked.
+
+**Crystals use their own scene (2026-11-12, to confirm in game):** the owner's R. Gentdiffoe on the BoneSpire planet
+Aoedesdo (Iladdu-Bulga, portal 116EFBFFA005) is a tall block in the world; the app drew WEIRDRIG's _CRYSTAL_GEM (an
+"egg"). WEIRDCRYSTAL's creature row has an ExtraFilename scene, MODELS/PLANETS/CREATURES/WEIRD/WEIRDRIGGROUND, whose
+_CRYSTAL_ group holds _Crystal_Beam, _Crystal_BoneSpire, _Crystal_Hexagon, _Crystal_Pillar and _Crystal_ShardSingle -
+sub-type names again. Their ids are cut to 15 characters (_CRYSTAL_BONESP, _CRYSTAL_HEXAGO, _CRYSTAL_SHARDS), so
+ForcedOptions matches on option names, and "Shards" also matches "ShardSingle". Catalog format 89 stores the scene
+(CreatureEntry.ModelScene); Planet Details draws from it when present. fauna-check PICK for that creature now gives
+_CRYSTAL_BONESP (448 triangles, BONEFORMSTATIC materials) where the seed alone gave _CRYSTAL_BEAM. Not yet seen by the
+owner; the block in the screenshot could also be _Crystal_Pillar (MINERALMAT), which no sub-type names.
+
+**Crystal = two scenes (owner, 2026-11-12):** the live R. Gentdiffoe is a green crystal pillar with bone spires
+coming out of the ground round its foot; the Discoveries page shows only the spires. The game draws the creature's own
+scene (WEIRDRIG: _WEIRD_CRYSTAL -> _CRYSTAL_PILLAR / _CRYSTAL_GEM) and spawns its ExtraFilename scene with it
+(WEIRDRIGGROUND: the sub-type's ground piece, _Crystal_BoneSpire here). The flock scenes (BIRDFLOCK, FISHFLOCK,
+BUTTERFLYFLOCK) and WEIRDDIGGER have no geometry of their own (--creature-part-probe "*"), so "draw both" also gives a
+flock's single animal and the digger's GROUNDCREATURE. Pillar vs Gem: taking the filtered _WEIRD_CRYSTAL without a
+draw gave the Gem; narrowing the group and still drawing gives the Pillar seen in game, and leaves the HydroGarden
+floater and Structure roller as confirmed (ShipParts drawForced). Mix64(seed) also gives the Pillar, but it was
+already ruled out for ordinary bodies (G. Towerravusosa). One crystal so far: a second one where the two disagree
+would settle it.

@@ -204,6 +204,234 @@ if (Environment.GetEnvironmentVariable("FLORASEED") is { Length: > 0 } floraFile
     return;
 }
 
+// PARTS=1 with the Working folder as third argument (issue #15): for every companion in the decrypted saves, which seed
+// makes ShipParts pick its stored body parts (osl) from its scene's part tree (catalog format 87 creature trees).
+if (Environment.GetEnvironmentVariable("PARTS") == "1" && args.Length > 2)
+{
+    var trees = new Dictionary<string, IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>?>(StringComparer.OrdinalIgnoreCase);
+    var treeJson = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    using (var cc = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
+    {
+        cc.Open();
+        var cmd = cc.CreateCommand();
+        cmd.CommandText = "SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='ShipDescriptors'";
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) treeJson[r.GetString(0)] = r.GetString(1);
+    }
+    IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>? Load(string path)
+    {
+        if (trees.TryGetValue(path, out var t)) return t;
+        return trees[path] = treeJson.TryGetValue(path, out var j) ? ArtifactX.Core.Procedural.ShipParts.ParseTree(j) : null;
+    }
+    var scenes = profiles.Creatures!.Creatures.ToDictionary(c => c.Id, c => c.Scene, StringComparer.OrdinalIgnoreCase);
+    static ulong? Hex(Newtonsoft.Json.Linq.JToken? t) => ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ParsePackedAddress(t);
+    int companions = 0, partsExact = 0;
+    var bySeed = new Dictionary<string, int>();
+    foreach (var file in Directory.EnumerateFiles(args[2], "save*.hg.json", SearchOption.AllDirectories))
+    {
+        Newtonsoft.Json.Linq.JToken? root;
+        try
+        {
+            using var reader = new Newtonsoft.Json.JsonTextReader(new StreamReader(file)) { SupportMultipleContent = true };
+            root = Newtonsoft.Json.Linq.JToken.ReadFrom(reader);
+        }
+        catch { continue; }
+        if (root?.SelectToken("vLc.6f=.Mcl") is not Newtonsoft.Json.Linq.JArray pets) continue;
+        foreach (var pet in pets.OfType<Newtonsoft.Json.Linq.JObject>())
+        {
+            string id = (pet["XID"]?.Value<string>() ?? "").TrimStart('^');
+            if (id.Length == 0 || pet["osl"] is not Newtonsoft.Json.Linq.JArray osl) continue;
+            var stored = osl.Select(x => (x?.ToString() ?? "").TrimStart('^')).Where(x => x.Length > 0 && !ulong.TryParse(x, out _)).ToList();
+            if (stored.Count == 0 || !scenes.TryGetValue(id, out var scene) || string.IsNullOrEmpty(scene)) continue;
+            companions++;
+            var seeds = new List<(string Name, ulong Seed)>();
+            foreach (var key in new[] { "WTp", "1p=", "uAX", "6fX" })
+                if (pet[key] is Newtonsoft.Json.Linq.JArray pair && pair.Count == 2 && Hex(pair[1]) is ulong v && v != 0) seeds.Add((key, v));
+            if (seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } wt)
+            {
+                ulong m = wt.Seed; m = (m ^ (m >> 33)) * 0x64DD81482CBD31D7UL; m = (m ^ (m >> 33)) * 0xE36AA5C613612997UL; m ^= m >> 33;
+                seeds.Insert(0, ("mix(WTp)", m));
+            }
+            foreach (var key in new[] { "m9o", "JrL" })
+                if (Hex(pet[key]) is ulong v && v != 0) seeds.Add((key, v));
+            string best = "none"; int bestHits = -1;
+            foreach (var (name, seed) in seeds)
+            {
+                var picked = ArtifactX.Core.Procedural.ShipParts.Generate(scene, seed, Load).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                int hits = stored.Count(s => picked.Contains(s));
+                if (hits > bestHits) { bestHits = hits; best = name; }
+                if (hits == stored.Count && picked.Count == stored.Count) { partsExact++; bySeed[name] = bySeed.GetValueOrDefault(name) + 1; best = name + " EXACT"; break; }
+            }
+            if (companions <= 12) Console.WriteLine($"  {id,-16} {scene,-60} stored {stored.Count}, best {best} ({bestHits})  [{string.Join(" ", stored)}]");
+            if (Environment.GetEnvironmentVariable("PARTSKIND") == "1") Console.WriteLine($"  KIND {id} {(best.EndsWith("EXACT") && best.StartsWith("WTp") ? "wtp-exact" : best.EndsWith("EXACT") ? "other-exact" : "miss")}");
+            // Role Filter test (weird rig: groundtableweird Filter FLOAT / ROLL / CRYSTAL): top choice only, or every match.
+            if (Environment.GetEnvironmentVariable("PARTSFILTER") == "1" && id is "WEIRDFLOAT" or "WEIRDROLL" or "WEIRDCRYSTAL"
+                && seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } wf && Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } rootGroups)
+            {
+                string filter = id["WEIRD".Length..];
+                IEnumerable<string> All(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> gs) => gs.SelectMany(g => g.Options.SelectMany(o => new[] { o.Id }.Concat(o.Children.SelectMany(All))));
+                var topOnly = rootGroups.SelectMany(g => g.Options.Select(o => o.Id)).Where(o => o.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+                var every = All(rootGroups).Where(o => o.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+                bool Same(List<ArtifactX.Core.Procedural.PickedPart> picked) => picked.Count == stored.Count && stored.All(x => picked.Any(pp => string.Equals(pp.Id, x, StringComparison.OrdinalIgnoreCase)));
+                var a1 = ArtifactX.Core.Procedural.ShipParts.Generate(scene, wf.Seed, Load, topOnly);
+                var a2 = ArtifactX.Core.Procedural.ShipParts.Generate(scene, wf.Seed, Load, every);
+                // Variant: the root group narrowed to matching options, then the usual weighted draw.
+                var narrowed = rootGroups.Select(g => g.Options.Any(o => o.Id.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                    ? g with { Options = g.Options.Where(o => o.Id.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList() } : g).ToList();
+                string desc = ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene);
+                var a3 = ArtifactX.Core.Procedural.ShipParts.Generate(scene, wf.Seed, path => string.Equals(path, desc, StringComparison.OrdinalIgnoreCase) ? narrowed : Load(path));
+                Console.WriteLine($"  FILTER3 {id,-13} narrowed {(Same(a3) ? "EXACT" : "no")} [{string.Join(" ", a3.Select(x => x.Id))}] stored [{string.Join(" ", stored)}] seed {wf.Seed:X16}");
+                Console.WriteLine($"  FILTER {id,-13} top-only {(Same(a1) ? "EXACT" : "no")} [{string.Join(" ", a1.Select(x => x.Id))}]  every {(Same(a2) ? "EXACT" : "no")}  stored [{string.Join(" ", stored)}]");
+            }
+            if (Environment.GetEnvironmentVariable("PARTSDIFF") == "1" && seeds.FirstOrDefault(x => x.Name == "WTp") is { Seed: not 0 } w)
+            {
+                var picked = ArtifactX.Core.Procedural.ShipParts.Generate(scene, w.Seed, Load).Select(p => p.Id).ToList();
+                if (!(picked.Count == stored.Count && stored.All(x => picked.Contains(x, StringComparer.OrdinalIgnoreCase))))
+                    Console.WriteLine($"  DIFF {id,-14} only stored [{string.Join(" ", stored.Except(picked, StringComparer.OrdinalIgnoreCase))}]  only picked [{string.Join(" ", picked.Except(stored, StringComparer.OrdinalIgnoreCase))}]");
+            }
+        }
+    }
+    Console.WriteLine($"companions {companions}, exact {partsExact}: {string.Join(", ", bySeed.Select(k => $"{k.Key} {k.Value}"))}");
+    // A wild-adopted companion's species (m9o/JrL = the discovery's bEr[2]/bEr[3]): how its creature seed WTp relates to
+    // that discovery's bEr[0] (the role seed) and the rest.
+    var byName = new Dictionary<(ulong, ulong), (ulong Address, ulong B0, ulong B1)>();
+    var petRows = new List<(string Id, ulong Wtp, ulong A, ulong B)>();
+    foreach (var file in Directory.EnumerateFiles(args[2], "save*.hg.json", SearchOption.AllDirectories))
+    {
+        Newtonsoft.Json.Linq.JToken? root;
+        try
+        {
+            using var reader = new Newtonsoft.Json.JsonTextReader(new StreamReader(file)) { SupportMultipleContent = true };
+            root = Newtonsoft.Json.Linq.JToken.ReadFrom(reader);
+        }
+        catch { continue; }
+        if (root?.SelectToken("fDu.ETO.OsQ.?fB") is Newtonsoft.Json.Linq.JArray discoveries)
+            foreach (var record in discoveries.OfType<Newtonsoft.Json.Linq.JObject>())
+                if (record["8P3"] is Newtonsoft.Json.Linq.JObject key && key["<Dn"]?.Value<string>() == "Animal"
+                    && key["bEr"] is Newtonsoft.Json.Linq.JArray v && v.Count >= 4
+                    && Hex(v[0]) is ulong b0 && Hex(v[1]) is ulong b1 && Hex(v[2]) is ulong b2 && Hex(v[3]) is ulong b3
+                    && Hex(key["5L6"]) is ulong addr)
+                    byName.TryAdd((b2, b3), (addr, b0, b1));
+        if (root?.SelectToken("vLc.6f=.Mcl") is Newtonsoft.Json.Linq.JArray pets)
+            foreach (var pet in pets.OfType<Newtonsoft.Json.Linq.JObject>())
+                if (pet["WTp"] is Newtonsoft.Json.Linq.JArray w && w.Count == 2 && Hex(w[1]) is ulong wtp && wtp != 0
+                    && Hex(pet["m9o"]) is ulong a && Hex(pet["JrL"]) is ulong b)
+                    petRows.Add(((pet["XID"]?.Value<string>() ?? "").TrimStart('^'), wtp, a, b));
+    }
+    int linked = 0, same0 = 0;
+    foreach (var (pid, wtp, a, b) in petRows)
+    {
+        if (!byName.TryGetValue((a, b), out var d)) continue;
+        linked++;
+        if (d.B0 == wtp) same0++;
+        if (linked <= 8) Console.WriteLine($"  {pid,-14} WTp {wtp:X16}  discovery bEr0 {d.B0:X16}  species {a:X16}");
+    }
+    Console.WriteLine($"companions linked to a discovery {linked}, WTp == bEr[0]: {same0}");
+    return;
+}
+
+// EXOTIC=<system hex>:<region radius>: exotic planets near a system whose anomalous creatures are rollers or crystals
+// (to check their bodies in game): kind, sub-type, planet, system, regions away, portal address.
+if (Environment.GetEnvironmentVariable("EXOTIC") is { Length: > 0 } exoticArg)
+{
+    var parts = exoticArg.Split(':');
+    ulong start = ulong.Parse(parts[0], NumberStyles.HexNumber);
+    var settings = Row<GalaxyGenerationSettings>("GALAXYGENERATION");
+    var names = profiles.Creatures!.BiomeSubTypeNames ?? [];
+    var rows = new System.Collections.Concurrent.ConcurrentBag<(int Away, string Line)>();
+    Parallel.ForEach(NearbySystems.Around(start, int.Parse(parts[1]), settings, includePurple: false), s =>
+    {
+        var (code, galaxy) = SystemProfiles.PortalOf(s.SystemAddress);
+        PlanetType[] types;
+        try { types = PlanetGenerator.Generate(code, galaxy, biomes); } catch { return; }
+        if (!types.Any(t => t.Biome == 7)) return;
+        var all = SystemProfiles.Generate(s.SystemAddress, biomes, profiles);
+        var seeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+        for (int i = 0; i < types.Length && i < all.Length; i++)
+        {
+            if (types[i].Biome != 7 || all[i]?.PredictedCreatures is not { } creatures) continue;
+            foreach (var c in creatures.Where(c => c.Id is "WEIRDROLL" or "WEIRDCRYSTAL" or "WEIRDFLOAT"))
+            {
+                ulong a = s.SystemAddress;
+                string portal = $"{i + 1:X}{(a >> 40) & 0xFFF:X3}{(a >> 24) & 0xFF:X2}{(a >> 12) & 0xFFF:X3}{a & 0xFFF:X3}";
+                string sub = types[i].SubType >= 0 && types[i].SubType < names.Length ? names[types[i].SubType] : types[i].SubType.ToString();
+                rows.Add((s.RegionsAway, $"{c.Id,-13} {sub,-12} {SystemGenerator.PlanetName(seeds[i]),-18} in {SystemGenerator.SystemName(code, galaxy),-20} regions away {s.RegionsAway}  portal {portal}"));
+            }
+        }
+    });
+    foreach (var r in rows.OrderBy(r => r.Away).ThenBy(r => r.Line).Take(4000)) Console.WriteLine("  " + r.Line);
+    Console.WriteLine($"{rows.Count} found");
+    return;
+}
+
+// PICK=<system hex>:<planet>:<species name>: a predicted creature's kind, scene, seed and the parts ShipParts picks.
+if (Environment.GetEnvironmentVariable("PICK") is { Length: > 0 } pickArg)
+{
+    var parts = pickArg.Split(':');
+    ulong sys = ulong.Parse(parts[0], NumberStyles.HexNumber);
+    int index = int.Parse(parts[1]) - 1;
+    var (code, galaxy) = Gen(sys & ~(0xFUL << 52));
+    var types = PlanetGenerator.Generate(code, galaxy, biomes);
+    var attributes = SystemGenerator.Attributes(code, galaxy);
+    var bodySeeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
+    var p = PlanetProfileGenerator.Generate(bodySeeds[index], index, types[index], (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy),
+        attributes.GasGiantPlanet, profiles, attributes.Uncharted, attributes.Abandoned);
+    var treeJson = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    List<string> creWords;
+    using (var cc = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
+    {
+        cc.Open();
+        var cmd = cc.CreateCommand();
+        cmd.CommandText = "SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='ShipDescriptors'";
+        using (var r = cmd.ExecuteReader()) while (r.Read()) treeJson[r.GetString(0)] = r.GetString(1);
+        cmd.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords' AND i.NameEnglish='CRE'";
+        creWords = JsonSerializer.Deserialize<List<string>>((string)cmd.ExecuteScalar()!)!;
+    }
+    IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>? Load(string path) => treeJson.TryGetValue(path, out var j) ? ArtifactX.Core.Procedural.ShipParts.ParseTree(j) : null;
+    ulong planetAddress = (sys & ~(0xFUL << 52)) | ((ulong)(index + 1) << 52);
+    Console.WriteLine($"planet type: biome {types[index].Biome} subtype {types[index].SubType}");
+    foreach (var c in p.PredictedCreatures ?? [])
+    {
+        var (sp, ge) = ArtifactX.Core.Procedural.SpeciesNames.FaunaSeeds(c.Seed, c.SpeciesId, planetAddress, c.CreatureType, c.SizeClass);
+        string name = ArtifactX.Core.Procedural.SpeciesNames.Fauna(sp, ge, creWords) ?? "?";
+        if (!name.Equals(parts[2], StringComparison.OrdinalIgnoreCase)) continue;
+        var entry = Array.Find(profiles.Creatures!.Creatures, e => e.Id == c.Id);
+        string scene = entry is { ModelScene.Length: > 0 } ? entry.ModelScene : entry?.Scene ?? "";
+        Console.WriteLine($"{name}:{c.Id} species {c.SpeciesId} scene {scene} seed {c.Seed:X16}");
+        Console.WriteLine("picked: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Seed, Load).Select(x => $"{x.Group}={x.Id}")));
+        if (Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } forcedRoot)
+        {
+            IEnumerable<(string, string)> Ids(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> gs) => gs.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(Ids))));
+            var terms = profiles.Creatures!.ForcedPartTerms(c, types[index].Biome, types[index].SubType);
+            var forced = CreatureTables.ForcedOptions(Ids(forcedRoot), terms.Filter, terms.SubType);
+            Console.WriteLine($"forced terms '{terms.Filter}' '{terms.SubType}' -> [{string.Join(" ", forced)}]: " +
+                string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, c.Seed, Load, forced, drawForced: true).Select(x => x.Id)));
+        }
+        // The creature's own scene too (an anomalous crystal is WEIRDRIG's body plus its ground scene), drawn three
+        // ways: forced without a draw, the forced group narrowed to the match and drawn, and with Mix64 of the seed.
+        if (entry is not null && Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(entry.Scene)) is { } mainRoot)
+        {
+            var terms = profiles.Creatures!.ForcedPartTerms(c, types[index].Biome, types[index].SubType);
+            IEnumerable<(string, string)> Opts(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> gs) => gs.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(Opts))));
+            var forcedMain = CreatureTables.ForcedOptions(Opts(mainRoot), terms.Filter, terms.SubType);
+            string mainDesc = ArtifactX.Core.Procedural.ShipParts.DescriptorFor(entry.Scene);
+            var narrowed = mainRoot.Select(g => g.Options.Any(o => forcedMain.Contains(o.Id))
+                ? g with { Options = g.Options.Where(o => forcedMain.Contains(o.Id)).ToList() } : g).ToList();
+            ulong m = c.Seed; m = (m ^ (m >> 33)) * 0x64DD81482CBD31D7UL; m = (m ^ (m >> 33)) * 0xE36AA5C613612997UL; m ^= m >> 33;
+            Console.WriteLine($"main {entry.Scene} weights: {string.Join(" ", mainRoot.SelectMany(g => g.Options).Where(o => forcedMain.Contains(o.Id)).SelectMany(o => o.Children.SelectMany(k => k.SelectMany(g => g.Options))).Select(o => $"{o.Id}({o.Weight})"))}");
+            Console.WriteLine("  forced:   " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, c.Seed, Load, forcedMain).Select(x => x.Id)));
+            Console.WriteLine("  app rule: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, c.Seed, Load, forcedMain, drawForced: true).Select(x => x.Id)));
+            Console.WriteLine("  narrowed: " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, c.Seed, p => string.Equals(p, mainDesc, StringComparison.OrdinalIgnoreCase) ? narrowed : Load(p)).Select(x => x.Id)));
+            Console.WriteLine("  mix64:    " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(entry.Scene, m, Load, forcedMain).Select(x => x.Id)));
+        }
+        if (Environment.GetEnvironmentVariable("PICKSEED") is { Length: > 0 } extra)
+            Console.WriteLine("with " + extra + ": " + string.Join(" ", ArtifactX.Core.Procedural.ShipParts.Generate(scene, ulong.Parse(extra, NumberStyles.HexNumber), Load).Select(x => $"{x.Group}={x.Id}")));
+        if (Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } root)
+            foreach (var g in root) Console.WriteLine($"  group {g.Type}: {string.Join(", ", g.Options.Select(o => $"{o.Id}({o.Weight})"))}");
+    }
+    return;
+}
+
 // HEMI=<system hex>:<planet index from 1>: one planet's predicted creatures with names and hemispheres
 // ("Found in the North / South"), to check against the game's discovery list.
 if (Environment.GetEnvironmentVariable("HEMI") is { Length: > 0 } hemiArg)
@@ -547,7 +775,7 @@ if (args.Length > 2)
         string k = real < 0 ? "type wrong" : real == c.SizeClass ? "class predicted" : $"class wrong: predicted {c.SizeClass} (scale {c.Scale:F2}) real {real}, {c.Id} range {c.MinSize}-{c.MaxSize}";
         sizeTally[k] = sizeTally.GetValueOrDefault(k) + 1;
     }
-    foreach (var t in sizeTally.OrderByDescending(k => k.Value).Take(25)) Console.WriteLine($"  size {t.Key} x{t.Value}");
+    foreach (var t in sizeTally.OrderByDescending(k => k.Value).Take(4000)) Console.WriteLine($"  size {t.Key} x{t.Value}");
     // bEr[1] against djb2 of the creature filename table's scene files (FILENAMES env var: "ID<TAB>file<TAB>extra"
     // rows), and which creature ID makes the saved species seed.
     if (Environment.GetEnvironmentVariable("FILENAMES") is string fnPath && File.Exists(fnPath))

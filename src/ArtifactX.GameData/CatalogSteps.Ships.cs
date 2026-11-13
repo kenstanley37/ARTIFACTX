@@ -21,6 +21,9 @@ public static partial class CatalogSteps
     /// [{"t":type,"o":[{"id","n":name,"s":[scene paths],"c":[[groups]...]}]}].
     /// Multi-tools too since 2026-10-15 (UsageCategory "MultiTool"): the seed
     /// picks a tool's kind the same way - Alien, Starter... (MultiToolKinds).
+    /// Creatures too since catalog format 87 (UsageCategory "Creature", every descriptor under
+    /// MODELS/PLANETS/CREATURES/ outside animation folders): in this form - nested groups apart from
+    /// referenced scenes - ShipParts can pick a creature's parts as the game does (issue #15).
     /// </summary>
     public static void AddShipDescriptors(string catalogPath, string pcbanksPath)
     {
@@ -49,7 +52,9 @@ public static partial class CatalogSteps
         {
             foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
                          && (e.FileName.StartsWith("MODELS/COMMON/SPACECRAFT/", StringComparison.OrdinalIgnoreCase)
-                             || e.FileName.StartsWith("MODELS/COMMON/WEAPONS/MULTITOOL/", StringComparison.OrdinalIgnoreCase))
+                             || e.FileName.StartsWith("MODELS/COMMON/WEAPONS/MULTITOOL/", StringComparison.OrdinalIgnoreCase)
+                             || (e.FileName.StartsWith("MODELS/PLANETS/CREATURES/", StringComparison.OrdinalIgnoreCase)
+                                 && !System.Text.RegularExpressions.Regex.IsMatch(e.FileName, "/ANIM(S|ATION)?/", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
                          && e.FileName.EndsWith(".DESCRIPTOR.MBIN", StringComparison.OrdinalIgnoreCase)))
             {
                 if (!seen.Add(entry.FileName)) continue;
@@ -65,14 +70,14 @@ public static partial class CatalogSteps
                     {
                         GameId = "DESC:" + path,
                         NameEnglish = path,
-                        UsageCategory = path.Contains("/weapons/") ? "MultiTool" : "Spacecraft",
+                        UsageCategory = path.Contains("/weapons/") ? "MultiTool" : path.Contains("/creatures/") ? "Creature" : "Spacecraft",
                         DescriptionEnglish = JsonSerializer.Serialize(Groups(list)),
                     });
                 }
                 catch (Exception ex) { ConsoleStyle.Warning($"{entry.FileName}: {ex.Message}"); }
             }
         }
-        ConsoleStyle.Header($"Found {rows.Count} starship and multi-tool part trees.");
+        ConsoleStyle.Header($"Found {rows.Count} starship, multi-tool and creature part trees.");
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "ShipDescriptors", "TkModelDescriptorList", "models/common/spacecraft/*.descriptor.mbin", rows);

@@ -148,8 +148,15 @@ public static class CreatureModelService
     }
 
     /// <summary>Builds a 3D mesh for a companion or creature from its rig and chosen descriptors.</summary>
-    public static async Task<ShipMesh?> BuildCreatureMeshAsync(GameInstall game, string rigId, IEnumerable<string>? chosenDescriptors = null)
+    /// <param name="wild">A wild creature: the pet harness that hangs off every rig's body (PETHARNESSMAT, 4,216 of
+    /// 12,708 triangles on the owner's G. Towerravusosa, 2026-11-12) is left out - only companions wear it.</param>
+    /// <param name="extra">A scene drawn with it (ModelPartsAsync): a flock's animal, a crystal's ground piece.</param>
+    public static async Task<ShipMesh?> BuildCreatureMeshAsync(GameInstall game, string rigId, IEnumerable<string>? chosenDescriptors = null,
+        bool wild = false, ExtraModel? extra = null)
     {
+        if (extra is not null)
+            return Merge(await BuildCreatureMeshAsync(game, rigId, chosenDescriptors, wild),
+                await BuildCreatureMeshAsync(game, extra.RigId, extra.Parts, wild));
         if (!RigScenes.TryGetValue(rigId, out string? scene)) return null;
 
         var models = await ModelPreviewService.ModelsAsync(game);
@@ -200,8 +207,98 @@ public static class CreatureModelService
         }
 
         // A creature mesh is built off the UI thread
-        return await Task.Run(() => models.Build(scene, allOptions, chosen));
+        return await Task.Run(() =>
+        {
+            var mesh = models.Build(scene, allOptions, chosen);
+            return wild && mesh is not null ? WithoutPetHarness(mesh) : mesh;
+        });
     }
+
+    /// <summary>The mesh without the triangles painted with the pet harness material (one material per triangle,
+    /// three corners and texture coordinates each).</summary>
+    private static ShipMesh? WithoutPetHarness(ShipMesh mesh)
+    {
+        var keep = Enumerable.Range(0, mesh.Materials.Length)
+            .Where(t => !Path.GetFileName(mesh.Materials[t]).Contains("PETHARNESS", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (keep.Count == mesh.Materials.Length) return mesh;
+        if (keep.Count == 0) return null;
+        T[] Corners<T>(T[] source) => source.Length < mesh.Materials.Length * 3 ? source
+            : keep.SelectMany(t => new[] { source[t * 3], source[t * 3 + 1], source[t * 3 + 2] }).ToArray();
+        return new ShipMesh(Corners(mesh.Corners), keep.Select(t => mesh.Materials[t]).ToArray())
+        {
+            Uvs = Corners(mesh.Uvs), Uvs2 = Corners(mesh.Uvs2),
+        };
+    }
+
+    /// <summary>
+    /// The body parts the game gives a wild creature (issue #15): its scene's part tree walked by the same selector as
+    /// ships and multi-tools (Core ShipParts) with its role seed (discovery bEr[0], PredictedCreature.Seed). Evidence:
+    /// a companion's CreatureSeed (WTp) equals its species' discovery bEr[0] for 132/132, and ShipParts(WTp) gives the
+    /// stored descriptor list (osl) for 78 of 182 companions; the owner's G. Towerravusosa (Slot 8, 2026-11-12) shows
+    /// the hippo head with two horn accessories, turtle body with back spikes and triceratops tail this picks. The
+    /// discovery's fifth value, Mix64(bEr[0]), picks a different head (frilled triceratops) - not the body seed;
+    /// maybe the colour seed (to check). Companions draw from their stored parts. Not yet: the anomalous rig's role
+    /// Filter (FLOAT / ROLL / CRYSTAL). Null without the part tree (game data before format 87).
+    /// </summary>
+    /// <param name="filter">The role's descriptor Filter and <paramref name="subType"/> the exotic planet's sub-type
+    /// name (CreatureTables.ForcedPartTerms): they narrow their groups to the parts they name, and the seed still
+    /// draws there (the draw is used up), then picks the rest. Evidence for the draw: the owner's R. Gentdiffoe
+    /// (Aoedesdo, 2026-11-12) is the WEIRDRIG _CRYSTAL_PILLAR in the world; taking _WEIRD_CRYSTAL without a draw gave
+    /// _CRYSTAL_GEM. The floater and roller already confirmed pick the same either way.</param>
+    public static async Task<IReadOnlyList<string>?> PartsForSeedAsync(string? scenePath, ulong roleSeed, string filter = "", string subType = "")
+    {
+        if (string.IsNullOrEmpty(scenePath) || roleSeed == 0) return null;
+        await PartTreeService.EnsureAsync();
+        string scene = scenePath.ToLowerInvariant();
+        if (PartTreeService.Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is not { } root) return null;
+        return await Task.Run(() =>
+        {
+            IReadOnlyList<string>? forced = filter.Length == 0 && subType.Length == 0 ? null
+                : ArtifactX.Core.Universe.CreatureTables.ForcedOptions(OptionNames(root), filter, subType);
+            return (IReadOnlyList<string>)ArtifactX.Core.Procedural.ShipParts.Generate(scene, roleSeed, PartTreeService.Load, forced, drawForced: true)
+                .Select(p => p.Id).ToList();
+        });
+    }
+
+    /// <summary>A second scene drawn with a creature (its rig and that scene's parts).</summary>
+    public sealed record ExtraModel(string RigId, IReadOnlyList<string>? Parts);
+
+    /// <summary>
+    /// A wild creature's whole model: its own scene's parts, plus the scene the game spawns with it (the creature
+    /// row's ExtraFilename, catalog format 89 ModelScene). Flocks and the anomalous digger have no geometry of their
+    /// own (fauna checks --creature-part-probe "*", 2026-11-12) - the extra scene is the animal; an anomalous crystal is
+    /// WEIRDRIG's crystal with the ground piece of WEIRDRIGGROUND round its foot. Owner's R. Gentdiffoe on Aoedesdo
+    /// (BoneSpire, 2026-11-12): a green pillar with bone spires coming out of the ground beside it; the Discoveries
+    /// page shows only the spires. The two part lists stay apart: "_CRYSTAL_PILLAR" is an option in both scenes.
+    /// </summary>
+    public static async Task<(IReadOnlyList<string>? Parts, ExtraModel? Extra)> ModelPartsAsync(string? scenePath, string? extraScenePath,
+        ulong roleSeed, string filter = "", string subType = "")
+    {
+        var parts = await PartsForSeedAsync(scenePath, roleSeed, filter, subType);
+        if (string.IsNullOrEmpty(extraScenePath) || await ResolveRigAsync(null, scenePath: extraScenePath) is not { } extraRig)
+            return (parts, null);
+        return (parts, new ExtraModel(extraRig, await PartsForSeedAsync(extraScenePath, roleSeed, filter, subType)));
+    }
+
+    /// <summary>Two meshes as one (a creature and the scene spawned with it); either may be missing.</summary>
+    private static ShipMesh? Merge(ShipMesh? a, ShipMesh? b)
+    {
+        if (a is null || a.Materials.Length == 0) return b;
+        if (b is null || b.Materials.Length == 0) return a;
+        // Texture coordinates are one per corner or none: pad a mesh without them so both line up.
+        static System.Numerics.Vector2[] Per(System.Numerics.Vector2[] uvs, int corners) =>
+            uvs.Length == corners ? uvs : new System.Numerics.Vector2[corners];
+        bool uvs = a.Uvs.Length > 0 || b.Uvs.Length > 0, uvs2 = a.Uvs2.Length > 0 || b.Uvs2.Length > 0;
+        return new ShipMesh([.. a.Corners, .. b.Corners], [.. a.Materials, .. b.Materials])
+        {
+            Uvs = uvs ? [.. Per(a.Uvs, a.Corners.Length), .. Per(b.Uvs, b.Corners.Length)] : [],
+            Uvs2 = uvs2 ? [.. Per(a.Uvs2, a.Corners.Length), .. Per(b.Uvs2, b.Corners.Length)] : [],
+        };
+    }
+
+    /// <summary>Every option of a part tree with its name, through nested groups.</summary>
+    private static IEnumerable<(string Id, string Name)> OptionNames(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups) =>
+        groups.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(OptionNames))));
 
     /// <summary>Natural shading for creature materials: eyes, teeth, mouth, horns, pet harness and skin.</summary>
     public static uint CreatureMaterialColour(string material)

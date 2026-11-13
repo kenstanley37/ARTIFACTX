@@ -391,6 +391,7 @@ public static partial class CatalogSteps
         var validIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var sceneIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var scenes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var modelScenes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (cfnt.Table is not null)
         {
             foreach (var f in cfnt.Table)
@@ -398,6 +399,7 @@ public static partial class CatalogSteps
                 {
                     validIds.Add(f.ID.Value);
                     if (!string.IsNullOrEmpty(f.Filename?.Value)) scenes.TryAdd(f.ID.Value, f.Filename.Value);
+                    if (!string.IsNullOrEmpty(f.ExtraFilename?.Value)) modelScenes.TryAdd(f.ID.Value, f.ExtraFilename.Value);
                     if (!string.IsNullOrEmpty(f.Filename?.Value) && CreatureComponentId(f.Filename.Value, f.ID.Value, decode) is string sceneId)
                         sceneIds[f.ID.Value] = sceneId;
                 }
@@ -428,7 +430,8 @@ public static partial class CatalogSteps
                     sceneIds.GetValueOrDefault(id, ""),
                     scenes.GetValueOrDefault(id, ""),
                     (int)c.PetBattlerForcedAffinity.PetBattlerAffinity,
-                    c.CanBeUsedInPetBattler));
+                    c.CanBeUsedInPetBattler,
+                    modelScenes.GetValueOrDefault(id, "")));
             }
         }
 
@@ -506,7 +509,8 @@ public static partial class CatalogSteps
                     (int)r.MinSize.CreatureSizeClass,
                     (int)r.MaxSize.CreatureSizeClass,
                     (int)r.ActiveTime.CreatureActiveTime,
-                    (int)rdt.TileType.TileType)).ToArray();
+                    (int)rdt.TileType.TileType,
+                    r.Filter?.Value ?? "")).ToArray();
                 ecosystemTables[path] = roles;
             }
         }
@@ -556,7 +560,8 @@ public static partial class CatalogSteps
             genders.Count > 0 ? genders.ToArray() : null, activities.All(w => w.Length > 0) ? activities : null,
             rarities.All(w => w.Length > 0) ? rarities : null, robotGenders.Count > 0 ? robotGenders.ToArray() : null, text,
             Produce(cg), ProduceNames(cg, decode, english), PetBattle(decode, english),
-            hemispheres.All(w => w.Length > 0) ? hemispheres : null, terrains.Any(w => w.Length > 0) ? terrains : null);
+            hemispheres.All(w => w.Length > 0) ? hemispheres : null, terrains.Any(w => w.Length > 0) ? terrains : null,
+            Enum.GetNames<GcBiomeSubType.BiomeSubTypeEnum>());
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)

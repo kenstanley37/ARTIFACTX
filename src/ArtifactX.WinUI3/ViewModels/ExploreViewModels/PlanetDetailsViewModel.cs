@@ -287,9 +287,20 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         foreach (var slot in slots)
         {
             var pred = slot.Predicted;
+            // The creature's own scene, and the one the game spawns with it (a flock's animal, a crystal's ground
+            // piece; CreatureModelService.ModelPartsAsync).
+            var creatureEntry = pred is null ? null : PlanetTypesService.CreatureTables?.Creatures.FirstOrDefault(c => c.Id == pred.Id);
+            string? scene = creatureEntry?.Scene;
+            string extraScene = creatureEntry?.ModelScene ?? "";
+            // The body its role and an exotic planet's sub-type force (anomalous floaters, rollers and crystals).
+            var bodyType = PlanetTypesService.For(planet.SystemAddress) is { } bodyTypes && planet.PlanetIndex >= 1 && planet.PlanetIndex <= bodyTypes.Length
+                ? bodyTypes[planet.PlanetIndex - 1] : null;
+            var forced = pred is not null && bodyType is not null && PlanetTypesService.CreatureTables is { } creatureTables
+                ? creatureTables.ForcedPartTerms(pred, bodyType.Biome, bodyType.SubType) : (Filter: "", SubType: "");
             string rigId = pred is null ? FallbackRig(saveDiscoveries[slot.Discovery].SpeciesName)
-                : await CreatureModelService.ResolveRigAsync(pred.Id,
-                    scenePath: PlanetTypesService.CreatureTables?.Creatures.FirstOrDefault(c => c.Id == pred.Id)?.Scene) ?? "antelope";
+                // With an extra scene the rig is the creature's own scene's (a flock's spawner draws nothing itself).
+                : await CreatureModelService.ResolveRigAsync(extraScene.Length > 0 ? null : pred.Id, scenePath: scene)
+                    ?? await CreatureModelService.ResolveRigAsync(pred.Id, scenePath: scene) ?? "antelope";
             string habitat = pred is null ? "Native Fauna" : $"{PlanetTypesService.CreatureTables?.HabitatOf(pred) ?? pred.Habitat} Fauna";
             var (rarity, activity) = pred is null ? ("", "") : CreatureTraitText.RarityAndActivity(pred, PlanetTypesService.CreatureTables);
 
@@ -305,7 +316,11 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true,
                     about: same ? CreatureTraitText.About(pred!, PlanetTypesService.CreatureTables) : "",
                     battle: same ? Panel(CreatureTraitText.Battle(pred!, PlanetTypesService.CreatureTables, disc.SpeciesSeed, disc.GenusSeed)) : null,
-                    canTame: same ? PlanetTypesService.CreatureTables?.CanBattle(pred!) : null));
+                    canTame: same ? PlanetTypesService.CreatureTables?.CanBattle(pred!) : null)
+                {
+                    // The discovery's own seed (bEr[0]) picks its body parts, as the game does.
+                    ModelScene = scene ?? "", ModelExtraScene = extraScene, ModelSeed = disc.Seed, ModelFilter = forced.Filter, ModelSubType = forced.SubType,
+                });
                 continue;
             }
 
@@ -326,7 +341,10 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
             allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false,
                 about: predictedName is null ? "" : CreatureTraitText.About(pred, PlanetTypesService.CreatureTables),
                 battle: predictedName is null ? null : Panel(CreatureTraitText.Battle(pred, PlanetTypesService.CreatureTables, speciesSeed, genusSeed)),
-                canTame: PlanetTypesService.CreatureTables?.CanBattle(pred)));
+                canTame: PlanetTypesService.CreatureTables?.CanBattle(pred))
+            {
+                ModelScene = scene ?? "", ModelExtraScene = extraScene, ModelSeed = pred.Seed, ModelFilter = forced.Filter, ModelSubType = forced.SubType,
+            });
         }
 
         // Creatures a player can adopt first (their battle stats are what people look for), the rest after; the

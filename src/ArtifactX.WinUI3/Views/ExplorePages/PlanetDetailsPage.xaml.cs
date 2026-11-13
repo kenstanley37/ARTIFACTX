@@ -69,7 +69,10 @@ public sealed partial class PlanetDetailsPage : Page
 
     private async void Creature_Preview3DRequested(object? sender, CreatureCardRequest request)
     {
-        await CreaturePreviewControl.ShowAsync(XamlRoot, request.Creature.Creature, request.Creature.RigId, request.Creature.IsSilhouette);
+        var card = request.Creature;
+        var (parts, extra) = await CreatureModelService.ModelPartsAsync(card.ModelScene, card.ModelExtraScene, card.ModelSeed,
+            card.ModelFilter, card.ModelSubType);
+        await CreaturePreviewControl.ShowAsync(XamlRoot, card.Creature, card.RigId, card.IsSilhouette, parts, extra);
     }
 
     private void PlanetEquipment_CrashedShipsRequested(object? sender, EventArgs e)

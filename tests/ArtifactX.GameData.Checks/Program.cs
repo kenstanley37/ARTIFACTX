@@ -97,6 +97,64 @@ if (args.Length == 1 && args[0] == "--planet-shop-survey-check")
 }
 
 
+if (args.Length >= 4 && args[0] == "--creature-part-probe")
+{
+    // Issue #15 probe: --creature-part-probe <catalog> <scene path> <chosen ids comma list> [extra id ...]
+    // Builds the creature with the chosen parts, then with each extra id added, and prints where the added triangles
+    // are (bounding box, materials), to tell what a part is (horns on the head, a plate round the neck...).
+    string catalog = Path.GetFullPath(args[1]);
+    string scene = args[2].ToLowerInvariant();
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={catalog};Mode=ReadOnly");
+    connection.Open();
+    using var query = connection.CreateCommand();
+    query.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='ShipDescriptors' AND i.NameEnglish=$p";
+    query.Parameters.AddWithValue("$p", ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene));
+    var tree = ArtifactX.Core.Procedural.ShipParts.ParseTree((string)query.ExecuteScalar()!);
+    var all = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    void Walk(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups)
+    {
+        foreach (var g in groups) foreach (var o in g.Options) { all.Add(o.Id); foreach (var c in o.Children) Walk(c); }
+    }
+    Walk(tree);
+    var game = GameInstall.Find() ?? throw new InvalidOperationException("No game install found.");
+    var models = new ShipModels(game);
+    static string Box(IEnumerable<System.Numerics.Vector3> pts)
+    {
+        var list = pts.ToList();
+        if (list.Count == 0) return "none";
+        var min = list.Aggregate(System.Numerics.Vector3.Min); var max = list.Aggregate(System.Numerics.Vector3.Max);
+        return $"x {min.X:F2}..{max.X:F2} y {min.Y:F2}..{max.Y:F2} z {min.Z:F2}..{max.Z:F2}";
+    }
+    // "*" chooses every option: everything the scene can draw.
+    var chosen = args[3] == "*" ? new HashSet<string>(all, StringComparer.OrdinalIgnoreCase)
+        : args[3].Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    var baseMesh = models.Build(scene, all, chosen) ?? throw new InvalidOperationException("no mesh");
+    Console.WriteLine($"base: {baseMesh.Corners.Length / 3} triangles, {Box(baseMesh.Corners)}");
+    foreach (var m in baseMesh.Materials.GroupBy(x => Path.GetFileName(x)).OrderByDescending(g => g.Count()))
+        Console.WriteLine($"   {m.Count(),6} {m.Key}");
+    foreach (string id in chosen.ToList().Concat(args.Skip(4)))
+    {
+        bool removing = chosen.Contains(id);
+        var set = new HashSet<string>(chosen, StringComparer.OrdinalIgnoreCase);
+        if (removing) set.Remove(id); else set.Add(id);
+        var mesh = models.Build(scene, all, set);
+        if (mesh is null) { Console.WriteLine($"{id}: no mesh"); continue; }
+        // The part's own triangles: those in one mesh and not the other (by corner position).
+        var bigger = removing ? baseMesh : mesh; var smaller = removing ? mesh : baseMesh;
+        var have = new HashSet<System.Numerics.Vector3>(smaller.Corners);
+        var own = new List<System.Numerics.Vector3>(); var mats = new Dictionary<string, int>();
+        for (int i = 0; i + 2 < bigger.Corners.Length; i += 3)
+            if (!have.Contains(bigger.Corners[i]) || !have.Contains(bigger.Corners[i + 1]) || !have.Contains(bigger.Corners[i + 2]))
+            {
+                own.Add(bigger.Corners[i]); own.Add(bigger.Corners[i + 1]); own.Add(bigger.Corners[i + 2]);
+                string mat = Path.GetFileName(bigger.Materials[i / 3 < bigger.Materials.Length ? i / 3 : 0]);
+                mats[mat] = mats.GetValueOrDefault(mat) + 1;
+            }
+        Console.WriteLine($"{(removing ? "has" : "add")} {id,-18} {own.Count / 3,6} triangles  {Box(own)}  {string.Join(", ", mats.Select(k => $"{k.Key} {k.Value}"))}");
+    }
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--multitool-kind-check")
 {
     // Issue #60: the Multi-Tool Finder's kinds (Core MultiToolKindClassifier: catalog scene SizeTags) against the app's
