@@ -18,7 +18,15 @@
     <TextBlock Text="{x:Bind Node.Item.TileStatus, Mode=OneWay}" Foreground="{x:Bind Node.Item.TileStatusBrush, Mode=OneWay}" FontSize="12" TextAlignment="Center"/>
    </StackPanel>
   </Button>
-  <Border Width="2" Height="16" HorizontalAlignment="Center" Background="{ThemeResource ThemeLineBrush}" Visibility="{x:Bind Node.ChildrenVisibility, Mode=OneWay}"/>
+  <!-- The equipment the ingredients go into (Nutrient Processor, Refiner), where the lines merge (owner, 2026-11-13). -->
+  <StackPanel HorizontalAlignment="Center" Visibility="{x:Bind Node.ChildrenVisibility, Mode=OneWay}">
+   <Border Width="2" Height="8" HorizontalAlignment="Center" Background="{ThemeResource ThemeLineBrush}"/>
+   <Border Width="32" Height="32" CornerRadius="16" BorderThickness="2" BorderBrush="{ThemeResource ThemeLineBrush}"
+    Background="{ThemeResource ThemePanelAltBrush}" ToolTipService.ToolTip="{x:Bind Node.Item.Station, Mode=OneWay}">
+    <Image Source="{x:Bind Node.Item.StationIcon, Mode=OneWay}" Width="22" Height="22" AutomationProperties.Name="{x:Bind Node.Item.Station, Mode=OneWay}"/>
+   </Border>
+   <Border Width="2" Height="8" HorizontalAlignment="Center" Background="{ThemeResource ThemeLineBrush}"/>
+  </StackPanel>
   <ItemsControl HorizontalAlignment="Center" ItemsSource="{x:Bind Node.Children, Mode=OneWay}" Visibility="{x:Bind Node.ChildrenVisibility, Mode=OneWay}" IsTabStop="False">
    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
    <ItemsControl.ItemTemplate>
