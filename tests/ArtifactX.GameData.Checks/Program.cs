@@ -97,6 +97,39 @@ if (args.Length == 1 && args[0] == "--planet-shop-survey-check")
 }
 
 
+if (args.Length >= 2 && args[0] == "--mbin-dump")
+{
+    // Research probe: --mbin-dump <path substring> [n]: lists matching game files; with n, dumps the n-th as JSON
+    // (fields only, 6 levels deep) - to read game tables without the catalog.
+    var game = GameInstall.Find() ?? throw new InvalidOperationException("No game install found.");
+    var reader = new ArtifactX.GameData.Services.PakReaderService();
+    var hits = new List<(string Pak, ArtifactX.GameData.Models.PakHeader Header, ArtifactX.GameData.Models.PakEntry Entry)>();
+    foreach (var pak in new ArtifactX.GameData.Services.PakDiscoveryService().Discover(game.PcbanksPath))
+    {
+        if (string.IsNullOrEmpty(pak.FullPath)) continue;
+        try
+        {
+            var header = reader.ReadHeader(pak.FullPath);
+            foreach (var e in reader.Read(pak.FullPath))
+                if (e.FileName?.Contains(args[1], StringComparison.OrdinalIgnoreCase) == true) hits.Add((pak.FullPath, header, e));
+        }
+        catch { }
+    }
+    for (int i = 0; i < hits.Count && i < 400; i++) Console.WriteLine($"{i}: {hits[i].Entry.FileName}");
+    if (args.Length > 2 && int.TryParse(args[2], out int n) && n < hits.Count)
+    {
+        var bytes = new ArtifactX.GameData.Services.PakExtractionService().ExtractEntryBytes(hits[n].Pak, hits[n].Entry, hits[n].Header)!;
+        using var mbin = new MBINFile(new MemoryStream(bytes));
+        mbin.Load();
+        Console.WriteLine(JsonSerializer.Serialize((object?)mbin.GetData(), new JsonSerializerOptions
+        {
+            IncludeFields = true, WriteIndented = true, MaxDepth = 64,
+            ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
+        }));
+    }
+    return;
+}
+
 if (args.Length >= 4 && args[0] == "--creature-colour-probe")
 {
     // Issue #15 probe: --creature-colour-probe <catalog> <scene path> <role seed hex> [colour seed hex]

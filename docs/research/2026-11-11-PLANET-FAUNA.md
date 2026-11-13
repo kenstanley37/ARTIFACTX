@@ -356,3 +356,16 @@ colour. **Not confirmed:** whether the palette table takes the seed itself (star
 any planet palette, and what GcCreatureSpawnData SwapPrimaryForRandomColour / SwapPrimaryForSecondaryColour do.
 Ghidra lead not followed yet: the readers of GcPetData +0xF8 (ColourBaseSeed) lead to the creature's palette table.
 Ground truth wanted: screenshots of live creatures (not Discoveries) next to the app's model.
+
+**Owner test on Jinnie II, 2026-11-13 (Kostima-Kuloft, 000412F6FCFFB005, Slot 8):** seed-palette colours don't match:
+every live creature there is red-brown / tan like the planet (N. Radiotaylae red-brown with stegosaurus back plates;
+I. Homobocamosa tan with quills; K. Bearxiumica yellow-olive fur, sky-blue spotted back frill), the app drew green,
+yellow-black stripes, red. The base palettes (colours/basecolourpalettes.mbin) hold only muted earth tones, so a vivid
+purple fur (an earlier live shot) can't come from them. Each biome has its own 66-palette file (GcBiomeData
+ColourPaletteFile, e.g. biomes/lush/lushcolourpalettes.mbin, GcPlanetColourData: 64 colours per palette, far richer -
+lush Fur has purple, gold, orange). **Next hypothesis:** creature (and flora) colours come from the planet's colour table
+= the palette-table generator over the planet's biome palette file with a planet seed; the creature seed picks texture
+layers and colour slots only. To port: the planet's biome file (biome + sub-type -> GcBiomeData), its palette file, the
+planet colour seed (raw / child of the planet seed - check against a few planets' flora and creatures).
+Parts are also off on Jinnie II (Radiotaylae back plates drawn as a small frill; Bearxiumica gets horns), so parts need
+fixing before colours can be judged. GameData.Checks `--mbin-dump <path part> [n]` lists / dumps game files.
