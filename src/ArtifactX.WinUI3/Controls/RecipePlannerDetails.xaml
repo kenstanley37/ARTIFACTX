@@ -3,7 +3,7 @@
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:vm="using:ArtifactX.WinUI3.ViewModels"
  xmlns:controls="using:ArtifactX.WinUI3.Controls">
- <!-- The Selected step tab: a raw ingredient's places and closest systems, or a step's equipment and inputs. -->
+ <!-- The Selected step tab: where to gather the item and the closest systems, then a raw ingredient's other sources or a step's equipment and inputs. -->
  <StackPanel Spacing="14">
   <Grid ColumnSpacing="12">
    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -16,9 +16,12 @@
   </Grid>
   <TextBlock Text="{x:Bind Item.Buff, Mode=OneWay}" Visibility="{x:Bind Item.BuffVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
 
+  <!-- Where to gather it: also for an item a recipe makes (Meaty Chunks, Mordite), since most players hunt or pick it
+       instead; the panel hides itself when nothing gives the item. -->
+  <controls:IngredientSourcePanel ViewModel="{x:Bind Source, Mode=OneWay}"/>
+
   <!-- A raw ingredient -->
   <StackPanel Spacing="14" Visibility="{x:Bind Item.RawVisibility, Mode=OneWay}">
-   <controls:IngredientSourcePanel ViewModel="{x:Bind Source, Mode=OneWay}"/>
    <StackPanel Spacing="6" Visibility="{x:Bind Item.BaseSourcesVisibility, Mode=OneWay}">
     <TextBlock Text="EXTRACTORS AT YOUR BASES" Style="{StaticResource ThemeEyebrowStyle}"/>
     <TextBlock Text="{x:Bind Item.BaseSources, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>

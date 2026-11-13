@@ -96,7 +96,8 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     partial void OnSelectedEffectChanged(RecipePlannerEffect? value) => Filter();
     partial void OnSelectedItemChanged(RecipePlannerItemViewModel? value)
     {
-        if (value is { IsRaw: true, IsSupply: false }) _ = Source.ShowAsync(value.Id, _here);
+        // Every item, not just raw ones: a recipe also makes Meaty Chunks or Mordite, but players mostly gather them.
+        if (value is { IsSupply: false }) _ = Source.ShowAsync(value.Id, _here);
     }
 
     [RelayCommand] private void TogglePicker() => IsPickerOpen = !IsPickerOpen || !HasRecipe;
@@ -223,7 +224,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
             if (here != _here)
             {
                 _here = here;
-                if (SelectedItem is { IsRaw: true, IsSupply: false } raw) _ = Source.ShowAsync(raw.Id, _here);
+                if (SelectedItem is { IsSupply: false } item) _ = Source.ShowAsync(item.Id, _here);
             }
             bool loaded = SaveSessionManager.IsSaveLoaded;
             foreach (var item in _allCards.Values.Concat(Gather).Distinct())
