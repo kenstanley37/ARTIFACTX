@@ -21,7 +21,8 @@ public sealed partial class CreaturePreviewControl : UserControl
     public Creature Creature { get; }
     public string? PreferredRig { get; }
     public bool IsSilhouette { get; }
-    public IReadOnlyList<CreatureModelService.CreatureRigOption> AvailableRigs => CreatureModelService.AvailableRigs;
+    /// <summary>The known rigs, plus the creature's own model when it is a scene outside them (the floral cat, robots).</summary>
+    public IReadOnlyList<CreatureModelService.CreatureRigOption> AvailableRigs { get; }
 
     private List<string>? _companionDescriptors;
     private bool _wild;   // a wild creature's parts were handed in: drawn without the pet harness
@@ -38,6 +39,9 @@ public sealed partial class CreaturePreviewControl : UserControl
         // A wild creature's body parts from its seed (CreatureModelService.PartsForSeedAsync), shown like a companion's.
         if (parts is { Count: > 0 }) { _companionDescriptors = parts.ToList(); _wild = true; }
         PreferredRig = preferredRig;
+        AvailableRigs = preferredRig is not null && CreatureModelService.IsScenePath(preferredRig)
+            ? (CreatureModelService.CreatureRigOption[])[new(preferredRig, CreatureModelService.HumanizeRig(preferredRig)), .. CreatureModelService.AvailableRigs]
+            : CreatureModelService.AvailableRigs;
         IsSilhouette = isSilhouette;
         InitializeComponent();
         Loaded += CreaturePreviewControl_Loaded;

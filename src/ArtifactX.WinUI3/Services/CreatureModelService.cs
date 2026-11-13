@@ -108,9 +108,21 @@ public static class CreatureModelService
         ["fishbowl_pet3"] = "anteloperobot",
     };
 
-    /// <summary>Resolves a creature species archetype and/or its descriptor list to a known rig ID.</summary>
+    /// <summary>Resolves a creature species archetype and/or its descriptor list to a known rig ID. The creature's own
+    /// scene from the game's filename table wins when given: a scene outside the known rigs is its own rig id (the
+    /// lower-case scene path), so PLANTCAT draws MODELS/PLANETS/BIOMES/FLORAL/MEDIUMCREATURE/FLORALCAT - the old
+    /// "plantcat" -> blob alias drew the owner's W. Gentaylatica (a root-bodied plant creature) as a blob (2026-11-13).</summary>
     public static async Task<string?> ResolveRigAsync(string? archetype, IEnumerable<string>? descriptors = null, string? scenePath = null)
     {
+        if (!string.IsNullOrEmpty(scenePath))
+        {
+            string path = scenePath.Replace('\\', '/').ToLowerInvariant();
+            string stem = Path.GetFileName(path);
+            int dot = stem.IndexOf('.');
+            if (dot > 0) stem = stem[..dot];
+            return RigScenes.TryGetValue(stem, out string? known) && known == path ? stem : path;
+        }
+
         if (!string.IsNullOrWhiteSpace(archetype))
         {
             string raw = archetype.TrimStart('^').Trim();
@@ -134,16 +146,6 @@ public static class CreatureModelService
             }
         }
 
-        // The creature's own scene from the game's filename table (catalog format 80): WEIRDCRYSTAL ->
-        // WEIRD/WEIRDRIGGROUND.SCENE.MBIN -> "weirdrigground", so kinds without an alias get their real model.
-        if (!string.IsNullOrEmpty(scenePath))
-        {
-            string stem = Path.GetFileName(scenePath.Replace('\\', '/'));
-            int dot = stem.IndexOf('.');
-            if (dot > 0) stem = stem[..dot];
-            if (RigScenes.ContainsKey(stem)) return stem.ToLowerInvariant();
-        }
-
         return null;
     }
 
@@ -157,13 +159,23 @@ public static class CreatureModelService
         if (extra is not null)
             return Merge(await BuildCreatureMeshAsync(game, rigId, chosenDescriptors, wild),
                 await BuildCreatureMeshAsync(game, extra.RigId, extra.Parts, wild));
-        if (!RigScenes.TryGetValue(rigId, out string? scene)) return null;
+        string? scene = RigScenes.TryGetValue(rigId, out string? known) ? known : IsScenePath(rigId) ? rigId : null;
+        if (scene is null) return null;
 
         var models = await ModelPreviewService.ModelsAsync(game);
         if (models is null) return null;
 
         var tree = await CatalogService.GetCreatureDescriptorTreeAsync(rigId);
         var allOptions = tree.Select(n => n.OptionId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // A scene outside the companion rig table (the floral cat, robots): its options from its part tree, so the parts
+        // it didn't pick are left out instead of all drawn at once.
+        if (allOptions.Count == 0)
+        {
+            await PartTreeService.EnsureAsync();
+            if (PartTreeService.Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) is { } root)
+                allOptions = ModelPreviewService.AllOptionIds(root, PartTreeService.Load, StringComparer.OrdinalIgnoreCase)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
 
         HashSet<string> chosen;
         if (chosenDescriptors is not null && chosenDescriptors.Any())
@@ -213,6 +225,9 @@ public static class CreatureModelService
             return wild && mesh is not null ? WithoutPetHarness(mesh) : mesh;
         });
     }
+
+    /// <summary>A rig id that is a scene path itself (a creature scene outside the known rigs).</summary>
+    public static bool IsScenePath(string rigId) => rigId.EndsWith(".scene.mbin", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The mesh without the triangles painted with the pet harness material (one material per triangle,
     /// three corners and texture coordinates each).</summary>
@@ -354,7 +369,7 @@ public static class CreatureModelService
     }
 
     /// <summary>Clean display name for a creature rig.</summary>
-    public static string HumanizeRig(string rigId) => rigId.ToLowerInvariant() switch
+    public static string HumanizeRig(string rigId) => IsScenePath(rigId) ? HumanizeRig(Path.GetFileName(rigId).Split('.')[0]) : rigId.ToLowerInvariant() switch
     {
         "anteloperobot" => "Robot Antelope",
         "antelopeglow" => "Glowing Antelope",

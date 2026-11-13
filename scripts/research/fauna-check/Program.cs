@@ -852,7 +852,7 @@ if (args.Length > 2)
                 cmd.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='MultiToolNameWords' AND i.NameEnglish='CRE'";
                 words = JsonSerializer.Deserialize<List<string>>((string)cmd.ExecuteScalar()!)!;
             }
-            Console.WriteLine($"  player at {here:X16}, planet index {index}");
+            Console.WriteLine($"  player at {here:X16}, planet index {index}, planet seed {bodySeeds[index]:X16}");
             foreach (var c in p.PredictedCreatures ?? [])
             {
                 ulong planetAddress = (here & ~(0xFUL << 52)) | ((ulong)(index + 1) << 52);

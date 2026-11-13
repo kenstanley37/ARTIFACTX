@@ -24,6 +24,9 @@ public static partial class CatalogSteps
     /// Creatures too since catalog format 87 (UsageCategory "Creature", every descriptor under
     /// MODELS/PLANETS/CREATURES/ outside animation folders): in this form - nested groups apart from
     /// referenced scenes - ShipParts can pick a creature's parts as the game does (issue #15).
+    /// Since format 90 also the descriptor of every scene the creature filename table names outside that folder
+    /// (Filename and ExtraFilename): the floral cat (PLANTCAT, MODELS/PLANETS/BIOMES/FLORAL/MEDIUMCREATURE) and the
+    /// robots under MODELS/COMMON/ROBOTS - without it the app drew PLANTCAT as a blob (owner, W. Gentaylatica, 2026-11-13).
     /// </summary>
     public static void AddShipDescriptors(string catalogPath, string pcbanksPath)
     {
@@ -48,6 +51,12 @@ public static partial class CatalogSteps
 
         var rows = new List<CatalogItem>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var creatureDescriptors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (DecodeMbin(pcbanksPath, CreatureFilenameTableFile) is libMBIN.NMS.GameComponents.GcCreatureFilenameTable creatureFiles)
+            foreach (var f in creatureFiles.Table ?? new())
+                foreach (string? scene in new[] { f.Filename?.Value, f.ExtraFilename?.Value })
+                    if (!string.IsNullOrEmpty(scene) && scene.EndsWith(".SCENE.MBIN", StringComparison.OrdinalIgnoreCase))
+                        creatureDescriptors.Add(scene[..^".SCENE.MBIN".Length] + ".DESCRIPTOR.MBIN");
         foreach (var (pakPath, header, entries) in GetPakEntries(pcbanksPath))
         {
             foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
@@ -55,7 +64,8 @@ public static partial class CatalogSteps
                              || e.FileName.StartsWith("MODELS/COMMON/WEAPONS/MULTITOOL/", StringComparison.OrdinalIgnoreCase)
                              || (e.FileName.StartsWith("MODELS/PLANETS/CREATURES/", StringComparison.OrdinalIgnoreCase)
                                  && !System.Text.RegularExpressions.Regex.IsMatch(e.FileName, "/ANIM(S|ATION)?/", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
-                         && e.FileName.EndsWith(".DESCRIPTOR.MBIN", StringComparison.OrdinalIgnoreCase)))
+                         && e.FileName.EndsWith(".DESCRIPTOR.MBIN", StringComparison.OrdinalIgnoreCase)
+                         || creatureDescriptors.Contains(e.FileName ?? "")))
             {
                 if (!seen.Add(entry.FileName)) continue;
                 try
@@ -70,7 +80,8 @@ public static partial class CatalogSteps
                     {
                         GameId = "DESC:" + path,
                         NameEnglish = path,
-                        UsageCategory = path.Contains("/weapons/") ? "MultiTool" : path.Contains("/creatures/") ? "Creature" : "Spacecraft",
+                        UsageCategory = path.Contains("/weapons/") ? "MultiTool"
+                            : path.Contains("/creatures/") || creatureDescriptors.Contains(entry.FileName) ? "Creature" : "Spacecraft",
                         DescriptionEnglish = JsonSerializer.Serialize(Groups(list)),
                     });
                 }

@@ -97,6 +97,81 @@ if (args.Length == 1 && args[0] == "--planet-shop-survey-check")
 }
 
 
+if (args.Length >= 4 && args[0] == "--creature-colour-probe")
+{
+    // Issue #15 probe: --creature-colour-probe <catalog> <scene path> <role seed hex> [colour seed hex]
+    // The creature's seed-picked parts, then each big material's average painted colour with the palette table from the
+    // seed itself (starship rule) and from its first child seed (multi-tool rule), to compare with a live screenshot.
+    string catalog = Path.GetFullPath(args[1]);
+    string scene = args[2].ToLowerInvariant();
+    ulong seed = Convert.ToUInt64(args[3].Replace("0x", ""), 16);
+    ulong colourSeed = args.Length > 4 ? Convert.ToUInt64(args[4].Replace("0x", ""), 16) : seed;
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={catalog};Mode=ReadOnly");
+    connection.Open();
+    var trees = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    var palettes = new SortedDictionary<int, ArtifactX.Core.Procedural.ColourPalette>();
+    using (var q = connection.CreateCommand())
+    {
+        q.CommandText = "SELECT c.TemplateType, i.NameEnglish, i.UsageCategory, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType IN ('ShipDescriptors','Palettes')";
+        using var r = q.ExecuteReader();
+        while (r.Read())
+            if (r.GetString(0) == "Palettes")
+                palettes[int.Parse(r.GetString(1))] = new(JsonSerializer.Deserialize<float[][]>(r.GetString(3))!, r.GetString(2));
+            else trees[r.GetString(1)] = r.GetString(3);
+    }
+    IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>? Load(string p) => trees.TryGetValue(p, out var j) ? ArtifactX.Core.Procedural.ShipParts.ParseTree(j) : null;
+    var all = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    void Walk(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups)
+    {
+        foreach (var g in groups) foreach (var o in g.Options) { all.Add(o.Id); foreach (var c in o.Children) Walk(c); }
+    }
+    Walk(Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) ?? []);
+    var chosen = ArtifactX.Core.Procedural.ShipParts.Generate(scene, seed, Load).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    Console.WriteLine("parts: " + string.Join(" ", chosen));
+    var models = new ShipModels(GameInstall.Find() ?? throw new InvalidOperationException("No game install found."));
+    var mesh = models.Build(scene, all, chosen) ?? throw new InvalidOperationException("no mesh");
+    static ulong Child(ulong s)
+    {
+        ulong lo = s & 0xFFFFFFFF, hi = s >> 32;
+        ulong s0 = lo == 0 ? 1 : lo, s1 = (((lo << 16) | (lo >> 16)) & 0xFFFFFFFF) ^ hi ^ lo;
+        ulong Next() { ulong t = s0 * 0x5A76F899UL + s1; s0 = t & 0xFFFFFFFF; s1 = t >> 32; return s0; }
+        ulong a = Next();
+        ulong v = (Next() << 32) | a;
+        v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL;
+        v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL;
+        return v ^ (v >> 33);
+    }
+    static string Hex(float[] c) => $"#{(int)(c[0] * 255):X2}{(int)(c[1] * 255):X2}{(int)(c[2] * 255):X2}";
+    foreach (var (rule, tableSeed) in new[] { ("raw", colourSeed), ("child", Child(colourSeed)) })
+    {
+        var table = ArtifactX.Core.Procedural.ShipLook.PaletteTable(tableSeed, palettes.Values.ToList());
+        Func<string, string, float[]?> colour = (p, a) =>
+        {
+            int pi = ShipModels.PaletteIndex(p), ai = ShipModels.SlotIndex(a);
+            return pi < 0 || pi >= table.Length || table[pi] is null || ai is < 0 or > 5 ? null : table[pi][Math.Min(ai, 3)];
+        };
+        Console.WriteLine($"== {rule} {tableSeed:X16}");
+        foreach (string p in new[] { "Fur", "Scale", "Underbelly", "Rock", "Feather" })
+        {
+            int pi = ShipModels.PaletteIndex(p);
+            Console.WriteLine($"   {p,-11} {string.Join(" ", table[pi].Select(Hex))}");
+        }
+        foreach (var m in mesh.Materials.GroupBy(x => x).OrderByDescending(g => g.Count()).Take(8))
+        {
+            var t = models.Painted(m.Key, colour, 64, seed);
+            string avg = "none";
+            if (t is not null)
+            {
+                double r = 0, g = 0, b = 0, n = 0;
+                foreach (uint px in t.Pixels) { double a = (px >> 24) / 255.0; r += ((px >> 16) & 255) * a; g += ((px >> 8) & 255) * a; b += (px & 255) * a; n += a; }
+                avg = n > 0 ? $"#{(int)(r / n):X2}{(int)(g / n):X2}{(int)(b / n):X2}" : "clear";
+            }
+            Console.WriteLine($"   {m.Count(),6} {Path.GetFileName(m.Key),-40} {avg}");
+        }
+    }
+    return;
+}
+
 if (args.Length >= 4 && args[0] == "--creature-part-probe")
 {
     // Issue #15 probe: --creature-part-probe <catalog> <scene path> <chosen ids comma list> [extra id ...]
