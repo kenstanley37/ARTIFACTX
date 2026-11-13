@@ -749,3 +749,9 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Data**: the seven rows already recorded under Heat stay as they are (no hand repair); the player can delete them on Heat's page. The same check found the other capture misfits were duplicated rows from misread names (e.g. "G. Nightyusium" and "G. NightyusiUnh"), not prediction errors.
 - **Status**: Fixed in code, not yet seen in a capture.
 
+### Bug 80: Save Needs a Second Click
+- **Source**: Owner, 2026-11-12, Slot 8.
+- **Evidence**: After staging edits, the first click on the title bar's Save makes the app glitch for a moment and nothing is saved; a second click saves. "It's like it's not fully ready" - once the button is visible it should work on the first click.
+- **Suspect** (not investigated): the Save button appears (pending changes) before it can act - for example the first click only moves focus or commits a pending edit (a NumberBox/TextBox LostFocus staging its value re-renders the bar), or the button is re-created when the pending count updates, so the click lands on a control that is being replaced. Check what runs between pointer down and the Click handler on the first press, and whether the game-running check or the backup step returns early the first time.
+- **Status**: Logged, not fixed.
+
