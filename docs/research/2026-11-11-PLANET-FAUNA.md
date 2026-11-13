@@ -498,3 +498,11 @@ null for the empty sub-types. The app fills an empty sub-type with the biome's f
 null entry is not confirmed (perhaps the base palettes). Per-creature palette tables do not stay in memory after the
 texture is built (no table for any of the 454 live spawn seeds, raw/child/Mix64 x base/lush files), so the creature
 rule on lush planets still needs an in-game sighting. The 184271 global (DAT_146f6b208) is stale on 185034.
+
+**Lush creature colours confirmed (2026-11-13, owner photo-mode shots of A. Orniirgium on a lush moon):** the live
+spawn table (found through pointers to its scene path strings) holds a triceratops-rig role seed 3D443CE270C6A44E whose
+female parts are _HEAD_TURTLE _TTLEHACC_3 _BODY_TRI _TRIBACK_7XRARE1 (the rare back frill in the shot). Its body
+materials paint Fur/Primary, Underbelly/Primary and Scale/Primary markings. Own-seed table over lushcolourpalettes:
+Fur #9D7F5A (brown fur), Underbelly #CCD4C6 (pale belly and frill), Scale #A7D3D2 (the pale stripes) - matches.
+Over the base palettes the belly would be #432907 (dark brown) - does not match. So creatures use the planet's biome
+palette file, as the app does.
