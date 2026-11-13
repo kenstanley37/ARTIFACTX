@@ -325,11 +325,6 @@ public static class CreatureModelService
     private static IEnumerable<(string Id, string Name)> OptionNames(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups) =>
         groups.SelectMany(g => g.Options.SelectMany(o => new[] { (o.Id, o.Name) }.Concat(o.Children.SelectMany(OptionNames))));
 
-    /// <summary>The planet a wild creature lives on, as far as its colours go: its biome and sub-type (which biome
-    /// palette file the creature's own colour table is built over - CatalogService.GetBiomePalettesAsync). The planet
-    /// seed is kept for reference; the table's seed is the creature's (PaintAsync).</summary>
-    public sealed record PlanetColours(ulong PlanetSeed, int Biome, int SubType);
-
     /// <summary>
     /// A creature's skin painted the way ships and multi-tools are (ShipModels.Painted): every creature material is a
     /// stack of procedural texture layers tinted from a palette table - Fur, Scale, Underbelly, Rock, Leaf, Feather,
@@ -346,13 +341,12 @@ public static class CreatureModelService
     /// planet's biome and sub-type. Running game (185034, on the lush planet Marjorg, 2026-11-13): the biome x sub-type
     /// file table's row 16 entry 0 points at the loaded basecolourpalettes, the lush row at lushcolourpalettes. Owner's
     /// Marjorg shots agree: V. Snakwercus grey scaled body with a yellow beak, W. Geoyugia rust body with green legs
-    /// only come out over the base palettes. <paramref name="planet"/> no longer changes the colours (kept until the
-    /// [0x10][0] slot is seen on a second planet). Companions use <paramref name="colourSeed"/> (an active
+    /// only come out over the base palettes; the slot held the base file on a second planet too. Companions use <paramref name="colourSeed"/> (an active
     /// ColourBaseSeed, uAX) or their creature seed the same way - unconfirmed. Null without game data or palettes.
     /// <paramref name="size"/>: pixels per material texture (small cards use less).
     /// </summary>
     public static async Task<Dictionary<string, ModelTexture?>?> PaintAsync(GameInstall game, ShipMesh mesh, ulong seed, ulong colourSeed = 0,
-        int size = 512, PlanetColours? planet = null)
+        int size = 512)
     {
         if (seed == 0) return null;
         if (await ModelPreviewService.ModelsAsync(game) is not { } models) return null;

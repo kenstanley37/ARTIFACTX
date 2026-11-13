@@ -124,8 +124,7 @@ public sealed partial class ModelPreviewPanel : UserControl
 
     /// <summary>Builds and shows a creature or companion model from its rig and chosen descriptors.</summary>
     public async Task ShowCreatureAsync(string rigId, IEnumerable<string>? chosenDescriptors = null, bool hologram = false, bool silhouette = false,
-        bool wild = false, CreatureModelService.ExtraModel? extra = null, ulong seed = 0, ulong colourSeed = 0,
-        CreatureModelService.PlanetColours? planet = null)
+        bool wild = false, CreatureModelService.ExtraModel? extra = null, ulong seed = 0, ulong colourSeed = 0)
     {
         int version = ++_version;
         if (GameDataService.Game is not { } game)
@@ -147,7 +146,7 @@ public sealed partial class ModelPreviewPanel : UserControl
         }
 
         uint Colour(string material) => CreatureModelService.CreatureMaterialColour(material);
-        if (!hologram && !silhouette && await CreatureModelService.PaintAsync(game, mesh, seed, colourSeed, planet: planet) is { } textures)
+        if (!hologram && !silhouette && await CreatureModelService.PaintAsync(game, mesh, seed, colourSeed) is { } textures)
         {
             if (version != _version) return;
             Preview.Show(mesh, Colour, m => textures.GetValueOrDefault(m));

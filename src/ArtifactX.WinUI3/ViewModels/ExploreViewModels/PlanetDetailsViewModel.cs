@@ -284,11 +284,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         //    beyond the predicted list.
         var allCards = new List<CreatureCardViewModel>();
         var slots = PlanetFaunaPairing.Pair(predicted, saveDiscoveries.Select(d => d.Seed).ToList());
-        // Every creature here is painted from the planet's colour table (CreatureModelService.PaintAsync).
-        var planetBody = PlanetTypesService.For(planet.SystemAddress) is { } bodies && planet.PlanetIndex >= 1 && planet.PlanetIndex <= bodies.Length
-            ? bodies[planet.PlanetIndex - 1] : null;
-        var planetColours = planetBody is null ? null : new CreatureModelService.PlanetColours(
-            PlanetTypesService.PlanetSeed(planet.SystemAddress, planet.PlanetIndex), planetBody.Biome, planetBody.SubType);
         foreach (var slot in slots)
         {
             var pred = slot.Predicted;
@@ -325,7 +320,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 {
                     // The discovery's own seed (bEr[0]) picks its body parts, as the game does.
                     ModelScene = scene ?? "", ModelExtraScene = extraScene, ModelSeed = disc.Seed, ModelFilter = forced.Filter, ModelSubType = forced.SubType,
-                    Planet = planetColours,
                 });
                 continue;
             }
@@ -350,7 +344,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 canTame: PlanetTypesService.CreatureTables?.CanBattle(pred))
             {
                 ModelScene = scene ?? "", ModelExtraScene = extraScene, ModelSeed = pred.Seed, ModelFilter = forced.Filter, ModelSubType = forced.SubType,
-                    Planet = planetColours,
             });
         }
 
