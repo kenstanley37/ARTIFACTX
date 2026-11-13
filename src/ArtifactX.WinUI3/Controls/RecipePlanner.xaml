@@ -33,10 +33,13 @@
       </StackPanel>
      </Grid>
      <!-- Scrolls both ways. The tree is centred inside a wrapper at least the viewport's size (centring it in the
-          ScrollViewer itself clips a tree wider than the panel instead of scrolling it). Shift+wheel scrolls sideways. -->
+          ScrollViewer itself clips a tree wider than the panel instead of scrolling it). Shift+wheel scrolls sideways; dragging the background
+          with the mouse pans it (tiles keep their clicks). -->
      <ScrollViewer x:Name="TreeScroller" Grid.Row="1" HorizontalScrollBarVisibility="Visible" HorizontalScrollMode="Enabled"
       VerticalScrollBarVisibility="Visible" VerticalScrollMode="Enabled" ZoomMode="Disabled" AutomationProperties.Name="Ingredient tree">
-      <Grid HorizontalAlignment="Left" VerticalAlignment="Top"
+      <Grid x:Name="TreeCanvas" Background="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top"
+       PointerPressed="TreeCanvas_PointerPressed" PointerMoved="TreeCanvas_PointerMoved" PointerReleased="TreeCanvas_PointerReleased"
+       PointerCaptureLost="TreeCanvas_PointerCaptureLost" PointerExited="TreeCanvas_PointerExited"
        MinWidth="{x:Bind TreeScroller.ViewportWidth, Mode=OneWay}" MinHeight="{x:Bind TreeScroller.ViewportHeight, Mode=OneWay}">
        <ItemsControl ItemsSource="{x:Bind ViewModel.Tree}" Margin="20" HorizontalAlignment="Center" VerticalAlignment="Top" IsTabStop="False">
         <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipeTreeNode"><controls:RecipeTreeBranch Node="{x:Bind}"/></DataTemplate></ItemsControl.ItemTemplate>
