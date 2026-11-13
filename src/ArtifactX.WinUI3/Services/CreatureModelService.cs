@@ -1,3 +1,4 @@
+using ArtifactX.Core.Procedural;
 using ArtifactX.GameData;
 using Newtonsoft.Json.Linq;
 using System;
@@ -333,11 +334,10 @@ public static class CreatureModelService
     /// A creature's skin painted the way ships and multi-tools are (ShipModels.Painted): every creature material is a
     /// stack of procedural texture layers tinted from a palette table - Fur, Scale, Underbelly, Rock, Leaf, Feather,
     /// Metal, Custom_Head (GameData.Checks --creature-part-probe, 2026-11-13: cow, cat, triceratops and bird scenes; only
-    /// the pet harness and a few eyes are fixed textures). The creature's seed picks the layers, patterns and colour
-    /// slots - with the first child of the creature seed (ModelPreviewService.ColourSeed), not the seed itself: owner's
-    /// Jinnie II shots (2026-11-13) - I. Homobocamosa is plain, no stripes (the seed itself picks MARKINGS=BELTS on
-    /// TAPIRBODYMAT, the child GRADIENT); K. Bearxiumica's fin is spotted (child: FINFLAPS MARKINGS=SPOTS; the seed
-    /// itself GRADIENT, Mix64 SPIKES). Each creature has its **own** palette table: the palette generator
+    /// the pet harness and a few eyes are fixed textures). The creature's own seed picks the layers and patterns once
+    /// for the whole model (ShipLook.PickMerged over every material's list), so body, head and tail share one MARKINGS
+    /// pattern - 42 of 42 checked against the textures the running game loaded (2026-11-13, see PickMerged). The first
+    /// child seed used before matched only by chance (16/53). Each creature has its **own** palette table: the palette generator
     /// (ShipLook.PaletteTable) seeded with the creature seed itself (no child seed) over its planet's palettes (the
     /// biome palette file), and each texture option takes its row's entry at its own slot (0-4). NMS.exe 184271: a
     /// creature model is loaded by cGcPlanetGenerator::LoadModel (FUN_1416d5940) without a palette table, so its
@@ -358,7 +358,9 @@ public static class CreatureModelService
         var palettes = planet is null ? null : await CatalogService.GetBiomePalettesAsync(planet.Biome, planet.SubType);
         ulong tableSeed = colourSeed != 0 ? colourSeed : seed;
         if (await ModelPreviewService.SeedColoursAsync(tableSeed, rawSeed: true, palettes: palettes, lastSlot: 4) is not { } colours) return null;
-        return await ModelPreviewService.PaintAsync(models, mesh, colours, ModelPreviewService.ColourSeed(seed), size: size);
+        var picks = await Task.Run(() => ShipLook.PickMerged(
+            mesh.Materials.Distinct().Select(models.TextureLayers).OfType<IReadOnlyList<TextureLayer>>(), seed));
+        return await ModelPreviewService.PaintAsync(models, mesh, colours, seed, size: size, layerPicks: picks);
     }
 
     /// <summary>A companion's look seeds: CreatureSeed (WTp) and, when its active flag is on, ColourBaseSeed (uAX) -

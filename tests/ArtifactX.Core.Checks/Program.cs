@@ -68,6 +68,7 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
     PlanetFaunaPairingChecks.Check();
     CreatureInfoChecks.Check();
     CreatureFormChecks.Check();
+    CreatureTextureChecks.Check();
     PetBattlerClassChecks.Check();
     InventoryStackLimitChecks.Check();
     NotesPlanetMatcherChecks.Check();
