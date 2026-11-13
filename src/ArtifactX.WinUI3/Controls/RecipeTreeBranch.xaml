@@ -3,10 +3,11 @@
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:vm="using:ArtifactX.WinUI3.ViewModels"
  xmlns:controls="using:ArtifactX.WinUI3.Controls">
- <!-- One tile and, to its right, the branches it is made from, joined by lines (left to right, root first). -->
- <Grid>
-  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-  <Button VerticalAlignment="Center" Width="184" MinHeight="58" Padding="10,8" HorizontalContentAlignment="Left"
+ <!-- One tile and, below it, the branches it is made from, indented like a folder tree (owner, 2026-11-13: a
+      left-to-right tree ran off the panel on deep recipes). The tile has a fixed height so the connector stub of
+      each child lands on its tile's middle (6 px margin + 33 px). -->
+ <StackPanel>
+  <Button Width="280" Height="66" Padding="10,6" HorizontalContentAlignment="Left"
    Command="{x:Bind Node.Item.SelectCommand, Mode=OneWay}" AutomationProperties.Name="{x:Bind Node.Item.TileName, Mode=OneWay}"
    Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{x:Bind Node.Item.CardBorder, Mode=OneWay}"
    BorderThickness="{x:Bind Node.Item.CardBorderThickness, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind Node.Item.Name, Mode=OneWay}">
@@ -20,21 +21,20 @@
     </StackPanel>
    </Grid>
   </Button>
-  <Border Grid.Column="1" Width="24" Height="2" VerticalAlignment="Center" Background="{ThemeResource ThemeLineBrush}"
-   Visibility="{x:Bind Node.ChildrenVisibility, Mode=OneWay}"/>
-  <ItemsControl Grid.Column="2" VerticalAlignment="Center" ItemsSource="{x:Bind Node.Children, Mode=OneWay}" IsTabStop="False">
+  <!-- The trunk drops from under the parent's icon (10 px padding + half the 34 px icon = 27 px). -->
+  <ItemsControl Margin="14,0,0,0" ItemsSource="{x:Bind Node.Children, Mode=OneWay}" Visibility="{x:Bind Node.ChildrenVisibility, Mode=OneWay}" IsTabStop="False">
    <ItemsControl.ItemTemplate>
     <DataTemplate x:DataType="vm:RecipeTreeNode">
      <Grid>
-      <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-      <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-      <Border Grid.Row="0" Width="2" HorizontalAlignment="Left" Background="{ThemeResource ThemeLineBrush}" Visibility="{x:Bind UpperLineVisibility}"/>
-      <Border Grid.Row="1" Width="2" HorizontalAlignment="Left" Background="{ThemeResource ThemeLineBrush}" Visibility="{x:Bind LowerLineVisibility}"/>
-      <Border Grid.RowSpan="2" Height="2" VerticalAlignment="Center" Background="{ThemeResource ThemeLineBrush}"/>
-      <controls:RecipeTreeBranch Grid.Column="1" Grid.RowSpan="2" Margin="0,5" Node="{x:Bind}"/>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <!-- Down to this tile's middle; on past it to the next sibling unless this is the last one. -->
+      <Border Width="2" Height="40" Margin="12,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Background="{ThemeResource ThemeLineBrush}"/>
+      <Border Width="2" Margin="12,0,0,0" HorizontalAlignment="Left" Background="{ThemeResource ThemeLineBrush}" Visibility="{x:Bind LowerLineVisibility}"/>
+      <Border Height="2" Margin="12,38,0,0" VerticalAlignment="Top" Background="{ThemeResource ThemeLineBrush}"/>
+      <controls:RecipeTreeBranch Grid.Column="1" Margin="0,6,0,0" Node="{x:Bind}"/>
      </Grid>
     </DataTemplate>
    </ItemsControl.ItemTemplate>
   </ItemsControl>
- </Grid>
+ </StackPanel>
 </UserControl>

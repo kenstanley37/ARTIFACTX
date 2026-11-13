@@ -101,7 +101,7 @@ public sealed partial class RecipePlannerViewModel
             }
 
             Tree.Clear();
-            if (_allCards.ContainsKey(target.Result.Id)) Tree.Add(Node(target.Result.Id, [], true, true));
+            if (_allCards.ContainsKey(target.Result.Id)) Tree.Add(Node(target.Result.Id, [], true));
             HasRecipe = true;
             await RefreshOwnedAsync();
             cancellation.Token.ThrowIfCancellationRequested();
@@ -119,15 +119,15 @@ public sealed partial class RecipePlannerViewModel
 
     /// <summary>A tree node and, below it, what it's made from; a step already on the path above ends the branch
     /// (circular conversions start from a gathered supply instead).</summary>
-    private RecipeTreeNode Node(string key, HashSet<string> above, bool first, bool last)
+    private RecipeTreeNode Node(string key, HashSet<string> above, bool last)
     {
         var item = _allCards[key];
         var path = new HashSet<string>(above, StringComparer.OrdinalIgnoreCase) { key };
         var keys = item.Ingredients.Select(i => i.TreeKey).Where(k => _allCards.ContainsKey(k) && !path.Contains(k)).ToList();
         return new RecipeTreeNode
         {
-            Item = item, IsFirst = first, IsLast = last,
-            Children = keys.Select((k, i) => Node(k, path, i == 0, i == keys.Count - 1)).ToList(),
+            Item = item, IsLast = last,
+            Children = keys.Select((k, i) => Node(k, path, i == keys.Count - 1)).ToList(),
         };
     }
 

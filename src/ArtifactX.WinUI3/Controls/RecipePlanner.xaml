@@ -32,9 +32,9 @@
        <TextBlock FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"><Run Text="●" Foreground="{ThemeResource ThemeDamagedBrush}"/> none</TextBlock>
       </StackPanel>
      </Grid>
-     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto" VerticalScrollBarVisibility="Auto"
+     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto"
       AutomationProperties.Name="Ingredient tree">
-      <ItemsControl ItemsSource="{x:Bind ViewModel.Tree}" Margin="20" VerticalAlignment="Center" IsTabStop="False">
+      <ItemsControl ItemsSource="{x:Bind ViewModel.Tree}" Margin="20" HorizontalAlignment="Left" VerticalAlignment="Top" IsTabStop="False">
        <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipeTreeNode"><controls:RecipeTreeBranch Node="{x:Bind}"/></DataTemplate></ItemsControl.ItemTemplate>
       </ItemsControl>
      </ScrollViewer>
