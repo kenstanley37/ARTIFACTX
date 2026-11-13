@@ -525,3 +525,14 @@ Resolved 2026-11-13: V. Snakwercus is not 5B0A6E3C129C03D5. With the owner stand
 (the Discoveries page says "Rare / Ground", notes "an accomplished hunter"); 5B0A is role 3, rarity 0 - a second,
 common strider on the same planet. The game's chosen lists for 8C51 are the PREDATOR-filtered ones above (_HEAD_FLATHEAD
 _FHACC_1 ...), so the "big crested head" is the flat head and the fish head was the missing filter.
+
+### Creature texture picks (2026-11-13, open)
+
+V. Snakwercus (8C510BE47B88D477) in game is the male form, grey scaled body; the app paints it yellow with the
+markings layer HALF. Game memory names each creature texture it builds `<texture>.PROC.0.<n>.DDS`, where n is the
+decimal number after that form's chosen-part list (male 1934150958, female 1496393418), and keeps the layer images it
+loaded (`BUGBODY.MARKINGS.SCALES.DDS`...). The two forms load different textures, so the pick seed depends on the form.
+Scored against 53 loaded MARKINGS picks (17 creature forms matched to their spawn seeds): the app's seed
+(ModelPreviewService.ColourSeed, first child) 16/53, raw seed 33/53, Mix64 21, form seed 25, the list number itself
+22 - chance is about 22. Raw-seed misses often pick PATCHES/STRIPES where the game loaded GRADIENT. Next: decompile the
+creature texture pick (near FUN_1416d9f90 / FUN_140646250) for the seed and any option filter.
