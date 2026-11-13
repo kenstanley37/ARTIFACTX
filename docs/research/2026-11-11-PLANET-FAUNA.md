@@ -520,6 +520,8 @@ xNEVER 0, xWEIRD 20 (FUN_142dddfc0); FUN_142de3370's tag check only concerns ids
 X. Sub-scenes get no filter (looked up with an empty name). strider PREDATOR = _HEAD_FISH; triceratops PREDATOR = STEG,
 HIPPO, TAPIR, TURTLE, DIPLO heads; weirdrig FLOAT/ROLL/CRYSTAL exclude the other two bodies (same pick and draw as the
 old forced body). Catalog format 92 "CreatureFilters"; CreatureTables.ExcludedParts.
-Still open: the owner's V. Snakwercus (Marjorg, Prey, seed 5B0A6E3C129C03D5) has the fish head's rare crest
-(_FIN_1XRARE or _FISH_2XRARE: a TILEABLEB fin to y 2.92) where both forms pick _FISH_1/_FIN_NONE - needs its chosen
-list read while the owner stands near one.
+Resolved 2026-11-13: V. Snakwercus is not 5B0A6E3C129C03D5. With the owner standing next to one, the strider seed
+8C510BE47B88D477 sat in ~80 live records while 5B0A appeared 3 times; its spawn entry is role 1 (predator), rarity 2
+(the Discoveries page says "Rare / Ground", notes "an accomplished hunter"); 5B0A is role 3, rarity 0 - a second,
+common strider on the same planet. The game's chosen lists for 8C51 are the PREDATOR-filtered ones above (_HEAD_FLATHEAD
+_FHACC_1 ...), so the "big crested head" is the flat head and the fish head was the missing filter.
