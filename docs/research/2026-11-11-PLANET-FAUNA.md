@@ -315,3 +315,7 @@ which is why no draw rule fitted the owner's anomalous companions. Owner's B. Bl
 Azzaviu XII (4F8FBFFA005 planet 4): glowing orbs in game = _FLOAT_HYDROGARDENXOR (VORTEXLIGHT / CORELIGHT materials);
 the seed alone picked _FLOAT_SHARDS. Catalog format 88 (role Filter, sub-type names); CreatureTables.ForcedPartTerms /
 ForcedOptions feed ShipParts' stored-parts path. Crystal bodies (Pillar / Gem) have no sub-type name: seed-picked.
+
+**Roller confirmed in game 2026-11-12 (owner, Slot 8):** K. Larvalamia on the Structure planet Ailsdoni
+(Angeym-Kuhovd II, portal 3045FBFFA005, found with fauna-check EXOTIC) is the _ROLL_STRUCTURE body in the world and in
+the app. Two of two anomalous checks (HydroGarden floater, Structure roller); crystals (Pillar / Gem) still unchecked.
