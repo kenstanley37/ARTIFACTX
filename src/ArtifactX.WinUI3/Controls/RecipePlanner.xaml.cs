@@ -57,5 +57,8 @@ public sealed partial class RecipePlanner : UserControl
             Tabs.SelectedItem = ViewModel.ShowShoppingList ? ShoppingTab : SelectedTab;
         else if (e.PropertyName == nameof(RecipePlannerViewModel.SelectedItem))
             TabScroller.ChangeView(null, 0, null, disableAnimation: true);
+        // A different recipe starts the tree from its top again.
+        else if (e.PropertyName == nameof(RecipePlannerViewModel.TargetName))
+            TreeScroller.ChangeView(0, 0, null, disableAnimation: true);
     }
 }

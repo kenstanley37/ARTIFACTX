@@ -32,11 +32,16 @@
        <TextBlock FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"><Run Text="●" Foreground="{ThemeResource ThemeDamagedBrush}"/> none</TextBlock>
       </StackPanel>
      </Grid>
-     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto"
-      AutomationProperties.Name="Ingredient tree">
-      <ItemsControl ItemsSource="{x:Bind ViewModel.Tree}" Margin="20" HorizontalAlignment="Center" VerticalAlignment="Top" IsTabStop="False">
-       <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipeTreeNode"><controls:RecipeTreeBranch Node="{x:Bind}"/></DataTemplate></ItemsControl.ItemTemplate>
-      </ItemsControl>
+     <!-- Scrolls both ways. The tree is centred inside a wrapper at least the viewport's size (centring it in the
+          ScrollViewer itself clips a tree wider than the panel instead of scrolling it). Shift+wheel scrolls sideways. -->
+     <ScrollViewer x:Name="TreeScroller" Grid.Row="1" HorizontalScrollBarVisibility="Visible" HorizontalScrollMode="Enabled"
+      VerticalScrollBarVisibility="Visible" VerticalScrollMode="Enabled" ZoomMode="Disabled" AutomationProperties.Name="Ingredient tree">
+      <Grid HorizontalAlignment="Left" VerticalAlignment="Top"
+       MinWidth="{x:Bind TreeScroller.ViewportWidth, Mode=OneWay}" MinHeight="{x:Bind TreeScroller.ViewportHeight, Mode=OneWay}">
+       <ItemsControl ItemsSource="{x:Bind ViewModel.Tree}" Margin="20" HorizontalAlignment="Center" VerticalAlignment="Top" IsTabStop="False">
+        <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipeTreeNode"><controls:RecipeTreeBranch Node="{x:Bind}"/></DataTemplate></ItemsControl.ItemTemplate>
+       </ItemsControl>
+      </Grid>
      </ScrollViewer>
      <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.EmptyHint}" Visibility="{x:Bind ViewModel.EmptyVisibility, Mode=OneWay}"
       Foreground="{ThemeResource ThemeTextDimBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="24"/>
