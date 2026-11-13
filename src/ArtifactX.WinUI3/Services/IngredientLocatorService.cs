@@ -38,12 +38,16 @@ public static class IngredientLocatorService
         return PlanetTypesService.ProfileTables?.Objects is { } objects ? HarvestSearch.Rules(itemId, objects) : [];
     }
 
-    /// <summary>Whether creatures produce <paramref name="itemId"/> when fed (false before catalog format 80).</summary>
-    public static async Task<bool> IsProduceAsync(string itemId)
+    /// <summary>Whether creatures give <paramref name="itemId"/> when fed (false before catalog format 80) and when
+    /// hunted.</summary>
+    public static async Task<(bool Fed, bool Hunted)> CreatureWaysAsync(string itemId)
     {
         await PlanetTypesService.EnsureLoadedAsync();
-        return CreatureProduceSearch.IsProduce(itemId, PlanetTypesService.ProfileTables?.Creatures);
+        return (CreatureProduceSearch.IsProduce(itemId, PlanetTypesService.ProfileTables?.Creatures), (await HuntIdsAsync(itemId)).Count > 0);
     }
+
+    private static async Task<HashSet<string>> HuntIdsAsync(string itemId) => CreatureProduceSearch.HuntIds(itemId,
+        (await RecipeIngredientSourcesService.CreatureSourcesAsync()).Where(s => s.Method == "Hunt").Select(s => (s.ItemId, s.CreatureId)));
 
     /// <summary>The systems nearest <paramref name="start"/> that give <paramref name="itemId"/>, nearest first (the
     /// start itself first when it does). Off the UI thread, in parallel; a newer search cancels through
@@ -54,7 +58,9 @@ public static class IngredientLocatorService
         if (await CatalogService.GetGalaxyGenerationSettingsAsync() is not { } settings
             || PlanetTypesService.BiomeTables is not { } biomes || PlanetTypesService.ProfileTables is not { } tables)
             return [];
-        var creatures = CreatureProduceSearch.IsProduce(itemId, tables.Creatures) ? tables.Creatures : null;
+        bool fed = CreatureProduceSearch.IsProduce(itemId, tables.Creatures);
+        var huntIds = await HuntIdsAsync(itemId);
+        var creatures = fed || huntIds.Count > 0 ? tables.Creatures : null;
         bool plants = tables.Objects?.Harvest is not null;
         if (creatures is null && !plants) return [];
         var names = creatures is null ? null : await CreatureNameService.LoadAsync();
@@ -83,9 +89,10 @@ public static class IngredientLocatorService
                             bodies[f.PlanetIndex] = Body(portal, galaxy, f.PlanetIndex, f.Body)
                                 + f.Harvest.TileType switch { 4 => " (underwater)", 5 => " (in caves)", _ => "" };
                     if (creatures is not null)
-                        foreach (var f in CreatureProduceSearch.On(system.SystemAddress, types, profiles, itemId, creatures))
+                        foreach (var f in CreatureProduceSearch.On(system.SystemAddress, types, profiles, itemId, creatures, fed, huntIds))
                             bodies[f.PlanetIndex] = (bodies.TryGetValue(f.PlanetIndex, out var b) ? b : Body(portal, galaxy, f.PlanetIndex, f.Body))
-                                + ": " + Feed(f, names);
+                                + ": " + string.Join(" · ", new[] { Species("feed", f.Fed, f.PlanetAddress, names),
+                                    Species("hunt", f.Hunted, f.PlanetAddress, names) }.Where(t => t.Length > 0));
                     if (bodies.Count > 0) found.Add(Place(system, [.. bodies.Values], startSystem, startIndex, stars, here));
                 });
                 if (found.Count(p => !p.IsHere) >= Wanted) break;
@@ -99,14 +106,15 @@ public static class IngredientLocatorService
         $"{NmsPlanets.BiomeGroup(type.Biome)} {(SystemGenerator.Bodies(portal, galaxy).IsMoon(planetIndex) ? "moon" : "planet")} "
         + SystemGenerator.PlanetName(portal | ((ulong)planetIndex << 44), galaxy);
 
-    /// <summary>"feed the Kordiussia" (the species name the game gives once scanned), "feed the Kordiussia or the
-    /// Vrandeis", "... or 2 more"; "feed its creatures" when the names are unknown.</summary>
-    private static string Feed(ProduceFind find, CreatureNameService? names)
+    /// <summary>"feed the Kordiussia" (the species name the game gives once scanned), "hunt the Kordiussia or the
+    /// Vrandeis", "... or 2 more"; "feed its creatures" when the names are unknown; "" for no creatures.</summary>
+    private static string Species(string verb, PredictedCreature[] creatures, ulong planetAddress, CreatureNameService? names)
     {
-        var species = find.Creatures.Select(c => names?.PredictedSpecies(c, find.PlanetAddress)).OfType<string>().Distinct().ToList();
-        if (species.Count == 0) return "feed its creatures";
+        if (creatures.Length == 0) return "";
+        var species = creatures.Select(c => names?.PredictedSpecies(c, planetAddress)).OfType<string>().Distinct().ToList();
+        if (species.Count == 0) return $"{verb} its creatures";
         string shown = string.Join(" or ", species.Take(2).Select(n => "the " + n));
-        return species.Count > 2 ? $"feed {shown} or {species.Count - 2} more" : $"feed {shown}";
+        return species.Count > 2 ? $"{verb} {shown} or {species.Count - 2} more" : $"{verb} {shown}";
     }
 
     private static IngredientPlace Place(NearbySystem system, List<string> bodies, ulong startSystem, int startIndex,

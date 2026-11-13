@@ -13,6 +13,9 @@ internal static class HarvestPlaceText
     /// <summary>The line for an item creatures give when fed (Fresh Milk, Crab 'Apple', Creature Egg).</summary>
     public const string FeedLine = "Feed creatures that produce it. The Analysis Visor shows what each one produces.";
 
+    /// <summary>The line for an item creatures drop when hunted (Raw Steak, Scaly Meat).</summary>
+    public const string HuntLine = "Hunt the creatures that drop it.";
+
     public static IReadOnlyList<string> Lines(IEnumerable<HarvestRule> rules) => rules
         .GroupBy(r => (Where: Where(r), r.TileType is 4 or 5 ? r.TileType : 0))
         .Select(g =>
