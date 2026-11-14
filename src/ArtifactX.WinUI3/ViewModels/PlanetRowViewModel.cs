@@ -22,7 +22,7 @@ public sealed class PlanetRowViewModel
         // The system gets its own line: it's what the player looks for on the galaxy map (owner, 2026-11-14).
         string star = PlanetText.StarOf(planet.SystemAddress);
         SystemLabel = $"{UniverseInfo.SystemName(planet.SystemAddress)} · {star} star";
-        StarSwatch = new SolidColorBrush(PlanetDrawingHelper.ParseColour(StarColour(star)));
+        StarSwatch = new SolidColorBrush(PlanetDrawingHelper.ParseColour(Helpers.Location.StarColours.Hex(star)));
         LocationLabel = string.Join(" · ", new[]
         {
             planet.Classification(desc, isMoon: isMoon), isMoon ? "moon" : $"planet {planet.PlanetIndex}",
@@ -56,17 +56,6 @@ public sealed class PlanetRowViewModel
     public string PortalCode => Planet.PortalCode;
     public Brush Swatch { get; }
     public bool HasRings => Planet.HasRings;
-
-    /// <summary>A dot colour for the star's colour word, as the galaxy map draws stars (grey when unknown).</summary>
-    private static string StarColour(string star) => star switch
-    {
-        "Yellow" => "#F2C14E",
-        "Red" => "#E5533D",
-        "Green" => "#4CC36A",
-        "Blue" => "#4D8DF0",
-        "Purple" => "#A970E8",
-        _ => "#9AA0A6",
-    };
 
     public bool IsPinned { get; }
     public string PinGlyph => IsPinned ? "\uE77A" : "\uE718";

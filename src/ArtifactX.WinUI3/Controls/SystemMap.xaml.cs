@@ -1,31 +1,43 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Helpers.Location;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
+using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Windows.Foundation;
 
 namespace ArtifactX.WinUI3.Controls;
 
 /// <summary>
-/// The system you're in as a 3D map: every planet and moon at its real centre from the save
-/// (<c>6f=.aHM</c>), moons tied to the planet they orbit (system generator; moons sit 226,000 units from
-/// their planet, matched against nine save systems 2026-10-27), the body you're on outlined, and the space
-/// station as a diamond and you, when you're in space, as a white dot (<see cref="SystemMapMarker"/>). Discovered bodies use the planet drawing (biome
-/// colour, rings; Dead planets are grey); undiscovered ones are a dashed outline. The sun isn't placed yet.
-/// Same controls as the region map (<see cref="MapCamera"/>);
-/// clicking a discovered body raises <see cref="BodyClicked"/>.
+/// The system you're in as an orrery, like the freighter's system scanner (#65): the star in the middle in its colour,
+/// the planets on rings around it in planet order, moons on small rings around their planet, the space station beside
+/// the planet it's nearest in the save, and you on your planet (outlined) or beside the body you're nearest in space.
+/// It's a picture, not a scale model: ring sizes, speeds and where on its ring a body sits are made up; the order, which
+/// moon is whose (system generator), rings and colours are real. The save's body centres (<c>6f=.aHM</c>) are only used
+/// to find which planet the station and you are by. It opens looking straight down; drag to turn and tilt, right-drag to
+/// move, wheel to zoom, Home or "Top-down" to look straight down again (<see cref="MapCamera"/>). The rings turn slowly,
+/// redrawn at most ~30 times a second, and stand still when Windows' animation effects are off or the map isn't shown.
+/// Clicking a discovered body raises <see cref="BodyClicked"/>.
 /// </summary>
 public sealed partial class SystemMap : UserControl
 {
     public static readonly DependencyProperty BodiesProperty = DependencyProperty.Register(nameof(Bodies),
         typeof(IReadOnlyList<SystemMapBody>), typeof(SystemMap), new PropertyMetadata(null, (d, _) => ((SystemMap)d).Rebuild()));
+    public static readonly DependencyProperty StationProperty = DependencyProperty.Register(nameof(Station),
+        typeof(SystemMapMarker), typeof(SystemMap), new PropertyMetadata(null, (d, _) => ((SystemMap)d).Rebuild()));
+    public static readonly DependencyProperty PlayerProperty = DependencyProperty.Register(nameof(Player),
+        typeof(SystemMapMarker), typeof(SystemMap), new PropertyMetadata(null, (d, _) => ((SystemMap)d).Rebuild()));
+    public static readonly DependencyProperty StarColourProperty = DependencyProperty.Register(nameof(StarColour),
+        typeof(string), typeof(SystemMap), new PropertyMetadata("", (d, _) => ((SystemMap)d).Rebuild()));
 
     public IReadOnlyList<SystemMapBody>? Bodies
     {
@@ -33,179 +45,352 @@ public sealed partial class SystemMap : UserControl
         set => SetValue(BodiesProperty, value);
     }
 
-    public static readonly DependencyProperty StationProperty = DependencyProperty.Register(nameof(Station),
-        typeof(SystemMapMarker), typeof(SystemMap), new PropertyMetadata(null, (d, _) => ((SystemMap)d).Rebuild()));
-    public static readonly DependencyProperty PlayerProperty = DependencyProperty.Register(nameof(Player),
-        typeof(SystemMapMarker), typeof(SystemMap), new PropertyMetadata(null, (d, _) => ((SystemMap)d).Rebuild()));
-
-    /// <summary>The space station, drawn as a diamond; null leaves it out.</summary>
+    /// <summary>The space station; null leaves it out.</summary>
     public SystemMapMarker? Station
     {
         get => (SystemMapMarker?)GetValue(StationProperty);
         set => SetValue(StationProperty, value);
     }
 
-    /// <summary>Where you are in space, drawn like the region map's "you are here"; null when you're on a planet or unknown.</summary>
+    /// <summary>Where you are in space; null when you're on a planet (that body is outlined) or unknown.</summary>
     public SystemMapMarker? Player
     {
         get => (SystemMapMarker?)GetValue(PlayerProperty);
         set => SetValue(PlayerProperty, value);
     }
 
+    /// <summary>The star's colour word ("Yellow", "Purple"...).</summary>
+    public string StarColour
+    {
+        get => (string)GetValue(StarColourProperty);
+        set => SetValue(StarColourProperty, value);
+    }
+
     /// <summary>A discovered planet or moon was clicked.</summary>
     public event EventHandler<SystemMapBody>? BodyClicked;
 
-    private const double PlanetSize = 20, MoonSize = 11;
-    private readonly List<(FrameworkElement Drawing, TextBlock Label, SystemMapBody Body)> _bodies = new();
-    private readonly List<(Line Line, SystemMapBody Moon, SystemMapBody Host)> _tethers = new();
+    private const double PlanetSize = 20, MoonSize = 11, TopDown = 1.5;
+    private const double FirstRing = 1.6, RingGap = 1.0, MoonFirstRing = 0.42, MoonRingGap = 0.2;
+    private static readonly TimeSpan FrameGap = TimeSpan.FromMilliseconds(33);
+
+    /// <summary>A body on its ring: around the star (Parent null) or around its planet.</summary>
+    private sealed class Orbiter
+    {
+        public required SystemMapBody Body;
+        public required FrameworkElement Drawing;
+        public required TextBlock Label;
+        public Orbiter? Parent;
+        public double Radius, Start, Period;
+        public Polyline? Ring;
+        public (double X, double Z) At;
+        public (double X, double Y, double Depth) Screen;
+    }
+
+    /// <summary>The station or you, beside a body.</summary>
+    private sealed class Companion
+    {
+        public required Shape Shape;
+        public required TextBlock Label;
+        public required Orbiter Beside;
+        public double Offset, Turn;
+        public bool IsPlayer;
+        public (double X, double Y, double Depth) Screen;
+    }
+
     private readonly MapCamera _camera;
-    private (double X, double Y, double Z) _middle;
-    private readonly List<(Shape Shape, TextBlock Label, SystemMapMarker Marker)> _markers = new();
+    private readonly List<Orbiter> _orbiters = new();
+    private readonly List<Companion> _companions = new();
+    private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private TimeSpan _lastFrame;
+    private bool _ticking;
+    private double _outer = FirstRing;
 
     public SystemMap()
     {
         InitializeComponent();
         ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
-        // Planets lie close to one plane, so start looking down on it (a slight tilt keeps the 3D feel).
-        _camera = new MapCamera(this, Stage, 1, pitch: 1.35);
+        _camera = new MapCamera(this, Stage, FirstRing, pitch: TopDown, yaw: 0);
         _camera.Changed += Draw;
         _camera.Clicked += OnClicked;
-        _camera.HomePressed += () =>
-        {
-            if (Player is { } you) _camera.GlideTo(you.X, you.Y, you.Z);
-            else if (_bodies.FirstOrDefault(b => b.Body.IsHere).Body is { } here) _camera.GlideTo(here.X, here.Y, here.Z);
-            else _camera.GlideTo(_middle.X, _middle.Y, _middle.Z);
-        };
+        _camera.HomePressed += ResetView;
+        Loaded += (_, _) => StartTicking();
+        Unloaded += (_, _) => StopTicking();
+    }
+
+    private void ResetView() => _camera.ResetView(0, TopDown, 0, 0, 0);
+
+    private void TopDown_Click(object sender, RoutedEventArgs e) => ResetView();
+
+    private void StartTicking()
+    {
+        if (_ticking || !new Windows.UI.ViewManagement.UISettings().AnimationsEnabled) return;
+        _ticking = true;
+        CompositionTarget.Rendering += OnFrame;
+    }
+
+    private void StopTicking()
+    {
+        if (!_ticking) return;
+        _ticking = false;
+        CompositionTarget.Rendering -= OnFrame;
+    }
+
+    private void OnFrame(object? sender, object e)
+    {
+        if (Visibility != Visibility.Visible || _orbiters.Count == 0 || _clock.Elapsed - _lastFrame < FrameGap) return;
+        _lastFrame = _clock.Elapsed;
+        Draw();
     }
 
     private void Rebuild()
     {
         Stage.Children.Clear();
-        _bodies.Clear();
-        _tethers.Clear();
-        _markers.Clear();
+        _orbiters.Clear();
+        _companions.Clear();
         var bodies = Bodies ?? [];
-        var line = ThemeResources.Brush("ThemeLineBrush");
-        foreach (var moon in bodies.Where(b => b.IsMoon))
-            if (bodies.FirstOrDefault(b => b.Index == moon.Host) is { } host)
-            {
-                var tether = new Line { Stroke = line, StrokeThickness = 1, Opacity = 0.8, IsHitTestVisible = false };
-                _tethers.Add((tether, moon, host));
-                Stage.Children.Add(tether);
-            }
-        foreach (var body in bodies)
-        {
-            double size = body.IsMoon ? MoonSize : PlanetSize;
-            FrameworkElement drawing = body.Planet is KnownPlanet planet
-                ? PlanetDrawingHelper.CreatePlanetDrawing(planet, size, body.IsHere)
-                // Not discovered: a dashed outline, so it can't be mistaken for a grey (Dead) planet.
-                : new Ellipse
-                {
-                    Width = size, Height = size, Fill = ThemeResources.Brush("ThemeVoidBrush"),
-                    Stroke = ThemeResources.Brush(body.IsHere ? "ThemeAccentBrush" : "ThemeTextDimBrush"), StrokeThickness = 1.5,
-                    StrokeDashArray = new DoubleCollection { 2, 2 },
-                };
-            string typeInfo = "";
-            if (body.Planet is KnownPlanet kp)
-            {
-                var desc = PlanetTypesService.Descriptor(kp.SystemAddress, kp.PlanetIndex);
-                typeInfo = $" · {kp.Classification(desc, isMoon: body.IsMoon)}";
-            }
-            ToolTipService.SetToolTip(drawing, $"{body.Name}\n{body.Kind}{typeInfo}" + (body.Planet is null ? "\nNot discovered yet" : ""));
-            var label = new TextBlock
-            {
-                Text = body.Name, FontSize = body.IsMoon ? 11 : 12, IsHitTestVisible = false,
-                Foreground = ThemeResources.Brush(body.IsHere ? "ThemeAccentBrush" : body.IsMoon ? "ThemeTextDimBrush" : "ThemeTextBrush"),
-            };
-            _bodies.Add((drawing, label, body));
-            Stage.Children.Add(drawing);
-            Stage.Children.Add(label);
-        }
+        if (bodies.Count == 0) return;
 
-        if (bodies.Count > 0)
-        {
-            if (Station is { } station)
-                AddMarker(station, new Rectangle
-                {
-                    Width = 10, Height = 10, Fill = ThemeResources.Brush("ThemeAccentAltBrush"),
-                    RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform { Angle = 45 },
-                }, "ThemeTextDimBrush");
-            if (Player is { } player)
-                AddMarker(player, new Ellipse
-                {
-                    Width = 14, Height = 14, Fill = ThemeResources.Brush("ThemeTextBrush"),
-                    Stroke = ThemeResources.Brush("ThemeDamageStatBrush"), StrokeThickness = 3,
-                }, "ThemeTextBrush");
-        }
+        AddStar();
 
-        // Fit the whole system, centred on its middle.
-        if (bodies.Count > 0)
+        // Planets in planet order; a moon whose planet isn't in the list is drawn as a planet.
+        var planets = bodies.Where(b => !b.IsMoon || bodies.All(o => o.Index != b.Host)).OrderBy(b => b.Index).ToList();
+        for (int i = 0; i < planets.Count; i++)
         {
-            _middle = (bodies.Average(b => b.X), bodies.Average(b => b.Y), bodies.Average(b => b.Z));
-            _camera.HalfExtent = Math.Max(1, bodies.Max(b => Math.Max(Math.Abs(b.X - _middle.X),
-                Math.Max(Math.Abs(b.Y - _middle.Y), Math.Abs(b.Z - _middle.Z))))) * 1.1;
+            var planet = AddOrbiter(planets[i], null, FirstRing + i * RingGap, 90 + i * 35);
+            var moons = bodies.Where(b => b.IsMoon && b.Host == planets[i].Index).OrderBy(b => b.Index).ToList();
+            for (int k = 0; k < moons.Count; k++)
+                AddOrbiter(moons[k], planet, MoonFirstRing + k * MoonRingGap, 20 + k * 8);
         }
-        _camera.SetPivot(_middle.X, _middle.Y, _middle.Z);
+        _outer = FirstRing + (planets.Count - 1) * RingGap + MoonFirstRing;
+        _camera.HalfExtent = _outer * 1.05;
+
+        if (Station is { } station && Nearest(station) is { } host)
+            _companions.Add(AddCompanion(station, host, new Rectangle
+            {
+                Width = 10, Height = 10, Fill = ThemeResources.Brush("ThemeAccentAltBrush"),
+                RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform { Angle = 45 },
+            }, "ThemeTextDimBrush", StationTurn, 0, false));
+        if (Player is { } you && NearestToPlayer(you) is { } beside)
+            _companions.Add(AddCompanion(you, beside.Body, new Ellipse
+            {
+                Width = 12, Height = 12, Fill = ThemeResources.Brush("ThemeTextBrush"),
+                Stroke = ThemeResources.Brush("ThemeDamageStatBrush"), StrokeThickness = 3,
+            }, "ThemeTextBrush", beside.Station ? StationTurn : -0.6, beside.Station ? 0.2 : 0, true));
+
+        _camera.SetPivot(0, 0, 0);
     }
 
-    private void AddMarker(SystemMapMarker marker, Shape shape, string labelBrush)
+    private void AddStar()
     {
-        ToolTipService.SetToolTip(shape, $"{marker.Name}\n{marker.Detail}");
-        var label = new TextBlock { Text = marker.Name, FontSize = 11, IsHitTestVisible = false, Foreground = ThemeResources.Brush(labelBrush) };
-        _markers.Add((shape, label, marker));
+        var colour = PlanetDrawingHelper.ParseColour(StarColours.Hex(StarColour));
+        var glow = new Ellipse
+        {
+            Width = 64, Height = 64, IsHitTestVisible = false,
+            Fill = new RadialGradientBrush
+            {
+                GradientStops =
+                {
+                    new GradientStop { Color = ColorHelper.FromArgb(150, colour.R, colour.G, colour.B), Offset = 0 },
+                    new GradientStop { Color = ColorHelper.FromArgb(0, colour.R, colour.G, colour.B), Offset = 1 },
+                },
+            },
+        };
+        var core = new Ellipse { Width = 22, Height = 22, Fill = new SolidColorBrush(colour) };
+        string name = StarColour is { Length: > 0 } c ? $"{c} star" : "Star";
+        ToolTipService.SetToolTip(core, name);
+        AutomationProperties.SetName(core, name);
+        Stage.Children.Add(glow);
+        Stage.Children.Add(core);
+        _star = (glow, core);
+    }
+
+    private (Ellipse Glow, Ellipse Core)? _star;
+
+    private Orbiter AddOrbiter(SystemMapBody body, Orbiter? parent, double radius, double period)
+    {
+        double size = body.IsMoon ? MoonSize : PlanetSize;
+        FrameworkElement drawing = body.Planet is KnownPlanet planet
+            ? PlanetDrawingHelper.CreatePlanetDrawing(planet, size, body.IsHere)
+            // Not discovered: a dashed outline, so it can't be mistaken for a grey (Dead) planet.
+            : new Ellipse
+            {
+                Width = size, Height = size, Fill = ThemeResources.Brush("ThemeVoidBrush"),
+                Stroke = ThemeResources.Brush(body.IsHere ? "ThemeAccentBrush" : "ThemeTextDimBrush"), StrokeThickness = 1.5,
+                StrokeDashArray = new DoubleCollection { 2, 2 },
+            };
+        string type = body.Planet is KnownPlanet kp
+            ? $" · {kp.Classification(PlanetTypesService.Descriptor(kp.SystemAddress, kp.PlanetIndex), isMoon: body.IsMoon)}" : "";
+        string tip = $"{body.Name}\n{body.Kind}{type}" + (body.Planet is null ? "\nNot discovered yet" : "");
+        ToolTipService.SetToolTip(drawing, tip);
+        AutomationProperties.SetName(drawing, tip.Replace('\n', ','));
+        var label = Label(body.Name, body.IsMoon ? 11 : 12, body.IsHere ? "ThemeAccentBrush" : body.IsMoon ? "ThemeTextDimBrush" : "ThemeTextBrush");
+        var ring = new Polyline
+        {
+            Stroke = ThemeResources.Brush(body.IsHere ? "ThemeAccentBrush" : "ThemeLineBrush"),
+            StrokeThickness = body.IsHere ? 1.4 : 1, Opacity = parent is null ? 0.7 : 0.5, IsHitTestVisible = false,
+        };
+        Stage.Children.Add(ring);
+        Stage.Children.Add(drawing);
+        Stage.Children.Add(label);
+        var orbiter = new Orbiter
+        {
+            Body = body, Drawing = drawing, Label = label, Parent = parent, Radius = radius, Period = period, Ring = ring,
+            // Spread round the ring (golden angle), the same for a system every time.
+            Start = body.Index * 2.39996 + (parent is null ? 0 : 1.1),
+        };
+        _orbiters.Add(orbiter);
+        return orbiter;
+    }
+
+    /// <summary>How far round from straight out (away from the star) the station sits beside its planet; you sit just
+    /// past it when you're at the station.</summary>
+    private const double StationTurn = 0.6;
+
+    private Companion AddCompanion(SystemMapMarker marker, SystemMapBody beside, Shape shape, string labelBrush, double turn, double extra, bool isPlayer)
+    {
+        string tip = $"{marker.Name}\n{marker.Detail}";
+        ToolTipService.SetToolTip(shape, tip);
+        AutomationProperties.SetName(shape, tip.Replace('\n', ','));
+        var label = Label(marker.Name, 11, labelBrush);
         Stage.Children.Add(shape);
         Stage.Children.Add(label);
+        var orbiter = _orbiters.First(o => o.Body == beside);
+        return new Companion { Shape = shape, Label = label, Beside = orbiter, Offset = (orbiter.Body.IsMoon ? 0.16 : 0.3) + extra, Turn = turn, IsPlayer = isPlayer };
     }
 
-    /// <summary>Project and paint, nearest on top; labels sit right of their body.</summary>
+    private static TextBlock Label(string text, double size, string brush)
+    {
+        var label = new TextBlock { Text = text, FontSize = size, IsHitTestVisible = false, Foreground = ThemeResources.Brush(brush) };
+        label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        return label;
+    }
+
+    /// <summary>The planet whose centre in the save is nearest the marker (a moon's planet, for a moon).</summary>
+    private SystemMapBody? Nearest(SystemMapMarker marker)
+    {
+        var bodies = Bodies ?? [];
+        var nearest = bodies.MinBy(b => Distance(b.X, b.Y, b.Z, marker));
+        return nearest is { IsMoon: true } moon && bodies.FirstOrDefault(b => b.Index == moon.Host) is { } host ? host : nearest;
+    }
+
+    /// <summary>The body you're nearest in space, or the station's planet when the station is nearer than any body.</summary>
+    private (SystemMapBody Body, bool Station)? NearestToPlayer(SystemMapMarker you)
+    {
+        var bodies = Bodies ?? [];
+        var nearest = bodies.MinBy(b => Distance(b.X, b.Y, b.Z, you));
+        if (nearest is null) return null;
+        if (Station is { } station && Distance(station.X, station.Y, station.Z, you) < Distance(nearest.X, nearest.Y, nearest.Z, you)
+            && Nearest(station) is { } stationPlanet)
+            return (stationPlanet, true);
+        return (nearest, false);
+    }
+
+    private static double Distance(double x, double y, double z, SystemMapMarker m) =>
+        Math.Sqrt((x - m.X) * (x - m.X) + (y - m.Y) * (y - m.Y) + (z - m.Z) * (z - m.Z));
+
+    /// <summary>Move everything to where it is now, project, paint (nearest on top) and set the labels apart.</summary>
     private void Draw()
     {
-        if (Stage.ActualWidth <= 0 || Stage.ActualHeight <= 0) return;
-        var placed = new Dictionary<int, (double X, double Y, double Depth)>();
-        foreach (var (drawing, label, body) in _bodies)
+        if (Stage.ActualWidth <= 0 || Stage.ActualHeight <= 0 || _orbiters.Count == 0) return;
+        double seconds = _ticking ? _clock.Elapsed.TotalSeconds : 0;
+        int Z(double depth) => (int)(depth * 1000 / Math.Max(_camera.HalfExtent, 1)) + 10000;
+
+        if (_star is { } star)
         {
-            var p = _camera.Project(body.X, body.Y, body.Z);
-            placed[body.Index] = p;
-            // The planet drawing is twice as wide as tall (room for rings), so centre on both halves.
-            Canvas.SetLeft(drawing, p.X - drawing.Width / 2);
-            Canvas.SetTop(drawing, p.Y - drawing.Height / 2);
-            Canvas.SetLeft(label, p.X + drawing.Height / 2 + (body.Planet?.HasRings == true ? 12 : 5));
-            Canvas.SetTop(label, p.Y - 8);
-            int z = (int)(p.Depth * 1000 / Math.Max(_camera.HalfExtent, 1)) + 10000;
-            Canvas.SetZIndex(drawing, z + (body.IsHere ? 100000 : 0));
-            Canvas.SetZIndex(label, z + 200000);
+            var (glow, core) = star;
+            var s = _camera.Project(0, 0, 0);
+            Place(glow, s.X, s.Y);
+            Place(core, s.X, s.Y);
+            Canvas.SetZIndex(glow, Z(s.Depth) - 1);
+            Canvas.SetZIndex(core, Z(s.Depth));
         }
-        foreach (var (shape, label, marker) in _markers)
+
+        // Planets first, so a moon can follow its planet.
+        foreach (var o in _orbiters)
         {
-            var p = _camera.Project(marker.X, marker.Y, marker.Z);
-            Canvas.SetLeft(shape, p.X - shape.Width / 2);
-            Canvas.SetTop(shape, p.Y - shape.Height / 2);
-            Canvas.SetLeft(label, p.X + shape.Width / 2 + 4);
-            Canvas.SetTop(label, p.Y - 8);
-            int z = (int)(p.Depth * 1000 / Math.Max(_camera.HalfExtent, 1)) + 10000;
-            Canvas.SetZIndex(shape, z + (ReferenceEquals(marker, Player) ? 150000 : 0));
-            Canvas.SetZIndex(label, z + 200000);
+            double angle = o.Start + seconds * 2 * Math.PI / o.Period;
+            var (cx, cz) = o.Parent?.At ?? (0, 0);
+            o.At = (cx + o.Radius * Math.Cos(angle), cz + o.Radius * Math.Sin(angle));
+            o.Screen = _camera.Project(o.At.X, 0, o.At.Z);
+            Place(o.Drawing, o.Screen.X, o.Screen.Y);
+            Canvas.SetZIndex(o.Drawing, Z(o.Screen.Depth) + (o.Body.IsHere ? 100000 : 0));
+            if (o.Ring is { } ring)
+            {
+                var points = new PointCollection();
+                int steps = o.Parent is null ? 72 : 32;
+                for (int k = 0; k <= steps; k++)
+                {
+                    double a = k * 2 * Math.PI / steps;
+                    var p = _camera.Project(cx + o.Radius * Math.Cos(a), 0, cz + o.Radius * Math.Sin(a));
+                    points.Add(new Point(p.X, p.Y));
+                }
+                ring.Points = points;
+                Canvas.SetZIndex(ring, 1);
+            }
         }
-        foreach (var (tether, moon, host) in _tethers)
+        foreach (var c in _companions)
         {
-            var a = placed[moon.Index];
-            var b = placed[host.Index];
-            (tether.X1, tether.Y1, tether.X2, tether.Y2) = (a.X, a.Y, b.X, b.Y);
+            var (bx, bz) = c.Beside.At;
+            double outward = Math.Atan2(bz, bx) + c.Turn;
+            c.Screen = _camera.Project(bx + c.Offset * Math.Cos(outward), 0, bz + c.Offset * Math.Sin(outward));
+            Place(c.Shape, c.Screen.X, c.Screen.Y);
+            Canvas.SetZIndex(c.Shape, Z(c.Screen.Depth) + (c.IsPlayer ? 150000 : 120000));
+        }
+        PlaceLabels();
+    }
+
+    private static void Place(FrameworkElement element, double x, double y)
+    {
+        Canvas.SetLeft(element, x - element.Width / 2);
+        Canvas.SetTop(element, y - element.Height / 2);
+    }
+
+    /// <summary>Each label right of its body, else left, below or above - the first spot that doesn't cover a label
+    /// already placed. You, the planet you're on and planets go first; moons and the station after.</summary>
+    private void PlaceLabels()
+    {
+        var items = _orbiters.Select(o => (o.Label, o.Screen, Half: o.Drawing.Height / 2 + (o.Body.Planet?.HasRings == true ? 10 : 3),
+                Rank: o.Body.IsHere ? 0 : o.Body.IsMoon ? 2 : 1))
+            .Concat(_companions.Select(c => (c.Label, c.Screen, Half: c.Shape.Height / 2 + 3, Rank: c.IsPlayer ? 0 : 3)))
+            .OrderBy(i => i.Rank).ToList();
+        var taken = new List<Rect>();
+        foreach (var (label, at, half, _) in items)
+        {
+            double w = label.DesiredSize.Width, h = label.DesiredSize.Height;
+            Point[] spots =
+            [
+                new(at.X + half, at.Y - h / 2), new(at.X - half - w, at.Y - h / 2),
+                new(at.X - w / 2, at.Y + half), new(at.X - w / 2, at.Y - half - h),
+            ];
+            var chosen = spots[0];
+            foreach (var spot in spots)
+            {
+                var rect = new Rect(spot.X, spot.Y, w, h);
+                if (taken.Any(t => Overlaps(t, rect))) continue;
+                chosen = spot;
+                break;
+            }
+            taken.Add(new Rect(chosen.X, chosen.Y, w, h));
+            Canvas.SetLeft(label, chosen.X);
+            Canvas.SetTop(label, chosen.Y);
+            Canvas.SetZIndex(label, 300000);
         }
     }
+
+    private static bool Overlaps(Rect a, Rect b) => a.X < b.X + b.Width && b.X < a.X + a.Width && a.Y < b.Y + b.Height && b.Y < a.Y + a.Height;
 
     /// <summary>The nearest discovered body under the pointer.</summary>
     private void OnClicked(Point point)
     {
         SystemMapBody? hit = null;
         int best = int.MinValue;
-        foreach (var (drawing, _, body) in _bodies)
+        foreach (var o in _orbiters)
         {
-            double size = Math.Max(drawing.Height, 14);
-            double cx = Canvas.GetLeft(drawing) + drawing.Width / 2, cy = Canvas.GetTop(drawing) + drawing.Height / 2;
+            double size = Math.Max(o.Drawing.Height, 14);
+            double cx = Canvas.GetLeft(o.Drawing) + o.Drawing.Width / 2, cy = Canvas.GetTop(o.Drawing) + o.Drawing.Height / 2;
             if (Math.Abs(point.X - cx) > size / 2 || Math.Abs(point.Y - cy) > size / 2) continue;
-            int z = Canvas.GetZIndex(drawing);
-            if (z > best) { best = z; hit = body; }
+            int z = Canvas.GetZIndex(o.Drawing);
+            if (z > best) { best = z; hit = o.Body; }
         }
         if (hit is { Planet: not null }) BodyClicked?.Invoke(this, hit);
     }
