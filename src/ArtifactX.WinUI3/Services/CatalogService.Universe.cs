@@ -163,6 +163,47 @@ public static partial class CatalogService
         }
     }
 
+    /// <summary>The same system words keyed by their language key ("UI_ECON_LEVEL_LOW_1" -> "Struggling"),
+    /// for the generator's word pick (SystemWords). Empty when there is no catalog; kept once loaded.</summary>
+    public static async Task<IReadOnlyDictionary<string, string>> GetSystemWordsByKeyAsync()
+    {
+        if (_systemWordsByKey is { } cached) return cached;
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new Dictionary<string, string>();
+
+        try
+        {
+            var words = await Task.Run(() =>
+            {
+                var results = new Dictionary<string, string>(StringComparer.Ordinal);
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.GameId, i.NameEnglish
+                    FROM Items i
+                    JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'SystemDescriptors'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    if (!reader.IsDBNull(0) && !reader.IsDBNull(1)) results[reader.GetString(0)] = reader.GetString(1);
+                return results;
+            });
+            if (words.Count > 0) _systemWordsByKey = words;
+            return words;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CatalogService] GetSystemWordsByKeyAsync failed: {ex.Message}");
+            return new Dictionary<string, string>();
+        }
+    }
+
+    private static IReadOnlyDictionary<string, string>? _systemWordsByKey;
+
+    /// <summary>The system words by key once <see cref="GetSystemWordsByKeyAsync"/> has loaded them, else null.</summary>
+    public static IReadOnlyDictionary<string, string>? LoadedSystemWordsByKey => _systemWordsByKey;
+
     /// <summary>The words the game's discovery screen uses for a planet's
     /// weather, sentinels and flora/fauna (catalog category "PlanetDescriptors").</summary>
     public static async Task<List<(string Word, string Group, string Tier)>> GetPlanetDescriptorsAsync()
