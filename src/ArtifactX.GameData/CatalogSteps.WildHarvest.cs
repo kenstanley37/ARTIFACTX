@@ -11,6 +11,29 @@ public static partial class CatalogSteps
     private const string RewardTableFile = "METADATA/REALITY/TABLES/REWARDTABLE.MBIN";
     private const string SpawnDensityFile = "METADATA/SIMULATION/SOLARSYSTEM/BIOMES/PLACEMENTVALUES/SPAWNDENSITYLIST.MBIN";
 
+    /// <summary>
+    /// Scenes the game's code spawns from a placed object, with no link in the files (format 94): breaking a Whispering
+    /// Egg (FIENDEGG.SCENE, placed by objects/rare/fiendeggs.mbin and infestation.mbin; its GcDestructableComponentData
+    /// names no reward or DestroyedModel) leaves FIENDEGGREWARD.SCENE, whose interaction is DE_FIENDCORE (Larval Core).
+    /// Read from build 185034's files 2026-11-13.
+    /// </summary>
+    private static readonly Dictionary<string, string> SpawnedOnBreak = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["MODELS/PLANETS/BIOMES/COMMON/RARERESOURCE/GROUND/FIENDEGG.SCENE.MBIN"] =
+            "MODELS/PLANETS/BIOMES/COMMON/RARERESOURCE/GROUND/FIENDEGGPARTS/FIENDEGGREWARD.SCENE.MBIN",
+    };
+
+    /// <summary>
+    /// The creature scene a GcEncounterComponentData's type spawns, which the game's code picks (format 94): the
+    /// GroundWorms encounter (GROUNDWORMSPAWNER.ENTITY, placed by objects/rare/infestation.mbin) brings up the mini
+    /// sandworms, whose data entity's GcDestructableComponentData gives DE_GROUNDWORM (Flesh Rope) when killed.
+    /// Read from build 185034's files 2026-11-13.
+    /// </summary>
+    private static readonly Dictionary<GcEncounterType.EncounterTypeEnum, string> EncounterScenes = new()
+    {
+        [GcEncounterType.EncounterTypeEnum.GroundWorms] = "MODELS/PLANETS/CREATURES/SANDWORMMINI/SANDWORMMINI.SCENE.MBIN",
+    };
+
     /// <summary>The object tables with <see cref="ObjectTables.Harvest"/> filled from every spawn file their lists name.</summary>
     private static ObjectTables ObjectTablesWithHarvest(ObjectTables tables, Func<string, NMSTemplate?> decode)
     {
@@ -89,12 +112,15 @@ public static partial class CatalogSteps
                                 case GcDestructableComponentData destructable:
                                     if (!string.IsNullOrEmpty(destructable.GivesReward?.Value)) found.AddRange(RewardItems(destructable.GivesReward.Value, mined: true));
                                     if (!string.IsNullOrEmpty(destructable.LootReward?.Value)) found.AddRange(RewardItems(destructable.LootReward.Value, mined: true));
-                                    // What's left once it's broken (a Whispering Egg's core): picked up, but only after mining.
+                                    // What's left once it's broken: picked up, but only after mining.
                                     if (destructable.DestroyedModel?.Filename?.Value is { Length: > 0 } broken)
                                         found.AddRange(SceneItems(broken.Replace('\\', '/').ToUpperInvariant(), depth + 1).Select(i => i with { Mined = true }));
                                     foreach (var substance in destructable.GivesSubstances ?? new())
                                         if (!string.IsNullOrEmpty(substance.Specific?.Value))
                                             found.Add(new HarvestItem(substance.Specific.Value, substance.AmountMin, substance.AmountMax, Mined: true));
+                                    break;
+                                case GcEncounterComponentData encounter when EncounterScenes.TryGetValue(encounter.EncounterType.EncounterType, out var spawned):
+                                    found.AddRange(SceneItems(spawned, depth + 1).Select(i => i with { Mined = true }));
                                     break;
                             }
                     if (attr.Name?.Value == "SCENEGRAPH" && node.Type?.Value == "REFERENCE")
@@ -103,6 +129,7 @@ public static partial class CatalogSteps
                 foreach (var child in node.Children ?? new()) Walk(child);
             }
             Walk(root);
+            if (SpawnedOnBreak.TryGetValue(scene, out var left)) found.AddRange(SceneItems(left, depth + 1).Select(i => i with { Mined = true }));
             return sceneItems[scene] = Merge(found);
         }
 

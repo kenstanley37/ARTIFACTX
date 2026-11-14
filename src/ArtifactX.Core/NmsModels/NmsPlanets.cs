@@ -113,6 +113,11 @@ public static class NmsPlanets
     /// GcFishTable biomes 7-10): Exotic (Weird) and the Red, Green and Blue anomalies. Not a planet setting of its own.</summary>
     public static bool IsHaunted(int biome) => biome is 7 or 8 or 9 or 10;
 
+    /// <summary>GcBiomeSubType.Infested (24): the infested variant of a planet type, whose biome files place Whispering
+    /// Eggs and the small ground worms (objects/rare/infestation.mbin, build 185034). <see cref="PlanetType.SubType"/>
+    /// holds it for a generated body.</summary>
+    public const int InfestedSubType = 24;
+
     /// <summary>What players search the haunted worlds by.</summary>
     public const string HauntedName = "Exotic or anomaly (haunted)";
 

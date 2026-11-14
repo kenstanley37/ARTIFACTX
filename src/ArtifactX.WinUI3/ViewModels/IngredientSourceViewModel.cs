@@ -62,6 +62,14 @@ public sealed partial class IngredientSourceViewModel : ObservableObject
                     if (cancel.IsCancellationRequested) return;
                     Places.Add(HarvestPlaceText.FishLine(fish));
                 }
+                var names = await IngredientLocatorService.ItemNamesAsync();
+                if (cancel.IsCancellationRequested) return;
+                foreach (string line in HarvestPlaceText.OtherLines(itemId, names)) Places.Add(line);
+                if (await IngredientLocatorService.CraftLineAsync(itemId) is { } craft)
+                {
+                    if (cancel.IsCancellationRequested) return;
+                    Places.Add(craft);
+                }
                 HasPlaces = Places.Count > 0;
                 _placesFor = itemId;
             }
