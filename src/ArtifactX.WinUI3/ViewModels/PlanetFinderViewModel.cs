@@ -24,6 +24,8 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     private List<KnownPlanet> _otherSaves = new();
     private List<KnownPlanet> _all = new();
     private HashSet<ulong> _waterSystems = new();
+    private HashSet<(ulong System, int Planet)> _infested = new();
+    private int _infestedVersion;
     private PlanetVocabulary? _vocabulary;
     private ulong? _here;
     private int _loadVersion;
@@ -63,6 +65,9 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     [ObservableProperty] public partial bool IncludeOtherSlots { get; set; } = true;
     [ObservableProperty] public partial bool WaterOnly { get; set; }
     [ObservableProperty] public partial bool DissonantOnly { get; set; }
+    [ObservableProperty] public partial bool InfestedOnly { get; set; }
+    [ObservableProperty] public partial string InfestedLabel { get; private set; } = "";
+    [ObservableProperty] public partial bool ShowInfested { get; private set; }
 
     [ObservableProperty] public partial string WaterLabel { get; private set; } = "";
     [ObservableProperty] public partial bool ShowWater { get; private set; }
@@ -93,6 +98,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     partial void OnMineOnlyChanged(bool value) => Apply();
     partial void OnWaterOnlyChanged(bool value) => Apply();
     partial void OnDissonantOnlyChanged(bool value) => Apply();
+    partial void OnInfestedOnlyChanged(bool value) => Apply();
     partial void OnIncludeOtherSlotsChanged(bool value) { Refresh(); _ = LoadOtherSavesAsync(_loadVersion); }
 
     /// <summary>Waits for a pause in typing, so the finder isn't re-run per key.</summary>
@@ -146,7 +152,32 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
             ? _thisSave.Concat(_otherSaves).GroupBy(p => p.Address).Select(g => g.First()).ToList()
             : _thisSave;
         FillChoices();
+        _ = FindInfestedAsync();
         Apply();
+    }
+
+    /// <summary>
+    /// Which planets are infested (the infested variant of their type, where Whispering Eggs and ground worms are -
+    /// <see cref="NmsPlanets.InfestedSubType"/>). The save records only the type, so it comes from the game's
+    /// generator (PlanetTypesService.For), off the UI thread; the checkbox and list update when it's done.
+    /// </summary>
+    private async Task FindInfestedAsync()
+    {
+        int version = ++_infestedVersion;
+        var planets = _all;
+        await PlanetTypesService.EnsureLoadedAsync();
+        var infested = await Task.Run(() => planets
+            .Where(p => PlanetTypesService.For(p.SystemAddress) is var types
+                && p.PlanetIndex >= 1 && p.PlanetIndex <= types.Length && types[p.PlanetIndex - 1].SubType == NmsPlanets.InfestedSubType)
+            .Select(p => (p.SystemAddress, p.PlanetIndex)).ToHashSet());
+        if (version != _infestedVersion) return;
+        bool changed = !infested.SetEquals(_infested);
+        _infested = infested;
+        int count = planets.Count(p => infested.Contains((p.SystemAddress, p.PlanetIndex)));
+        InfestedLabel = $"Infested ({count:N0} {(count == 1 ? "planet" : "planets")})";
+        ShowInfested = count > 0;
+        if (count == 0 && InfestedOnly) InfestedOnly = false;
+        else if (changed && InfestedOnly) Apply();
     }
 
     private void FillChoices()
@@ -225,7 +256,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         Galaxy.Reset();
         BodiesIndex = 0;
         foreach (var filter in ChoiceFilters) filter.Reset();
-        RingsOnly = MineOnly = WaterOnly = DissonantOnly = false;
+        RingsOnly = MineOnly = WaterOnly = DissonantOnly = InfestedOnly = false;
         _quiet = false;
         Apply();
     }
@@ -248,6 +279,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
             .Where(p => galaxy < 0 || p.Galaxy == galaxy)
             .Where(p => region is null || RegionMapService.RegionKey(p.SystemAddress) == region)
             .Where(p => !RingsOnly || p.HasRings)
+            .Where(p => !InfestedOnly || _infested.Contains((p.SystemAddress, p.PlanetIndex)))
             .Where(p => !MineOnly || p.DiscoveredHere)
             .Where(p => !systemFilter
                 || ((!Star.IsSet || PlanetText.StarOf(p.SystemAddress) == Star.Value)
@@ -283,7 +315,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         };
         Results = ordered.Select(x => new PlanetRowViewModel(x.Planet, _here, x.Distance)).ToList();
         ResultCount = $"{Results.Count:N0} of {_all.Count:N0} planets";
-        ActiveFilters = new[] { search.Length > 0, Type.IsSet, Galaxy.IsSet, Region.IsSet, BodiesIndex > 0, RingsOnly, MineOnly, WaterOnly, DissonantOnly }
+        ActiveFilters = new[] { search.Length > 0, Type.IsSet, Galaxy.IsSet, Region.IsSet, BodiesIndex > 0, RingsOnly, MineOnly, WaterOnly, DissonantOnly, InfestedOnly }
             .Concat(ChoiceFilters.Select(f => f.IsSet)).Count(on => on);
     }
 }
