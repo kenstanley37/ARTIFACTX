@@ -15,7 +15,8 @@ internal static class SystemWordChecks
         // Sennum-Bebae (packed 0x3400FF67B291): Promising, Tranquil. Its economy was recorded as the plain
         // "Mercantile" (word 1, which one screen always shows), so only the level words are checked.
         var sennum = Keys(0x3400FF67B291UL);
-        if (sennum?.Wealth != "UI_ECON_LEVEL_MED_3" || sennum.Conflict != "UI_CONFLICT_LEVEL_LOW_3")
+        if (sennum?.Wealth != "UI_ECON_LEVEL_MED_3" || sennum.Conflict != "UI_CONFLICT_LEVEL_LOW_3"
+            || sennum.PlainEconomy != "UI_ECON_CLASS_TRADE_1")
             throw new InvalidOperationException($"Sennum-Bebae words: got {sennum}");
 
         Console.WriteLine("System words: ARTIFACTX System, 1C005C6DC00C and Sennum-Bebae OK");

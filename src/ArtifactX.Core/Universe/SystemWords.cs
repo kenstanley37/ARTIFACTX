@@ -2,7 +2,12 @@ namespace ArtifactX.Core.Universe;
 
 /// <summary>The language keys of the words the game shows for a system's economy, wealth and
 /// conflict ("UI_ECON_CLASS_MINING_4", "UI_ECON_LEVEL_LOW_1", "UI_CONFLICT_LEVEL_MED_8").</summary>
-public sealed record SystemWordKeys(string Economy, string Wealth, string Conflict);
+public sealed record SystemWordKeys(string Economy, string Wealth, string Conflict)
+{
+    /// <summary>The economy's plain word ("UI_ECON_CLASS_MINING_1", "Mining"), which the screen that
+    /// passes a count of 1 (0x141388160) always shows.</summary>
+    public string PlainEconomy => Economy[..(Economy.LastIndexOf('_') + 1)] + "1";
+}
 
 /// <summary>
 /// Which of its words the game picks for a system's economy, wealth and conflict: "Prospecting //

@@ -102,6 +102,43 @@ public static class UniverseInfo
         return attributes.Pirate ? (Word(keys.Economy), null, null) : (Word(keys.Economy), Word(keys.Wealth), Word(keys.Conflict));
     }
 
+    /// <summary>
+    /// False when the game can't show this word for this system, so a reading that says it belongs to
+    /// another system. <paramref name="group"/> is "Economy", "Wealth", "Conflict" or "Race". True when it
+    /// can't be told: an empty value, catalog words not loaded yet, Autophage.
+    /// <para>Grounds (2026-11-14, user.db): the generator's levels and SystemWords' pick match every system
+    /// read from the save, while 45 of ~190 screen captures held another system's words - their word
+    /// numbers, which depend only on the address, matched 8 of 43 (chance is 1 in 8) against 145 of 150 for
+    /// the rest. Abandoned systems still show their race (save: Vy'keen on an abandoned system) and
+    /// "Abandoned (no economy)".</para>
+    /// </summary>
+    public static bool GameCouldShow(ulong address, string group, string value)
+    {
+        if (value.Length == 0 || value == "Autophage" || CatalogService.LoadedSystemWordsByKey is not { } words) return true;
+        var (code, galaxy) = Generator(SystemKey(address));
+        var a = SystemGenerator.Attributes(code, galaxy);
+        if (group == "Race")
+            return value == For(address).RaceLabel || (a.Abandoned && value == a.Race switch
+            {
+                SystemRace.Gek => "Gek",
+                SystemRace.Korvax => "Korvax",
+                SystemRace.Vykeen => "Vy'keen",
+                _ => "",
+            });
+        if (a.Abandoned && group == "Economy" && value.StartsWith("Abandoned", StringComparison.OrdinalIgnoreCase)) return true;
+        // A word the catalog doesn't know can't be checked.
+        if (!words.Values.Contains(value) && value is not ("Black Market" or "Pirate Controlled")) return true;
+        if (SystemWords.Keys(code, galaxy, a) is not { } keys) return false;
+        string Word(string key) => words.TryGetValue(key, out var w) ? w : "";
+        return group switch
+        {
+            "Economy" => value == Word(keys.Economy) || value == Word(keys.PlainEconomy),
+            "Wealth" => a.Pirate ? value == "Black Market" : value == Word(keys.Wealth),
+            "Conflict" => a.Pirate ? value == "Pirate Controlled" : value == Word(keys.Conflict),
+            _ => true,
+        };
+    }
+
     private static readonly ConcurrentDictionary<ulong, ArtifactX.Core.Universe.SystemBodies> BodiesCache = new();
 
     /// <summary>The generator's bodies for the system an address is in (which are moons, and of what).</summary>
