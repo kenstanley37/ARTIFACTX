@@ -81,6 +81,8 @@ public sealed partial class SystemMap : UserControl
         public required TextBlock Label;
         public Orbiter? Parent;
         public double Radius, Start, Period;
+        /// <summary>A moon's place among its planet's moons (0 = innermost).</summary>
+        public int MoonSlot;
         public Polyline? Ring;
         public (double X, double Z) At;
         public (double X, double Y, double Depth) Screen;
@@ -92,6 +94,8 @@ public sealed partial class SystemMap : UserControl
         public required Shape Shape;
         public required TextBlock Label;
         public required Orbiter Beside;
+        /// <summary>Pixels from the body's centre (so it stays clear of the drawing at any zoom), and how far round from
+        /// straight out.</summary>
         public double Offset, Turn;
         public bool IsPlayer;
         public (double X, double Y, double Depth) Screen;
@@ -159,7 +163,7 @@ public sealed partial class SystemMap : UserControl
             var planet = AddOrbiter(planets[i], null, FirstRing + i * RingGap, 90 + i * 35);
             var moons = bodies.Where(b => b.IsMoon && b.Host == planets[i].Index).OrderBy(b => b.Index).ToList();
             for (int k = 0; k < moons.Count; k++)
-                AddOrbiter(moons[k], planet, MoonFirstRing + k * MoonRingGap, 20 + k * 8);
+                AddOrbiter(moons[k], planet, MoonFirstRing + k * MoonRingGap, 20 + k * 8).MoonSlot = k;
         }
         _outer = FirstRing + (planets.Count - 1) * RingGap + MoonFirstRing;
         // MapCamera leaves a wide margin (it fits 2.6 half-widths); the orrery fills more of its frame.
@@ -176,7 +180,7 @@ public sealed partial class SystemMap : UserControl
             {
                 Width = 12, Height = 12, Fill = ThemeResources.Brush("ThemeTextBrush"),
                 Stroke = ThemeResources.Brush("ThemeDamageStatBrush"), StrokeThickness = 3,
-            }, "ThemeTextBrush", beside.Station ? StationTurn : -0.6, beside.Station ? 0.2 : 0, true));
+            }, "ThemeTextBrush", beside.Station ? StationTurn : -0.6, beside.Station ? 14 : 0, true));
 
         _camera.SetPivot(0, 0, 0);
     }
@@ -256,7 +260,7 @@ public sealed partial class SystemMap : UserControl
         Stage.Children.Add(shape);
         Stage.Children.Add(label);
         var orbiter = _orbiters.First(o => o.Body == beside);
-        return new Companion { Shape = shape, Label = label, Beside = orbiter, Offset = (orbiter.Body.IsMoon ? 0.16 : orbiter.Body.Planet?.HasRings == true ? 0.45 : 0.3) + extra, Turn = turn, IsPlayer = isPlayer };
+        return new Companion { Shape = shape, Label = label, Beside = orbiter, Offset = Reach(orbiter) + 9 + _orbiters.Count(m => m.Parent == orbiter) * 8 + extra, Turn = turn, IsPlayer = isPlayer };
     }
 
     private static TextBlock Label(string text, double size, string brush)
@@ -293,7 +297,7 @@ public sealed partial class SystemMap : UserControl
     private void Draw()
     {
         if (Stage.ActualWidth <= 0 || Stage.ActualHeight <= 0 || _orbiters.Count == 0) return;
-        double seconds = _ticking ? _clock.Elapsed.TotalSeconds : 0;
+        double seconds = _ticking ? _clock.Elapsed.TotalSeconds : 0, ppu = _camera.PixelsPerUnit;
         int Z(double depth) => (int)(depth * 1000 / Math.Max(_camera.HalfExtent, 1)) + 10000;
 
         if (_star is { } star)
@@ -311,7 +315,9 @@ public sealed partial class SystemMap : UserControl
         {
             double angle = o.Start + seconds * 2 * Math.PI / o.Period;
             var (cx, cz) = o.Parent?.At ?? (0, 0);
-            o.At = (cx + o.Radius * Math.Cos(angle), cz + o.Radius * Math.Sin(angle));
+            // A moon's ring is at least clear of its planet's drawing on screen, whatever the zoom.
+            double radius = o.Parent is { } host && ppu > 0 ? Math.Max(o.Radius, (Reach(host) + 9 + o.MoonSlot * 8) / ppu) : o.Radius;
+            o.At = (cx + radius * Math.Cos(angle), cz + radius * Math.Sin(angle));
             o.Screen = _camera.Project(o.At.X, 0, o.At.Z);
             Place(o.Drawing, o.Screen.X, o.Screen.Y);
             Canvas.SetZIndex(o.Drawing, Z(o.Screen.Depth) + (o.Body.IsHere ? 100000 : 0));
@@ -322,7 +328,7 @@ public sealed partial class SystemMap : UserControl
                 for (int k = 0; k <= steps; k++)
                 {
                     double a = k * 2 * Math.PI / steps;
-                    var p = _camera.Project(cx + o.Radius * Math.Cos(a), 0, cz + o.Radius * Math.Sin(a));
+                    var p = _camera.Project(cx + radius * Math.Cos(a), 0, cz + radius * Math.Sin(a));
                     points.Add(new Point(p.X, p.Y));
                 }
                 ring.Points = points;
@@ -332,13 +338,16 @@ public sealed partial class SystemMap : UserControl
         foreach (var c in _companions)
         {
             var (bx, bz) = c.Beside.At;
-            double outward = Math.Atan2(bz, bx) + c.Turn;
-            c.Screen = _camera.Project(bx + c.Offset * Math.Cos(outward), 0, bz + c.Offset * Math.Sin(outward));
+            double outward = Math.Atan2(bz, bx) + c.Turn, offset = ppu > 0 ? c.Offset / ppu : 0;
+            c.Screen = _camera.Project(bx + offset * Math.Cos(outward), 0, bz + offset * Math.Sin(outward));
             Place(c.Shape, c.Screen.X, c.Screen.Y);
             Canvas.SetZIndex(c.Shape, Z(c.Screen.Depth) + (c.IsPlayer ? 150000 : 120000));
         }
         PlaceLabels();
     }
+
+    /// <summary>How far a body's drawing reaches from its centre on screen, rings included (pixels).</summary>
+    private static double Reach(Orbiter o) => o.Body.Planet?.HasRings == true ? o.Drawing.Width / 2 : o.Drawing.Height / 2;
 
     private static void Place(FrameworkElement element, double x, double y)
     {
@@ -366,6 +375,10 @@ public sealed partial class SystemMap : UserControl
             [
                 new(at.X + half, at.Y - h / 2), new(at.X - half - w, at.Y - h / 2),
                 new(at.X - w / 2, at.Y + half), new(at.X - w / 2, at.Y - half - h),
+                // Further out, on the diagonals, when the near spots are all taken.
+                new(at.X + half, at.Y + half), new(at.X - half - w, at.Y + half),
+                new(at.X + half, at.Y - half - h), new(at.X - half - w, at.Y - half - h),
+                new(at.X - w / 2, at.Y + half + h), new(at.X - w / 2, at.Y - half - 2 * h),
             ];
             var chosen = spots[0];
             foreach (var spot in spots)
