@@ -186,6 +186,17 @@ public static class SystemNotesService
         Changed?.Invoke(0);
     }
 
+    /// <summary>Every recorded system's notes with its packed address.</summary>
+    public static IReadOnlyList<(ulong Address, SystemNote Note)> AllWithAddress
+    {
+        get
+        {
+            lock (Lock)
+                return Notes.Select(kv => (ulong.TryParse(kv.Key, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong a) ? a : 0UL, kv.Value))
+                    .Where(x => x.Item1 != 0).ToList();
+        }
+    }
+
     /// <summary>Every recorded system's notes (for building search filters).</summary>
     public static IReadOnlyList<SystemNote> All
     {
@@ -517,6 +528,37 @@ public static class SystemNameLearner
         _last = (line, address, planet);
         if (changed) SystemNotesService.Save(address, note, source: "save");
         return changed;
+    }
+
+    /// <summary>
+    /// Drops planet names a lagging "where you saved" line left on the wrong planet (see <see cref="Learn"/>): a recorded
+    /// name that isn't the planet's own generated name but is another recorded planet's. On the owner's saves
+    /// (2026-11-14) that was exactly three names - Yasiare Sigma on Aisters, Buythect Delta on Baba Delta, Alupuscu Unok
+    /// on Rugai 58/T8 - while renames shared on purpose ("Coruscant", "Bunny") are no planet's generated name. The rows
+    /// are soft-deleted, so the generated name shows again. Run off the UI thread; returns how many were dropped.
+    /// </summary>
+    public static int DropStaleNames()
+    {
+        var systems = SystemNotesService.AllWithAddress;
+        var named = systems.SelectMany(s => s.Note.PlanetNames.Keys
+                .Select(k => int.TryParse(k, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i) ? i : 0)
+                .Where(i => i > 0).Select(i => (s.Address, Planet: i)))
+            .ToList();
+        var generated = named.ToLookup(p => UniverseInfo.GeneratedPlanetName(p.Address, p.Planet));
+        int dropped = 0;
+        foreach (var (address, note) in systems)
+        {
+            var stale = note.PlanetNames
+                .Where(kv => int.TryParse(kv.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i)
+                    && kv.Value != UniverseInfo.GeneratedPlanetName(address, i)
+                    && generated[kv.Value].Any(o => o.Address != address || o.Planet != i))
+                .Select(kv => kv.Key).ToList();
+            if (stale.Count == 0) continue;
+            foreach (var key in stale) note.PlanetNames.Remove(key);
+            SystemNotesService.Save(address, note, source: "save");
+            dropped += stale.Count;
+        }
+        return dropped;
     }
 
     /// <summary>Whether a "where you saved" line names the place by the generator's name for it.</summary>
