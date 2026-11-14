@@ -107,7 +107,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial string Station { get; private set; } = "";
     [ObservableProperty] public partial string SystemCode { get; private set; } = "";
     [ObservableProperty] public partial bool IsLoading { get; private set; }
-    [ObservableProperty] public partial IReadOnlyList<KnownPlanet> Bodies { get; private set; } = [];
+    /// <summary>Every body the generator gives the system, for the map when the save hasn't placed them (no positions:
+    /// the station and you are left off).</summary>
+    [ObservableProperty] public partial IReadOnlyList<SystemMapBody> OrbitBodies { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SystemDataRow> SystemData { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<UnmatchedBodyViewModel> Unmatched { get; private set; } = [];
     public ObservableCollection<PlanetTileViewModel> Tiles { get; } = new();
@@ -158,7 +160,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     /// <summary>Square for the orbit drawing, about 3:2 for the game's picture; smaller with "Show less".</summary>
     public double FrameHeight => IsCompact ? 150 : 360;
-    public double FrameWidth => HasMap || HasPicture ? FrameHeight * 1.5 : FrameHeight;
+    public double FrameWidth => FrameHeight * 1.5;
     public Thickness BodyPadding => IsCompact ? new Thickness(20, 12, 20, 14) : new Thickness(20, 16, 20, 20);
 
     partial void OnStationChanged(string value) => OnPropertyChanged(nameof(HasStation));
@@ -337,6 +339,20 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         }).ToList();
     }
 
+    /// <summary>The map's bodies from the system generator alone (names, which moon is whose), for a system the save
+    /// hasn't placed: positions unknown (NaN), the discovered planet where the save has one.</summary>
+    private List<SystemMapBody> OrbitBodiesOf(ulong system, List<KnownPlanet> planets)
+    {
+        int[] hosts = UniverseInfo.Bodies(system).Hosts;
+        return Enumerable.Range(1, hosts.Length).Select(index =>
+        {
+            int host = hosts[index - 1];
+            return new SystemMapBody(index, UniverseInfo.PlanetName(system, index), double.NaN, double.NaN, double.NaN,
+                host, host > 0 ? UniverseInfo.PlanetName(system, host) : "", index == CurrentPlanet,
+                planets.FirstOrDefault(p => p.PlanetIndex == index));
+        }).ToList();
+    }
+
     private SystemMapMarker? PlayerMarker()
     {
         if (CurrentPlanet != 0 || MapBodies.Count == 0 || NmsPlanetCoordinates.PlayerInSystem(_snapshot.Spawn) is not { } at) return null;
@@ -358,7 +374,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         {
             Heading = "Unknown location";
             Sub = Facts = Station = SystemCode = SummaryPlace = "";
-            Bodies = [];
+            OrbitBodies = [];
             MapBodies = [];
             MapStation = null;
             MapPlayer = null;
@@ -417,7 +433,8 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             + $" · about {NmsPlanets.DistanceToCoreLightYears(system):N0} ly from the galaxy core";
         SystemCode = S.PortalAddress(system, 0);
         _ = UpdateRegionSystemsAsync(system);
-        if (!Bodies.SequenceEqual(planets)) Bodies = planets;
+        var orbitBodies = OrbitBodiesOf(system, planets);
+        if (!OrbitBodies.SequenceEqual(orbitBodies)) OrbitBodies = orbitBodies;
         var mapBodies = MapBodiesOf(system, planets);
         MapStarColour = note?.StarColour is { Length: > 0 } recordedStar ? recordedStar : facts.StarLabel;
         if (!MapBodies.SequenceEqual(mapBodies)) MapBodies = mapBodies;

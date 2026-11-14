@@ -105,8 +105,10 @@
                                 <Border Width="{x:Bind ViewModel.FrameWidth, Mode=OneWay}" Height="{x:Bind ViewModel.FrameHeight, Mode=OneWay}"
                                         CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemeVoidBrush}">
                                     <Grid>
-                                        <controls:SystemOrbitView Bodies="{x:Bind ViewModel.Bodies, Mode=OneWay}" CurrentPlanet="{x:Bind ViewModel.CurrentPlanet, Mode=OneWay}"
-                                                                  Visibility="{x:Bind ViewModel.ShowOrbits, Mode=OneWay}"/>
+                                        <!-- The same orrery from the generator's bodies when the save hasn't placed them and there's no picture. -->
+                                        <controls:SystemMap Bodies="{x:Bind ViewModel.OrbitBodies, Mode=OneWay}" StarColour="{x:Bind ViewModel.MapStarColour, Mode=OneWay}"
+                                                            Visibility="{x:Bind ViewModel.ShowOrbits, Mode=OneWay}"
+                                                            BodyClicked="Map_BodyClicked"/>
                                         <!-- The system as an orrery (#65): every planet and moon the save places; wins over the picture and the drawing. -->
                                         <controls:SystemMap Bodies="{x:Bind ViewModel.MapBodies, Mode=OneWay}" Station="{x:Bind ViewModel.MapStation, Mode=OneWay}"
                                                             Player="{x:Bind ViewModel.MapPlayer, Mode=OneWay}" StarColour="{x:Bind ViewModel.MapStarColour, Mode=OneWay}"

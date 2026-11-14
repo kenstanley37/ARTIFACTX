@@ -23,7 +23,8 @@ namespace ArtifactX.WinUI3.Controls;
 /// the planet it's nearest in the save, and you on your planet (outlined) or beside the body you're nearest in space.
 /// It's a picture, not a scale model: ring sizes, speeds and where on its ring a body sits are made up; the order, which
 /// moon is whose (system generator), rings and colours are real. The save's body centres (<c>6f=.aHM</c>) are only used
-/// to find which planet the station and you are by. It opens looking straight down; drag to turn and tilt, right-drag to
+/// to find which planet the station and you are by; bodies without them (NaN, a system the save hasn't placed) leave
+/// the station and you off. It opens looking straight down; drag to turn and tilt, right-drag to
 /// move, wheel to zoom, Home or "Top-down" to look straight down again (<see cref="MapCamera"/>). The rings turn slowly,
 /// redrawn at most ~30 times a second, and stand still when Windows' animation effects are off or the map isn't shown.
 /// Clicking a discovered body raises <see cref="BodyClicked"/>.
@@ -172,13 +173,15 @@ public sealed partial class SystemMap : UserControl
         // MapCamera leaves a wide margin (it fits 2.6 half-widths); the orrery fills more of its frame.
         _camera.HalfExtent = _outer * 0.9;
 
-        if (Station is { } station && Nearest(station) is { } host)
+        // Without the save's positions there's nothing to tell which planet the station or you are by.
+        bool placed = bodies.All(b => !double.IsNaN(b.X));
+        if (placed && Station is { } station && Nearest(station) is { } host)
             _companions.Add(AddCompanion(station, host, new Rectangle
             {
                 Width = 10, Height = 10, Fill = ThemeResources.Brush("ThemeAccentAltBrush"),
                 RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform { Angle = 45 },
             }, "ThemeTextDimBrush", StationTurn, 0, false));
-        if (Player is { } you && NearestToPlayer(you) is { } beside)
+        if (placed && Player is { } you && NearestToPlayer(you) is { } beside)
         {
             // Far from everything: outside the last ring, on the side of the nearest planet, with how far it is.
             var marker = beside.DeepSpace
