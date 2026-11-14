@@ -39,11 +39,22 @@ public sealed partial class StatBonusBoxes : UserControl
             Stats.Add(new NumberFieldViewModel(label, key, StatBonusService.Read(bonusesPath, key) ?? double.NaN, OnEdited));
     }
 
+    /// <summary>Puts "In game N" under each box that has a total (keyed like the stats); null clears them.</summary>
+    public void ShowInGameTotals(IReadOnlyDictionary<string, double>? totals)
+    {
+        foreach (var stat in Stats)
+            stat.Note = totals is not null && totals.TryGetValue(stat.Key, out double total) ? $"In game {total:N1}" : "";
+    }
+
     /// <summary>Nothing selected: the boxes stay, blank.</summary>
     public void Clear()
     {
         _bonusesPath = null;
-        foreach (var stat in Stats) stat.Load(double.NaN);
+        foreach (var stat in Stats)
+        {
+            stat.Load(double.NaN);
+            stat.Note = "";
+        }
     }
 
     private void OnEdited(NumberFieldViewModel stat)

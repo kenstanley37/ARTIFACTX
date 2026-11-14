@@ -613,10 +613,26 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
     private void UpdateStatDisplay()
     {
         if (_selectedIndex < 0) StatsBoxes.Clear();
-        else StatsBoxes.Show(NmsInventoryContainer.ShipStatBonusesPath(_selectedIndex), BaseStats);
+        else
+        {
+            StatsBoxes.Show(NmsInventoryContainer.ShipStatBonusesPath(_selectedIndex), BaseStats);
+            ShowInGameTotals();
+        }
     }
 
-    private void StatsBoxes_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
+    /// <summary>The game's totals under the base stats (#17); dropped if another ship was picked meanwhile.</summary>
+    private async void ShowInGameTotals()
+    {
+        int index = _selectedIndex;
+        var totals = await OwnedShipDisplayStatsService.EvaluateAsync(index);
+        if (index == _selectedIndex) StatsBoxes.ShowInGameTotals(totals);
+    }
+
+    private void StatsBoxes_Edited(object? sender, EventArgs e)
+    {
+        PageResetBtn.Visibility = Visibility.Visible;
+        ShowInGameTotals();
+    }
 
 
 

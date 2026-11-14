@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Base stats of a Multi-Tool, Starship or freighter: one number box per stat-bonus
      entry (StatBonusService). Edits are staged as they're committed (Enter or leaving
-     the box). -->
+     the box). An optional line under each box shows the in-game total (Starships). -->
 <UserControl
     x:Class="ArtifactX.WinUI3.Controls.StatBonusBoxes"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -21,6 +21,8 @@
                     <TextBlock Text="{x:Bind Label}" Style="{StaticResource ThemeBodyTextStyle}"/>
                     <NumberBox Value="{x:Bind Value, Mode=TwoWay}" Minimum="0" SpinButtonPlacementMode="Hidden"
                                AutomationProperties.Name="{x:Bind Label}"/>
+                    <TextBlock Text="{x:Bind Note, Mode=OneWay}" Visibility="{x:Bind HasNote, Mode=OneWay}"
+                               Style="{StaticResource ThemeBodyTextStyle}" FontSize="12"/>
                 </StackPanel>
             </DataTemplate>
         </ItemsControl.ItemTemplate>

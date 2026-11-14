@@ -33,6 +33,28 @@ public static class StarshipDisplayEvaluation
                 shipClass == 9 ? 0f : rules.BrokenTechnologyChance) is not { } damage) return null;
         var inventory = new GeneratedMultiToolInventory(layout, technology, special);
         var damaged = technology.Where((_, i) => damage[i]).Select(t => t.Position).ToHashSet();
+        return Compose(inventory, intrinsicBonuses, damaged, shipClass, rating, rules, context);
+    }
+
+    /// <summary>
+    /// An owned ship's displayed stats (#17): the same final stage as a wreck on Compare, run on the
+    /// ship's saved technology, supercharged cells, damage and cargo intrinsic bonuses
+    /// (<see cref="ArtifactX.Core.NmsModels.NmsStarshipComparisonPaths.Read"/>), with the ship as its own
+    /// active context (photon range, beam damage and the resource-seeded rolls come from the ship itself).
+    /// When the ship is the active one this is exactly the left-hand side of the Compare screen that matched
+    /// the owner's wreck screenshots on 2026-10-31. Not yet checked: a non-active ship against its own in-game
+    /// stats screen (the resource seed is assumed to be the ship's own NTx seed).
+    /// </summary>
+    public static StarshipDisplayedStats? EvaluateOwned(StarshipComparisonContext ship, int shipClass, int rating,
+        StarshipEvaluationTables rules) =>
+        rules.Weapons.Length == 7 && rules.UseMultiplierBonus
+            ? Compose(ship.ActiveTechnology, ship.ActiveIntrinsicBonuses, ship.ActiveDamagedPositions, shipClass, rating, rules, ship)
+            : null;
+
+    private static StarshipDisplayedStats? Compose(GeneratedMultiToolInventory inventory,
+        IReadOnlyList<KeyValuePair<string, float>> intrinsicBonuses, IReadOnlySet<GeneratedInventoryPosition> damaged,
+        int shipClass, int rating, StarshipEvaluationTables rules, StarshipComparisonContext context)
+    {
         var ids = rules.Stats;
         float? Stat(GeneratedMultiToolInventory inv, IReadOnlyList<KeyValuePair<string, float>> bonuses,
             IReadOnlySet<GeneratedInventoryPosition> broken, int id, MultiToolStatCombination combination,
