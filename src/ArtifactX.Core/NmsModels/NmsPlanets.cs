@@ -115,7 +115,9 @@ public static class NmsPlanets
 
     /// <summary>GcBiomeSubType.Infested (24): the infested variant of a planet type, whose biome files place Whispering
     /// Eggs and the small ground worms (objects/rare/infestation.mbin, build 185034). <see cref="PlanetType.SubType"/>
-    /// holds it for a generated body.</summary>
+    /// holds it for a generated body. Checked 2026-11-13 on the 2,796 bodies of the Slot 8 region (galaxy 246): the 70
+    /// of subtype 24 carry only the game's infested descriptors ("Infested" 23, "Boiling Doom", "Caustic Nightmare",
+    /// "Mutated", "Worm-ridden", "The Nest"...), none of which any other body has; "Corrupted" (4) also occurs elsewhere.</summary>
     public const int InfestedSubType = 24;
 
     /// <summary>What players search the haunted worlds by.</summary>
