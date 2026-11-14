@@ -101,7 +101,10 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     [ObservableProperty] public partial bool WaterOnly { get; set; }
     [ObservableProperty] public partial bool DissonantOnly { get; set; }
     [ObservableProperty] public partial bool InfestedOnly { get; set; }
+    /// <summary>"Infested (1,980 planets)": how many the other filters leave (planet type included), like
+    /// <see cref="RingsLabel"/> and the planet type counts (<see cref="ApplyAsync"/>).</summary>
     [ObservableProperty] public partial string InfestedLabel { get; private set; } = "";
+    [ObservableProperty] public partial string RingsLabel { get; private set; } = "Rings only";
     [ObservableProperty] public partial bool ShowInfested { get; private set; }
 
     [ObservableProperty] public partial string WaterLabel { get; private set; } = "";
@@ -271,21 +274,14 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         if (version != _infestedVersion) return;
         bool changed = !infested.SetEquals(_infested);
         _infested = infested;
-        int count = planets.Count(p => infested.Contains((p.SystemAddress, p.PlanetIndex)));
-        InfestedLabel = $"Infested ({count:N0} {(count == 1 ? "planet" : "planets")})";
-        ShowInfested = count > 0;
-        if (count == 0 && InfestedOnly) InfestedOnly = false;
-        else if (changed && InfestedOnly) Apply();
+        bool any = planets.Any(p => infested.Contains((p.SystemAddress, p.PlanetIndex)));
+        ShowInfested = any;
+        if (!any && InfestedOnly) InfestedOnly = false;
+        else if (changed) Apply(); // the infested and planet type counts
     }
 
     private void FillChoices()
     {
-        int haunted = _all.Count(p => NmsPlanets.IsHaunted(p.BiomeIndex));
-        Type.Refill($"All types ({_all.Count})", NmsPlanets.SelectableTypes
-            .Select(t => (Type: t, Count: _all.Count(p => p.BiomeIndex == t))).Where(t => t.Count > 0)
-            .Select(t => new ChoiceItem($"{NmsPlanets.TypeName(t.Type)} ({t.Count})", t.Type.ToString(CultureInfo.InvariantCulture)))
-            // The game's fishing text sends players to "haunted homeworlds": Exotic and the three anomalies together.
-            .Concat(haunted > 0 ? (ChoiceItem[])[new ChoiceItem($"{NmsPlanets.HauntedName} ({haunted})", HauntedType)] : (ChoiceItem[])[]));
         Region.Refill("All regions", _all.GroupBy(p => RegionMapService.RegionKey(p.SystemAddress))
             .OrderByDescending(g => g.Count()).ThenBy(g => UniverseInfo.Region(g.First().SystemAddress), StringComparer.CurrentCulture)
             .Select(g => new ChoiceItem($"{UniverseInfo.Region(g.First().SystemAddress)} ({g.Count():N0})", g.Key.ToString(CultureInfo.InvariantCulture))));
@@ -366,6 +362,24 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     private void Apply() => _ = ApplyAsync();
 
     /// <summary>
+    /// The planet type choices, counted in what the other filters leave (2026-11-14, the owner: with Infested ticked,
+    /// the list should only offer the types that come infested). A type with none is left out, except the one picked,
+    /// which stays (with 0) so a filter change never swaps the player's choice behind their back.
+    /// </summary>
+    private void FillTypes(IReadOnlyDictionary<int, int> counts)
+    {
+        int Count(int type) => counts.TryGetValue(type, out int n) ? n : 0;
+        string picked = Type.Value;
+        int haunted = counts.Where(c => NmsPlanets.IsHaunted(c.Key)).Sum(c => c.Value);
+        Type.Refill($"All types ({counts.Values.Sum():N0})", NmsPlanets.SelectableTypes
+            .Select(t => (Type: t, Value: t.ToString(CultureInfo.InvariantCulture), Count: Count(t)))
+            .Where(t => t.Count > 0 || t.Value == picked)
+            .Select(t => new ChoiceItem($"{NmsPlanets.TypeName(t.Type)} ({t.Count:N0})", t.Value))
+            // The game's fishing text sends players to "haunted homeworlds": Exotic and the three anomalies together.
+            .Concat(haunted > 0 || picked == HauntedType ? (ChoiceItem[])[new ChoiceItem($"{NmsPlanets.HauntedName} ({haunted:N0})", HauntedType)] : (ChoiceItem[])[]));
+    }
+
+    /// <summary>
     /// Filters and sorts off the UI thread (tens of thousands of bodies with the generated ones), then builds cards for
     /// the first <see cref="MaxCards"/>. Every setting is read here first; a newer run drops an older one's result.
     /// </summary>
@@ -395,15 +409,14 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         MoreFiltersLabel = more > 0 ? $"More filters ({more} on)" : "More filters";
         ActiveFilters = more + new[] { search.Length > 0, type >= 0 || hauntedOnly, rings, infestedOnly }.Count(on => on);
 
-        var (shown, total) = await Task.Run(() =>
+        var (shown, total, typeCounts, infestedCount, ringsCount) = await Task.Run(() =>
         {
-            var filtered = all
-                .Where(p => type < 0 || p.BiomeIndex == type)
-                .Where(p => !hauntedOnly || NmsPlanets.IsHaunted(p.BiomeIndex))
+            bool TypeOk(KnownPlanet p) => (type < 0 || p.BiomeIndex == type) && (!hauntedOnly || NmsPlanets.IsHaunted(p.BiomeIndex));
+            bool IsInfested(KnownPlanet p) => infested.Contains((p.SystemAddress, p.PlanetIndex));
+            // Everything but planet type, rings and infested, whose counts each leave out their own filter.
+            var others = all
                 .Where(p => galaxy < 0 || p.Galaxy == galaxy)
                 .Where(p => region is null || RegionMapService.RegionKey(p.SystemAddress) == region)
-                .Where(p => !rings || p.HasRings)
-                .Where(p => !infestedOnly || infested.Contains((p.SystemAddress, p.PlanetIndex)))
                 .Where(p => !mine || p.DiscoveredHere)
                 .Where(p => !systemFilter
                     || ((star.Length == 0 || PlanetText.StarOf(p.SystemAddress) == star)
@@ -429,6 +442,12 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
                     2 => BodyKindsService.IsMoon(p.SystemAddress, p.PlanetIndex),
                     _ => true,
                 })
+                .ToList();
+            var typeCounts = others.Where(p => (!rings || p.HasRings) && (!infestedOnly || IsInfested(p)))
+                .GroupBy(p => p.BiomeIndex).ToDictionary(g => g.Key, g => g.Count());
+            int infestedCount = others.Count(p => TypeOk(p) && (!rings || p.HasRings) && IsInfested(p));
+            int ringsCount = others.Count(p => TypeOk(p) && (!infestedOnly || IsInfested(p)) && p.HasRings);
+            var filtered = others.Where(p => TypeOk(p) && (!rings || p.HasRings) && (!infestedOnly || IsInfested(p)))
                 .Select(p => (Planet: p, Distance: here is ulong h ? NmsPlanets.DistanceLightYears(h, p.SystemAddress) : null));
 
             // Nearest first: same-galaxy planets by distance, other galaxies after.
@@ -441,9 +460,14 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
             }).ToList();
             // What the cards read that the generator works out (the descriptor needs the system's profile), done here.
             foreach (var (p, _) in ordered.Take(MaxCards)) PlanetTypesService.Descriptor(p.SystemAddress, p.PlanetIndex);
-            return (ordered.Take(MaxCards).ToList(), ordered.Count);
+            return (ordered.Take(MaxCards).ToList(), ordered.Count, typeCounts, infestedCount, ringsCount);
         });
         if (version != _applyVersion) return;
+        _quiet = true;
+        FillTypes(typeCounts);
+        _quiet = false;
+        InfestedLabel = $"Infested ({infestedCount:N0} {(infestedCount == 1 ? "planet" : "planets")})";
+        RingsLabel = $"Rings only ({ringsCount:N0})";
         Results = shown.Select(x => new PlanetRowViewModel(x.Planet, here, x.Distance)).ToList();
         ResultCount = total == all.Count ? $"{total:N0} planets" : $"{total:N0} of {all.Count:N0} planets";
         ShownNote = total > shown.Count ? $"Showing the first {shown.Count:N0} of {total:N0}. Pick a planet type or other filters to narrow the list." : "";
