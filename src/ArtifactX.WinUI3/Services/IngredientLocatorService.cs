@@ -105,8 +105,9 @@ public static class IngredientLocatorService
                         foreach (var f in HarvestSearch.On(system.SystemAddress, types, profiles, itemId))
                         {
                             var details = At(f.PlanetIndex, f.Body);
-                            if (f.Harvest.TileType is 4) details.Add("found underwater");
-                            else if (f.Harvest.TileType is 5) details.Add("found in caves");
+                            string where = f.Harvest.TileType switch { 4 => "underwater", 5 => "in caves", _ => "" };
+                            if (f.Harvest.Mined) details.Add(where.Length > 0 ? $"mine it {where}" : "mine it");
+                            else if (where.Length > 0) details.Add("found " + where);
                         }
                     if (creatures is not null)
                         foreach (var f in CreatureProduceSearch.On(system.SystemAddress, types, profiles, itemId, creatures, fed, huntIds))
