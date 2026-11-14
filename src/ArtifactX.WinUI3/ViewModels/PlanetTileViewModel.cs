@@ -45,7 +45,7 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         Fish = fish;
         if (PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex) is { } profile)
         {
-            Weather = PlanetText.Weather(profile);
+            Weather = PlanetText.Weather(profile, planet.SystemAddress, planet.PlanetIndex);
             Sentinels = PlanetText.Sentinels(profile);
             Flora = details?.Flora is { Length: > 0 } fl ? fl : PlanetText.Flora(profile);
             Fauna = details?.Fauna is { Length: > 0 } fa ? fa : PlanetText.Fauna(profile);

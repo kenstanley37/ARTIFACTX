@@ -18,25 +18,46 @@ public static partial class PlanetProfileGenerator
             return "Paradise";
         }
 
-        // 2. Determine prefix and candidate count
+        // 2. The word list, then a 1-based index drawn with the MWC generator on child seed 21.
+        var (prefix, count) = DescriptorWords(biome, subType);
+        var rng = Rng.Start(childSeed21);
+        uint next = rng.Next();
+        int index = (int)(((ulong)next * (ulong)count) >> 32) + 1;
+        string key = $"{prefix}{index}";
+
+        if (t.Descriptors is not null && t.Descriptors.TryGetValue(key, out var word))
+            return word;
+        if (FallbackDescriptors.TryGetValue(key, out var fallbackWord))
+            return fallbackWord;
+
+        return prefix;
+    }
+
+    /// <summary>The language-key prefix of the word list a planet's descriptor is drawn from, and its length
+    /// ("LUSH", 10 -> LUSH1..LUSH10), by biome and GcBiomeSubType.</summary>
+    public static (string Prefix, int Count) DescriptorWords(int biome, int subType)
+    {
         string prefix;
         int count;
 
         if (biome == Weird) // 7
         {
+            // Exotic worlds' words by GcBiomeSubType (Structure = 3 ... HydroGarden = 13). Was shifted down by 3
+            // until 2026-11-14, which put 57 of the owner's 612 captured descriptors on the wrong list
+            // ("Fissured" planets, Beam = 4, were given Bubble's words).
             prefix = subType switch
             {
-                0 => "MSTRUCTBIOME",
-                1 => "BEAMSBIOME",
-                2 => "HEXAGONBIOME",
-                3 => "FRACTCUBEBIOME",
-                4 => "BUBBLEBIOME",
-                5 => "SHARDSBIOME",
-                6 => "CONTOURBIOME",
-                7 => "IRRISHELLSBIOME",
-                8 => "BONESPIREBIOME",
-                9 => "WIRECELLSBIOME",
-                10 => "HYDROGARDENBIOME",
+                3 => "MSTRUCTBIOME",
+                4 => "BEAMSBIOME",
+                5 => "HEXAGONBIOME",
+                6 => "FRACTCUBEBIOME",
+                7 => "BUBBLEBIOME",
+                8 => "SHARDSBIOME",
+                9 => "CONTOURBIOME",
+                10 => "IRRISHELLSBIOME",
+                11 => "BONESPIREBIOME",
+                12 => "WIRECELLSBIOME",
+                13 => "HYDROGARDENBIOME",
                 _ => "GLITCHBIOME"
             };
             count = prefix == "GLITCHBIOME" ? 12 : 3;
@@ -115,19 +136,7 @@ public static partial class PlanetProfileGenerator
                 };
             }
         }
-
-        // 3. Draw 1-based index using MWC generator on child seed 21
-        var rng = Rng.Start(childSeed21);
-        uint next = rng.Next();
-        int index = (int)(((ulong)next * (ulong)count) >> 32) + 1;
-        string key = $"{prefix}{index}";
-
-        if (t.Descriptors is not null && t.Descriptors.TryGetValue(key, out var word))
-            return word;
-        if (FallbackDescriptors.TryGetValue(key, out var fallbackWord))
-            return fallbackWord;
-
-        return prefix;
+        return (prefix, count);
     }
 
     /// <summary>The game's own "Paradise Planet" rule (0x1416ce845): a lush world (not swamp, ruined or infested, which
@@ -135,13 +144,50 @@ public static partial class PlanetProfileGenerator
     /// low sentinels on the normal difficulty slot. Its descriptor is then "Paradise" whatever seed 21 draws.
     /// The check's 0 is the weather's intensity (not extreme), not GcWeatherOptions Clear: lush worlds never draw Clear,
     /// and with that reading 17 of the 18 planets the owner's captures name "Paradise Planet" match (the 18th, a dead
-    /// moon, looks like a capture that kept the planet before's word), against none before (user.db, 600 captured
+    /// moon, holds planet 3's word: a capture filed on the wrong body, PlanetPageReader.OtherBodysReading), against none before (user.db, 600 captured
     /// descriptors, build 185034, 2026-11-14).</summary>
     public static bool IsParadise(int biome, int subType, bool extreme, int storms, int[] sentinels) =>
         biome == Lush && subType is not (SwampSub or RuinedSub or InfestedSub) && !extreme && storms == 0
         && sentinels.Length > 2 && sentinels[2] == 0;
 
     private const int RuinedSub = 3, InfestedSub = 0x18;
+
+    /// <summary>
+    /// The family of words the game shows for a planet's weather ("LUSH": "Usually Mild", "Light Showers"...;
+    /// the language keys are WEATHER_&lt;family&gt;n, with _CLEAR and EXTREME variants). Measured, not ported: the
+    /// text step that picks it (0x1416a4bd0) wasn't traced. It fits 1,038 of the owner's 1,054 captured weather words
+    /// (user.db, 2026-11-14) the family follows the biome far more than the weather type: lush worlds show LUSH
+    /// words even when the type is Weird (corrupted sentinels turn Humid into Weird, 0x141696760 - and the storm
+    /// odds follow that type, so the type itself stays), Swamp or Dust; colour anomalies show their colour's words
+    /// with any type; waterworlds always show WATERWORLD. The weather types that do change the words: Bubble is
+    /// always GREEN (14/14), a swamp world's Toxic weather is TOXIC, a barren world's hot weather (Humid, Scorched,
+    /// Fire) is HEAT, and lava subtypes are LAVA. The 16 misses are dead worlds that showed BARREN words (of 123
+    /// dead worlds; not explained).
+    /// </summary>
+    public static string WeatherWordFamily(int biome, int subType, int weatherType)
+    {
+        const int toxicWeather = 4, bubbleWeather = 12;
+        if (biome == Waterworld) return "WATERWORLD";
+        if (biome == GasGiant) return "GASGIANT";
+        if (weatherType == bubbleWeather) return "GREEN";
+        if (biome == Weird) return "GLITCH";
+        if (biome == Lava || subType == LavaSub) return "LAVA";
+        if (biome == Swamp || subType == SwampSub) return weatherType == toxicWeather ? "TOXIC" : "SWAMP";
+        if (biome == Barren) return weatherType == DustWeather ? "BARREN" : "HEAT";
+        return biome switch
+        {
+            Lush => "LUSH",
+            1 => "TOXIC",
+            2 => "HEAT",
+            3 => "RADIO",
+            4 => "COLD",
+            Dead or 11 => "DEAD",
+            8 => "RED",
+            9 => "GREEN",
+            10 => "BLUE",
+            _ => "LUSH",
+        };
+    }
 
     private static readonly Dictionary<string, string> FallbackDescriptors = new(StringComparer.OrdinalIgnoreCase)
     {
