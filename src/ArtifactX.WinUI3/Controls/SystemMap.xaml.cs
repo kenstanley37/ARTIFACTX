@@ -98,6 +98,8 @@ public sealed partial class SystemMap : UserControl
         /// straight out.</summary>
         public double Offset, Turn;
         public bool IsPlayer;
+        /// <summary>You, far from every body: drawn outside the last ring, level with the planet you're nearest.</summary>
+        public bool DeepSpace;
         public (double X, double Y, double Depth) Screen;
     }
 
@@ -107,7 +109,7 @@ public sealed partial class SystemMap : UserControl
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private TimeSpan _lastFrame;
     private bool _ticking;
-    private double _outer = FirstRing;
+    private double _outer = FirstRing, _outerRing = FirstRing;
 
     public SystemMap()
     {
@@ -165,7 +167,8 @@ public sealed partial class SystemMap : UserControl
             for (int k = 0; k < moons.Count; k++)
                 AddOrbiter(moons[k], planet, MoonFirstRing + k * MoonRingGap, 20 + k * 8).MoonSlot = k;
         }
-        _outer = FirstRing + (planets.Count - 1) * RingGap + MoonFirstRing;
+        _outerRing = FirstRing + (planets.Count - 1) * RingGap;
+        _outer = _outerRing + MoonFirstRing;
         // MapCamera leaves a wide margin (it fits 2.6 half-widths); the orrery fills more of its frame.
         _camera.HalfExtent = _outer * 0.9;
 
@@ -176,11 +179,19 @@ public sealed partial class SystemMap : UserControl
                 RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform { Angle = 45 },
             }, "ThemeTextDimBrush", StationTurn, 0, false));
         if (Player is { } you && NearestToPlayer(you) is { } beside)
-            _companions.Add(AddCompanion(you, beside.Body, new Ellipse
+        {
+            // Far from everything: outside the last ring, on the side of the nearest planet, with how far it is.
+            var marker = beside.DeepSpace
+                ? you with { Name = "You (deep space)", Detail = $"{you.Detail} · about {Units(beside.Distance)} from {beside.Body.Name}" }
+                : you;
+            var player = AddCompanion(marker, beside.Body, new Ellipse
             {
                 Width = 12, Height = 12, Fill = ThemeResources.Brush("ThemeTextBrush"),
                 Stroke = ThemeResources.Brush("ThemeDamageStatBrush"), StrokeThickness = 3,
-            }, "ThemeTextBrush", beside.Station ? StationTurn : -0.6, beside.Station ? 14 : 0, true));
+            }, "ThemeTextBrush", beside.Station ? StationTurn : -0.6, beside.Station ? 14 : 0, true);
+            player.DeepSpace = beside.DeepSpace;
+            _companions.Add(player);
+        }
 
         _camera.SetPivot(0, 0, 0);
     }
@@ -278,16 +289,31 @@ public sealed partial class SystemMap : UserControl
         return nearest is { IsMoon: true } moon && bodies.FirstOrDefault(b => b.Index == moon.Host) is { } host ? host : nearest;
     }
 
-    /// <summary>The body you're nearest in space, or the station's planet when the station is nearer than any body.</summary>
-    private (SystemMapBody Body, bool Station)? NearestToPlayer(SystemMapMarker you)
+    /// <summary>Nearer than this to a body or the station (map units: thousands of u) counts as beside it - less than the
+    /// 226,000 u the game keeps between a planet and its moons.</summary>
+    private const double NearDistance = 150;
+
+    /// <summary>The body you're beside in space, or the station's planet when you're at the station; when you're near
+    /// neither, the planet nearest you (a moon's planet) with DeepSpace set.</summary>
+    private (SystemMapBody Body, bool Station, bool DeepSpace, double Distance)? NearestToPlayer(SystemMapMarker you)
     {
         var bodies = Bodies ?? [];
         var nearest = bodies.MinBy(b => Distance(b.X, b.Y, b.Z, you));
         if (nearest is null) return null;
-        if (Station is { } station && Distance(station.X, station.Y, station.Z, you) < Distance(nearest.X, nearest.Y, nearest.Z, you)
-            && Nearest(station) is { } stationPlanet)
-            return (stationPlanet, true);
-        return (nearest, false);
+        double toBody = Distance(nearest.X, nearest.Y, nearest.Z, you);
+        if (Station is { } station && Distance(station.X, station.Y, station.Z, you) is var toStation
+            && toStation < toBody && toStation < NearDistance && Nearest(station) is { } stationPlanet)
+            return (stationPlanet, true, false, toStation);
+        if (toBody < NearDistance) return (nearest, false, false, toBody);
+        var planet = nearest.IsMoon && bodies.FirstOrDefault(b => b.Index == nearest.Host) is { } host ? host : nearest;
+        return (planet, false, true, Distance(planet.X, planet.Y, planet.Z, you));
+    }
+
+    /// <summary>A distance in map units as the game words it ("850,000 u", "1.2 million u").</summary>
+    private static string Units(double mapUnits)
+    {
+        double u = mapUnits * 1000;
+        return u >= 1_000_000 ? $"{u / 1_000_000:0.#} million u" : $"{Math.Round(u / 1000) * 1000:N0} u";
     }
 
     private static double Distance(double x, double y, double z, SystemMapMarker m) =>
@@ -338,8 +364,16 @@ public sealed partial class SystemMap : UserControl
         foreach (var c in _companions)
         {
             var (bx, bz) = c.Beside.At;
-            double outward = Math.Atan2(bz, bx) + c.Turn, offset = ppu > 0 ? c.Offset / ppu : 0;
-            c.Screen = _camera.Project(bx + offset * Math.Cos(outward), 0, bz + offset * Math.Sin(outward));
+            if (c.DeepSpace)
+            {
+                double side = Math.Atan2(bz, bx), reach = _outerRing + (ppu > 0 ? 22 / ppu : 0);
+                c.Screen = _camera.Project(reach * Math.Cos(side), 0, reach * Math.Sin(side));
+            }
+            else
+            {
+                double outward = Math.Atan2(bz, bx) + c.Turn, offset = ppu > 0 ? c.Offset / ppu : 0;
+                c.Screen = _camera.Project(bx + offset * Math.Cos(outward), 0, bz + offset * Math.Sin(outward));
+            }
             Place(c.Shape, c.Screen.X, c.Screen.Y);
             Canvas.SetZIndex(c.Shape, Z(c.Screen.Depth) + (c.IsPlayer ? 150000 : 120000));
         }
