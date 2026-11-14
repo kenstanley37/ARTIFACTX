@@ -255,7 +255,7 @@ public sealed partial class SystemMap : UserControl
         Stage.Children.Add(shape);
         Stage.Children.Add(label);
         var orbiter = _orbiters.First(o => o.Body == beside);
-        return new Companion { Shape = shape, Label = label, Beside = orbiter, Offset = (orbiter.Body.IsMoon ? 0.16 : 0.3) + extra, Turn = turn, IsPlayer = isPlayer };
+        return new Companion { Shape = shape, Label = label, Beside = orbiter, Offset = (orbiter.Body.IsMoon ? 0.16 : orbiter.Body.Planet?.HasRings == true ? 0.45 : 0.3) + extra, Turn = turn, IsPlayer = isPlayer };
     }
 
     private static TextBlock Label(string text, double size, string brush)
@@ -350,11 +350,15 @@ public sealed partial class SystemMap : UserControl
     private void PlaceLabels()
     {
         var items = _orbiters.Select(o => (o.Label, o.Screen, Half: o.Drawing.Height / 2 + (o.Body.Planet?.HasRings == true ? 10 : 3),
-                Rank: o.Body.IsHere ? 0 : o.Body.IsMoon ? 2 : 1))
-            .Concat(_companions.Select(c => (c.Label, c.Screen, Half: c.Shape.Height / 2 + 3, Rank: c.IsPlayer ? 0 : 3)))
+                Rank: o.Body.IsHere ? 0 : o.Body.IsMoon ? 2 : 1, Own: (FrameworkElement)o.Drawing))
+            .Concat(_companions.Select(c => (c.Label, c.Screen, Half: c.Shape.Height / 2 + 3, Rank: c.IsPlayer ? 0 : 3, Own: (FrameworkElement)c.Shape)))
             .OrderBy(i => i.Rank).ToList();
+        // Labels keep off the star and every other body as well as each other.
+        var bodies = _orbiters.Select(o => (Box: Box(o.Drawing, o.Body.Planet?.HasRings == true), Element: (FrameworkElement)o.Drawing))
+            .Concat(_companions.Select(c => (Box: Box(c.Shape, true), Element: (FrameworkElement)c.Shape)))
+            .Concat(_star is { } star ? [(Box: Box(star.Core, true), Element: (FrameworkElement)star.Core)] : []).ToList();
         var taken = new List<Rect>();
-        foreach (var (label, at, half, _) in items)
+        foreach (var (label, at, half, _, own) in items)
         {
             double w = label.DesiredSize.Width, h = label.DesiredSize.Height;
             Point[] spots =
@@ -366,7 +370,7 @@ public sealed partial class SystemMap : UserControl
             foreach (var spot in spots)
             {
                 var rect = new Rect(spot.X, spot.Y, w, h);
-                if (taken.Any(t => Overlaps(t, rect))) continue;
+                if (taken.Any(t => Overlaps(t, rect)) || bodies.Any(b => !ReferenceEquals(b.Element, own) && Overlaps(b.Box, rect))) continue;
                 chosen = spot;
                 break;
             }
@@ -375,6 +379,14 @@ public sealed partial class SystemMap : UserControl
             Canvas.SetTop(label, chosen.Y);
             Canvas.SetZIndex(label, 300000);
         }
+    }
+
+    /// <summary>The space a drawing covers: its full width with rings, else just its disc (planet drawings are twice as
+    /// wide as tall, to leave room for rings).</summary>
+    private static Rect Box(FrameworkElement element, bool fullWidth)
+    {
+        double w = fullWidth ? element.Width : element.Height;
+        return new(Canvas.GetLeft(element) + (element.Width - w) / 2, Canvas.GetTop(element), w, element.Height);
     }
 
     private static bool Overlaps(Rect a, Rect b) => a.X < b.X + b.Width && b.X < a.X + a.Width && a.Y < b.Y + b.Height && b.Y < a.Y + a.Height;
