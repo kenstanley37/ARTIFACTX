@@ -6,11 +6,10 @@ public static partial class PlanetProfileGenerator
     /// Port of NMS.exe's planet descriptor routine (0x1416ce4a0, build 184271, 2026-11-08).
     /// Uses child seed 21 to pick the procedural descriptor adjective (e.g. "Tropical", "Glacial", "Ossified", "Paradise").
     /// </summary>
-    public static string GenerateDescriptor(ulong childSeed21, int biome, int subType, int weather, int storms, int[] sentinels, PlanetProfileTables t)
+    public static string GenerateDescriptor(ulong childSeed21, int biome, int subType, bool extreme, int storms, int[] sentinels, PlanetProfileTables t)
     {
-        // 1. Paradise override (0x1416ce845):
-        // Lush biome (0), not Swamp (0x19), Clear weather (0), no storms (0), low sentinels (0 on difficulty slot).
-        if (biome == Lush && subType != SwampSub && weather == 0 && storms == 0 && sentinels.Length > 2 && sentinels[2] == 0)
+        // 1. Paradise override (0x1416ce845): see IsParadise.
+        if (IsParadise(biome, subType, extreme, storms, sentinels))
         {
             if (t.Descriptors is not null && t.Descriptors.TryGetValue("UI_PARADISE_PLANET", out var paradise))
                 return paradise;
@@ -130,6 +129,19 @@ public static partial class PlanetProfileGenerator
 
         return prefix;
     }
+
+    /// <summary>The game's own "Paradise Planet" rule (0x1416ce845): a lush world (not swamp, ruined or infested, which
+    /// have their own "Abandoned Paradise" / "Infested Paradise" words) whose weather is not extreme, with no storms and
+    /// low sentinels on the normal difficulty slot. Its descriptor is then "Paradise" whatever seed 21 draws.
+    /// The check's 0 is the weather's intensity (not extreme), not GcWeatherOptions Clear: lush worlds never draw Clear,
+    /// and with that reading 17 of the 18 planets the owner's captures name "Paradise Planet" match (the 18th, a dead
+    /// moon, looks like a capture that kept the planet before's word), against none before (user.db, 600 captured
+    /// descriptors, build 185034, 2026-11-14).</summary>
+    public static bool IsParadise(int biome, int subType, bool extreme, int storms, int[] sentinels) =>
+        biome == Lush && subType is not (SwampSub or RuinedSub or InfestedSub) && !extreme && storms == 0
+        && sentinels.Length > 2 && sentinels[2] == 0;
+
+    private const int RuinedSub = 3, InfestedSub = 0x18;
 
     private static readonly Dictionary<string, string> FallbackDescriptors = new(StringComparer.OrdinalIgnoreCase)
     {

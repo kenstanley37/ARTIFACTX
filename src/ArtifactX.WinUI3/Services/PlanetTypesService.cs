@@ -24,6 +24,7 @@ public static class PlanetTypesService
     private static Task? _loading;
     private static readonly ConcurrentDictionary<ulong, PlanetType[]> Cache = new();
     private static readonly ConcurrentDictionary<ulong, PlanetProfile?[]> Profiles = new();
+    private static readonly ConcurrentDictionary<ulong, PlanetBasics?[]> BasicsCache = new();
 
     /// <summary>Raised (any thread) once the tables are loaded.</summary>
     public static event Action? Loaded;
@@ -51,7 +52,7 @@ public static class PlanetTypesService
             GameDataService.BuildFinished += error =>
             {
                 _tables = null; _profileTables = null; _inventoryTables = null; _loading = null;
-                Cache.Clear(); Profiles.Clear();
+                Cache.Clear(); Profiles.Clear(); BasicsCache.Clear();
                 _ = EnsureLoadedAsync();
             };
         }
@@ -68,6 +69,7 @@ public static class PlanetTypesService
         _inventoryTables = await CatalogService.GetInventoryGenerationTablesAsync();
         Cache.Clear();
         Profiles.Clear();
+        BasicsCache.Clear();
         Loaded?.Invoke();
     }
 
@@ -96,6 +98,15 @@ public static class PlanetTypesService
         var all = Profiles.GetOrAdd(system, a => SystemProfiles.Generate(a, biomes, tables));
         int index = planetIndex - 1;
         return index >= 0 && index < all.Length ? all[index] : null;
+    }
+
+    /// <summary>Each body's weather, life, sentinels, resources and descriptor (index 0 = planet 1) without the full
+    /// profile's objects and creatures (SystemProfiles.Basics): cheap enough for every planet the Planet Finder lists.
+    /// Empty until the tables are loaded.</summary>
+    public static PlanetBasics?[] Basics(ulong system)
+    {
+        if (_tables is not { } biomes || _profileTables is not { } tables) return [];
+        return BasicsCache.GetOrAdd(S.ToSystemAddress(system), a => SystemProfiles.Basics(a, biomes, tables));
     }
 
     /// <summary>The game's English text for a scanner hint that isn't an item

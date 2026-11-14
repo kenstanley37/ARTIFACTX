@@ -5,6 +5,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Fixed
+- After a portal trip or warp, the planet you arrived on could be given the name of the planet you left. It now keeps its own name, and planets already misnamed this way get their names back when the app starts.
+
+- Planets the game calls "Paradise Planet" are now named that way in the app too; it used to give them another lush word (like "Verdant").
 
 - Cooking Recipes no longer offer Creature Pellets made from Scented Herbs, Enzyme Fluid or Fermented Fruit: the game retired those baits (it turns any you still hold into Creature Pellets), so they can't be found. Update your game data once to get this.
 - 3D models (creatures, ships, multi-tools, freighters) are lit more like the game: brighter and less murky, with highlights that no longer wash out.
@@ -62,7 +65,13 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to place a Save Beacon right at the optimal base site.
 
 ### Changed
+- Current System: every line of the System Data box is now gold, not just the ones read off the game screen, and pirate systems show "Black Market" and "Pirate Controlled" as the game does.
+- Planet Finder: pin a planet (the pin at the top right of its card) to keep it at the top of the list, whatever the filters and however far you warp. Pins are remembered.
+- Planet Finder: each card shows its star system in bold with a dot in the star's colour, so it's easy to spot on the galaxy map.
 
+- Planet Finder now also lists the undiscovered planets of the 5,000 star systems nearest you (about 24,000 planets), worked out the way the game does. Your save forgets older discoveries, so it can't map a region on its own. "Undiscovered planets" under More filters can narrow this to your region or turn it off. The list shows the nearest 500 cards; filters narrow it.
+- Planet Finder: a "Paradise" checkbox finds the planets the game itself calls Paradise Planets (lush, no storms or extreme weather, low sentinels), and a new Weather filter (no storms, storms, extreme) joins Sentinels, Flora, Fauna and Resource. These now work on every planet, not just the ones you recorded; what you recorded still wins. Each card shows the planet's weather, sentinels, life and resources.
+- Planet Finder: the search is one compact row (search, planet type, sort, rings only, infested). The other filters open under a "More filters" button, which shows how many of them are on, so none are on without you seeing it. The galaxy filter starts on the galaxy you're in, because a portal can't take you to another galaxy. Your other save slots' discoveries are always included, so that checkbox is gone. The results are now a card of their own with the count and Export CSV, and Clear filters stays on the filters card's header even when the card is folded. The planet type list and the Infested and Rings counts follow your other filters: with Infested ticked, the list offers only the planet types that come infested, and counts how many of each.
 - Planet Details POI Layout: Converted Portal, Crashed Ships, and Cabinet Multi-Tools from 100% full-width folding sections into compact responsive cards. They now render side-by-side in a responsive row, saving over 200px of vertical scrolling space while matching the 370px card format of the located sites and hotspots grids.
 
 ### Fixed

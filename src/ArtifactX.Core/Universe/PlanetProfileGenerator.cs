@@ -57,6 +57,12 @@ public sealed record PlanetProfile(string Common, string Uncommon, string Rare, 
     int Flora, int Fauna, int[] Sentinels, string[] Hints, bool ScrapWorld = false, bool Water = false, int? FaunaCount = null,
     PredictedCreature[]? PredictedCreatures = null, string Descriptor = "", PlanetHarvest[]? Harvest = null);
 
+/// <summary>The cheap part of a <see cref="PlanetProfile"/>: resources, weather, life, sentinels and descriptor, with
+/// no terrain, placed objects or creatures (<see cref="PlanetProfileGenerator.Basics"/>), for searching thousands of
+/// planets at once (the Planet Finder).</summary>
+public sealed record PlanetBasics(string Common, string Uncommon, string Rare, int WeatherType, bool Extreme, int Storms,
+    int Flora, int Fauna, int[] Sentinels, bool ScrapWorld, string Descriptor);
+
 /// <summary>
 /// A planet's resources, weather, life and sentinels from its seed - a port of NMS.exe's
 /// planet-data routine (build 180836, 0x1416a7880, read 2026-10-22): the planet seed starts
@@ -133,22 +139,10 @@ public static partial class PlanetProfileGenerator
     {
         int biome = body.Biome, subType = body.SubType, planetClass = body.Class;
         var seeds = ChildSeeds(planetSeed);
-        var (flora, fauna, sentinels, scrap) = Life(Rng.Start(seeds[0]), planetIndex, biome, subType, planetClass, star, galaxyType, t);
-        bool corrupted = sentinels[Math.Clamp(t.Sentinels.CheckDifficulty, 0, 3)] == 3;
-        var (weather, extreme, storms) = Weather(Rng.Start(seeds[12]), biome, subType, planetClass, star, galaxyType, inGasGiantSystem, corrupted, t);
-
-        // Resources (0x141696dc0): the rare one by the first draw, the second a fraction
-        // that splits swamp and lava worlds' uncommon resource.
-        var rng = Rng.Start(seeds[19]);
-        uint first = rng.Next();
-        float f = rng.NextFraction();
-        int rareIndex = (int)(((ulong)first * (ulong)t.MiningRare.Length) >> 32);
-        string uncommon = biome == Lava || subType == LavaSub
-            ? (0.33f > f ? t.MiningBiome[Lava] : t.MiningBiome[Barren])
-            : biome == Swamp || subType == SwampSub
-                ? (0.15f > f ? t.MiningBiome[Swamp] : 0.33f > f ? t.MiningBiome[16] : 0.66f > f ? t.MiningBiome[0] : t.MiningBiome[Swamp])
-                : t.MiningBiome[Math.Clamp(biome, 0, t.MiningBiome.Length - 1)];
-        string common = extreme ? t.MiningStarExtreme[star] : t.MiningStar[star];
+        var b = Basics(seeds, planetIndex, body, star, galaxyType, inGasGiantSystem, t);
+        var (flora, fauna, sentinels, scrap) = (b.Flora, b.Fauna, b.Sentinels, b.ScrapWorld);
+        var (weather, extreme, storms) = (b.WeatherType, b.Extreme, b.Storms);
+        var (common, uncommon) = (b.Common, b.Uncommon);
 
         string[] hints = Array.Empty<string>();
         PlanetHarvest[] harvest = Array.Empty<PlanetHarvest>();
@@ -171,9 +165,38 @@ public static partial class PlanetProfileGenerator
             ? GenerateFauna(planetSeed, biome, subType, planetClass, star, fauna, sea, caves, emptySystem, abandonedSystem, t.Creatures)
             : default;
         int? faunaCount = t.Creatures is not null ? (fauna <= 0 ? 0 : faunaResult.Count) : null;
-        string descriptor = GenerateDescriptor(seeds[21], biome, subType, weather, storms, sentinels, t);
-        return new PlanetProfile(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels,
-            hints, scrap, water, faunaCount, faunaResult.Creatures, descriptor, harvest);
+        return new PlanetProfile(common, uncommon, b.Rare, weather, extreme, storms, flora, fauna, sentinels,
+            hints, scrap, water, faunaCount, faunaResult.Creatures, b.Descriptor, harvest);
+    }
+
+    /// <summary>The planet's resources, weather, life, sentinels and descriptor alone: the same steps and seeds as
+    /// <see cref="Generate"/>, without terrain, placed objects or creatures.</summary>
+    public static PlanetBasics Basics(ulong planetSeed, int planetIndex, PlanetType body, int star,
+        int galaxyType, bool inGasGiantSystem, PlanetProfileTables t) =>
+        Basics(ChildSeeds(planetSeed), planetIndex, body, star, galaxyType, inGasGiantSystem, t);
+
+    private static PlanetBasics Basics(ulong[] seeds, int planetIndex, PlanetType body, int star,
+        int galaxyType, bool inGasGiantSystem, PlanetProfileTables t)
+    {
+        int biome = body.Biome, subType = body.SubType, planetClass = body.Class;
+        var (flora, fauna, sentinels, scrap) = Life(Rng.Start(seeds[0]), planetIndex, biome, subType, planetClass, star, galaxyType, t);
+        bool corrupted = sentinels[Math.Clamp(t.Sentinels.CheckDifficulty, 0, 3)] == 3;
+        var (weather, extreme, storms) = Weather(Rng.Start(seeds[12]), biome, subType, planetClass, star, galaxyType, inGasGiantSystem, corrupted, t);
+
+        // Resources (0x141696dc0): the rare one by the first draw, the second a fraction
+        // that splits swamp and lava worlds' uncommon resource.
+        var rng = Rng.Start(seeds[19]);
+        uint first = rng.Next();
+        float f = rng.NextFraction();
+        int rareIndex = (int)(((ulong)first * (ulong)t.MiningRare.Length) >> 32);
+        string uncommon = biome == Lava || subType == LavaSub
+            ? (0.33f > f ? t.MiningBiome[Lava] : t.MiningBiome[Barren])
+            : biome == Swamp || subType == SwampSub
+                ? (0.15f > f ? t.MiningBiome[Swamp] : 0.33f > f ? t.MiningBiome[16] : 0.66f > f ? t.MiningBiome[0] : t.MiningBiome[Swamp])
+                : t.MiningBiome[Math.Clamp(biome, 0, t.MiningBiome.Length - 1)];
+        string common = extreme ? t.MiningStarExtreme[star] : t.MiningStar[star];
+        string descriptor = GenerateDescriptor(seeds[21], biome, subType, extreme, storms, sentinels, t);
+        return new PlanetBasics(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels, scrap, descriptor);
     }
 
     private const int Infested = 0x18;

@@ -36,8 +36,6 @@ public sealed partial class PlanetFinderPage : Page
         if (SaveSessionManager.IsSaveLoaded) _ = ViewModel.LoadAsync();
     }
 
-    public Visibility IsCollapsedWhen(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
-
     private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = ViewModel.LoadAsync());
 
     private void OnSnapshotSeen(PlanetSnapshot snapshot) => DispatcherQueue.TryEnqueue(() =>
@@ -50,6 +48,11 @@ public sealed partial class PlanetFinderPage : Page
     private void OnSystemChanged(ulong system) => DispatcherQueue.TryEnqueue(ViewModel.Refresh);
 
     private void ClearFilters_Click(object sender, RoutedEventArgs e) => ViewModel.ClearFilters();
+
+    private void Pin_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is PlanetRowViewModel row) ViewModel.TogglePin(row);
+    }
 
     private void Results_ItemClick(object sender, ItemClickEventArgs e)
     {

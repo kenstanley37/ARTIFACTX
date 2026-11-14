@@ -20,11 +20,11 @@ using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>A line of the SYSTEM DATA box: gold when the game showed it (system notes, read off
-/// the screen or typed in), grey for the generator's answer where nothing was recorded.</summary>
-public sealed record SystemDataRow(string Label, string Value, bool Recorded)
+/// <summary>A line of the SYSTEM DATA box, in gold whether the game showed it (system notes) or the generator worked it
+/// out: the generator matches the game (owner, 2026-11-14: a recorded-only gold read as "not known yet").</summary>
+public sealed record SystemDataRow(string Label, string Value)
 {
-    public Brush ValueBrush => ThemeResources.Brush(Recorded ? "ThemeWarningBrush" : "ThemeTextDimBrush");
+    public Brush ValueBrush => ThemeResources.Brush("ThemeWarningBrush");
 }
 
 /// <summary>A planet name read off the game screen that ArtifactX doesn't know (usually one
@@ -547,7 +547,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         var f = UniverseInfo.For(system);
         var rows = new List<SystemDataRow>();
         void Row(string label, string? recorded, string estimate) =>
-            rows.Add(new(label, !string.IsNullOrEmpty(recorded) ? recorded : estimate, !string.IsNullOrEmpty(recorded)));
+            rows.Add(new(label, !string.IsNullOrEmpty(recorded) ? recorded : estimate));
         int galaxy = S.GalaxyNumber(system);
         Row("Galaxy", NmsGalaxyNames.ForNumber(galaxy) is { } g ? $"{g} Galaxy" : $"Galaxy {galaxy}", "");
         string Bodies(int planets, int moons) => $"{planets} Planet{(planets == 1 ? "" : "s")} // {moons} Moon{(moons == 1 ? "" : "s")}";
@@ -558,8 +558,10 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         bool uncharted = note?.Race == "None (uncharted)";
         string? economy = note?.Economy is { Length: > 0 } e ? (note.Wealth is { Length: > 0 } w ? $"{e} // {w}" : e)
             : uncharted ? "- Data Unavailable -" : null;
-        Row("Economy", economy, f.Uncharted ? "None" : $"{f.EconomyLabel} // {f.WealthLabel}");
-        Row("Conflict level", note?.Conflict is { Length: > 0 } c ? c : uncharted ? "- Data Unavailable -" : null, f.Uncharted ? "None" : f.ConflictLabel);
+        // A pirate system's game lines: "Prospecting // Black Market", "Pirate Controlled" (Inzadga-Rigpr, 2026-11-14).
+        Row("Economy", economy, f.Uncharted ? "None" : $"{f.EconomyLabel} // {(f.Pirate ? "Black Market" : f.WealthLabel)}");
+        Row("Conflict level", note?.Conflict is { Length: > 0 } c ? c : uncharted ? "- Data Unavailable -" : null,
+            f.Uncharted ? "None" : f.Pirate ? "Pirate Controlled" : f.ConflictLabel);
         string defaultStation = $"{UniverseInfo.SystemName(system)} Station";
         if (f.Uncharted || uncharted)
             Row("Space Station", uncharted ? "None (uncharted)" : null, "None (uncharted)");

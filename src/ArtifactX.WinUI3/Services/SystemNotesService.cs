@@ -186,6 +186,17 @@ public static class SystemNotesService
         Changed?.Invoke(0);
     }
 
+    /// <summary>Every recorded system's notes with its packed address.</summary>
+    public static IReadOnlyList<(ulong Address, SystemNote Note)> AllWithAddress
+    {
+        get
+        {
+            lock (Lock)
+                return Notes.Select(kv => (ulong.TryParse(kv.Key, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong a) ? a : 0UL, kv.Value))
+                    .Where(x => x.Item1 != 0).ToList();
+        }
+    }
+
     /// <summary>Every recorded system's notes (for building search filters).</summary>
     public static IReadOnlyList<SystemNote> All
     {
@@ -451,25 +462,56 @@ public static class SystemNameLearner
     private static readonly System.Text.RegularExpressions.Regex InSystemRegex = new(@"^In the (.+) system$");
     private static readonly System.Text.RegularExpressions.Regex OnPlanetRegex = new(@"^On Planet \((.+)\)$");
 
-    /// <summary>Returns whether anything new was stored.</summary>
+    /// <summary>The last line learned from and where the player stood then (see <see cref="Learn"/>).</summary>
+    private static (string Line, ulong System, int Planet)? _last;
+
+    /// <summary>
+    /// Returns whether anything new was stored. A name the generator gives too (UniverseInfo.GeneratedPlanetName / the
+    /// system's GeneratedName) isn't stored: the generator already knows it, and a different name recorded for the place
+    /// is dropped, as the game says it isn't that. Only names someone gave the place are kept (433 learned names on the
+    /// owner's saves, 2026-11-14: 263 the generated name, the rest renames - "Coruscant" on two planets, six planets of
+    /// one system called "Bunny", so a shared name is fine).
+    /// The line can lag the player's position: after a portal trip the save held the new planet's position under
+    /// "On Planet (Yasiare Sigma)", the planet left behind, and Aisters was renamed after it (owner, 2026-11-14,
+    /// Inzadga-Rigpr planet 3; two older names on the owner's saves look the same). So the line learned at the last
+    /// place, seen again somewhere else while it is that place's generated name, is skipped.
+    /// </summary>
     public static bool Learn(ulong? system, int planet, string? summary)
     {
         if (system is not ulong address) return false;
         string line = (summary ?? "").Trim();
+        if (_last is { } last && last.Line == line && (last.System != address || last.Planet != planet) && IsGeneratedName(line, last.System, last.Planet))
+            return false;
         var note = SystemNotesService.Get(address) ?? new SystemNote();
         bool changed = false;
 
         if (InSystemRegex.Match(line) is { Success: true } inSystem && note.SystemName != inSystem.Groups[1].Value)
         {
+            if (inSystem.Groups[1].Value == UniverseInfo.For(address).GeneratedName)
+            {
+                _last = (line, address, planet);
+                if (note.SystemName.Length == 0) return false;
+                note.SystemName = "";
+                SystemNotesService.Save(address, note, source: "save");
+                return true;
+            }
             note.SystemName = inSystem.Groups[1].Value;
             changed = true;
         }
         else if (OnPlanetRegex.Match(line) is { Success: true } onPlanet && planet > 0)
         {
             string key = planet.ToString(CultureInfo.InvariantCulture);
-            if (!note.PlanetNames.TryGetValue(key, out var known) || known != onPlanet.Groups[1].Value)
+            string name = onPlanet.Groups[1].Value;
+            if (name == UniverseInfo.GeneratedPlanetName(address, planet))
             {
-                note.PlanetNames[key] = onPlanet.Groups[1].Value;
+                _last = (line, address, planet);
+                if (!note.PlanetNames.Remove(key)) return false;
+                SystemNotesService.Save(address, note, source: "save");
+                return true;
+            }
+            if (!note.PlanetNames.TryGetValue(key, out var known) || known != name)
+            {
+                note.PlanetNames[key] = name;
                 changed = true;
             }
         }
@@ -483,9 +525,46 @@ public static class SystemNameLearner
             }
         }
 
+        _last = (line, address, planet);
         if (changed) SystemNotesService.Save(address, note, source: "save");
         return changed;
     }
+
+    /// <summary>
+    /// Drops planet names a lagging "where you saved" line left on the wrong planet (see <see cref="Learn"/>): a recorded
+    /// name that isn't the planet's own generated name but is another recorded planet's. On the owner's saves
+    /// (2026-11-14) that was exactly three names - Yasiare Sigma on Aisters, Buythect Delta on Baba Delta, Alupuscu Unok
+    /// on Rugai 58/T8 - while renames shared on purpose ("Coruscant", "Bunny") are no planet's generated name. The rows
+    /// are soft-deleted, so the generated name shows again. Run off the UI thread; returns how many were dropped.
+    /// </summary>
+    public static int DropStaleNames()
+    {
+        var systems = SystemNotesService.AllWithAddress;
+        var named = systems.SelectMany(s => s.Note.PlanetNames.Keys
+                .Select(k => int.TryParse(k, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i) ? i : 0)
+                .Where(i => i > 0).Select(i => (s.Address, Planet: i)))
+            .ToList();
+        var generated = named.ToLookup(p => UniverseInfo.GeneratedPlanetName(p.Address, p.Planet));
+        int dropped = 0;
+        foreach (var (address, note) in systems)
+        {
+            var stale = note.PlanetNames
+                .Where(kv => int.TryParse(kv.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i)
+                    && kv.Value != UniverseInfo.GeneratedPlanetName(address, i)
+                    && generated[kv.Value].Any(o => o.Address != address || o.Planet != i))
+                .Select(kv => kv.Key).ToList();
+            if (stale.Count == 0) continue;
+            foreach (var key in stale) note.PlanetNames.Remove(key);
+            SystemNotesService.Save(address, note, source: "save");
+            dropped += stale.Count;
+        }
+        return dropped;
+    }
+
+    /// <summary>Whether a "where you saved" line names the place by the generator's name for it.</summary>
+    private static bool IsGeneratedName(string line, ulong system, int planet) =>
+        InSystemRegex.Match(line) is { Success: true } s ? s.Groups[1].Value == UniverseInfo.For(system).GeneratedName
+        : OnPlanetRegex.Match(line) is { Success: true } p && planet > 0 && p.Groups[1].Value == UniverseInfo.GeneratedPlanetName(system, planet);
 
     /// <summary>Names players gave planets and systems, from the save's discovery records
     /// (NmsPlanets.ReadCustomNames) - a renamed planet is then known before it's ever landed

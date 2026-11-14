@@ -36,6 +36,12 @@ public static class UnmatchedBodiesService
     /// reading that now matches - the player needn't pick at all.</summary>
     public static void Start()
     {
+        // Names an older version learned from a lagging save line, on the wrong planet.
+        _ = System.Threading.Tasks.Task.Run(() =>
+        {
+            try { SystemNameLearner.DropStaleNames(); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[UnmatchedBodiesService] Stale name check failed: {ex.Message}"); }
+        });
         FishCatchRecorder.SnapshotSeen += snapshot =>
         {
             ulong? system = ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ReadSystemAddress(snapshot.Universe);
