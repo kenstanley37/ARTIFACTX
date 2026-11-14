@@ -8,7 +8,10 @@ public sealed record ProduceFind(ulong PlanetAddress, int PlanetIndex, PlanetTyp
 /// Where to find creatures for an item (Fresh Milk, Crab 'Apple', Creature Egg from feeding; Raw Steak, Scaly Meat
 /// from hunting): the Ingredient Finder's creature half beside <see cref="HarvestSearch"/>, from the predicted fauna.
 /// Feeding uses <see cref="CreatureTables.ProduceOf"/> (GcCreatureGlobals.HarvestingProducts, else Wild Milk, the
-/// analysis visor's "Produces"); hunting uses GcCreatureGlobals.KillingProducts by the same creature id (catalog
+/// analysis visor's "Produces") and only for creatures players can adopt (<see cref="CreatureTables.CanBattle"/>,
+/// the game's CanBeUsedInPetBattler: the owner's experience in game, 2026-11-13, is that every tamable creature can
+/// be fed and nothing else can be interacted with, which matches that flag leaving out fish, birds, diggers, worms
+/// and deep-sea creatures; game data before format 83 keeps every creature); hunting uses GcCreatureGlobals.KillingProducts by the same creature id (catalog
 /// CREATUREPRODUCTS, format 56), with no default for kinds it doesn't list. Needs only a starting system, so the
 /// mobile app can run it too.
 /// </summary>
@@ -38,7 +41,8 @@ public static class CreatureProduceSearch
         for (int i = 0; i < profiles.Length && i < types.Length; i++)
         {
             if (profiles[i]?.PredictedCreatures is not { Length: > 0 } predicted) continue;
-            var feed = fed ? predicted.Where(c => string.Equals(tables.ProduceOf(c), itemId, StringComparison.OrdinalIgnoreCase)).ToArray() : [];
+            var feed = fed ? predicted.Where(c => tables.CanBattle(c) != false
+                && string.Equals(tables.ProduceOf(c), itemId, StringComparison.OrdinalIgnoreCase)).ToArray() : [];
             var hunt = huntIds.Count > 0 ? predicted.Where(c => huntIds.Contains(KindOf(c))).ToArray() : [];
             if (feed.Length + hunt.Length > 0) yield return new ProduceFind(system | ((ulong)(i + 1) << 52), i + 1, types[i], feed, hunt);
         }
