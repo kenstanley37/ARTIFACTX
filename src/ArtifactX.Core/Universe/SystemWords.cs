@@ -27,8 +27,8 @@ public sealed record SystemWordKeys(string Economy, string Wealth, string Confli
 /// {8, 8, 8, 1} for low/medium/high/pirate at 0x144bfdab0 (wealth and conflict), and 4 for the
 /// economy. Conflict words 9 and 10 ("Unthreatening", "Mild", "Belligerent", "Rowdy",
 /// "Destructive", "Aggressive") exist in the language files but the game never picks them. One
-/// caller (0x141388160) passes an economy count of 1 and so shows the plain word ("Mining"); the
-/// system info lines use 4.
+/// caller (0x141388160, the Galaxy Map card) passes an economy count of 1 and so shows the plain word ("Mining"); the
+/// Discoveries system pop-up uses 4 (Yomonos XIII, in game 2026-11-14: map "Mining", pop-up "Minerals // Black Market").
 /// </para>
 /// <para>
 /// Checked 2026-11-14 against the 363 systems with recorded words in user.db: every system read from
