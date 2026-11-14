@@ -12,7 +12,7 @@ namespace ArtifactX.WinUI3.Helpers.Recipes;
 internal static class HarvestPlaceText
 {
     /// <summary>The line for an item creatures give when fed (Fresh Milk, Crab 'Apple', Creature Egg).</summary>
-    public const string FeedLine = "Feed creatures that produce it. The Analysis Visor shows what each one produces.";
+    public const string FeedLine = "Feed tamable creatures that produce it. The Analysis Visor shows what each one produces.";
 
     /// <summary>A fish's line: "Fish in the water of Lush planets · at night · in storms" (time and storms only when
     /// they matter; the four haunted biomes read as one, NmsPlanets.TypeList).</summary>
