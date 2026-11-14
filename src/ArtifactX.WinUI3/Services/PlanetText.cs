@@ -162,6 +162,11 @@ public static class PlanetText
         return $"{away} · {core}";
     }
 
+    /// <summary>A planet's names, region and type: what the finder's search box looks through for a body nobody has
+    /// discovered (<see cref="KnownPlanet.Predicted"/>), which has nothing recorded.</summary>
+    public static string NameText(KnownPlanet p) => string.Join(" ",
+        UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex), UniverseInfo.SystemName(p.SystemAddress), UniverseInfo.Region(p.SystemAddress), p.TypeName, p.BiomeGroup);
+
     /// <summary>Everything the finder's search box looks through for a planet: names, type,
     /// what's recorded about it and its system, and its creatures ("Underwater", "Nocturnal").</summary>
     public static string SearchText(KnownPlanet p) => string.Join(" ",

@@ -45,7 +45,7 @@
                     </controls:FoldingCard.HeaderContent>
                     <StackPanel Padding="20,16,20,20" Spacing="14">
                         <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
-                                   Text="Every planet in your saves' discoveries, including ones other players found that the game downloaded for you. Pick a type to find the nearest one, then dial its portal address at any portal. Distances are approximate, measured from where this save is now."/>
+                                   Text="Every planet in your saves' discoveries (including ones other players found that the game downloaded for you), and every planet around you worked out the way the game does. Pick a type to find the nearest one, then dial its portal address at any portal. Distances are approximate, measured from where this save is now."/>
                         <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
                             <TextBox Width="320" Header="Search" PlaceholderText="Names, notes, resources, weather..."
                                      Text="{x:Bind ViewModel.Search, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -78,6 +78,12 @@
                                               ToolTipService.ToolTip="Starts on the galaxy you're in: a portal can't take you to another galaxy"/>
                                     <ComboBox Header="{x:Bind ViewModel.Region.Header}" Width="{x:Bind ViewModel.Region.Width}"
                                               ItemsSource="{x:Bind ViewModel.Region.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Region.Selected, Mode=TwoWay}"/>
+                                    <ComboBox Header="Undiscovered planets" Width="260" SelectedIndex="{x:Bind ViewModel.NearbyIndex, Mode=TwoWay}"
+                                              ToolTipService.ToolTip="Planets not in your saves, worked out the way the game does, so the list isn't limited to what your save still remembers">
+                                        <ComboBoxItem Content="Your region and the ones around it"/>
+                                        <ComboBoxItem Content="Your region only"/>
+                                        <ComboBoxItem Content="None (your saves only)"/>
+                                    </ComboBox>
                                     <controls:HyperdriveRangeBox/>
                                     <CheckBox Content="Discovered by you" IsChecked="{x:Bind ViewModel.MineOnly, Mode=TwoWay}" VerticalAlignment="Bottom"/>
                                 </ctcontrols:WrapPanel>
@@ -156,6 +162,8 @@
                     <StackPanel Padding="20,16,20,20" Spacing="14">
                         <TextBlock Text="{x:Bind ViewModel.Status, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasStatus, Mode=OneWay}"
                                    Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                        <TextBlock Text="{x:Bind ViewModel.ShownNote, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasShownNote, Mode=OneWay}"
+                                   Foreground="{ThemeResource ThemeTextBrush}" FontSize="12" TextWrapping="Wrap"/>
 
                         <!-- Result cards (same width as the Current System planet cards). Bounded height so the GridView
                              virtualizes inside the page's ScrollViewer (an unbounded one would realize every card). -->

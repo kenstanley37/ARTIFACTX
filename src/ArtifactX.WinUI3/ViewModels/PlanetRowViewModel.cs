@@ -26,7 +26,8 @@ public sealed class PlanetRowViewModel
             PlanetText.NoteSummary(SystemNotesService.Get(planet.SystemAddress)),
         }.Where(s => s.Length > 0));
         DistanceLabel = PlanetText.Distance(planet, here, distance);
-        DiscoveredLabel = $"{(planet.DiscoveredHere ? "You" : planet.Discoverer)} · {PlanetText.Date(planet.DiscoveredUnixSeconds)}";
+        DiscoveredLabel = planet.Predicted ? "Not in your saves: worked out the way the game does"
+            : $"{(planet.DiscoveredHere ? "You" : planet.Discoverer)} · {PlanetText.Date(planet.DiscoveredUnixSeconds)}";
         Swatch = new SolidColorBrush(PlanetDrawingHelper.ParseColour(NmsPlanets.TypeColour(planet.BiomeIndex)));
     }
 
