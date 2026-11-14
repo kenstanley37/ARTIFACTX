@@ -356,7 +356,7 @@ public sealed partial class SystemMap : UserControl
         // Labels keep off the star and every other body as well as each other.
         var bodies = _orbiters.Select(o => (Box: Box(o.Drawing, o.Body.Planet?.HasRings == true), Element: (FrameworkElement)o.Drawing))
             .Concat(_companions.Select(c => (Box: Box(c.Shape, true), Element: (FrameworkElement)c.Shape)))
-            .Concat(_star is { } star ? [(Box: Box(star.Core, true), Element: (FrameworkElement)star.Core)] : []).ToList();
+            .Concat(_star is { } star ? new[] { (Box: Box(star.Core, true), Element: (FrameworkElement)star.Core) } : []).ToList();
         var taken = new List<Rect>();
         foreach (var (label, at, half, _, own) in items)
         {
