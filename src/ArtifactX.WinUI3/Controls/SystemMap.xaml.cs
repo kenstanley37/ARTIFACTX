@@ -70,7 +70,7 @@ public sealed partial class SystemMap : UserControl
     public event EventHandler<SystemMapBody>? BodyClicked;
 
     private const double PlanetSize = 20, MoonSize = 11, TopDown = 1.5;
-    private const double FirstRing = 1.6, RingGap = 1.0, MoonFirstRing = 0.42, MoonRingGap = 0.2;
+    private const double FirstRing = 1.8, RingGap = 1.0, MoonFirstRing = 0.42, MoonRingGap = 0.2;
     private static readonly TimeSpan FrameGap = TimeSpan.FromMilliseconds(33);
 
     /// <summary>A body on its ring: around the star (Parent null) or around its planet.</summary>
@@ -162,7 +162,8 @@ public sealed partial class SystemMap : UserControl
                 AddOrbiter(moons[k], planet, MoonFirstRing + k * MoonRingGap, 20 + k * 8);
         }
         _outer = FirstRing + (planets.Count - 1) * RingGap + MoonFirstRing;
-        _camera.HalfExtent = _outer * 1.05;
+        // MapCamera leaves a wide margin (it fits 2.6 half-widths); the orrery fills more of its frame.
+        _camera.HalfExtent = _outer * 0.9;
 
         if (Station is { } station && Nearest(station) is { } host)
             _companions.Add(AddCompanion(station, host, new Rectangle
