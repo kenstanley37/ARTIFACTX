@@ -114,6 +114,10 @@ public static class UniverseInfo
     /// </summary>
     public static bool GameCouldShow(ulong address, string group, string value)
     {
+        // "Star" is a colour ("Yellow"). The generator's colour matched every one from the save or typed (52/52) and,
+        // where a captured star class disagreed, the system's captured planet types still matched the generator
+        // (their odds depend on the star): those classes were read off another star's card (2026-11-14, 28 of 213).
+        if (group == "Star") return value.Length == 0 || value == For(address).StarLabel;
         if (value.Length == 0 || value == "Autophage" || CatalogService.LoadedSystemWordsByKey is not { } words) return true;
         var (code, galaxy) = Generator(SystemKey(address));
         var a = SystemGenerator.Attributes(code, galaxy);

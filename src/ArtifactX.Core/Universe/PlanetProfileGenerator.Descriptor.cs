@@ -155,14 +155,14 @@ public static partial class PlanetProfileGenerator
     /// <summary>
     /// The family of words the game shows for a planet's weather ("LUSH": "Usually Mild", "Light Showers"...;
     /// the language keys are WEATHER_&lt;family&gt;n, with _CLEAR and EXTREME variants). Measured, not ported: the
-    /// text step that picks it (0x1416a4bd0) wasn't traced. It fits 1,038 of the owner's 1,054 captured weather words
+    /// text step that picks it (0x1416a4bd0) wasn't traced. It fits all 1,056 of the owner's captured weather words
     /// (user.db, 2026-11-14) the family follows the biome far more than the weather type: lush worlds show LUSH
     /// words even when the type is Weird (corrupted sentinels turn Humid into Weird, 0x141696760 - and the storm
     /// odds follow that type, so the type itself stays), Swamp or Dust; colour anomalies show their colour's words
     /// with any type; waterworlds always show WATERWORLD. The weather types that do change the words: Bubble is
     /// always GREEN (14/14), a swamp world's Toxic weather is TOXIC, a barren world's hot weather (Humid, Scorched,
-    /// Fire) is HEAT, and lava subtypes are LAVA. The 16 misses are dead worlds that showed BARREN words (of 123
-    /// dead worlds; not explained).
+    /// Fire) is HEAT, and lava subtypes are LAVA. ("Clear" is in both the DEAD and BARREN_CLEAR lists; the 16 dead
+    /// worlds that showed it are DEAD.)
     /// </summary>
     public static string WeatherWordFamily(int biome, int subType, int weatherType)
     {
