@@ -20,12 +20,17 @@ public static class MultiToolStatGeneration
     /// includeDamagedTechnology=false matches native filter type 1, which skips
     /// damaged sources entirely (used by ship weapons). Include/exclude matrices
     /// matched 40 native shield totals bit for bit, 2026-10-31.
+    /// unlinkedStats: stats that never make two neighbours "same type" (starships: Shots, which the
+    /// game combines as a maximum). In game 2026-11-14, Slot 8 Sentinel ship: Infra-Knife Accelerator
+    /// (SHIPMINIGUN) beside Q-Resonator (UT_SHIPMINI, Shots only) showed Damage Potential 414.3; linking
+    /// them through their shared Shots parent gave 418.3, unlinked gives 414.3, and the active Fighter's
+    /// four confirmed totals are unchanged. One in-game observation: provisional until a second one.
     /// </summary>
     public static float? Evaluate(GeneratedMultiToolInventory inventory, MultiToolTechnologyTables tables,
         int statId, MultiToolStatCombination combination, int baseStatFilter = 0,
         bool hasActiveSpecialTechnology = false,
         IReadOnlySet<GeneratedInventoryPosition>? damagedTechnologyPositions = null,
-        bool includeDamagedTechnology = true)
+        bool includeDamagedTechnology = true, IReadOnlySet<int>? unlinkedStats = null)
     {
         if (hasActiveSpecialTechnology || tables.ScannerRules is not { } rules
             || tables.Definitions is not { } definitions || tables.StatParents is not { } parents
@@ -84,7 +89,8 @@ public static class MultiToolStatGeneration
                     bool neighborIsChild = neighbor.Stats.Any(a => source.Stats.Any(b => parents[a.Stat] == b.Stat));
                     if (sourceIsChild) child++;
                     if (!sourceIsChild && !neighborIsChild
-                        && source.Stats.Any(a => neighbor.Stats.Any(b => parents[a.Stat] == parents[b.Stat]))) same++;
+                        && source.Stats.Any(a => unlinkedStats?.Contains(a.Stat) != true
+                            && neighbor.Stats.Any(b => unlinkedStats?.Contains(b.Stat) != true && parents[a.Stat] == parents[b.Stat]))) same++;
                 }
                 if (value > (multiply ? 1f : 0f))
                 {

@@ -56,12 +56,13 @@ public static class StarshipDisplayEvaluation
         int shipClass, int rating, StarshipEvaluationTables rules, StarshipComparisonContext context)
     {
         var ids = rules.Stats;
+        var unlinked = new HashSet<int> { ids.Shots };
         float? Stat(GeneratedMultiToolInventory inv, IReadOnlyList<KeyValuePair<string, float>> bonuses,
             IReadOnlySet<GeneratedInventoryPosition> broken, int id, MultiToolStatCombination combination,
             int filter = 0, bool includeDamaged = true)
         {
             var value = MultiToolStatGeneration.Evaluate(inv, rules.Technology, id, combination, filter,
-                damagedTechnologyPositions: broken, includeDamagedTechnology: includeDamaged);
+                damagedTechnologyPositions: broken, includeDamagedTechnology: includeDamaged, unlinkedStats: unlinked);
             return value is { } v ? StarshipIntrinsicStatGeneration.Apply(v, id, bonuses,
                 rules.IntrinsicTargets, rules.UseMultiplierBonus) : null;
         }
@@ -91,7 +92,7 @@ public static class StarshipDisplayEvaluation
         // Compare applies the intrinsic shield percentage in its final expression,
         // unlike jump and flight stats; applying it here would count it twice.
         float? shield = MultiToolStatGeneration.Evaluate(inventory, rules.Technology, ids.Shield,
-            MultiToolStatCombination.Add, damagedTechnologyPositions: damaged);
+            MultiToolStatCombination.Add, damagedTechnologyPositions: damaged, unlinkedStats: unlinked);
         float? jump = Wreck(ids.JumpDistance, MultiToolStatCombination.Add);
         float? pulse = Wreck(ids.PulseSpeed, MultiToolStatCombination.Multiply);
         float? boost = Wreck(ids.BoostManeuverability, MultiToolStatCombination.Multiply);
