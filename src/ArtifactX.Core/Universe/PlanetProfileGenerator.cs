@@ -195,7 +195,7 @@ public static partial class PlanetProfileGenerator
                 ? (0.15f > f ? t.MiningBiome[Swamp] : 0.33f > f ? t.MiningBiome[16] : 0.66f > f ? t.MiningBiome[0] : t.MiningBiome[Swamp])
                 : t.MiningBiome[Math.Clamp(biome, 0, t.MiningBiome.Length - 1)];
         string common = extreme ? t.MiningStarExtreme[star] : t.MiningStar[star];
-        string descriptor = GenerateDescriptor(seeds[21], biome, subType, weather, storms, sentinels, t);
+        string descriptor = GenerateDescriptor(seeds[21], biome, subType, extreme, storms, sentinels, t);
         return new PlanetBasics(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels, scrap, descriptor);
     }
 

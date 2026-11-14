@@ -112,7 +112,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     [ObservableProperty] public partial string InfestedLabel { get; private set; } = "";
     [ObservableProperty] public partial string RingsLabel { get; private set; } = "Rings only";
     [ObservableProperty] public partial bool ShowInfested { get; private set; }
-    /// <summary>Calm weather, low sentinels, plants and animals (<see cref="PlanetFinderFacts.Paradise"/>).</summary>
+    /// <summary>Planets the game names Paradise Planets (<see cref="PlanetFinderFacts.Paradise"/>).</summary>
     [ObservableProperty] public partial bool ParadiseOnly { get; set; }
     [ObservableProperty] public partial string ParadiseLabel { get; private set; } = "Paradise";
     [ObservableProperty] public partial bool ShowParadise { get; private set; }
@@ -309,10 +309,10 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         Apply(); // the planet type, infested and paradise counts
     }
 
-    /// <summary>A planet picker choice's words: the weather levels spelled out ("Calm, no storms"), others as they are.</summary>
+    /// <summary>A planet picker choice's words: the weather levels spelled out ("No storms"), others as they are.</summary>
     private static string FactLabel(string value) => value switch
     {
-        PlanetFinderFactsService.Calm => "Calm, no storms",
+        PlanetFinderFactsService.Calm => "No storms",
         PlanetFinderFactsService.Stormy => "Storms, not extreme",
         PlanetFinderFactsService.Extreme => "Extreme weather",
         _ => value,

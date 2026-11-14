@@ -7,26 +7,33 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>What the Planet Finder's planet filters read for one body: the player's record where they took one, else
 /// the game's generator (<see cref="PlanetTypesService.Basics"/>).</summary>
-/// <param name="Weather"><see cref="PlanetFinderFactsService.Calm"/>, <see cref="PlanetFinderFactsService.Stormy"/> or
-/// <see cref="PlanetFinderFactsService.Extreme"/>; "" when unknown.</param>
+/// <param name="Weather"><see cref="PlanetFinderFactsService.Calm"/> (no storms), <see cref="PlanetFinderFactsService.Stormy"/>
+/// or <see cref="PlanetFinderFactsService.Extreme"/>; "" when unknown. Calm says nothing about hazards: a calm toxic moon
+/// is still toxic.</param>
 /// <param name="Sentinels">"Low", "Normal", "Aggressive" or "Corrupted" (or a recorded word with no known level).</param>
 /// <param name="Flora">"None", "Low", "Medium" or "High"; Fauna likewise.</param>
 /// <param name="Resources">The three mined resources' names, or what the player recorded.</param>
-public sealed record PlanetFinderFacts(bool Infested, string Weather, string Sentinels, string Flora, string Fauna, string[] Resources)
+/// <param name="Paradise">The game names it a Paradise Planet (<see cref="PlanetProfileGenerator.IsParadise"/>).</param>
+public sealed record PlanetFinderFacts(bool Infested, string Weather, string Sentinels, string Flora, string Fauna, string[] Resources, bool Paradise)
 {
-    /// <summary>A base-building planet: calm weather, low sentinels, and both plants and animals.</summary>
-    public bool Paradise => Weather == PlanetFinderFactsService.Calm && Sentinels == "Low"
-        && Flora is not ("" or "None") && Fauna is not ("" or "None");
-
-    /// <summary>"Calm weather · Low sentinels · Flora: High · Fauna: Medium · Copper, Sodium, Gold" for a card.</summary>
+    /// <summary>"No storms · Low sentinels · Flora: High · Fauna: Medium · Copper, Sodium, Gold" for a card.</summary>
     public string Summary => string.Join(" · ", new[]
     {
-        Weather.Length > 0 ? $"{Weather} weather" : "",
+        WeatherText,
         Sentinels.Length > 0 ? $"{Sentinels} sentinels" : "",
         Flora.Length > 0 ? $"Flora: {Flora}" : "",
         Fauna.Length > 0 ? $"Fauna: {Fauna}" : "",
         string.Join(", ", Resources),
     }.Where(s => s.Length > 0));
+
+    /// <summary>"No storms", "Storms" or "Extreme weather".</summary>
+    private string WeatherText => Weather switch
+    {
+        PlanetFinderFactsService.Calm => "No storms",
+        PlanetFinderFactsService.Stormy => "Storms",
+        PlanetFinderFactsService.Extreme => "Extreme weather",
+        _ => "",
+    };
 }
 
 /// <summary>
@@ -72,7 +79,11 @@ public static class PlanetFinderFactsService
             // The generator's weather alone: it matched the game on 807 of 808 planets, and recorded weather words
             // have no calm/stormy/extreme level to read.
             string weather = b is null ? "" : b.Extreme ? Extreme : b.Storms > 0 ? Stormy : Calm;
-            result[key] = new PlanetFinderFacts(infested, weather, sentinels, flora, fauna, resources);
+            // The game's own Paradise Planet rule (2026-11-14, the owner spotted a calm Toxic moon under the old
+            // home-made "calm, low sentinels, life" rule), from the generator alone like the weather.
+            bool paradise = b is not null && i < types.Length
+                && PlanetProfileGenerator.IsParadise(types[i].Biome, types[i].SubType, b.Extreme, b.Storms, b.Sentinels);
+            result[key] = new PlanetFinderFacts(infested, weather, sentinels, flora, fauna, resources, paradise);
         }
         return result;
     }

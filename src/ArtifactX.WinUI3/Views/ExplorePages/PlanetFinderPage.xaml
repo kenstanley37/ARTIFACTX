@@ -64,7 +64,7 @@
                                       ToolTipService.ToolTip="Planets of the infested kind, where Whispering Eggs and the small ground worms are. Combine it with Planet type for, say, infested Lush planets."/>
                             <CheckBox Content="{x:Bind ViewModel.ParadiseLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.ParadiseOnly, Mode=TwoWay}"
                                       Visibility="{x:Bind ViewModel.ShowParadise, Mode=OneWay}" VerticalAlignment="Bottom"
-                                      ToolTipService.ToolTip="Good planets for a base: calm weather (no storms or extreme weather), low sentinels, and both plants and animals. Combine it with Planet type for, say, a calm Lush planet."/>
+                                      ToolTipService.ToolTip="Planets the game itself calls Paradise Planets: lush, no storms or extreme weather, and low sentinels. A good place for a base."/>
                             <ToggleButton Content="{x:Bind ViewModel.MoreFiltersLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.ShowMoreFilters, Mode=TwoWay}"
                                           VerticalAlignment="Bottom"
                                           ToolTipService.ToolTip="Galaxy, region, sentinels, life, resources, star colour, economy and the other filters"/>
