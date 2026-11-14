@@ -5,7 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
-- Current System: the system map is now an orrery, like the freighter's system scanner. The star sits in the middle in its own colour, planets circle it on rings in planet order, moons circle their planet, and the space station sits beside its planet. You're marked on your planet, or beside whatever you're nearest in space. It opens looking straight down: drag to turn and tilt it, scroll to zoom, and press "Top-down" (or Home) to look straight down again. Labels no longer pile on top of each other. The rings turn slowly unless Windows' animation effects are off.
+- Current System: the system map is now an orrery, like the freighter's system scanner. The star sits in the middle in its own colour, planets circle it on rings in planet order, moons circle their planet, and the space station sits beside its planet. You're marked on your planet, or beside whatever you're nearest in space. It opens looking straight down: drag to turn and tilt it, scroll to zoom, and press "Top-down" (or Home) to look straight down again. Labels no longer pile on top of each other. The rings turn slowly unless Windows' animation effects are off. Systems your save hasn't placed yet (just after you warp in) get the same map, without the station and you; the old flat drawing is gone.
 - Current System: before you've captured a system, its economy, wealth and conflict now read in the game's own words ("Prospecting // Struggling", "Testy") instead of just the level ("Mining // Low ★"). The app works out the same word the game picks for each system.
 
 ### Fixed
