@@ -163,17 +163,23 @@ public static class UniverseInfo
         var f = For(address);
         if (f.Uncharted) return $"Uncharted (no station) \u00B7 {f.StarLabel} star";
         int stars = WealthStars(address);
+        string conflict = Conflict(address);
+        bool pirateConflict = IsPirateWord(conflict);
         var parts = new System.Collections.Generic.List<string>
         {
             stars > 0 ? new string('\u2605', stars) : "\u2606",
             Economy(address),
             f.Abandoned ? "Abandoned" : RaceLabel(address),
-            $"{Conflict(address)} conflict",
+            pirateConflict ? conflict : $"{conflict} conflict",
             $"{(SystemNotesService.Get(SystemKey(address))?.StarColour is { Length: > 0 } c ? c : f.StarLabel)} star",
         };
-        if (f.Pirate) parts.Add("Pirate");
+        if (f.Pirate && !pirateConflict) parts.Add("Pirate");
         return string.Join(" \u00B7 ", parts);
     }
+
+    /// <summary>Pirate systems' own conflict word ("Pirate Controlled") reads as-is, never "... conflict".</summary>
+    private static bool IsPirateWord(string conflict) =>
+        conflict.Contains("Pirate", System.StringComparison.OrdinalIgnoreCase);
 
     public static string RaceLabel(ulong address) =>
         SystemNotesService.Get(SystemKey(address))?.Race is { Length: > 0 } r ? r : For(address).RaceLabel;
@@ -185,7 +191,7 @@ public static class UniverseInfo
         if (f.Uncharted) return $"{f.StarLabel} star · Uncharted - no race, economy or station";
         // Pirate systems' own words read as-is ("Black Market", "Pirate Controlled"), not "... wealth/conflict".
         string wealth = Wealth(address), conflict = Conflict(address);
-        bool pirateConflict = conflict.Contains("Pirate", System.StringComparison.OrdinalIgnoreCase);
+        bool pirateConflict = IsPirateWord(conflict);
         var parts = new System.Collections.Generic.List<string> { $"{f.StarLabel} star", f.RaceLabel, Economy(address),
             wealth == "Black Market" ? wealth : $"{wealth} wealth", pirateConflict ? conflict : $"{conflict} conflict" };
         if (f.Pirate && !pirateConflict) parts.Add("Pirate-controlled");
