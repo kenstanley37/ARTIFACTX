@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Fixed
+- After a portal trip or warp, the planet you arrived on could be given the name of the planet you left. It now keeps its own name.
 
 - Planets the game calls "Paradise Planet" are now named that way in the app too; it used to give them another lush word (like "Verdant").
 

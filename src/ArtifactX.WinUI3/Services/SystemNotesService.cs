@@ -451,24 +451,37 @@ public static class SystemNameLearner
     private static readonly System.Text.RegularExpressions.Regex InSystemRegex = new(@"^In the (.+) system$");
     private static readonly System.Text.RegularExpressions.Regex OnPlanetRegex = new(@"^On Planet \((.+)\)$");
 
-    /// <summary>Returns whether anything new was stored.</summary>
+    /// <summary>The last line learned from and where the player stood then (see <see cref="Learn"/>).</summary>
+    private static (string Line, ulong System, int Planet)? _last;
+
+    /// <summary>
+    /// Returns whether anything new was stored. The line can lag the player's position: after a portal trip the save
+    /// held the new planet's position under "On Planet (Yasiare Sigma)", the planet left behind, and Aisters was
+    /// renamed after it (owner, 2026-11-14, Inzadga-Rigpr planet 3). So a line is skipped when it is the one already
+    /// learned from another place, or names a planet or system the notes already hold under another address.
+    /// </summary>
     public static bool Learn(ulong? system, int planet, string? summary)
     {
         if (system is not ulong address) return false;
         string line = (summary ?? "").Trim();
+        if (_last is { } last && last.Line == line && (last.System != address || last.Planet != planet)) return false;
         var note = SystemNotesService.Get(address) ?? new SystemNote();
         bool changed = false;
 
         if (InSystemRegex.Match(line) is { Success: true } inSystem && note.SystemName != inSystem.Groups[1].Value)
         {
+            if (SystemNotesService.All.Any(n => !ReferenceEquals(n, note) && n.SystemName == inSystem.Groups[1].Value)) return false;
             note.SystemName = inSystem.Groups[1].Value;
             changed = true;
         }
         else if (OnPlanetRegex.Match(line) is { Success: true } onPlanet && planet > 0)
         {
             string key = planet.ToString(CultureInfo.InvariantCulture);
-            if (!note.PlanetNames.TryGetValue(key, out var known) || known != onPlanet.Groups[1].Value)
+            string name = onPlanet.Groups[1].Value;
+            if (!note.PlanetNames.TryGetValue(key, out var known) || known != name)
             {
+                if (note.PlanetNames.Any(kv => kv.Key != key && kv.Value == name)
+                    || SystemNotesService.All.Any(n => !ReferenceEquals(n, note) && n.PlanetNames.ContainsValue(name))) return false;
                 note.PlanetNames[key] = onPlanet.Groups[1].Value;
                 changed = true;
             }
@@ -483,6 +496,7 @@ public static class SystemNameLearner
             }
         }
 
+        _last = (line, address, planet);
         if (changed) SystemNotesService.Save(address, note, source: "save");
         return changed;
     }
