@@ -11,6 +11,7 @@ namespace ArtifactX.WinUI3.Controls;
 public sealed partial class StatBonusBoxes : UserControl
 {
     private string[]? _bonusesPath;
+    private string[]? _mirrorPath;
 
     public StatBonusBoxes() => InitializeComponent();
 
@@ -24,10 +25,12 @@ public sealed partial class StatBonusBoxes : UserControl
     /// <summary>A stat was changed and staged.</summary>
     public event EventHandler? Edited;
 
-    /// <summary>Shows the stats of the bonus array at bonusesPath, labelled.</summary>
-    public void Show(string[] bonusesPath, IReadOnlyList<(string Label, string Key)> stats)
+    /// <summary>Shows the stats of the bonus array at bonusesPath, labelled. Edits also
+    /// write the whole array to mirrorPath when given (a starship's second copy).</summary>
+    public void Show(string[] bonusesPath, IReadOnlyList<(string Label, string Key)> stats, string[]? mirrorPath = null)
     {
         _bonusesPath = bonusesPath;
+        _mirrorPath = mirrorPath;
         if (Stats.Count == stats.Count && Stats.Select(s => s.Key).SequenceEqual(stats.Select(s => s.Key)))
         {
             // Same boxes: just new values, so a box being typed in keeps its focus.
@@ -50,6 +53,7 @@ public sealed partial class StatBonusBoxes : UserControl
     public void Clear()
     {
         _bonusesPath = null;
+        _mirrorPath = null;
         foreach (var stat in Stats)
         {
             stat.Load(double.NaN);
@@ -63,7 +67,7 @@ public sealed partial class StatBonusBoxes : UserControl
         IsStaging = true;
         try
         {
-            StatBonusService.Write(_bonusesPath, stat.Key, stat.Value);
+            StatBonusService.Write(_bonusesPath, stat.Key, stat.Value, _mirrorPath);
         }
         finally
         {

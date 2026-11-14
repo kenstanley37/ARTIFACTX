@@ -50,11 +50,13 @@ public static class StatBonusService
         return result;
     }
 
-    public static void Write(string[] bonusesPath, string key, double value) =>
-        WriteAll(bonusesPath, new[] { new NmsLoadoutStat { Key = key, Value = value } });
+    public static void Write(string[] bonusesPath, string key, double value, string[]? mirrorPath = null) =>
+        WriteAll(bonusesPath, new[] { new NmsLoadoutStat { Key = key, Value = value } }, mirrorPath);
 
-    /// <summary>Sets the given entries' values (by key); the rest stay as they are.</summary>
-    public static void WriteAll(string[] bonusesPath, IEnumerable<NmsLoadoutStat> stats)
+    /// <summary>Sets the given entries' values (by key); the rest stay as they are.
+    /// mirrorPath gets the same whole array in the same staged change (a starship's
+    /// Technology copy of its Cargo stats, see NmsInventoryContainer.ShipStatBonusesPath).</summary>
+    public static void WriteAll(string[] bonusesPath, IEnumerable<NmsLoadoutStat> stats, string[]? mirrorPath = null)
     {
         var byKey = stats.ToDictionary(s => s.Key, s => s.Value);
         if (byKey.Count == 0 || SaveSessionManager.GetValue(bonusesPath) is not JArray bonuses) return;
@@ -73,6 +75,7 @@ public static class StatBonusService
                 updated.Add(entry.DeepClone());
             }
         }
-        SaveSessionManager.StageEdit(updated, bonusesPath);
+        if (mirrorPath is null) SaveSessionManager.StageEdit(updated, bonusesPath);
+        else SaveSessionManager.StageEdits(new[] { ((JToken?)updated, bonusesPath), (updated.DeepClone(), mirrorPath) });
     }
 }

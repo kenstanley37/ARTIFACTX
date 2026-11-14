@@ -10,6 +10,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Current System: before you've captured a system, its economy, wealth and conflict now read in the game's own words ("Prospecting // Struggling", "Testy") instead of just the level ("Mining // Low ★"). The app works out the same word the game picks for each system.
 
 ### Fixed
+- Starships: editing a ship's base stats (Damage, Shield, Hyperdrive, Maneuverability) now changes the ship in game. The game reads a second copy of the stats that the app never changed, so earlier edits had no effect; the boxes now show the values the game uses.
 - Screen capture no longer saves another system's economy, wealth, conflict, race or star colour onto the system you're in. A reading that can't belong to that system is skipped. Values an older version saved this way are cleared when the app starts, so the system shows its own again (your typed notes are kept).
 - Exotic planets (Fissured, Ossified, Finned, Rattling...) get the right type word. The app used to give them another exotic kind's words.
 - A lush planet with corrupted sentinels no longer has its weather called "Anomalous". The app now names weather the way the game's own words do (humid, in that case).

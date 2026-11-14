@@ -615,7 +615,8 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         if (_selectedIndex < 0) StatsBoxes.Clear();
         else
         {
-            StatsBoxes.Show(NmsInventoryContainer.ShipStatBonusesPath(_selectedIndex), BaseStats);
+            StatsBoxes.Show(NmsInventoryContainer.ShipStatBonusesPath(_selectedIndex), BaseStats,
+                NmsInventoryContainer.ShipTechnologyStatBonusesPath(_selectedIndex));
             ShowInGameTotals();
         }
     }
