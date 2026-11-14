@@ -43,10 +43,12 @@ public sealed class MapCamera
     public event Action? HomePressed;
 
     /// <param name="pitch">The starting tilt: 0 looks side-on, 1.5 straight down.</param>
-    public MapCamera(UserControl host, Canvas stage, double halfExtent, double pitch = 0.35)
+    /// <param name="yaw">The starting turn about the vertical axis.</param>
+    public MapCamera(UserControl host, Canvas stage, double halfExtent, double pitch = 0.35, double yaw = 0.6)
     {
         _host = host;
         _pitch = pitch;
+        _yaw = yaw;
         _stage = stage;
         HalfExtent = halfExtent;
         Angles();
@@ -80,6 +82,15 @@ public sealed class MapCamera
     {
         StopGlide();
         _pivot = (x, y, z);
+        Changed?.Invoke();
+    }
+
+    /// <summary>Back to a set view: these angles, zoom 1, the pivot gliding to the given point.</summary>
+    public void ResetView(double yaw, double pitch, double x, double y, double z)
+    {
+        (_yaw, _pitch, _zoom) = (yaw, Math.Clamp(pitch, -1.5, 1.5), 1);
+        Angles();
+        GlideTo(x, y, z);
         Changed?.Invoke();
     }
 

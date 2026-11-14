@@ -123,6 +123,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     /// <summary>Where you are on the map while in space; null on a planet (that body is outlined) or in a station.</summary>
     [ObservableProperty] public partial SystemMapMarker? MapPlayer { get; private set; }
 
+    /// <summary>The star's colour for the map: the one you recorded, else the generator's.</summary>
+    [ObservableProperty] public partial string MapStarColour { get; private set; } = "";
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CaptureLabel), nameof(CanCapture))]
     public partial bool IsCapturing { get; private set; }
@@ -416,6 +419,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         _ = UpdateRegionSystemsAsync(system);
         if (!Bodies.SequenceEqual(planets)) Bodies = planets;
         var mapBodies = MapBodiesOf(system, planets);
+        MapStarColour = note?.StarColour is { Length: > 0 } recordedStar ? recordedStar : facts.StarLabel;
         if (!MapBodies.SequenceEqual(mapBodies)) MapBodies = mapBodies;
         var player = PlayerMarker();
         if (player != MapPlayer) MapPlayer = player;
