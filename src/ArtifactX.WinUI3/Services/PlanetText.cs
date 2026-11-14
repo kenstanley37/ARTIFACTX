@@ -210,10 +210,34 @@ public static class PlanetText
         "Swampy", "Volcanic", "Bubbling", "Anomalous", "Burning", "Cold", "Gas giant",
     };
 
-    /// <summary>"Extreme toxic · frequent storms" for a generated profile.</summary>
-    public static string Weather(Core.Universe.PlanetProfile profile)
+    /// <summary>The game's weather word families (PlanetProfileGenerator.WeatherWordFamily), worded plainly.
+    /// Waterworlds have their own words for every kind of weather, so they keep the type's word.</summary>
+    private static string? FamilyWord(string family) => family switch
     {
-        string type = profile.WeatherType >= 0 && profile.WeatherType < WeatherTypes.Length ? WeatherTypes[profile.WeatherType] : "Unknown";
+        "LUSH" => "Humid",
+        "SWAMP" => "Swampy",
+        "TOXIC" => "Toxic",
+        "RADIO" => "Radioactive",
+        "COLD" => "Snowy",
+        "HEAT" => "Scorching",
+        "BARREN" => "Dusty",
+        "DEAD" => "Clear",
+        "GLITCH" => "Anomalous",
+        "RED" or "GREEN" or "BLUE" => "Exotic",
+        "LAVA" => "Volcanic",
+        "GASGIANT" => "Gas giant",
+        _ => null,
+    };
+
+    /// <summary>"Extreme toxic · frequent storms" for a generated profile. The kind is the one the game's words
+    /// show, not the weather type: a lush world with corrupted sentinels has the Weird type but humid words.</summary>
+    public static string Weather(Core.Universe.PlanetProfile profile, ulong system, int planetIndex)
+    {
+        var types = PlanetTypesService.For(system);
+        string? family = planetIndex >= 1 && planetIndex <= types.Length
+            ? FamilyWord(Core.Universe.PlanetProfileGenerator.WeatherWordFamily(types[planetIndex - 1].Biome, types[planetIndex - 1].SubType, profile.WeatherType))
+            : null;
+        string type = family ?? (profile.WeatherType >= 0 && profile.WeatherType < WeatherTypes.Length ? WeatherTypes[profile.WeatherType] : "Unknown");
         string weather = profile.Extreme ? $"Extreme {type.ToLowerInvariant()}" : type;
         return profile.Storms switch
         {

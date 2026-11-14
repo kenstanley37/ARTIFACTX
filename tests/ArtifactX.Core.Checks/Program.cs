@@ -62,6 +62,7 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
     StarshipTechnologyDamageChecks.CheckInputs();
     PlanetShopCabinetChecks.Check();
     PlanetRingChecks.Check();
+    PlanetDescriptorChecks.Check();
     SystemWordChecks.Check();
     PlanetSurfaceChecks.Check();
     PlanetRegionChecks.Check();

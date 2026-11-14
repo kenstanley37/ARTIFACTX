@@ -200,7 +200,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 ? (desc.EndsWith(" Moon", StringComparison.OrdinalIgnoreCase) || desc.EndsWith(" Planet", StringComparison.OrdinalIgnoreCase) || desc.EndsWith(" Anomaly", StringComparison.OrdinalIgnoreCase) ? desc : (isMoon ? $"{desc} Moon" : $"{desc} Planet"))
                 : (isMoon ? $"{planet.BiomeGroup} Moon" : $"{planet.BiomeGroup} Planet")),
             new("Biome", planet.BiomeGroup),
-            new("Weather", profile is not null ? PlanetText.Weather(profile) : Or(d?.Weather)),
+            new("Weather", profile is not null ? PlanetText.Weather(profile, planet.SystemAddress, planet.PlanetIndex) : Or(d?.Weather)),
             new("Sentinels", profile is not null ? PlanetText.Sentinels(profile) : Or(d?.Sentinels)),
             new("Flora", d?.Flora is { Length: > 0 } flora ? flora : profile is not null ? PlanetText.Flora(profile) : Or(null)),
             new("Fauna", d?.Fauna is { Length: > 0 } fauna ? fauna : profile is not null ? PlanetText.Fauna(profile) : (d?.FaunaTotal is int n ? (n == 0 ? "None" : $"{n} species") : Or(null))),

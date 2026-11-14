@@ -141,6 +141,8 @@ public static class PlanetPageReader
             UnmatchedBodiesService.Hold(name, new PlanetDetails { Sentinels = sentinels, Resources = resources, Descriptor = flightDescriptor }, moon);
             return $"flight card \"{name}\": unknown name - held for you to place on Current System";
         }
+        if (OtherBodysReading(system, body, flightDescriptor) is int otherBody)
+            return $"flight card {matched}: \"{flightDescriptor}\" is body {otherBody}'s - skipped";
         BodyKindsService.Store(system, body, moon);
         var existing = PlanetDetailsService.Get(system, body);
         var details = existing?.Copy() ?? new PlanetDetails();
@@ -201,6 +203,13 @@ public static class PlanetPageReader
                 else if (read.Resources.Count > 0) break;
             }
 
+        string? onPlanetDescriptor = lines.Select(Clean).FirstOrDefault(l =>
+            IsBodyType(l)
+            && !labels.Contains(l, StringComparer.OrdinalIgnoreCase));
+        // The save can still name the planet you were on before (after a short hop): its box is skipped.
+        if (onPlanetDescriptor is { Length: > 0 } && OtherBodysReading(system, body, onPlanetDescriptor) is int otherBody)
+            return $"planet box {UniverseInfo.PlanetName(system, body)}: \"{onPlanetDescriptor}\" is body {otherBody}'s - skipped";
+
         var existing = PlanetDetailsService.Get(system, body);
         var details = existing?.Copy() ?? new PlanetDetails();
         bool changed = false;
@@ -209,9 +218,6 @@ public static class PlanetPageReader
         Fill(read.Sentinels, () => details.Sentinels, v => details.Sentinels = v);
         Fill(read.Flora, () => details.Flora, v => details.Flora = v);
         Fill(read.Fauna, () => details.Fauna, v => details.Fauna = v);
-        string? onPlanetDescriptor = lines.Select(Clean).FirstOrDefault(l =>
-            IsBodyType(l)
-            && !labels.Contains(l, StringComparer.OrdinalIgnoreCase));
         if (!string.IsNullOrEmpty(onPlanetDescriptor))
             Fill(onPlanetDescriptor, () => details.Descriptor, v => details.Descriptor = v);
         if (details.Resources.Count == 0 && read.Resources.Count > 0) { details.Resources = read.Resources; changed = true; }
@@ -271,6 +277,8 @@ public static class PlanetPageReader
             return $"planet page \"{string.Join("\" / \"", titles.Distinct())}\": unknown name - held for you to place on Current System";
         }
 
+        if (OtherBodysReading(system, planet, details.Descriptor) is int otherBody)
+            return $"planet page {name}: \"{details.Descriptor}\" is body {otherBody}'s - skipped";
         // The player's own notes stay; the fields are what the game showed.
         var existing = PlanetDetailsService.Get(system, planet);
         details.Notes = existing?.Notes.ToList() ?? new();
@@ -411,6 +419,24 @@ public static class PlanetPageReader
     /// <summary>A body's type as the game words it: "Verdant Planet", "Contaminated Moon",
     /// "[REDACTED] Planet" - or "Planetary Anomaly" for an anomaly world, which was
     /// skipped until 2026-10-21 (Aukel). Not "Space Anomaly", the station.</summary>
+    /// <summary>
+    /// The other body whose screen this was, when a read descriptor ("Sharded Planet") isn't this body's
+    /// generated word but is exactly another body's in the same system; else null. Grounds (2026-11-14,
+    /// user.db): of 612 captured descriptors, 571 match the generator and ~29 are misreads; the 11 others
+    /// were each another body's word - a reading filed on the wrong planet, e.g. while the save still named
+    /// the planet before. Null while the generator's tables aren't loaded.
+    /// </summary>
+    internal static int? OtherBodysReading(ulong system, int body, string descriptor)
+    {
+        string word = Regex.Replace(descriptor.Trim(), @"\s+(Planet|Moon)$", "", RegexOptions.IgnoreCase);
+        var basics = PlanetTypesService.Basics(system);
+        if (word.Length == 0 || body < 1 || body > basics.Length || basics[body - 1] is not { } own
+            || string.Equals(own.Descriptor, word, StringComparison.OrdinalIgnoreCase)) return null;
+        for (int i = 0; i < basics.Length; i++)
+            if (i != body - 1 && string.Equals(basics[i]?.Descriptor, word, StringComparison.OrdinalIgnoreCase)) return i + 1;
+        return null;
+    }
+
     internal static bool IsBodyType(string line) =>
         Regex.IsMatch(line, @"^[\p{L} \[\]'-]{3,30}\s(Moon|Planet|(?<!Space\s)Anomaly)$", RegexOptions.IgnoreCase);
 
