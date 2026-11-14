@@ -4,7 +4,8 @@ namespace ArtifactX.Core.Universe;
 /// rules the planet must meet and where on it (GcTerrainTileType: 4 underwater, 5 in caves, else on the ground).</summary>
 /// <param name="SubTypes">The biome subtypes whose own biome file places it; null when every subtype does (an optional
 /// group or a common list).</param>
-public sealed record HarvestRule(int Biome, ObjectGroupRules Rules, int TileType, int Min, int Max, int[]? SubTypes = null);
+/// <param name="Mined">Only mining with the Multi-Tool gives it there (<see cref="HarvestItem.Mined"/>).</param>
+public sealed record HarvestRule(int Biome, ObjectGroupRules Rules, int TileType, int Min, int Max, int[]? SubTypes = null, bool Mined = false);
 
 /// <summary>A body where a search found the item: its packed planet address, planet number (from 1), type and what it
 /// gives.</summary>
@@ -30,9 +31,9 @@ public static class HarvestSearch
         var rules = new List<HarvestRule>();
         foreach (var group in tables.Groups)
             foreach (var file in group.Files)
-                if (Gives(file) is { } item) rules.Add(new(group.Biome, group.Rules, file.TileType, item.Min, item.Max));
+                if (Gives(file) is { } item) rules.Add(new(group.Biome, group.Rules, file.TileType, item.Min, item.Max, Mined: item.Mined));
         foreach (var list in tables.Common)
-            if (Gives(list) is { } item) rules.Add(new(16, ObjectGroupRules.None, list.TileType, item.Min, item.Max));
+            if (Gives(list) is { } item) rules.Add(new(16, ObjectGroupRules.None, list.TileType, item.Min, item.Max, Mined: item.Mined));
         for (int b = 0; b < tables.BiomeFiles.Length; b++)
         {
             var subs = new List<int>();
@@ -41,11 +42,11 @@ public static class HarvestSearch
                 if (tables.BiomeFiles[b][s] is { } file)
                     foreach (var list in file.Lists)
                         if (Gives(list) is { } item) { subs.Add(s); found ??= item; tile = list.TileType; break; }
-            if (found is not null) rules.Add(new(b, ObjectGroupRules.None, tile, found.Min, found.Max, subs.ToArray()));
+            if (found is not null) rules.Add(new(b, ObjectGroupRules.None, tile, found.Min, found.Max, subs.ToArray(), found.Mined));
         }
         // One rule per place; an item listed twice for the same place keeps its widest amounts.
         return rules.GroupBy(r => (r.Biome, r.Rules, r.TileType, Subs: string.Join(",", r.SubTypes ?? [])))
-            .Select(g => g.First() with { Min = g.Min(r => r.Min), Max = g.Max(r => r.Max) }).ToArray();
+            .Select(g => g.First() with { Min = g.Min(r => r.Min), Max = g.Max(r => r.Max), Mined = g.All(r => r.Mined) }).ToArray();
     }
 
     /// <summary>The bodies of <paramref name="systemAddress"/> whose placed objects give <paramref name="itemId"/>

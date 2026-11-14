@@ -28,6 +28,15 @@ public static partial class CatalogSteps
         }
 
         string Loc(string? id) => id is { Length: > 0 } && recipeLookup.TryGetValue(id, out var text) ? text : id ?? "";
+
+        // Retired items (legacyitemtable.mbin, format 95): the game turns any a player holds into their ConvertID and,
+        // with RemoveOldRecipe, drops the recipes that use them, so nobody can get them. Build 185034, 2026-11-13: the
+        // old vegetable baits BAIT_VEG_1-4 (Scented Herbs, Enzyme Fluid, Fermented Fruit) -> BAIT_BASIC (Creature
+        // Pellets) 10:1; five Creature Pellets recipes still listed them.
+        var legacyTable = DecodeFirstMatch<libMBIN.NMS.GameComponents.GcLegacyItemTable>(
+            pcbanksPath, f => f.Contains("legacyitemtable.mbin", StringComparison.OrdinalIgnoreCase));
+        var retired = (legacyTable?.Table ?? new()).Where(l => l.RemoveOldRecipe && !string.IsNullOrEmpty(l.ID?.Value))
+            .Select(l => l.ID.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var recipes = new List<CatalogItem>();
         foreach (var r in recipeTable.Table)
         {
@@ -35,6 +44,7 @@ public static partial class CatalogSteps
             string resultId = r.Result?.Id?.Value ?? "";
             var ingredients = (r.Ingredients ?? new()).Where(i => !string.IsNullOrEmpty(i.Id?.Value)).ToList();
             if (id.Length == 0 || resultId.Length == 0 || ingredients.Count == 0) continue;
+            if (retired.Contains(resultId) || ingredients.Any(i => retired.Contains(i.Id.Value))) continue;
 
             var payload = new System.Text.Json.Nodes.JsonObject
             {

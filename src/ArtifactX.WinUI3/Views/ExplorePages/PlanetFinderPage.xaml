@@ -56,6 +56,9 @@
                                     <ComboBoxItem Content="Nearest to galaxy core"/>
                                 </ComboBox>
                                 <CheckBox Content="Rings only" IsChecked="{x:Bind ViewModel.RingsOnly, Mode=TwoWay}" VerticalAlignment="Bottom"/>
+                                <CheckBox Content="{x:Bind ViewModel.InfestedLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.InfestedOnly, Mode=TwoWay}"
+                                          Visibility="{x:Bind ViewModel.ShowInfested, Mode=OneWay}" VerticalAlignment="Bottom"
+                                          ToolTipService.ToolTip="Planets of the infested kind, where Whispering Eggs and the small ground worms are. Combine it with Planet type for, say, infested Lush planets."/>
                                 <CheckBox Content="Discovered by you" IsChecked="{x:Bind ViewModel.MineOnly, Mode=TwoWay}" VerticalAlignment="Bottom"/>
                                 <CheckBox Content="Include my other save slots" IsChecked="{x:Bind ViewModel.IncludeOtherSlots, Mode=TwoWay}" VerticalAlignment="Bottom"/>
                                 <controls:HyperdriveRangeBox VerticalAlignment="Bottom"/>

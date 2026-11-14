@@ -1,4 +1,5 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Helpers.Recipes;
 using ArtifactX.Core.Universe;
 using System;
 using System.Collections.Concurrent;
@@ -57,6 +58,23 @@ public static class IngredientLocatorService
     public static async Task<FishInfo?> FishAsync(string itemId) =>
         (await CatalogService.GetFishAsync()).FirstOrDefault(f => !f.NeedsMission && string.Equals(f.Id, itemId, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>"Craft it from 50 Carbon" for an item the player crafts (catalog "Crafting"); null for anything
+    /// else.</summary>
+    public static async Task<string?> CraftLineAsync(string itemId)
+    {
+        if (!(await CatalogService.GetCraftingAsync()).TryGetValue(itemId, out var craft) || craft.Kind != "Product" || craft.Requirements.Count == 0)
+            return null;
+        var names = await ItemNamesAsync();
+        return "Craft it from " + string.Join(" and ", craft.Requirements.Select(r => $"{r.Amount:N0} {names(r.Id)}")) + ".";
+    }
+
+    /// <summary>An item's name from the catalog ("Gutrot Flower"), else its id.</summary>
+    public static async Task<Func<string, string>> ItemNamesAsync()
+    {
+        var names = await CatalogService.GetItemNamesAsync();
+        return id => names.TryGetValue(id, out var n) && !string.IsNullOrEmpty(n) ? n : id;
+    }
+
     private static async Task<HashSet<string>> HuntIdsAsync(string itemId) => CreatureProduceSearch.HuntIds(itemId,
         (await RecipeIngredientSourcesService.CreatureSourcesAsync()).Where(s => s.Method == "Hunt").Select(s => (s.ItemId, s.CreatureId)));
 
@@ -105,8 +123,10 @@ public static class IngredientLocatorService
                         foreach (var f in HarvestSearch.On(system.SystemAddress, types, profiles, itemId))
                         {
                             var details = At(f.PlanetIndex, f.Body);
-                            if (f.Harvest.TileType is 4) details.Add("found underwater");
-                            else if (f.Harvest.TileType is 5) details.Add("found in caves");
+                            string where = f.Harvest.TileType switch { 4 => "underwater", 5 => "in caves", _ => "" };
+                            string mine = HarvestPlaceText.MinedDetail(itemId);
+                            if (f.Harvest.Mined) details.Add(where.Length > 0 ? $"{mine} {where}" : mine);
+                            else if (where.Length > 0) details.Add("found " + where);
                         }
                     if (creatures is not null)
                         foreach (var f in CreatureProduceSearch.On(system.SystemAddress, types, profiles, itemId, creatures, fed, huntIds))
@@ -125,9 +145,9 @@ public static class IngredientLocatorService
         }, cancel);
     }
 
-    /// <summary>"Frozen planet Okiru II".</summary>
+    /// <summary>"Frozen planet Okiru II", "Infested Lush planet ..." for the infested variant players look for.</summary>
     private static string Body(ulong portal, int galaxy, int planetIndex, PlanetType type) =>
-        $"{NmsPlanets.BiomeGroup(type.Biome)} {(SystemGenerator.Bodies(portal, galaxy).IsMoon(planetIndex) ? "moon" : "planet")} "
+        $"{(type.SubType == NmsPlanets.InfestedSubType ? "Infested " : "")}{NmsPlanets.BiomeGroup(type.Biome)} {(SystemGenerator.Bodies(portal, galaxy).IsMoon(planetIndex) ? "moon" : "planet")} "
         + SystemGenerator.PlanetName(portal | ((ulong)planetIndex << 44), galaxy);
 
     /// <summary>"feed the Kordiussia" (the species name the game gives once scanned), "hunt the Kordiussia or the

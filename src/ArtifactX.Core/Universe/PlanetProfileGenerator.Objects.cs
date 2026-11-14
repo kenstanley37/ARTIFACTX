@@ -10,13 +10,17 @@ public sealed record ObjectList(string Name, int Order, float Probability, int T
     string[]? Files = null);
 
 /// <summary>An item a spawn file's objects give when picked or broken (catalog format 93): a placed object's
-/// GcSimpleInteractionComponentData reward id, looked up in rewardtable.mbin.</summary>
+/// GcSimpleInteractionComponentData reward id, looked up in rewardtable.mbin; or, from format 94, what it gives when
+/// mined with the Multi-Tool (GcDestructableComponentData: GivesReward looked up the same way, and GivesSubstances
+/// with a Specific substance).</summary>
 /// <param name="OneOf">The reward gives one of its items (RewardChoice other than GiveAll), not all of them.</param>
-public sealed record HarvestItem(string ItemId, int Min, int Max, bool OneOf = false);
+/// <param name="Mined">Only mining gives it (no object of the file gives it when picked).</param>
+public sealed record HarvestItem(string ItemId, int Min, int Max, bool OneOf = false, bool Mined = false);
 
 /// <summary>An item a planet's placed objects give (wild plants, clams, storm crystals...).</summary>
 /// <param name="TileType">Where its list places objects (GcTerrainTileType: 4 underwater, 5 in caves, else on the ground).</param>
-public sealed record PlanetHarvest(string ItemId, int Min, int Max, int TileType, bool OneOf = false);
+/// <param name="Mined">Only mining with the Multi-Tool gives it (<see cref="HarvestItem.Mined"/>).</param>
+public sealed record PlanetHarvest(string ItemId, int Min, int Max, int TileType, bool OneOf = false, bool Mined = false);
 
 /// <summary>Conditions an optional object group (GcExternalObjectFileList) puts on a planet.</summary>
 [Flags]
@@ -259,11 +263,11 @@ public static partial class PlanetProfileGenerator
             foreach (var item in items)
             {
                 int at = found.FindIndex(f => f.ItemId == item.ItemId);
-                if (at < 0) { found.Add(new PlanetHarvest(item.ItemId, item.Min, item.Max, list.TileType, item.OneOf)); continue; }
+                if (at < 0) { found.Add(new PlanetHarvest(item.ItemId, item.Min, item.Max, list.TileType, item.OneOf, item.Mined)); continue; }
                 var f = found[at];
                 // Ground beats underwater or caves: the easier place to pick it up.
                 int tile = f.TileType is 4 or 5 && list.TileType is not (4 or 5) ? list.TileType : f.TileType;
-                found[at] = f with { Min = Math.Min(f.Min, item.Min), Max = Math.Max(f.Max, item.Max), TileType = tile, OneOf = f.OneOf && item.OneOf };
+                found[at] = f with { Min = Math.Min(f.Min, item.Min), Max = Math.Max(f.Max, item.Max), TileType = tile, OneOf = f.OneOf && item.OneOf, Mined = f.Mined && item.Mined };
             }
         }
         return found.ToArray();

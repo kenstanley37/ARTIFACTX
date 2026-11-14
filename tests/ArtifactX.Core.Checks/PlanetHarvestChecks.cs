@@ -47,7 +47,22 @@ internal static class PlanetHarvestChecks
         Require(tubers is [{ Biome: 4, TileType: 0, Min: 5, Max: 10, Rules: ObjectGroupRules.NotOnInfested }], "Frozen Tubers on frozen planets");
         Require(HarvestSearch.Rules("CLAMPEARL", withPlaces) is [{ Biome: 16, TileType: 4 }], "clam pearls underwater anywhere");
         Require(HarvestSearch.Rules("NOTHING", withPlaces).Length == 0, "an item nothing gives has no places");
-        Console.WriteLine("Planet harvest: lists, underwater, multi-file, places and old catalogs OK");
+
+        // Mining (format 94): Carbon only from mining plants stays mined; Star Bulb picked on one list and mined on
+        // another counts as picked, the easier way.
+        const string Rocks = "PLANT/LUSHTREES.MBIN";
+        var mining = tables with
+        {
+            Harvest = new Dictionary<string, HarvestItem[]>(harvest)
+            {
+                [Rocks] = [new("FUEL1", 2, 25, Mined: true), new("PLANT_LUSH", 1, 5, Mined: true)],
+            },
+        };
+        var mined = PlanetProfileGenerator.Harvest([List("FARMLUSH", 0, Farm), List("TREES", 0, Rocks)], mining).ToDictionary(h => h.ItemId);
+        Require(mined["FUEL1"].Mined, "Carbon only from mining is mined");
+        Require(mined["PLANT_LUSH"] is { Mined: false, Min: 1, Max: 15 }, "an item also picked counts as picked");
+        Require(HarvestSearch.Rules("FUEL1", mining with { Common = [List("TREES", 0, Rocks)] }) is [{ Mined: true }], "a mined place reads as mined");
+        Console.WriteLine("Planet harvest: lists, underwater, multi-file, places, mining and old catalogs OK");
     }
 
     private static void Require(bool condition, string message)
