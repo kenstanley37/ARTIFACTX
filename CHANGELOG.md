@@ -64,6 +64,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to place a Save Beacon right at the optimal base site.
 
 ### Changed
+- Planet Finder: pin a planet (the pin at the top right of its card) to keep it at the top of the list, whatever the filters and however far you warp. Pins are remembered.
+- Planet Finder: each card shows its star system in bold with a dot in the star's colour, so it's easy to spot on the galaxy map.
 
 - Planet Finder now also lists the undiscovered planets of the 5,000 star systems nearest you (about 24,000 planets), worked out the way the game does. Your save forgets older discoveries, so it can't map a region on its own. "Undiscovered planets" under More filters can narrow this to your region or turn it off. The list shows the nearest 500 cards; filters narrow it.
 - Planet Finder: a "Paradise" checkbox finds the planets the game itself calls Paradise Planets (lush, no storms or extreme weather, low sentinels), and a new Weather filter (no storms, storms, extreme) joins Sentinels, Flora, Fauna and Resource. These now work on every planet, not just the ones you recorded; what you recorded still wins. Each card shows the planet's weather, sentinels, life and resources.

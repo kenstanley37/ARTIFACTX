@@ -48,6 +48,10 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     private List<KnownPlanet> _nearby = new();
     private (ulong Region, int Reach)? _nearbyFor;
     private int _nearbyVersion;
+    /// <summary>Pinned planets outside the saves and the nearby systems (<see cref="LoadPinnedAsync"/>), and the pins
+    /// already looked for, so a pin the generator can't place isn't worked out on every refresh.</summary>
+    private List<KnownPlanet> _pinnedExtra = new();
+    private readonly HashSet<(ulong, int)> _pinsTried = new();
     private int _applyVersion;
     /// <summary>How many of the nearest systems' undiscovered planets are added (2026-11-14, the owner: half of the
     /// ~47,000 bodies of the region and its neighbours is plenty): about 24,000 bodies within ~570 ly.</summary>
@@ -218,11 +222,42 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     {
         var known = _thisSave.Concat(_otherSaves).GroupBy(p => p.Address).Select(g => g.First()).ToList();
         var have = known.Select(p => (p.SystemAddress, p.PlanetIndex)).ToHashSet();
-        _all = [.. known, .. _nearby.Where(p => !have.Contains((p.SystemAddress, p.PlanetIndex)))];
+        var nearby = _nearby.Where(p => have.Add((p.SystemAddress, p.PlanetIndex))).ToList();
+        _all = [.. known, .. nearby, .. _pinnedExtra.Where(p => have.Add((p.SystemAddress, p.PlanetIndex)))];
         FillChoices();
         _ = FindFactsAsync();
         Apply();
         _ = LoadNearbyAsync();
+        _ = LoadPinnedAsync();
+    }
+
+    /// <summary>
+    /// Pinned planets the list no longer holds - out of the nearest systems once the player warps on, or with
+    /// undiscovered planets turned off - worked out from the generator so a pin stays on top wherever the player is.
+    /// </summary>
+    private async Task LoadPinnedAsync()
+    {
+        var have = _all.Select(p => (p.SystemAddress, p.PlanetIndex)).ToHashSet();
+        var missing = PlanetPinService.Snapshot().Where(p => !have.Contains(p) && _pinsTried.Add(p)).ToList();
+        if (missing.Count == 0) return;
+        await PlanetTypesService.EnsureLoadedAsync();
+        var found = await Task.Run(() => missing.GroupBy(p => p.System).SelectMany(g =>
+        {
+            UniverseInfo.For(g.Key);
+            var wanted = g.Select(p => p.Planet).ToHashSet();
+            return PlanetTypesService.Undiscovered(g.Key, Array.Empty<int>()).Where(b => wanted.Contains(b.PlanetIndex)).ToList();
+        }).ToList());
+        if (found.Count == 0) return;
+        _pinnedExtra = [.. _pinnedExtra, .. found];
+        Refresh();
+    }
+
+    /// <summary>Pins or unpins a card: pinned planets stay at the top of the list, whatever the filters and wherever
+    /// the player warps.</summary>
+    public void TogglePin(PlanetRowViewModel row)
+    {
+        PlanetPinService.Toggle(row.Planet.SystemAddress, row.Planet.PlanetIndex);
+        Apply();
     }
 
     /// <summary>
@@ -425,6 +460,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         ulong? here = _here;
         var facts = _facts;
         var water = _waterSystems;
+        var pins = PlanetPinService.Snapshot();
         bool rings = RingsOnly, infestedOnly = InfestedOnly, paradiseOnly = ParadiseOnly, mine = MineOnly, waterOnly = WaterOnly, dissonant = DissonantOnly;
         int bodies = BodiesIndex, sort = SortIndex;
         string star = Star.Value, economy = Economy.Value, wealth = Wealth.Value, conflict = Conflict.Value, race = Race.Value, ship = Ship.Value;
@@ -437,7 +473,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         MoreFiltersLabel = more > 0 ? $"More filters ({more} on)" : "More filters";
         ActiveFilters = more + new[] { search.Length > 0, type >= 0 || hauntedOnly, rings, infestedOnly, paradiseOnly }.Count(on => on);
 
-        var (shown, total, typeCounts, infestedCount, ringsCount, paradiseCount) = await Task.Run(() =>
+        var (pinned, shown, total, typeCounts, infestedCount, ringsCount, paradiseCount) = await Task.Run(() =>
         {
             PlanetFinderFacts? Facts(KnownPlanet p) => facts.TryGetValue((p.SystemAddress, p.PlanetIndex), out var f) ? f : null;
             bool TypeOk(KnownPlanet p) => (type < 0 || p.BiomeIndex == type) && (!hauntedOnly || NmsPlanets.IsHaunted(p.BiomeIndex));
@@ -481,8 +517,12 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
             int ringsCount = others.Count(p => Row(p, 1) && p.HasRings);
             int infestedCount = others.Count(p => Row(p, 2) && IsInfested(p));
             int paradiseCount = others.Count(p => Row(p, 3) && IsParadise(p));
-            var filtered = others.Where(p => Row(p, -1))
-                .Select(p => (Planet: p, Distance: here is ulong h ? NmsPlanets.DistanceLightYears(h, p.SystemAddress) : null));
+            double? DistanceOf(KnownPlanet p) => here is ulong h ? NmsPlanets.DistanceLightYears(h, p.SystemAddress) : null;
+            bool IsPin(KnownPlanet p) => pins.Contains((p.SystemAddress, p.PlanetIndex));
+            var filtered = others.Where(p => Row(p, -1) && !IsPin(p)).Select(p => (Planet: p, Distance: DistanceOf(p)));
+            // Pinned planets first, whatever the filters, nearest first.
+            var pinned = all.Where(IsPin).Select(p => (Planet: p, Distance: DistanceOf(p)))
+                .OrderBy(x => x.Distance ?? double.MaxValue).ToList();
 
             // Nearest first: same-galaxy planets by distance, other galaxies after.
             var ordered = (sort switch
@@ -493,8 +533,8 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
                 _ => filtered.OrderBy(x => x.Distance ?? double.MaxValue).ThenByDescending(x => x.Planet.DiscoveredUnixSeconds),
             }).ToList();
             // What the cards read that the generator works out (the descriptor needs the system's profile), done here.
-            foreach (var (p, _) in ordered.Take(MaxCards)) PlanetTypesService.Descriptor(p.SystemAddress, p.PlanetIndex);
-            return (ordered.Take(MaxCards).ToList(), ordered.Count, typeCounts, infestedCount, ringsCount, paradiseCount);
+            foreach (var (p, _) in pinned.Concat(ordered.Take(MaxCards))) PlanetTypesService.Descriptor(p.SystemAddress, p.PlanetIndex);
+            return (pinned, ordered.Take(MaxCards).ToList(), ordered.Count, typeCounts, infestedCount, ringsCount, paradiseCount);
         });
         if (version != _applyVersion) return;
         _quiet = true;
@@ -503,9 +543,11 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         InfestedLabel = $"Infested ({infestedCount:N0} {(infestedCount == 1 ? "planet" : "planets")})";
         RingsLabel = $"Rings only ({ringsCount:N0})";
         ParadiseLabel = $"Paradise ({paradiseCount:N0})";
-        Results = shown.Select(x => new PlanetRowViewModel(x.Planet, here, x.Distance,
-            facts.TryGetValue((x.Planet.SystemAddress, x.Planet.PlanetIndex), out var f) ? f : null)).ToList();
-        ResultCount = total == all.Count ? $"{total:N0} planets" : $"{total:N0} of {all.Count:N0} planets";
+        Results = pinned.Select(x => (x.Planet, x.Distance, Pinned: true)).Concat(shown.Select(x => (x.Planet, x.Distance, Pinned: false)))
+            .Select(x => new PlanetRowViewModel(x.Planet, here, x.Distance,
+                facts.TryGetValue((x.Planet.SystemAddress, x.Planet.PlanetIndex), out var f) ? f : null, x.Pinned)).ToList();
+        ResultCount = (total + pinned.Count == all.Count ? $"{total:N0} planets" : $"{total:N0} of {all.Count:N0} planets")
+            + (pinned.Count > 0 ? $" · {pinned.Count:N0} pinned" : "");
         ShownNote = total > shown.Count ? $"Showing the first {shown.Count:N0} of {total:N0}. Pick a planet type or other filters to narrow the list." : "";
     }
 }

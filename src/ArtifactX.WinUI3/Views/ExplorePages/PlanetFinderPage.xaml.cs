@@ -49,6 +49,11 @@ public sealed partial class PlanetFinderPage : Page
 
     private void ClearFilters_Click(object sender, RoutedEventArgs e) => ViewModel.ClearFilters();
 
+    private void Pin_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is PlanetRowViewModel row) ViewModel.TogglePin(row);
+    }
+
     private void Results_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is PlanetRowViewModel row) Frame.Navigate(typeof(ExplorePages.PlanetDetailsPage), row.Planet);

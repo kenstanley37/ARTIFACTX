@@ -181,7 +181,7 @@
                             </GridView.ItemContainerStyle>
                             <GridView.ItemTemplate>
                                 <DataTemplate x:DataType="viewmodels:PlanetRowViewModel">
-                                    <Border Width="372" Height="250" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                                    <Border Width="372" Height="268" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                                             Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,12">
                                         <Grid RowSpacing="8">
                                             <Grid.RowDefinitions>
@@ -194,6 +194,7 @@
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="44"/>
                                                     <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Grid Width="44" Height="30" VerticalAlignment="Top">
                                                     <Ellipse Width="26" Height="26" Fill="{x:Bind Swatch}"/>
@@ -206,9 +207,20 @@
                                                 </Grid>
                                                 <StackPanel Grid.Column="1" Spacing="2">
                                                     <TextBlock Text="{x:Bind NameLabel}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <!-- The system: what the player looks for on the galaxy map. -->
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" ToolTipService.ToolTip="{x:Bind SystemLabel}">
+                                                        <Ellipse Width="10" Height="10" Fill="{x:Bind StarSwatch}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{x:Bind SystemLabel}" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource ThemeTextBrush}"
+                                                                   TextTrimming="CharacterEllipsis" MaxWidth="250"/>
+                                                    </StackPanel>
                                                     <TextBlock Text="{x:Bind LocationLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextTrimming="CharacterEllipsis"
                                                                ToolTipService.ToolTip="{x:Bind LocationLabel}"/>
                                                 </StackPanel>
+                                                <Button Grid.Column="2" Click="Pin_Click" Tag="{x:Bind}" Padding="6,4" Margin="0,-4,-6,0" VerticalAlignment="Top"
+                                                        Background="Transparent" BorderThickness="0"
+                                                        ToolTipService.ToolTip="{x:Bind PinName}" AutomationProperties.Name="{x:Bind PinName}">
+                                                    <FontIcon Glyph="{x:Bind PinGlyph}" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                                </Button>
                                             </Grid>
                                             <StackPanel Grid.Row="1" Spacing="2">
                                                 <TextBlock Text="{x:Bind FactsLabel}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
