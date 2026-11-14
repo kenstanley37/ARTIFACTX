@@ -42,13 +42,13 @@
             </DataTemplate>
            </ItemsControl.ItemTemplate>
           </ItemsControl>
+         </StackPanel>
+         <TextBlock Grid.Column="1" Text="{x:Bind Distance}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="12"/>
+        </Grid>
+       </Border>
+      </DataTemplate>
+     </ItemsControl.ItemTemplate>
+    </ItemsControl>
   </StackPanel>
-       </StackPanel>
-       <TextBlock Grid.Column="1" Text="{x:Bind Distance}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="12"/>
-      </Grid>
-     </Border>
-    </DataTemplate>
-   </ItemsControl.ItemTemplate>
-  </ItemsControl>
  </StackPanel>
 </UserControl>
