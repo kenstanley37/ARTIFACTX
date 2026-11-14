@@ -4,6 +4,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Changed
+- Current System: before you've captured a system, its economy, wealth and conflict now read in the game's own words ("Prospecting // Struggling", "Testy") instead of just the level ("Mining // Low ★"). The app works out the same word the game picks for each system.
+
 ### Fixed
 - Planet Finder cards now read "Pirate Controlled" for pirate systems, not "Pirate Controlled conflict".
 - After a portal trip or warp, the planet you arrived on could be given the name of the planet you left. It now keeps its own name, and planets already misnamed this way get their names back when the app starts.

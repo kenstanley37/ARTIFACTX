@@ -194,6 +194,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
                 var descriptors = await CatalogService.GetSystemDescriptorsAsync();
                 SystemNotesService.SetDescriptors(descriptors);
                 Notes.FillChoices(descriptors);
+                await CatalogService.GetSystemWordsByKeyAsync();
                 _descriptorsLoaded = true;
             }
             Show(await LiveSaveWatcher.GetLatestAsync(), live: false);
@@ -559,9 +560,12 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         string? economy = note?.Economy is { Length: > 0 } e ? (note.Wealth is { Length: > 0 } w ? $"{e} // {w}" : e)
             : uncharted ? "- Data Unavailable -" : null;
         // A pirate system's game lines: "Prospecting // Black Market", "Pirate Controlled" (Inzadga-Rigpr, 2026-11-14).
-        Row("Economy", economy, f.Uncharted ? "None" : $"{f.EconomyLabel} // {(f.Pirate ? "Black Market" : f.WealthLabel)}");
+        // Not recorded yet: the word the game picks (SystemWords), else the level until the catalog words load.
+        var words = UniverseInfo.GameWords(system);
+        Row("Economy", economy, f.Uncharted ? "None"
+            : $"{words.Economy ?? f.EconomyLabel} // {(f.Pirate ? "Black Market" : words.Wealth ?? f.WealthLabel)}");
         Row("Conflict level", note?.Conflict is { Length: > 0 } c ? c : uncharted ? "- Data Unavailable -" : null,
-            f.Uncharted ? "None" : f.Pirate ? "Pirate Controlled" : f.ConflictLabel);
+            f.Uncharted ? "None" : f.Pirate ? "Pirate Controlled" : words.Conflict ?? f.ConflictLabel);
         string defaultStation = $"{UniverseInfo.SystemName(system)} Station";
         if (f.Uncharted || uncharted)
             Row("Space Station", uncharted ? "None (uncharted)" : null, "None (uncharted)");

@@ -87,6 +87,21 @@ public static class UniverseInfo
             a.Economy, a.Wealth, a.Conflict, a.Race, a.Uncharted, a.Abandoned, a.Pirate, bodies.PlanetCount, bodies.MoonCount);
     });
 
+    /// <summary>The words the game itself shows for a system's economy, wealth and conflict
+    /// ("Prospecting", "Struggling", "Testy"; SystemWords), or nulls when it shows none
+    /// (uncharted, abandoned) or the catalog words aren't loaded yet
+    /// (CatalogService.GetSystemWordsByKeyAsync). A pirate system's wealth and conflict stay null:
+    /// the game uses its own single words there ("Black Market", "Pirate Controlled").</summary>
+    public static (string? Economy, string? Wealth, string? Conflict) GameWords(ulong address)
+    {
+        if (CatalogService.LoadedSystemWordsByKey is not { } words) return (null, null, null);
+        var (code, galaxy) = Generator(SystemKey(address));
+        var attributes = SystemGenerator.Attributes(code, galaxy);
+        if (SystemWords.Keys(code, galaxy, attributes) is not { } keys) return (null, null, null);
+        string? Word(string key) => words.TryGetValue(key, out var w) ? w : null;
+        return attributes.Pirate ? (Word(keys.Economy), null, null) : (Word(keys.Economy), Word(keys.Wealth), Word(keys.Conflict));
+    }
+
     private static readonly ConcurrentDictionary<ulong, ArtifactX.Core.Universe.SystemBodies> BodiesCache = new();
 
     /// <summary>The generator's bodies for the system an address is in (which are moons, and of what).</summary>
