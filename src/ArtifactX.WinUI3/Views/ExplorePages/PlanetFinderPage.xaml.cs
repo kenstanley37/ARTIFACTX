@@ -36,8 +36,6 @@ public sealed partial class PlanetFinderPage : Page
         if (SaveSessionManager.IsSaveLoaded) _ = ViewModel.LoadAsync();
     }
 
-    public Visibility IsCollapsedWhen(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
-
     private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = ViewModel.LoadAsync());
 
     private void OnSnapshotSeen(PlanetSnapshot snapshot) => DispatcherQueue.TryEnqueue(() =>

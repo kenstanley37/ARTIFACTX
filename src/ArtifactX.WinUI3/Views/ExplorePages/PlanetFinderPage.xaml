@@ -32,80 +32,126 @@
                 </controls:FoldingCard>
             </Border>
 
+            <!-- Search and filters, grouped by what they're about (planet, star system, where to look), every picker
+                 the same width so the groups line up; the results are their own card below. -->
             <Border Style="{StaticResource ThemeCardStyle}">
-                <StackPanel>
-                    <controls:FoldingCard Title="SEARCH AND FILTERS" SettingKey="PlanetFinderSearchCollapsed"
-                                          Summary="{x:Bind ViewModel.ResultCount, Mode=OneWay}">
-                        <StackPanel Padding="20,16,20,20" Spacing="14">
+                <controls:FoldingCard Title="SEARCH AND FILTERS" SettingKey="PlanetFinderSearchCollapsed"
+                                      Summary="{x:Bind ViewModel.FilterSummary, Mode=OneWay}">
+                    <controls:FoldingCard.HeaderContent>
+                        <Button Content="{x:Bind ViewModel.ClearLabel, Mode=OneWay}" Click="ClearFilters_Click" Padding="12,2" FontSize="12" Margin="0,0,12,0"
+                                Visibility="{x:Bind ViewModel.HasActiveFilters, Mode=OneWay}"
+                                ToolTipService.ToolTip="Clear the search and every filter (keeps your sort, save slots and hyperdrive range)"/>
+                    </controls:FoldingCard.HeaderContent>
+                    <StackPanel Padding="20,16,20,20" Spacing="22">
+                        <StackPanel Spacing="12">
                             <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
                                        Text="Every planet in your saves' discoveries, including ones other players found that the game downloaded for you. Pick a type to find the nearest one, then dial its portal address at any portal. Distances are approximate, measured from where this save is now."/>
                             <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
-                                <TextBox Width="260" Header="Search" PlaceholderText="Names, notes, resources, weather..."
+                                <TextBox Width="454" Header="Search" PlaceholderText="Names, notes, resources, weather..."
                                          Text="{x:Bind ViewModel.Search, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          ToolTipService.ToolTip="Finds planets whose name, system name, your notes, recorded details or creatures contain this text"/>
-                                <ComboBox Header="{x:Bind ViewModel.Type.Header}" Width="{x:Bind ViewModel.Type.Width}"
-                                          ItemsSource="{x:Bind ViewModel.Type.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Type.Selected, Mode=TwoWay}"/>
-                                <ComboBox Header="{x:Bind ViewModel.Galaxy.Header}" Width="{x:Bind ViewModel.Galaxy.Width}"
-                                          ItemsSource="{x:Bind ViewModel.Galaxy.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Galaxy.Selected, Mode=TwoWay}"/>
-                                <ComboBox Header="{x:Bind ViewModel.Region.Header}" Width="{x:Bind ViewModel.Region.Width}"
-                                          ItemsSource="{x:Bind ViewModel.Region.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Region.Selected, Mode=TwoWay}"/>
-                                <ComboBox Header="Sort" Width="200" SelectedIndex="{x:Bind ViewModel.SortIndex, Mode=TwoWay}">
+                                <ComboBox Header="Sort" Width="220" SelectedIndex="{x:Bind ViewModel.SortIndex, Mode=TwoWay}">
                                     <ComboBoxItem Content="Nearest to you first"/>
                                     <ComboBoxItem Content="Newest first"/>
                                     <ComboBoxItem Content="Furthest from galaxy core"/>
                                     <ComboBoxItem Content="Nearest to galaxy core"/>
                                 </ComboBox>
-                                <CheckBox Content="Rings only" IsChecked="{x:Bind ViewModel.RingsOnly, Mode=TwoWay}" VerticalAlignment="Bottom"/>
-                                <CheckBox Content="{x:Bind ViewModel.InfestedLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.InfestedOnly, Mode=TwoWay}"
-                                          Visibility="{x:Bind ViewModel.ShowInfested, Mode=OneWay}" VerticalAlignment="Bottom"
-                                          ToolTipService.ToolTip="Planets of the infested kind, where Whispering Eggs and the small ground worms are. Combine it with Planet type for, say, infested Lush planets."/>
-                                <CheckBox Content="Discovered by you" IsChecked="{x:Bind ViewModel.MineOnly, Mode=TwoWay}" VerticalAlignment="Bottom"/>
-                                <CheckBox Content="Include my other save slots" IsChecked="{x:Bind ViewModel.IncludeOtherSlots, Mode=TwoWay}" VerticalAlignment="Bottom"/>
-                                <controls:HyperdriveRangeBox VerticalAlignment="Bottom"/>
                             </ctcontrols:WrapPanel>
-
-                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                       Visibility="{x:Bind IsCollapsedWhen(ViewModel.HasNoteFilters), Mode=OneWay}"
-                                       Text="Record a system's star colour, economy and so on in your notes on Current System, or a planet's sentinels, life and resources on its page, and filters for them appear here."/>
-                            <StackPanel Spacing="10" Visibility="{x:Bind ViewModel.HasNoteFilters, Mode=OneWay}">
-                                <ItemsControl ItemsSource="{x:Bind ViewModel.ChoiceFilters}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="viewmodels:ChoiceFilter">
-                                            <ComboBox Header="{x:Bind Header}" Width="{x:Bind Width}" Visibility="{x:Bind IsShown, Mode=OneWay}"
-                                                      ItemsSource="{x:Bind Choices, Mode=OneWay}" SelectedItem="{x:Bind Selected, Mode=TwoWay}"/>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
-                                    <CheckBox Content="{x:Bind ViewModel.WaterLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.WaterOnly, Mode=TwoWay}"
-                                              Visibility="{x:Bind ViewModel.ShowWater, Mode=OneWay}" VerticalAlignment="Bottom"
-                                              ToolTipService.ToolTip="Systems known to have water: a Water World among their planets, a fish you caught there, a Galaxy Map card that said Water, or ticked in your notes."/>
-                                    <CheckBox Content="{x:Bind ViewModel.DissonantLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.DissonantOnly, Mode=TwoWay}"
-                                              Visibility="{x:Bind ViewModel.ShowDissonant, Mode=OneWay}" VerticalAlignment="Bottom"
-                                              ToolTipService.ToolTip="Only systems recorded as dissonant - read off the game screen, or ticked in your notes. Systems not recorded yet are left out."/>
-                                    <ComboBox Header="Planets / moons (your notes)" Width="220" SelectedIndex="{x:Bind ViewModel.BodiesIndex, Mode=TwoWay}"
-                                              Visibility="{x:Bind ViewModel.ShowBodies, Mode=OneWay}">
-                                        <ComboBoxItem Content="Planets and moons"/>
-                                        <ComboBoxItem Content="Planets only"/>
-                                        <ComboBoxItem Content="Moons only"/>
-                                    </ComboBox>
-                                </ctcontrols:WrapPanel>
-                            </StackPanel>
                         </StackPanel>
-                    </controls:FoldingCard>
+
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="PLANET" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
+                                <ComboBox Header="{x:Bind ViewModel.Type.Header}" Width="{x:Bind ViewModel.Type.Width}"
+                                          ItemsSource="{x:Bind ViewModel.Type.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Type.Selected, Mode=TwoWay}"/>
+                                <ComboBox Header="Planets / moons (your notes)" Width="220" SelectedIndex="{x:Bind ViewModel.BodiesIndex, Mode=TwoWay}"
+                                          Visibility="{x:Bind ViewModel.ShowBodies, Mode=OneWay}">
+                                    <ComboBoxItem Content="Planets and moons"/>
+                                    <ComboBoxItem Content="Planets only"/>
+                                    <ComboBoxItem Content="Moons only"/>
+                                </ComboBox>
+                                <ComboBox Header="{x:Bind ViewModel.Sentinels.Header}" Width="{x:Bind ViewModel.Sentinels.Width}" Visibility="{x:Bind ViewModel.Sentinels.IsShown, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.Sentinels.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Sentinels.Selected, Mode=TwoWay}"/>
+                                <ComboBox Header="{x:Bind ViewModel.Flora.Header}" Width="{x:Bind ViewModel.Flora.Width}" Visibility="{x:Bind ViewModel.Flora.IsShown, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.Flora.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Flora.Selected, Mode=TwoWay}"/>
+                                <ComboBox Header="{x:Bind ViewModel.Fauna.Header}" Width="{x:Bind ViewModel.Fauna.Width}" Visibility="{x:Bind ViewModel.Fauna.IsShown, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.Fauna.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Fauna.Selected, Mode=TwoWay}"/>
+                                <ComboBox Header="{x:Bind ViewModel.Resource.Header}" Width="{x:Bind ViewModel.Resource.Width}" Visibility="{x:Bind ViewModel.Resource.IsShown, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.Resource.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Resource.Selected, Mode=TwoWay}"/>
+                            </ctcontrols:WrapPanel>
+                            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="4">
+                                <CheckBox Content="Rings only" IsChecked="{x:Bind ViewModel.RingsOnly, Mode=TwoWay}"/>
+                                <CheckBox Content="{x:Bind ViewModel.InfestedLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.InfestedOnly, Mode=TwoWay}"
+                                          Visibility="{x:Bind ViewModel.ShowInfested, Mode=OneWay}"
+                                          ToolTipService.ToolTip="Planets of the infested kind, where Whispering Eggs and the small ground worms are. Combine it with Planet type for, say, infested Lush planets."/>
+                            </ctcontrols:WrapPanel>
+                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                       Visibility="{x:Bind ViewModel.ShowPlanetNotesHint, Mode=OneWay}"
+                                       Text="Record a planet's sentinels, life and resources on its page, or a system's moons on Current System, and filters for them appear here."/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="STAR SYSTEM" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
+                                <ComboBox Header="{x:Bind ViewModel.Star.Header}" Width="{x:Bind ViewModel.Star.Width}" Visibility="{x:Bind ViewModel.Star.IsShown, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.Star.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Star.Selected, Mode=TwoWay}"/>
+                                <ComboBox Header="{x:Bind ViewModel.Economy.Header}" Width="{x:Bind ViewModel.Economy.Width}" Visibility="{x:Bind ViewModel.Economy.IsShown, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.Economy.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Economy.Selected, Mode=TwoWay}"/>
+                                <ComboBox Header="{x:Bind ViewModel.Wealth.Header}" Width="{x:Bind ViewModel.Wealth.Width}" Visibility="{x:Bind ViewModel.Wealth.IsShown, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.Wealth.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Wealth.Selected, Mode=TwoWay}"/>
+                                <ComboBox Header="{x:Bind ViewModel.Conflict.Header}" Width="{x:Bind ViewModel.Conflict.Width}" Visibility="{x:Bind ViewModel.Conflict.IsShown, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.Conflict.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Conflict.Selected, Mode=TwoWay}"/>
+                                <ComboBox Header="{x:Bind ViewModel.Race.Header}" Width="{x:Bind ViewModel.Race.Width}" Visibility="{x:Bind ViewModel.Race.IsShown, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.Race.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Race.Selected, Mode=TwoWay}"/>
+                                <ComboBox Header="{x:Bind ViewModel.Ship.Header}" Width="{x:Bind ViewModel.Ship.Width}" Visibility="{x:Bind ViewModel.Ship.IsShown, Mode=OneWay}"
+                                          ItemsSource="{x:Bind ViewModel.Ship.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Ship.Selected, Mode=TwoWay}"/>
+                            </ctcontrols:WrapPanel>
+                            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="4">
+                                <CheckBox Content="{x:Bind ViewModel.WaterLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.WaterOnly, Mode=TwoWay}"
+                                          Visibility="{x:Bind ViewModel.ShowWater, Mode=OneWay}"
+                                          ToolTipService.ToolTip="Systems known to have water: a Water World among their planets, a fish you caught there, a Galaxy Map card that said Water, or ticked in your notes."/>
+                                <CheckBox Content="{x:Bind ViewModel.DissonantLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.DissonantOnly, Mode=TwoWay}"
+                                          Visibility="{x:Bind ViewModel.ShowDissonant, Mode=OneWay}"
+                                          ToolTipService.ToolTip="Only systems recorded as dissonant - read off the game screen, or ticked in your notes. Systems not recorded yet are left out."/>
+                            </ctcontrols:WrapPanel>
+                        </StackPanel>
+
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="WHERE TO LOOK" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
+                                <ComboBox Header="{x:Bind ViewModel.Galaxy.Header}" Width="{x:Bind ViewModel.Galaxy.Width}"
+                                          ItemsSource="{x:Bind ViewModel.Galaxy.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Galaxy.Selected, Mode=TwoWay}"/>
+                                <ComboBox Header="{x:Bind ViewModel.Region.Header}" Width="{x:Bind ViewModel.Region.Width}"
+                                          ItemsSource="{x:Bind ViewModel.Region.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Region.Selected, Mode=TwoWay}"/>
+                                <controls:HyperdriveRangeBox/>
+                            </ctcontrols:WrapPanel>
+                            <ctcontrols:WrapPanel HorizontalSpacing="24" VerticalSpacing="4">
+                                <CheckBox Content="Discovered by you" IsChecked="{x:Bind ViewModel.MineOnly, Mode=TwoWay}"/>
+                                <CheckBox Content="Include my other save slots" IsChecked="{x:Bind ViewModel.IncludeOtherSlots, Mode=TwoWay}"/>
+                            </ctcontrols:WrapPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </controls:FoldingCard>
+            </Border>
+
+            <!-- The results: their own card, with the count and export in its band. -->
+            <Border Style="{StaticResource ThemeCardStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="RESULTS" Style="{StaticResource ThemeBandTextStyle}"/>
+                            <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.ResultCount, Mode=OneWay}" FontSize="12" Opacity="0.8"
+                                       Foreground="{ThemeResource ThemeBandTextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            <Button x:Name="ExportBtn" Grid.Column="2" Content="Export CSV" Click="ExportCsv_Click" Padding="12,2" FontSize="12" Margin="0,-6"
+                                    VerticalAlignment="Center" ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
+                        </Grid>
+                    </Border>
                     <StackPanel Padding="20,16,20,20" Spacing="14">
-                        <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
-                            <Button Content="{x:Bind ViewModel.ClearLabel, Mode=OneWay}" Click="ClearFilters_Click" Style="{StaticResource ThemeAccentButtonStyle}"
-                                    VerticalAlignment="Bottom" Visibility="{x:Bind ViewModel.HasActiveFilters, Mode=OneWay}"
-                                    ToolTipService.ToolTip="Clear the search and every filter (keeps your sort, save slots and hyperdrive range)"/>
-                            <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
-                                    ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
-                        </ctcontrols:WrapPanel>
                         <TextBlock Text="{x:Bind ViewModel.Status, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasStatus, Mode=OneWay}"
                                    Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
 

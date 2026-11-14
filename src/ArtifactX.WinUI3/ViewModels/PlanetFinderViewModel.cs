@@ -38,24 +38,31 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         JumpPlanner.RangeChanged += Apply;
     }
 
-    public ChoiceFilter Type { get; } = new("Planet type", 260);
+    /// <summary>Every picker's width, so the filter groups line up in columns.</summary>
+    private const double FilterWidth = 220;
+
+    public ChoiceFilter Type { get; } = new("Planet type", FilterWidth);
     /// <summary>The Type choice for every haunted world (<see cref="NmsPlanets.IsHaunted"/>).</summary>
     private const string HauntedType = "haunted";
-    public ChoiceFilter Galaxy { get; } = new("Galaxy", 220);
-    public ChoiceFilter Region { get; } = new("Region", 240);
-    public ChoiceFilter Star { get; } = new("Star colour");
-    public ChoiceFilter Economy { get; } = new("Economy");
-    public ChoiceFilter Wealth { get; } = new("Wealth", 180);
-    public ChoiceFilter Conflict { get; } = new("Conflict", 180);
-    public ChoiceFilter Race { get; } = new("Race", 180);
-    public ChoiceFilter Ship { get; } = new("Ships seen", 180);
-    public ChoiceFilter Sentinels { get; } = new("Sentinels");
-    public ChoiceFilter Flora { get; } = new("Flora", 180);
-    public ChoiceFilter Fauna { get; } = new("Fauna", 180);
-    public ChoiceFilter Resource { get; } = new("Resource");
+    public ChoiceFilter Galaxy { get; } = new("Galaxy", FilterWidth);
+    public ChoiceFilter Region { get; } = new("Region", FilterWidth);
+    public ChoiceFilter Star { get; } = new("Star colour", FilterWidth);
+    public ChoiceFilter Economy { get; } = new("Economy", FilterWidth);
+    public ChoiceFilter Wealth { get; } = new("Wealth", FilterWidth);
+    public ChoiceFilter Conflict { get; } = new("Conflict", FilterWidth);
+    public ChoiceFilter Race { get; } = new("Race", FilterWidth);
+    public ChoiceFilter Ship { get; } = new("Ships seen", FilterWidth);
+    public ChoiceFilter Sentinels { get; } = new("Sentinels", FilterWidth);
+    public ChoiceFilter Flora { get; } = new("Flora", FilterWidth);
+    public ChoiceFilter Fauna { get; } = new("Fauna", FilterWidth);
+    public ChoiceFilter Resource { get; } = new("Resource", FilterWidth);
 
-    /// <summary>The filters made from recorded and generated system and planet facts, in the order shown.</summary>
-    public IReadOnlyList<ChoiceFilter> ChoiceFilters => (ChoiceFilter[])[Star, Economy, Wealth, Conflict, Race, Ship, Sentinels, Flora, Fauna, Resource];
+    /// <summary>The filters made from recorded and generated system and planet facts.</summary>
+    public IReadOnlyList<ChoiceFilter> ChoiceFilters => (ChoiceFilter[])[.. SystemFilters, .. PlanetFilters];
+    /// <summary>The star system group's pickers, in the order shown.</summary>
+    public IReadOnlyList<ChoiceFilter> SystemFilters => (ChoiceFilter[])[Star, Economy, Wealth, Conflict, Race, Ship];
+    /// <summary>The planet group's pickers made from what the player recorded, in the order shown.</summary>
+    public IReadOnlyList<ChoiceFilter> PlanetFilters => (ChoiceFilter[])[Sentinels, Flora, Fauna, Resource];
 
     [ObservableProperty] public partial string Search { get; set; } = "";
     [ObservableProperty] public partial int SortIndex { get; set; }      // 0 nearest, 1 newest, 2 furthest from core, 3 nearest to core
@@ -74,7 +81,8 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     [ObservableProperty] public partial string DissonantLabel { get; private set; } = "";
     [ObservableProperty] public partial bool ShowDissonant { get; private set; }
     [ObservableProperty] public partial bool ShowBodies { get; private set; }
-    [ObservableProperty] public partial bool HasNoteFilters { get; private set; }
+    /// <summary>No planet has recorded sentinels, life, resources or moons yet, so the planet group says how to get those filters.</summary>
+    [ObservableProperty] public partial bool ShowPlanetNotesHint { get; private set; }
     [ObservableProperty] public partial string Status { get; private set; } = "";
 
     [ObservableProperty] public partial IReadOnlyList<PlanetRowViewModel> Results { get; private set; } = [];
@@ -84,12 +92,15 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     public bool HasStatus => Status.Length > 0;
     public bool HasActiveFilters => ActiveFilters > 0;
     public string ClearLabel => $"Clear filters ({ActiveFilters})";
+    /// <summary>The search card's band, so a folded card still says filters are on.</summary>
+    public string FilterSummary => ActiveFilters switch { 0 => "No filters", 1 => "1 filter on", var n => $"{n} filters on" };
 
     partial void OnStatusChanged(string value) => OnPropertyChanged(nameof(HasStatus));
     partial void OnActiveFiltersChanged(int value)
     {
         OnPropertyChanged(nameof(HasActiveFilters));
         OnPropertyChanged(nameof(ClearLabel));
+        OnPropertyChanged(nameof(FilterSummary));
     }
 
     partial void OnSortIndexChanged(int value) => Apply();
@@ -232,7 +243,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         ShowBodies = moons > 0;
         if (moons == 0) BodiesIndex = 0;
         _quiet = false;
-        HasNoteFilters = ChoiceFilters.Any(f => f.IsShown) || water > 0 || dissonant > 0 || moons > 0;
+        ShowPlanetNotesHint = !PlanetFilters.Any(f => f.IsShown) && moons == 0;
     }
 
     /// <summary>Systems known to have water: recorded as such (a Galaxy Map card, or the player's
@@ -314,7 +325,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
             _ => filtered.OrderBy(x => x.Distance ?? double.MaxValue).ThenByDescending(x => x.Planet.DiscoveredUnixSeconds),
         };
         Results = ordered.Select(x => new PlanetRowViewModel(x.Planet, _here, x.Distance)).ToList();
-        ResultCount = $"{Results.Count:N0} of {_all.Count:N0} planets";
+        ResultCount = Results.Count == _all.Count ? $"{_all.Count:N0} planets" : $"{Results.Count:N0} of {_all.Count:N0} planets";
         ActiveFilters = new[] { search.Length > 0, Type.IsSet, Galaxy.IsSet, Region.IsSet, BodiesIndex > 0, RingsOnly, MineOnly, WaterOnly, DissonantOnly, InfestedOnly }
             .Concat(ChoiceFilters.Select(f => f.IsSet)).Count(on => on);
     }
