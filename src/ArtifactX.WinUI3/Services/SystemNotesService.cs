@@ -455,22 +455,35 @@ public static class SystemNameLearner
     private static (string Line, ulong System, int Planet)? _last;
 
     /// <summary>
-    /// Returns whether anything new was stored. The line can lag the player's position: after a portal trip the save
-    /// held the new planet's position under "On Planet (Yasiare Sigma)", the planet left behind, and Aisters was
-    /// renamed after it (owner, 2026-11-14, Inzadga-Rigpr planet 3). So a line is skipped when it is the one already
-    /// learned from another place, or names a planet or system the notes already hold under another address.
+    /// Returns whether anything new was stored. A name the generator gives too (UniverseInfo.GeneratedPlanetName / the
+    /// system's GeneratedName) isn't stored: the generator already knows it, and a different name recorded for the place
+    /// is dropped, as the game says it isn't that. Only names someone gave the place are kept (433 learned names on the
+    /// owner's saves, 2026-11-14: 263 the generated name, the rest renames - "Coruscant" on two planets, six planets of
+    /// one system called "Bunny", so a shared name is fine).
+    /// The line can lag the player's position: after a portal trip the save held the new planet's position under
+    /// "On Planet (Yasiare Sigma)", the planet left behind, and Aisters was renamed after it (owner, 2026-11-14,
+    /// Inzadga-Rigpr planet 3; two older names on the owner's saves look the same). So the line learned at the last
+    /// place, seen again somewhere else while it is that place's generated name, is skipped.
     /// </summary>
     public static bool Learn(ulong? system, int planet, string? summary)
     {
         if (system is not ulong address) return false;
         string line = (summary ?? "").Trim();
-        if (_last is { } last && last.Line == line && (last.System != address || last.Planet != planet)) return false;
+        if (_last is { } last && last.Line == line && (last.System != address || last.Planet != planet) && IsGeneratedName(line, last.System, last.Planet))
+            return false;
         var note = SystemNotesService.Get(address) ?? new SystemNote();
         bool changed = false;
 
         if (InSystemRegex.Match(line) is { Success: true } inSystem && note.SystemName != inSystem.Groups[1].Value)
         {
-            if (SystemNotesService.All.Any(n => !ReferenceEquals(n, note) && n.SystemName == inSystem.Groups[1].Value)) return false;
+            if (inSystem.Groups[1].Value == UniverseInfo.For(address).GeneratedName)
+            {
+                _last = (line, address, planet);
+                if (note.SystemName.Length == 0) return false;
+                note.SystemName = "";
+                SystemNotesService.Save(address, note, source: "save");
+                return true;
+            }
             note.SystemName = inSystem.Groups[1].Value;
             changed = true;
         }
@@ -478,11 +491,16 @@ public static class SystemNameLearner
         {
             string key = planet.ToString(CultureInfo.InvariantCulture);
             string name = onPlanet.Groups[1].Value;
+            if (name == UniverseInfo.GeneratedPlanetName(address, planet))
+            {
+                _last = (line, address, planet);
+                if (!note.PlanetNames.Remove(key)) return false;
+                SystemNotesService.Save(address, note, source: "save");
+                return true;
+            }
             if (!note.PlanetNames.TryGetValue(key, out var known) || known != name)
             {
-                if (note.PlanetNames.Any(kv => kv.Key != key && kv.Value == name)
-                    || SystemNotesService.All.Any(n => !ReferenceEquals(n, note) && n.PlanetNames.ContainsValue(name))) return false;
-                note.PlanetNames[key] = onPlanet.Groups[1].Value;
+                note.PlanetNames[key] = name;
                 changed = true;
             }
         }
@@ -500,6 +518,11 @@ public static class SystemNameLearner
         if (changed) SystemNotesService.Save(address, note, source: "save");
         return changed;
     }
+
+    /// <summary>Whether a "where you saved" line names the place by the generator's name for it.</summary>
+    private static bool IsGeneratedName(string line, ulong system, int planet) =>
+        InSystemRegex.Match(line) is { Success: true } s ? s.Groups[1].Value == UniverseInfo.For(system).GeneratedName
+        : OnPlanetRegex.Match(line) is { Success: true } p && planet > 0 && p.Groups[1].Value == UniverseInfo.GeneratedPlanetName(system, planet);
 
     /// <summary>Names players gave planets and systems, from the save's discovery records
     /// (NmsPlanets.ReadCustomNames) - a renamed planet is then known before it's ever landed
