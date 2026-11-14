@@ -12,7 +12,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Exotic planets (Fissured, Ossified, Finned, Rattling...) get the right type word. The app used to give them another exotic kind's words.
 - A lush planet with corrupted sentinels no longer has its weather called "Anomalous". The app now names weather the way the game's own words do (humid, in that case).
 - Screen capture no longer saves a planet's details onto a different planet in the same system (seen just after landing or flying past).
-- Planet Finder cards now read "Pirate Controlled" for pirate systems, not "Pirate Controlled conflict".
+- Pirate systems read the way the game shows them everywhere, "Black Market" and "Pirate Controlled", even before you capture them (cards used to say "★★ · Medium conflict · Pirate", or "Pirate Controlled conflict").
 - After a portal trip or warp, the planet you arrived on could be given the name of the planet you left. It now keeps its own name, and planets already misnamed this way get their names back when the app starts.
 
 - Planets the game calls "Paradise Planet" are now named that way in the app too; it used to give them another lush word (like "Verdant").

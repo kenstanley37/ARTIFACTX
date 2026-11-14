@@ -189,23 +189,27 @@ public static class UniverseInfo
         return planetIndex >= 1 && planetIndex <= names.Length ? names[planetIndex - 1] : $"Planet {planetIndex}";
     }
 
-    /// <summary>Wealth label: the player's note if they took one, else generated.</summary>
+    /// <summary>Wealth label: the player's note if they took one, else generated. A pirate system's is the game's
+    /// own "Black Market" (Yomonos XIII: "Minerals // Black Market", in game 2026-11-14).</summary>
     public static string Wealth(ulong address) =>
-        SystemNotesService.Get(SystemKey(address))?.Wealth is { Length: > 0 } w ? SystemNotesService.CategoryOf("Wealth", w) : For(address).WealthLabel;
+        SystemNotesService.Get(SystemKey(address))?.Wealth is { Length: > 0 } w ? SystemNotesService.CategoryOf("Wealth", w)
+        : For(address) is { Pirate: true } ? "Black Market" : For(address).WealthLabel;
 
     public static string Economy(ulong address) =>
         SystemNotesService.Get(SystemKey(address))?.Economy is { Length: > 0 } e ? SystemNotesService.CategoryOf("Economy", e) : For(address).EconomyLabel;
 
+    /// <summary>Conflict label: the note, else generated; a pirate system's is "Pirate Controlled", as the game says.</summary>
     public static string Conflict(ulong address) =>
-        SystemNotesService.Get(SystemKey(address))?.Conflict is { Length: > 0 } c ? SystemNotesService.CategoryOf("Conflict", c) : For(address).ConflictLabel;
+        SystemNotesService.Get(SystemKey(address))?.Conflict is { Length: > 0 } c ? SystemNotesService.CategoryOf("Conflict", c)
+        : For(address) is { Pirate: true } ? "Pirate Controlled" : For(address).ConflictLabel;
 
-    /// <summary>Stars of wealth (1-3, 0 when none), note first.</summary>
+    /// <summary>Stars of wealth (1-3, 0 when none or a pirate system's black market), note first.</summary>
     public static int WealthStars(ulong address)
     {
         var note = SystemNotesService.Get(SystemKey(address));
         if (note?.Wealth is { Length: > 0 } w) return SystemNotesService.CategoryOf("Wealth", w).Count(ch => ch == '★');
         var facts = For(address);
-        return facts.Uncharted ? 0 : facts.Wealth;
+        return facts.Uncharted || facts.Pirate ? 0 : facts.Wealth;
     }
 
     /// <summary>One short line for cards, wealth first since that's what people scan
@@ -219,7 +223,7 @@ public static class UniverseInfo
         bool pirateConflict = IsPirateWord(conflict);
         var parts = new System.Collections.Generic.List<string>
         {
-            stars > 0 ? new string('\u2605', stars) : "\u2606",
+            stars > 0 ? new string('\u2605', stars) : Wealth(address) is "Black Market" ? "Black Market" : "\u2606",
             Economy(address),
             f.Abandoned ? "Abandoned" : RaceLabel(address),
             pirateConflict ? conflict : $"{conflict} conflict",
