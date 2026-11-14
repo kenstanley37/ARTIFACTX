@@ -65,6 +65,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to place a Save Beacon right at the optimal base site.
 
 ### Changed
+- Current System: every line of the System Data box is now gold, not just the ones read off the game screen, and pirate systems show "Black Market" and "Pirate Controlled" as the game does.
 - Planet Finder: pin a planet (the pin at the top right of its card) to keep it at the top of the list, whatever the filters and however far you warp. Pins are remembered.
 - Planet Finder: each card shows its star system in bold with a dot in the star's colour, so it's easy to spot on the galaxy map.
 

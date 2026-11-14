@@ -170,7 +170,7 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                         <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="11" TextWrapping="Wrap" MaxWidth="320"
-                                                   Text="Gold: as the game showed it. Grey: worked out by ArtifactX - open the system in the game's Discoveries or Galaxy Map with screen recording on, or type it in your notes below."/>
+                                                   Text="Worked out the way the game does, or as the game showed it when you recorded it. The game words economy, wealth and conflict its own way (Mining may read &quot;Prospecting&quot;): open the system in the game's Discoveries or Galaxy Map with screen recording on to get its exact words."/>
                                     </StackPanel>
                                 </Border>
                             </ctcontrols:WrapPanel>
