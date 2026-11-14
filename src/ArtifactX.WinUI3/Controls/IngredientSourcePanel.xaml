@@ -28,7 +28,16 @@
        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
        <StackPanel Spacing="2">
         <TextBlock Text="{x:Bind SystemName}" Foreground="{ThemeResource ThemeTextBrush}" FontWeight="SemiBold" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-        <TextBlock Text="{x:Bind BodiesText}" Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="12" TextWrapping="Wrap"/>
+        <ItemsControl ItemsSource="{x:Bind Bodies}" IsTabStop="False">
+         <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="services:IngredientBody">
+           <StackPanel Margin="0,4,0,0">
+            <TextBlock Text="{x:Bind Planet}" Foreground="{ThemeResource ThemeTextBrush}" FontSize="13" TextWrapping="Wrap"/>
+            <TextBlock Text="{x:Bind Detail}" Visibility="{x:Bind HasDetail}" Foreground="{ThemeResource ThemeTextDimBrush}" FontSize="12" TextWrapping="Wrap"/>
+           </StackPanel>
+          </DataTemplate>
+         </ItemsControl.ItemTemplate>
+        </ItemsControl>
        </StackPanel>
        <TextBlock Grid.Column="1" Text="{x:Bind Distance}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="12"/>
       </Grid>

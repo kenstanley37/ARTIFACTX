@@ -9,13 +9,20 @@ using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
+/// <summary>A body that gives an item, as two lines: the body ("Frozen planet Okiru II") and what to do there
+/// ("hunt the Kordiussia · fish in storms"; empty when there's nothing to add).</summary>
+public sealed record IngredientBody(string Planet, string Detail)
+{
+    public bool HasDetail => Detail.Length > 0;
+    public override string ToString() => HasDetail ? $"{Planet}, {Detail}" : Planet;
+}
+
 /// <summary>A star system that has an item, for the "Closest to you" list: its name, how far it is in words, and its
-/// bodies that give the item ("Frozen planet Okiru II").</summary>
-public sealed record IngredientPlace(ulong SystemAddress, string SystemName, string Distance, IReadOnlyList<string> Bodies,
+/// bodies that give the item.</summary>
+public sealed record IngredientPlace(ulong SystemAddress, string SystemName, string Distance, IReadOnlyList<IngredientBody> Bodies,
     bool IsHere, double SortKey)
 {
-    public string BodiesText => string.Join("\n", Bodies);
-    public string AccessibleName => $"{SystemName}, {Distance}: {string.Join(", ", Bodies)}";
+    public string AccessibleName => $"{SystemName}, {Distance}: {string.Join("; ", Bodies)}";
 }
 
 /// <summary>
@@ -88,21 +95,29 @@ public static class IngredientLocatorService
                     try { types = PlanetGenerator.Generate(portal, galaxy, biomes); }
                     catch { return; }
                     var profiles = SystemProfiles.Generate(system.SystemAddress, biomes, tables);
-                    var bodies = new SortedDictionary<int, string>();
+                    var bodies = new SortedDictionary<int, (string Planet, List<string> Details)>();
+                    List<string> At(int index, PlanetType body)
+                    {
+                        if (!bodies.TryGetValue(index, out var entry)) bodies[index] = entry = (Body(portal, galaxy, index, body), []);
+                        return entry.Details;
+                    }
                     if (plants)
                         foreach (var f in HarvestSearch.On(system.SystemAddress, types, profiles, itemId))
-                            bodies[f.PlanetIndex] = Body(portal, galaxy, f.PlanetIndex, f.Body)
-                                + f.Harvest.TileType switch { 4 => " (underwater)", 5 => " (in caves)", _ => "" };
+                        {
+                            var details = At(f.PlanetIndex, f.Body);
+                            if (f.Harvest.TileType is 4) details.Add("found underwater");
+                            else if (f.Harvest.TileType is 5) details.Add("found in caves");
+                        }
                     if (creatures is not null)
                         foreach (var f in CreatureProduceSearch.On(system.SystemAddress, types, profiles, itemId, creatures, fed, huntIds))
-                            bodies[f.PlanetIndex] = (bodies.TryGetValue(f.PlanetIndex, out var b) ? b : Body(portal, galaxy, f.PlanetIndex, f.Body))
-                                + ": " + string.Join(" · ", new[] { Species("feed", f.Fed, f.PlanetAddress, names),
-                                    Species("hunt", f.Hunted, f.PlanetAddress, names) }.Where(t => t.Length > 0));
+                            At(f.PlanetIndex, f.Body).AddRange(new[] { Species("feed", f.Fed, f.PlanetAddress, names),
+                                Species("hunt", f.Hunted, f.PlanetAddress, names) }.Where(t => t.Length > 0));
                     if (fish is not null)
                         foreach (var f in FishSearch.On(system.SystemAddress, types, profiles, fish.Biomes, fish.NeedsStorm))
-                            bodies[f.PlanetIndex] = (bodies.TryGetValue(f.PlanetIndex, out var b) ? b + " · fish" : Body(portal, galaxy, f.PlanetIndex, f.Body))
-                                + (fish.NeedsStorm ? " (in storms)" : "");
-                    if (bodies.Count > 0) found.Add(Place(system, [.. bodies.Values], startSystem, startIndex, stars, here));
+                            At(f.PlanetIndex, f.Body).Add(fish.NeedsStorm ? "fish in storms" : "fish here");
+                    if (bodies.Count > 0)
+                        found.Add(Place(system, [.. bodies.Values.Select(b => new IngredientBody(b.Planet, string.Join(" · ", b.Details.Distinct())))],
+                            startSystem, startIndex, stars, here));
                 });
                 if (found.Count(p => !p.IsHere) >= Wanted) break;
             }
@@ -126,7 +141,7 @@ public static class IngredientLocatorService
         return species.Count > 2 ? $"{verb} {shown} or {species.Count - 2} more" : $"{verb} {shown}";
     }
 
-    private static IngredientPlace Place(NearbySystem system, List<string> bodies, ulong startSystem, int startIndex,
+    private static IngredientPlace Place(NearbySystem system, List<IngredientBody> bodies, ulong startSystem, int startIndex,
         IReadOnlyList<RegionStar>? stars, RegionStar? here)
     {
         var (portal, galaxy) = SystemProfiles.PortalOf(system.SystemAddress);
