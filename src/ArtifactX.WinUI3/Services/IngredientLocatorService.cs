@@ -1,4 +1,5 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.WinUI3.Helpers.Recipes;
 using ArtifactX.Core.Universe;
 using System;
 using System.Collections.Concurrent;
@@ -123,7 +124,8 @@ public static class IngredientLocatorService
                         {
                             var details = At(f.PlanetIndex, f.Body);
                             string where = f.Harvest.TileType switch { 4 => "underwater", 5 => "in caves", _ => "" };
-                            if (f.Harvest.Mined) details.Add(where.Length > 0 ? $"mine it {where}" : "mine it");
+                            string mine = HarvestPlaceText.MinedDetail(itemId);
+                            if (f.Harvest.Mined) details.Add(where.Length > 0 ? $"{mine} {where}" : mine);
                             else if (where.Length > 0) details.Add("found " + where);
                         }
                     if (creatures is not null)

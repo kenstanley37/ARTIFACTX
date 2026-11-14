@@ -8,8 +8,9 @@ using System.Linq;
 namespace ArtifactX.WinUI3.Helpers.Recipes;
 
 /// <summary>Plain words for where an item is found (HarvestSearch.Rules): one line per kind of place, e.g. "On Frozen
-/// planets · 5–10 each", "Underwater, on any planet with a sea · 1 each". The infested and ordinary variants of a biome
-/// read as one line; start-planet exclusions are left out (they don't help a player choose where to go).</summary>
+/// planets · 5–10 each", "Underwater, on any planet with a sea · 1 each", "On infested Lush or Toxic planets"; then
+/// creatures, fish and the sources no planet search covers (<see cref="OtherLines"/>). Start-planet exclusions are left
+/// out (they don't help a player choose where to go).</summary>
 internal static class HarvestPlaceText
 {
     /// <summary>The line for an item creatures give when fed (Fresh Milk, Crab 'Apple', Creature Egg).</summary>
@@ -57,7 +58,9 @@ internal static class HarvestPlaceText
     /// <summary>One line per kind of place. Rules that differ only by planet type read as one line naming the types
     /// ("On Lush, Frozen or Swamp planets · mine with your Multi-Tool · 2–55 each"), so Carbon, which every plant but
     /// a gas giant's gives, takes one line, not fifteen.</summary>
-    public static IReadOnlyList<string> Lines(IEnumerable<HarvestRule> rules) => rules
+    /// <param name="itemId">The item; one with its own how-to line (<see cref="OtherLines"/>: break an egg, kill a worm)
+    /// doesn't also say "mine with your Multi-Tool".</param>
+    public static IReadOnlyList<string> Lines(IEnumerable<HarvestRule> rules, string itemId = "") => rules
         .GroupBy(r => (Any: r.Biome == 16, With: With(r), Tile: r.TileType is 4 or 5 ? r.TileType : 0, r.Mined,
             Infested: r.SubTypes is [NmsPlanets.InfestedSubType],
             NotDead: r.Biome == 16 && r.Rules.HasFlag(ObjectGroupRules.NotOnDeadPlanets)))
@@ -74,9 +77,20 @@ internal static class HarvestPlaceText
                 5 => "In caves, " + Lower(where),
                 _ => where,
             };
-            return g.Key.Mined ? $"{place} · mine with your Multi-Tool · {amount}" : $"{place} · {amount}";
+            return g.Key.Mined && !HowToGiven.Contains(itemId) ? $"{place} · mine with your Multi-Tool · {amount}" : $"{place} · {amount}";
         })
         .Distinct().ToList();
+
+    /// <summary>What to do on a body where only mining gives the item, for the closest-systems cards: "mine it", or
+    /// "break a Whispering Egg" / "kill the ground worms" for the two the game drops from those.</summary>
+    public static string MinedDetail(string itemId) => itemId.ToUpperInvariant() switch
+    {
+        "FIENDCORE" => "break a Whispering Egg",
+        "WORMCORE" => "kill the ground worms",
+        _ => "mine it",
+    };
+
+    private static readonly HashSet<string> HowToGiven = new(StringComparer.OrdinalIgnoreCase) { "FIENDCORE", "WORMCORE" };
 
     private static string Lower(string text) => text.Length > 0 ? char.ToLowerInvariant(text[0]) + text[1..] : text;
 

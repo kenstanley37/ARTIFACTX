@@ -52,7 +52,7 @@ public sealed partial class IngredientSourceViewModel : ObservableObject
             {
                 var rules = await IngredientLocatorService.RulesAsync(itemId);
                 if (cancel.IsCancellationRequested) return;
-                foreach (string line in HarvestPlaceText.Lines(rules)) Places.Add(line);
+                foreach (string line in HarvestPlaceText.Lines(rules, itemId)) Places.Add(line);
                 var (fed, hunted) = await IngredientLocatorService.CreatureWaysAsync(itemId);
                 if (cancel.IsCancellationRequested) return;
                 if (fed) Places.Add(HarvestPlaceText.FeedLine);
