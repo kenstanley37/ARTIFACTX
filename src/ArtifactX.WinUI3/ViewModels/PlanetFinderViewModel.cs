@@ -13,10 +13,13 @@ using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>
-/// The Planet Finder: every planet in the save's discoveries (and, if wanted, the other
-/// save slots'), searched and filtered by what the save knows, what the game's generator
+/// The Planet Finder: every planet in the discoveries of this save and the account's other
+/// save slots, searched and filtered by what the save knows, what the game's generator
 /// says about each system, and what the player recorded. Distances are from where the
-/// save is now, so it follows the game (Show).
+/// save is now, so it follows the game (Show). The galaxy picker starts on (and follows)
+/// the galaxy the player is in until they pick another: a portal can't reach other galaxies.
+/// The search box, planet type, rings and infested show at once; the rest sits behind
+/// More filters (<see cref="ShowMoreFilters"/>), whose label counts the ones in use.
 /// </summary>
 public sealed partial class PlanetFinderViewModel : ObservableObject
 {
@@ -31,11 +34,16 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     private int _loadVersion;
     private bool _quiet;
     private CancellationTokenSource? _searchDelay;
+    /// <summary>The galaxy picker follows the player's galaxy (until they pick another one).</summary>
+    private bool _galaxyFollowsYou = true;
+    private const string MoreFiltersSetting = "PlanetFinderMoreFilters";
 
     public PlanetFinderViewModel()
     {
         foreach (var filter in ChoiceFilters.Append(Type).Append(Galaxy).Append(Region)) filter.Changed += Apply;
+        Galaxy.Changed += () => _galaxyFollowsYou = !GalaxyMoved;
         JumpPlanner.RangeChanged += Apply;
+        ShowMoreFilters = SettingsStore.Get(SettingsStore.Scope.Profile, MoreFiltersSetting) == "1";
     }
 
     /// <summary>Every picker's width, so the filter groups line up in columns.</summary>
@@ -69,7 +77,10 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     [ObservableProperty] public partial int BodiesIndex { get; set; }    // 0 all, 1 planets only, 2 moons only
     [ObservableProperty] public partial bool RingsOnly { get; set; }
     [ObservableProperty] public partial bool MineOnly { get; set; }
-    [ObservableProperty] public partial bool IncludeOtherSlots { get; set; } = true;
+    /// <summary>The less used filters are open (remembered).</summary>
+    [ObservableProperty] public partial bool ShowMoreFilters { get; set; }
+    /// <summary>"More filters", or "More filters (2 on)" when some of them are in use, open or not.</summary>
+    [ObservableProperty] public partial string MoreFiltersLabel { get; private set; } = "More filters";
     [ObservableProperty] public partial bool WaterOnly { get; set; }
     [ObservableProperty] public partial bool DissonantOnly { get; set; }
     [ObservableProperty] public partial bool InfestedOnly { get; set; }
@@ -110,7 +121,16 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     partial void OnWaterOnlyChanged(bool value) => Apply();
     partial void OnDissonantOnlyChanged(bool value) => Apply();
     partial void OnInfestedOnlyChanged(bool value) => Apply();
-    partial void OnIncludeOtherSlotsChanged(bool value) { Refresh(); _ = LoadOtherSavesAsync(_loadVersion); }
+    partial void OnShowMoreFiltersChanged(bool value) => SettingsStore.Set(SettingsStore.Scope.Profile, MoreFiltersSetting, value ? "1" : null);
+
+    /// <summary>The galaxy the save is in, as the galaxy picker's value ("" without a save).</summary>
+    private string HereGalaxy => _here is ulong here ? S.GalaxyNumber(here).ToString(CultureInfo.InvariantCulture) : "";
+    /// <summary>The player picked a galaxy other than the one they're in, or All galaxies while theirs is listed (with
+    /// no known planet in their galaxy, All galaxies is where it rests).</summary>
+    private bool GalaxyMoved => HereGalaxy.Length == 0 ? Galaxy.IsSet
+        : Galaxy.IsSet ? Galaxy.Value != HereGalaxy : Galaxy.Choices.Any(c => c.Value == HereGalaxy);
+
+    private void FollowGalaxy() { if (_galaxyFollowsYou) Galaxy.Select(HereGalaxy); }
 
     /// <summary>Waits for a pause in typing, so the finder isn't re-run per key.</summary>
     partial void OnSearchChanged(string value)
@@ -146,7 +166,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
 
     private async Task LoadOtherSavesAsync(int version)
     {
-        if (!IncludeOtherSlots || _otherSaves.Count > 0) return;
+        if (_otherSaves.Count > 0) return;
         if (SaveSessionManager.ActivePlatformFolder is not string folder || SaveSessionManager.ActiveSlot is not { } slot) return;
         Status = "Reading your other save slots...";
         var others = await KnownPlanetsService.ReadOtherSlotsAsync(folder, slot.SlotId);
@@ -159,9 +179,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     /// <summary>The planets changed (or something recorded about them): new filter choices, then the list.</summary>
     public void Refresh()
     {
-        _all = IncludeOtherSlots
-            ? _thisSave.Concat(_otherSaves).GroupBy(p => p.Address).Select(g => g.First()).ToList()
-            : _thisSave;
+        _all = _thisSave.Concat(_otherSaves).GroupBy(p => p.Address).Select(g => g.First()).ToList();
         FillChoices();
         _ = FindInfestedAsync();
         Apply();
@@ -204,6 +222,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
             .Select(g => new ChoiceItem($"{UniverseInfo.Region(g.First().SystemAddress)} ({g.Count():N0})", g.Key.ToString(CultureInfo.InvariantCulture))));
         Galaxy.Refill("All galaxies", _all.GroupBy(p => p.Galaxy).OrderBy(g => g.Key)
             .Select(g => new ChoiceItem($"{PlanetText.GalaxyLabel(g.Key)} ({g.Count()})", g.Key.ToString(CultureInfo.InvariantCulture))));
+        FollowGalaxy();
 
         // Star, economy, wealth, conflict and race come from the game's generator for every
         // planet the finder knows (the player's notes override), counted in planets.
@@ -256,7 +275,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         .Select(system => system.Key).ToHashSet();
 
     /// <summary>Back to the whole list in one click (2026-10-13: a search left in the box quietly
-    /// hid nearly every planet). Keeps the sort, save slots and hyperdrive range.</summary>
+    /// hid nearly every planet), in the galaxy the player is in. Keeps the sort and hyperdrive range.</summary>
     public void ClearFilters()
     {
         _quiet = true;
@@ -264,7 +283,8 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         Search = "";
         Type.Reset();
         Region.Reset();
-        Galaxy.Reset();
+        _galaxyFollowsYou = true;
+        FollowGalaxy();
         BodiesIndex = 0;
         foreach (var filter in ChoiceFilters) filter.Reset();
         RingsOnly = MineOnly = WaterOnly = DissonantOnly = InfestedOnly = false;
@@ -326,7 +346,9 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         };
         Results = ordered.Select(x => new PlanetRowViewModel(x.Planet, _here, x.Distance)).ToList();
         ResultCount = Results.Count == _all.Count ? $"{_all.Count:N0} planets" : $"{Results.Count:N0} of {_all.Count:N0} planets";
-        ActiveFilters = new[] { search.Length > 0, Type.IsSet, Galaxy.IsSet, Region.IsSet, BodiesIndex > 0, RingsOnly, MineOnly, WaterOnly, DissonantOnly, InfestedOnly }
+        int more = new[] { GalaxyMoved, Region.IsSet, BodiesIndex > 0, MineOnly, WaterOnly, DissonantOnly }
             .Concat(ChoiceFilters.Select(f => f.IsSet)).Count(on => on);
+        MoreFiltersLabel = more > 0 ? $"More filters ({more} on)" : "More filters";
+        ActiveFilters = more + new[] { search.Length > 0, Type.IsSet, RingsOnly, InfestedOnly }.Count(on => on);
     }
 }

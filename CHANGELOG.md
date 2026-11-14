@@ -63,7 +63,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Changed
 
-- Planet Finder: the filters are tidied into three groups (Planet, Star System, Where to look), each with its drop-downs lined up and its checkboxes underneath, so Infested sits with Rings only. The results are now a card of their own, with the count and Export CSV at its top, and Clear filters sits on the filters card's header, so it's there even when the card is folded.
+- Planet Finder: the search is one compact row (search, planet type, sort, rings only, infested). The other filters open under a "More filters" button, which shows how many of them are on, so none are on without you seeing it. The galaxy filter starts on the galaxy you're in, because a portal can't take you to another galaxy. Your other save slots' discoveries are always included, so that checkbox is gone. The results are now a card of their own with the count and Export CSV, and Clear filters stays on the filters card's header even when the card is folded.
 - Planet Details POI Layout: Converted Portal, Crashed Ships, and Cabinet Multi-Tools from 100% full-width folding sections into compact responsive cards. They now render side-by-side in a responsive row, saving over 200px of vertical scrolling space while matching the 370px card format of the located sites and hotspots grids.
 
 ### Fixed
