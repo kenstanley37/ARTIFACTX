@@ -13,14 +13,19 @@ int? weatherBiome = args.Length > 3 && args[2] == "weather" ? int.Parse(args[3],
 var weatherTab = new SortedDictionary<string, int>();
 // "families": every planet's generated weather type against the family of its captured word (catalog tier).
 bool families = args.Length > 2 && args[2] == "families";
-var family = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+// A word can be on two lists ("Clear": DEAD and BARREN_CLEAR), so each word keeps every family it is in.
+var family = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 using (var cat = new SqliteConnection($"Data Source={catalog};Mode=ReadOnly"))
 {
     cat.Open();
     var fc = cat.CreateCommand();
     fc.CommandText = "SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories k ON k.Id = i.CategoryId WHERE k.TemplateType = 'PlanetDescriptors' AND i.UsageCategory = 'Weather'";
     using var fr = fc.ExecuteReader();
-    while (fr.Read()) family.TryAdd(fr.GetString(0), fr.IsDBNull(1) ? "" : fr.GetString(1));
+    while (fr.Read())
+    {
+        if (!family.TryGetValue(fr.GetString(0), out var list)) family[fr.GetString(0)] = list = new();
+        list.Add(fr.IsDBNull(1) ? "" : fr.GetString(1));
+    }
 }
 if (families) weatherBiome = -1;
 T Row<T>(string id)
@@ -58,16 +63,17 @@ while (r.Read())
     {
         if (wb == -1)
         {
-            string fam = family.TryGetValue(r.GetString(4), out var f) ? f : "?";
+            static string Base(string f) => f.Replace("_CLEAR", "").Replace("_EXTREME", "").Replace("EXTREME", "");
+            var fams = family.TryGetValue(r.GetString(4), out var f) ? f : new List<string> { "?" };
+            string fam = fams[0];
             string k = Environment.GetEnvironmentVariable("BYBIOME") == "1"
-                ? $"biome {type.Biome,2} sub {type.SubType,2} type {b.WeatherType,2} -> {fam.Replace("_CLEAR", "").Replace("_EXTREME", "").Replace("EXTREME", "")}"
+                ? $"biome {type.Biome,2} sub {type.SubType,2} type {b.WeatherType,2} -> {Base(fam)}"
                 : $"type {b.WeatherType,2} corrupt {(b.Sentinels.Length > 2 && b.Sentinels[2] == 3 ? "Y" : "n")} -> {fam}";
             weatherTab[k] = weatherTab.GetValueOrDefault(k) + 1;
             if (fam != "?")
             {
                 string gen = PlanetProfileGenerator.WeatherWordFamily(type.Biome, type.SubType, b.WeatherType);
-                string seen = fam.Replace("_CLEAR", "").Replace("_EXTREME", "").Replace("EXTREME", "");
-                string fk = gen == seen ? "FAMILY ok" : $"FAMILY miss biome {type.Biome} gen {gen} seen {seen}";
+                string fk = fams.Any(x => Base(x) == gen) ? "FAMILY ok" : $"FAMILY miss biome {type.Biome} gen {gen} seen {Base(fam)}";
                 weatherTab[fk] = weatherTab.GetValueOrDefault(fk) + 1;
             }
         }

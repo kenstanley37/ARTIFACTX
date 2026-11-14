@@ -125,7 +125,7 @@ public static class SystemPageReader
     private static readonly List<(string Name, SystemNote Read, DateTime At)> Pending = new();
 
     /// <summary>
-    /// Clears economy, wealth, conflict and race values that screen capture wrote but the game can't show
+    /// Clears economy, wealth, conflict, race and star colour values that screen capture wrote but the game can't show
     /// for that system (UniverseInfo.GameCouldShow), so the generator's answer shows again. Values the player
     /// typed or the save gave are kept. Does nothing without the catalog's words. Returns how many systems changed.
     /// </summary>
@@ -140,11 +140,14 @@ public static class SystemPageReader
                 value.Length > 0 && captured.Contains((address, field)) && !UniverseInfo.GameCouldShow(address, group, value);
             bool economy = Bad("economy", "Economy", note.Economy), wealth = Bad("wealth", "Wealth", note.Wealth);
             bool conflict = Bad("conflict", "Conflict", note.Conflict), race = Bad("race", "Race", note.Race);
-            if (!(economy || wealth || conflict || race)) continue;
+            bool star = (captured.Contains((address, "star_colour")) || captured.Contains((address, "star_class")))
+                && note.StarColour.Length > 0 && !UniverseInfo.GameCouldShow(address, "Star", note.StarColour);
+            if (!(economy || wealth || conflict || race || star)) continue;
             if (economy) note.Economy = "";
             if (wealth) note.Wealth = "";
             if (conflict) note.Conflict = "";
             if (race) note.Race = "";
+            if (star) note.StarClass = note.StarColour = "";
             SystemNotesService.Save(address, note, source: "captured");
             changed++;
         }
@@ -200,6 +203,13 @@ public static class SystemPageReader
         // captures had been filed this way; see UniverseInfo.GameCouldShow).
         if (Misfits(system, read.Economy, read.Wealth, read.Conflict, read.Race) is { Count: > 0 } misfits)
             return $"system page {name}: {string.Join(", ", misfits)} can't be this system's - skipped";
+        // A star line ("G2f // Water") of another colour is another star's: it alone goes, with its water and dissonance.
+        if (read.StarClass.Length > 0 && SystemNotesService.ColourForClass(read.StarClass) is { } readColour
+            && !UniverseInfo.GameCouldShow(system, "Star", readColour))
+        {
+            read.StarClass = "";
+            read.Water = read.Dissonant = false;
+        }
         var note = SystemNotesService.Get(system) ?? new SystemNote();
         bool changed = false;
         void Set(string value, Func<string> get, Action<string> set)

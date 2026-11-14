@@ -34,8 +34,13 @@ exotic word lists follow GcBiomeSubType from Structure = 3, not 0 (57 misses bef
 
 The generator's weather type is the game's internal one (the storm odds follow it; emulator 807/808), but the words
 the game shows follow the biome more than the type. `PlanetProfileGenerator.WeatherWordFamily` (measured, not
-ported) fits 1,038 of 1,054 captured words. Lush worlds with corrupted sentinels get the Weird type but humid
-words; Bubble weather always shows GREEN words. The 16 misses are dead worlds showing BARREN words; not explained.
+ported) fits all 1,056 captured words. Lush worlds with corrupted sentinels get the Weird type but humid
+words; Bubble weather always shows GREEN words. ("Clear" is in both the DEAD and BARREN_CLEAR lists; the 16 dead worlds that showed it had looked like misses.)
 The app's plain weather label now follows the family.
 
-Open: star colour from captured star classes disagrees with the generator on 16 of 128 otherwise good captures.
+## Star colour
+
+Captured star classes disagreed with the generated colour on 28 of 213 systems; the generator's colour matched every
+one from the save or typed (52/52), and the disputed systems' captured planet types still matched the generator (their
+odds depend on the star). So those classes were read off another star's card: the reader now drops a star line of the
+wrong colour (with its water and dissonance) and the start-up cleanup clears captured ones.
