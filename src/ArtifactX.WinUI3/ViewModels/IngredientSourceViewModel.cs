@@ -28,6 +28,10 @@ public sealed partial class IngredientSourceViewModel : ObservableObject
     [ObservableProperty] public partial bool IsSearching { get; set; }
     public Visibility PlacesVisibility => HasPlaces ? Visibility.Visible : Visibility.Collapsed;
     public Visibility StatusVisibility => Status.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>Whether planets give the item (a plant, object, creature or fish), so there are systems to list; false for
+    /// Faecium, GekNip, the "any" ingredients and crafted items, which get only their lines.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ClosestVisibility))] public partial bool CanSearch { get; set; }
+    public Visibility ClosestVisibility => CanSearch ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Shows <paramref name="itemId"/>, searching around <paramref name="start"/> (the save's system; null
     /// without a save). Showing the same item from the same place again does nothing. When only the place changes (the
@@ -52,14 +56,17 @@ public sealed partial class IngredientSourceViewModel : ObservableObject
             {
                 var rules = await IngredientLocatorService.RulesAsync(itemId);
                 if (cancel.IsCancellationRequested) return;
+                bool searchable = rules.Length > 0;
                 foreach (string line in HarvestPlaceText.Lines(rules, itemId)) Places.Add(line);
                 var (fed, hunted) = await IngredientLocatorService.CreatureWaysAsync(itemId);
                 if (cancel.IsCancellationRequested) return;
+                searchable |= fed || hunted;
                 if (fed) Places.Add(HarvestPlaceText.FeedLine);
                 if (hunted) Places.Add(HarvestPlaceText.HuntLine);
                 if (await IngredientLocatorService.FishAsync(itemId) is { } fish)
                 {
                     if (cancel.IsCancellationRequested) return;
+                    searchable = true;
                     Places.Add(HarvestPlaceText.FishLine(fish));
                 }
                 var names = await IngredientLocatorService.ItemNamesAsync();
@@ -71,9 +78,10 @@ public sealed partial class IngredientSourceViewModel : ObservableObject
                     Places.Add(craft);
                 }
                 HasPlaces = Places.Count > 0;
+                CanSearch = searchable;
                 _placesFor = itemId;
             }
-            if (!HasPlaces) { Status = ""; IsSearching = false; return; }
+            if (!HasPlaces || !CanSearch) { Closest.Clear(); Status = ""; IsSearching = false; return; }
             if (start is not ulong from) { Closest.Clear(); Status = "Load a save to see the closest places that have it."; return; }
             IsSearching = true;
             if (Closest.Count == 0) Status = "Searching the star systems around you…";
