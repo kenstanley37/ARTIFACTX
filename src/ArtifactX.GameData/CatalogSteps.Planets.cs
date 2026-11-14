@@ -157,7 +157,8 @@ public static partial class CatalogSteps
     }
 
     private static ObjectList Objects(GcExternalObjectListOptions o) => new(o.Name?.Value ?? "", o.Order, o.Probability,
-        (int)o.TileType.TileType, o.Options?.Count ?? 0, o.ResourceHint?.Value ?? "");
+        (int)o.TileType.TileType, o.Options?.Count ?? 0, o.ResourceHint?.Value ?? "",
+        (o.Options ?? new()).Select(f => (f?.Value ?? "").Replace('\\', '/').ToUpperInvariant()).ToArray());
 
     private static ObjectGroup Group(GcExternalObjectFileList g)
     {
@@ -288,8 +289,8 @@ public static partial class CatalogSteps
                 gameplay.NonAggressiveLushSurvivalProbabability, gameplay.ViciousSentinelProbability,
                 gameplay.CorruptSentinelProbability, (int)solar.CorruptSentinelBuildingCheckDifficulty.CombatTimerDifficultyOption),
             Terrain(terrain, decode) is { } terrainTables
-                ? new ObjectTables(objects, (files.CommonExternalObjectLists ?? new()).Select(Objects).ToArray(),
-                    (files.OptionalExternalObjectLists ?? new()).Select(Group).ToArray(), terrainTables)
+                ? ObjectTablesWithHarvest(new ObjectTables(objects, (files.CommonExternalObjectLists ?? new()).Select(Objects).ToArray(),
+                    (files.OptionalExternalObjectLists ?? new()).Select(Group).ToArray(), terrainTables), decode)
                 : null,
             ScrapYardDensity: decode(BuildingTableFile) is GcBuildingDefinitionTable buildings
                 && (int)GcBuildingClassification.BuildingClassEnum.ScrapYard < buildings.BuildingPlacement.Length

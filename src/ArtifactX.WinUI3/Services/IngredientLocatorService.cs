@@ -1,0 +1,166 @@
+using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Universe;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace ArtifactX.WinUI3.Services;
+
+/// <summary>A body that gives an item, as two lines: the body ("Frozen planet Okiru II") and what to do there
+/// ("hunt the Kordiussia · fish in storms"; empty when there's nothing to add).</summary>
+public sealed record IngredientBody(string Planet, string Detail)
+{
+    public bool HasDetail => Detail.Length > 0;
+    public override string ToString() => HasDetail ? $"{Planet}, {Detail}" : Planet;
+}
+
+/// <summary>A star system that has an item, for the "Closest to you" list: its name, how far it is in words, and its
+/// bodies that give the item.</summary>
+public sealed record IngredientPlace(ulong SystemAddress, string SystemName, string Distance, IReadOnlyList<IngredientBody> Bodies,
+    bool IsHere, double SortKey)
+{
+    public string AccessibleName => $"{SystemName}, {Distance}: {string.Join("; ", Bodies)}";
+}
+
+/// <summary>
+/// Where to go for a wild ingredient, creature produce or fish (the Ingredient Finder, catalog format 93): the systems nearest
+/// a starting system whose planets give it, from the game's own generators (Core NearbySystems, HarvestSearch and
+/// CreatureProduceSearch, FishSearch, which the mobile app can run from a typed or scanned address). The start's region is searched first, then the regions around it only when
+/// it holds too few. Distances inside the start's region are the galaxy map's light-years (RegionStarPositions, checked
+/// on the map 2026-10-27); farther systems read "1 region away".
+/// </summary>
+public static class IngredientLocatorService
+{
+    /// <summary>What the search looks for before it stops widening.</summary>
+    public const int Wanted = 5;
+
+    /// <summary>The kinds of place that give <paramref name="itemId"/> (empty when no wild plant or object does, or
+    /// before catalog format 93).</summary>
+    public static async Task<HarvestRule[]> RulesAsync(string itemId)
+    {
+        await PlanetTypesService.EnsureLoadedAsync();
+        return PlanetTypesService.ProfileTables?.Objects is { } objects ? HarvestSearch.Rules(itemId, objects) : [];
+    }
+
+    /// <summary>Whether creatures give <paramref name="itemId"/> when fed (false before catalog format 80) and when
+    /// hunted.</summary>
+    public static async Task<(bool Fed, bool Hunted)> CreatureWaysAsync(string itemId)
+    {
+        await PlanetTypesService.EnsureLoadedAsync();
+        return (CreatureProduceSearch.IsProduce(itemId, PlanetTypesService.ProfileTables?.Creatures), (await HuntIdsAsync(itemId)).Count > 0);
+    }
+
+    /// <summary>The fish <paramref name="itemId"/> is, when it can be caught outside a mission (catalog "Fish").</summary>
+    public static async Task<FishInfo?> FishAsync(string itemId) =>
+        (await CatalogService.GetFishAsync()).FirstOrDefault(f => !f.NeedsMission && string.Equals(f.Id, itemId, StringComparison.OrdinalIgnoreCase));
+
+    private static async Task<HashSet<string>> HuntIdsAsync(string itemId) => CreatureProduceSearch.HuntIds(itemId,
+        (await RecipeIngredientSourcesService.CreatureSourcesAsync()).Where(s => s.Method == "Hunt").Select(s => (s.ItemId, s.CreatureId)));
+
+    /// <summary>The systems nearest <paramref name="start"/> that give <paramref name="itemId"/>, nearest first (the
+    /// start itself first when it does). Off the UI thread, in parallel; a newer search cancels through
+    /// <paramref name="cancel"/>.</summary>
+    public static async Task<IReadOnlyList<IngredientPlace>> FindAsync(ulong start, string itemId, CancellationToken cancel = default)
+    {
+        await PlanetTypesService.EnsureLoadedAsync();
+        if (await CatalogService.GetGalaxyGenerationSettingsAsync() is not { } settings
+            || PlanetTypesService.BiomeTables is not { } biomes || PlanetTypesService.ProfileTables is not { } tables)
+            return [];
+        bool fed = CreatureProduceSearch.IsProduce(itemId, tables.Creatures);
+        var huntIds = await HuntIdsAsync(itemId);
+        var creatures = fed || huntIds.Count > 0 ? tables.Creatures : null;
+        bool plants = tables.Objects?.Harvest is not null;
+        var fish = await FishAsync(itemId);
+        if (creatures is null && !plants && fish is null) return [];
+        var names = creatures is null ? null : await CreatureNameService.LoadAsync();
+        var stars = await RegionSystemsService.GetStarsAsync(start);
+        ulong startSystem = start & ~(0xFUL << 52);
+        int startIndex = (int)((start >> 40) & 0xFFF);
+        var here = stars?.FirstOrDefault(s => s.System == startIndex);
+
+        return await Task.Run(() =>
+        {
+            var found = new ConcurrentBag<IngredientPlace>();
+            foreach (int radius in new[] { 0, 1 })
+            {
+                var systems = NearbySystems.Around(start, radius, settings)
+                    .Where(s => radius == 0 || s.RegionsAway > 0).ToList();
+                Parallel.ForEach(systems, new ParallelOptions { CancellationToken = cancel }, system =>
+                {
+                    var (portal, galaxy) = SystemProfiles.PortalOf(system.SystemAddress);
+                    PlanetType[] types;
+                    try { types = PlanetGenerator.Generate(portal, galaxy, biomes); }
+                    catch { return; }
+                    var profiles = SystemProfiles.Generate(system.SystemAddress, biomes, tables);
+                    var bodies = new SortedDictionary<int, (string Planet, List<string> Details)>();
+                    List<string> At(int index, PlanetType body)
+                    {
+                        if (!bodies.TryGetValue(index, out var entry)) bodies[index] = entry = (Body(portal, galaxy, index, body), []);
+                        return entry.Details;
+                    }
+                    if (plants)
+                        foreach (var f in HarvestSearch.On(system.SystemAddress, types, profiles, itemId))
+                        {
+                            var details = At(f.PlanetIndex, f.Body);
+                            if (f.Harvest.TileType is 4) details.Add("found underwater");
+                            else if (f.Harvest.TileType is 5) details.Add("found in caves");
+                        }
+                    if (creatures is not null)
+                        foreach (var f in CreatureProduceSearch.On(system.SystemAddress, types, profiles, itemId, creatures, fed, huntIds))
+                            At(f.PlanetIndex, f.Body).AddRange(new[] { Species("feed", f.Fed, f.PlanetAddress, names),
+                                Species("hunt", f.Hunted, f.PlanetAddress, names) }.Where(t => t.Length > 0));
+                    if (fish is not null)
+                        foreach (var f in FishSearch.On(system.SystemAddress, types, profiles, fish.Biomes, fish.NeedsStorm))
+                            At(f.PlanetIndex, f.Body).Add(fish.NeedsStorm ? "fish in storms" : "fish here");
+                    if (bodies.Count > 0)
+                        found.Add(Place(system, [.. bodies.Values.Select(b => new IngredientBody(b.Planet, string.Join(" · ", b.Details.Distinct())))],
+                            startSystem, startIndex, stars, here));
+                });
+                if (found.Count(p => !p.IsHere) >= Wanted) break;
+            }
+            return (IReadOnlyList<IngredientPlace>)found.OrderBy(p => p.SortKey).Take(Wanted + 1).ToList();
+        }, cancel);
+    }
+
+    /// <summary>"Frozen planet Okiru II".</summary>
+    private static string Body(ulong portal, int galaxy, int planetIndex, PlanetType type) =>
+        $"{NmsPlanets.BiomeGroup(type.Biome)} {(SystemGenerator.Bodies(portal, galaxy).IsMoon(planetIndex) ? "moon" : "planet")} "
+        + SystemGenerator.PlanetName(portal | ((ulong)planetIndex << 44), galaxy);
+
+    /// <summary>"feed the Kordiussia" (the species name the game gives once scanned), "hunt the Kordiussia or the
+    /// Vrandeis", "... or 2 more"; "feed its creatures" when the names are unknown; "" for no creatures.</summary>
+    private static string Species(string verb, PredictedCreature[] creatures, ulong planetAddress, CreatureNameService? names)
+    {
+        if (creatures.Length == 0) return "";
+        var species = creatures.Select(c => names?.PredictedSpecies(c, planetAddress)).OfType<string>().Distinct().ToList();
+        if (species.Count == 0) return $"{verb} its creatures";
+        string shown = string.Join(" or ", species.Take(2).Select(n => "the " + n));
+        return species.Count > 2 ? $"{verb} {shown} or {species.Count - 2} more" : $"{verb} {shown}";
+    }
+
+    private static IngredientPlace Place(NearbySystem system, List<IngredientBody> bodies, ulong startSystem, int startIndex,
+        IReadOnlyList<RegionStar>? stars, RegionStar? here)
+    {
+        var (portal, galaxy) = SystemProfiles.PortalOf(system.SystemAddress);
+        int index = (int)((system.SystemAddress >> 40) & 0xFFF);
+        bool isHere = (system.SystemAddress & ~(0xFUL << 52)) == startSystem;
+        string distance;
+        double sort;
+        if (isHere) { distance = "You're here"; sort = -1; }
+        else if (system.RegionsAway == 0 && here is { } h && stars?.FirstOrDefault(s => s.System == index) is { System: > 0 } star)
+        {
+            int ly = RegionStarPositions.LightYears(star, h);
+            distance = $"{ly:N0} ly";
+            sort = ly;
+        }
+        else
+        {
+            distance = system.RegionsAway == 0 ? "This region" : system.RegionsAway == 1 ? "1 region away" : $"{system.RegionsAway} regions away";
+            sort = system.RegionsAway * 100_000 + index;
+        }
+        return new IngredientPlace(system.SystemAddress, SystemGenerator.SystemName(portal, galaxy), distance, bodies, isHere, sort);
+    }
+}

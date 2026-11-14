@@ -228,7 +228,7 @@ public sealed partial class FishingPage : Page
             new("All fish", _fish.Count(f => _caught.ContainsKey(f.Id)), _fish.Count, AllTypes, !_anywhereOnly && typeTag == AllTypes, isOverall: true),
         };
         foreach (var g in groups)
-            tiles.Add(new(string.Join(", ", g.Biomes.Select(NmsPlanets.TypeName)), g.Caught, g.Total, g.Biomes[0],
+            tiles.Add(new(NmsPlanets.TypeList(g.Biomes), g.Caught, g.Total, g.Biomes[0],
                 selected is int sel && sel != FishInfo.AnyPlanet && g.Biomes.Contains(sel)));
         tiles.Add(new("Any planet with water", anywhere.Count(f => _caught.ContainsKey(f.Id)), anywhere.Count, FishInfo.AnyPlanet,
             selected == FishInfo.AnyPlanet));
@@ -406,7 +406,7 @@ public sealed partial class FishingPage : Page
         if (f.NeedsStorm) traits.Add("Storms only");
         string habitat = f.Biomes.Contains(FishInfo.AnyPlanet)
             ? "Any planet with water"
-            : string.Join(", ", f.Biomes.Select(NmsPlanets.TypeName)) + " planets";
+            : NmsPlanets.TypeList(f.Biomes) + " planets";
         spots.TryGetValue(f.Id, out var spotList);
         int just = JustCaughtRank(f.Id);
 
@@ -567,7 +567,7 @@ public sealed partial class FishingPage : Page
         int marked = rows.Count(x => x.Rank == 0);
         int wet = rows.Count(x => x.Rank == 1);
         bool anyUnknown = rows.Any(x => x.Rank > 1);
-        string where = anyPlanet ? "planets" : string.Join(" or ", fish.Biomes.Select(NmsPlanets.TypeName)) + " planets";
+        string where = anyPlanet ? "planets" : NmsPlanets.TypeList(fish.Biomes, " or ") + " planets";
         WhereCountTxt.Text = (rows.Count == 0
             ? $"You haven't discovered any {where} on {(OtherSlotsBox.IsChecked == true ? "your saves" : "this save")} yet."
             : $"{rows.Count:N0} known {where}{(rows.Count > shown.Count ? $", nearest {shown.Count} shown" : "")}"

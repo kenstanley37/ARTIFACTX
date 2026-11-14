@@ -1,0 +1,46 @@
+<UserControl x:Class="ArtifactX.WinUI3.Controls.RecipeTreeBranch"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:ArtifactX.WinUI3.ViewModels"
+ xmlns:controls="using:ArtifactX.WinUI3.Controls">
+ <!-- One tile and, below it, the branches it is made from side by side, joined by lines like the left-to-right tree
+      turned on its side (owner, 2026-11-13). Each tile is centred over its own branches, so a child's connector,
+      split into a left and a right half, meets the next sibling's halfway line. -->
+ <StackPanel>
+  <Button Width="150" Height="116" Padding="8" HorizontalAlignment="Center" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top"
+   Command="{x:Bind Node.Item.SelectCommand, Mode=OneWay}" AutomationProperties.Name="{x:Bind Node.Item.TileName, Mode=OneWay}"
+   Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{x:Bind Node.Item.CardBorder, Mode=OneWay}"
+   BorderThickness="{x:Bind Node.Item.CardBorderThickness, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind Node.Item.Name, Mode=OneWay}">
+   <StackPanel Spacing="3">
+    <Image Source="{x:Bind Node.Item.Icon, Mode=OneWay}" Width="40" Height="40" HorizontalAlignment="Center"/>
+    <TextBlock Text="{x:Bind Node.Item.Name, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" FontSize="13" FontWeight="SemiBold"
+     TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+    <TextBlock Text="{x:Bind Node.Item.TileStatus, Mode=OneWay}" Foreground="{x:Bind Node.Item.TileStatusBrush, Mode=OneWay}" FontSize="12" TextAlignment="Center"/>
+   </StackPanel>
+  </Button>
+  <!-- The equipment the ingredients go into (Nutrient Processor, Refiner), where the lines merge (owner, 2026-11-13). -->
+  <StackPanel HorizontalAlignment="Center" Visibility="{x:Bind Node.ChildrenVisibility, Mode=OneWay}">
+   <Border Width="2" Height="8" HorizontalAlignment="Center" Background="{ThemeResource ThemeLineBrush}"/>
+   <Border Width="32" Height="32" CornerRadius="16" BorderThickness="2" BorderBrush="{ThemeResource ThemeLineBrush}"
+    Background="{ThemeResource ThemePanelAltBrush}" ToolTipService.ToolTip="{x:Bind Node.Item.Station, Mode=OneWay}">
+    <Image Source="{x:Bind Node.Item.StationIcon, Mode=OneWay}" Width="22" Height="22" AutomationProperties.Name="{x:Bind Node.Item.Station, Mode=OneWay}"/>
+   </Border>
+   <Border Width="2" Height="8" HorizontalAlignment="Center" Background="{ThemeResource ThemeLineBrush}"/>
+  </StackPanel>
+  <ItemsControl HorizontalAlignment="Center" ItemsSource="{x:Bind Node.Children, Mode=OneWay}" Visibility="{x:Bind Node.ChildrenVisibility, Mode=OneWay}" IsTabStop="False">
+   <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+   <ItemsControl.ItemTemplate>
+    <DataTemplate x:DataType="vm:RecipeTreeNode">
+     <Grid>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Grid.RowDefinitions><RowDefinition Height="16"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <Border Height="2" Margin="0,0,-1,0" VerticalAlignment="Top" Background="{ThemeResource ThemeLineBrush}" Visibility="{x:Bind LeftLineVisibility}"/>
+      <Border Grid.Column="1" Height="2" Margin="-1,0,0,0" VerticalAlignment="Top" Background="{ThemeResource ThemeLineBrush}" Visibility="{x:Bind RightLineVisibility}"/>
+      <Border Grid.ColumnSpan="2" Width="2" HorizontalAlignment="Center" Background="{ThemeResource ThemeLineBrush}"/>
+      <controls:RecipeTreeBranch Grid.Row="1" Grid.ColumnSpan="2" Margin="6,0" Node="{x:Bind}"/>
+     </Grid>
+    </DataTemplate>
+   </ItemsControl.ItemTemplate>
+  </ItemsControl>
+ </StackPanel>
+</UserControl>

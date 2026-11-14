@@ -3,12 +3,14 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
+/// <summary>One ingredient or cooking step of the open recipe: a tile in the tree, a Shopping list row and what the
+/// Selected step panel shows. Raw ingredients (no recipe of their own) show what you have against what the recipe
+/// needs; steps show the equipment that makes them.</summary>
 public sealed partial class RecipePlannerItemViewModel : ObservableObject
 {
     public string Id { get; init; } = "";
@@ -17,47 +19,72 @@ public sealed partial class RecipePlannerItemViewModel : ObservableObject
     public string RecipeId { get; init; } = "";
     public string Name { get; init; } = "";
     public ImageSource? Icon { get; init; }
-    public string Heading { get; init; } = "";
     public string Station { get; init; } = "";
     public ImageSource? StationIcon { get; init; }
+    /// <summary>The verb on a step's tile: "Cook" or "Refine".</summary>
+    public string Verb { get; init; } = "Cook";
     public string Amount { get; init; } = "";
     public string Buff { get; init; } = "";
     public Visibility BuffVisibility => Buff.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>The game's own description of the item (how the game says to get it).</summary>
     public string Source { get; init; } = "";
+    public Visibility SourceVisibility => Source.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public string UsedFor { get; init; } = "";
-    public int Level { get; init; }
     public long Required { get; init; }
-    public IReadOnlyList<RecipePlannerItemViewModel> Ingredients { get; init; } = [];
-    public IReadOnlyList<RecipePlanChoice> Choices { get; init; } = [];
-    public IReadOnlyList<RecipePlannerAlternative> Alternatives { get; init; } = [];
-    public Visibility AlternativesVisibility => Alternatives.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-    public RecipePlanChoice? SelectedChoice { get; init; }
-    public Visibility ChoiceVisibility => Choices.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility RecipeVisibility => RecipeId.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility SourceVisibility => Visibility.Visible;
-    public ObservableCollection<RecipePlannerSupplyOption> SupplyOptions { get; } = [];
-    [ObservableProperty] public partial Visibility SupplyOptionsVisibility { get; set; } = Visibility.Collapsed;
-    [ObservableProperty] public partial string SupplyPlan { get; set; } = "";
-    public IRelayCommand RestoreRecipeCommand { get; init; } = new RelayCommand(() => { });
+    /// <summary>A starting supply a circular conversion needs (gathered or stored, not cooked here).</summary>
     public bool IsSupply { get; init; }
-    public Visibility SupplyPlanVisibility => IsSupply ? Visibility.Visible : Visibility.Collapsed;
-    [ObservableProperty] public partial string Inventory { get; set; } = "";
-    [ObservableProperty] public partial string InventoryLocations { get; set; } = "";
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(BaseSourcesVisibility))] public partial string BaseSources { get; set; } = "";
-    public Visibility BaseSourcesVisibility => BaseSources.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(CardBorder), nameof(CardBackground), nameof(CardBorderThickness), nameof(CardPadding), nameof(SelectionVisibility), nameof(SelectionName))]
-    public partial bool IsSelected { get; set; }
+    public bool IsRaw => RecipeId.Length == 0;
+    public IReadOnlyList<RecipePlannerItemViewModel> Ingredients { get; init; } = [];
+    public IReadOnlyList<RecipePlannerAlternative> Alternatives { get; init; } = [];
+    /// <summary>A step with other recipes, or a raw ingredient that some recipe also makes.</summary>
+    public Visibility AlternativesVisibility => Alternatives.Count > (IsRaw ? 0 : 1) ? Visibility.Visible : Visibility.Collapsed;
+    public string AlternativesHeading => IsRaw ? "YOU CAN ALSO MAKE IT" : "OTHER WAYS TO MAKE IT";
+    public Visibility UsedForVisibility => UsedFor.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility RecipeVisibility => IsRaw ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility RawVisibility => IsRaw ? Visibility.Visible : Visibility.Collapsed;
+    public IRelayCommand SelectCommand { get; init; } = new RelayCommand(() => { });
     [ObservableProperty] public partial bool IsPinned { get; set; }
     public IRelayCommand PinCommand { get; init; } = new RelayCommand(() => { });
-    public IRelayCommand SelectCommand { get; init; } = new RelayCommand(() => { });
-    public IRelayCommand ExploreCommand { get; init; } = new RelayCommand(() => { });
-    public string SelectionName => IsSelected ? $"{Name}, selected. Details shown in the ingredient panel." : $"Show {Name} requirements";
     public string PinName => $"Pin or unpin {Name}";
+
+    /// <summary>How many the save holds (null without a loaded save).</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(TileStatus), nameof(TileStatusBrush), nameof(TileName), nameof(HaveText), nameof(HaveEnough))]
+    public partial long? Owned { get; set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(InventoryLocationsVisibility))] public partial string InventoryLocations { get; set; } = "";
+    public Visibility InventoryLocationsVisibility => InventoryLocations.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(BaseSourcesVisibility))] public partial string BaseSources { get; set; } = "";
+    public Visibility BaseSourcesVisibility => BaseSources.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    public bool HaveEnough => Owned is long owned && owned >= Required;
+    /// <summary>Under a tile's name: "133 / 2" for a raw ingredient, the verb for a step.</summary>
+    public string TileStatus => IsRaw ? Owned is long owned ? $"{owned:N0} / {Required:N0}" : $"Need {Required:N0}" : Verb;
+    /// <summary>Green when you have enough, amber when some, red when none; dim for steps and without a save.</summary>
+    public Brush TileStatusBrush => ThemeResources.Brush(!IsRaw || Owned is null ? "ThemeTextDimBrush"
+        : HaveEnough ? "ThemeDoneBrush" : Owned > 0 ? "ThemeWarningBrush" : "ThemeDamagedBrush");
+    public string HaveText => Owned is long owned
+        ? IsRaw ? $"You have {owned:N0} · the recipe needs {Required:N0}" : owned > 0 ? $"You have {owned:N0} already" : "Make it from the steps below"
+        : IsRaw ? $"The recipe needs {Required:N0}" : "Make it from the steps below";
+    public string TileName => IsRaw
+        ? Owned is long owned ? $"{Name}, you have {owned:N0}, need {Required:N0}" : $"{Name}, need {Required:N0}"
+        : $"{Name}, {Verb.ToLowerInvariant()} it";
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CardBorder), nameof(CardBorderThickness))]
+    public partial bool IsSelected { get; set; }
     public Brush CardBorder => ThemeResources.Brush(IsSelected ? "ThemeAccentBrush" : "ThemeLineBrush");
-    public Brush CardBackground => ThemeResources.Brush(IsSelected ? "ThemeSelectedFillBrush" : "ThemePanelAltBrush");
-    public Thickness CardBorderThickness => new(IsSelected ? 3 : 1);
-    public Thickness CardPadding => new(IsSelected ? 10 : 12);
-    public Visibility SelectionVisibility => IsSelected ? Visibility.Visible : Visibility.Collapsed;
+    public Thickness CardBorderThickness => new(IsSelected ? 2 : 1);
+}
+
+/// <summary>A node of the ingredient tree: an item and the ingredients it is made from (the same item can appear
+/// under several steps). First/Last end the line joining a row of siblings.</summary>
+public sealed class RecipeTreeNode
+{
+    public RecipePlannerItemViewModel Item { get; init; } = new();
+    public IReadOnlyList<RecipeTreeNode> Children { get; init; } = [];
+    public bool IsFirst { get; init; } = true;
+    public bool IsLast { get; init; } = true;
+    public Visibility ChildrenVisibility => Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility LeftLineVisibility => IsFirst ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility RightLineVisibility => IsLast ? Visibility.Collapsed : Visibility.Visible;
 }
 
 public sealed record RecipePlannerEffect(string Id, string Name)
@@ -65,11 +92,8 @@ public sealed record RecipePlannerEffect(string Id, string Name)
     public override string ToString() => Name;
 }
 
-public sealed record RecipePlannerCrumb(string Name, IRelayCommand NavigateCommand);
-public sealed record RecipePlannerAlternative(string Label, string Equipment, string ActionName, IRelayCommand ChooseCommand);
-public sealed record RecipePlannerSupplyOption(string Label, string ActionName, IRelayCommand ChooseCommand);
-public sealed record RecipePlanChoice(string Id, string Label)
+public sealed record RecipePlannerAlternative(string Label, string Equipment, string ActionName, IRelayCommand ChooseCommand, bool IsCurrent)
 {
-    public override string ToString() => Label;
+    public string ButtonText => IsCurrent ? "In use" : "Use this recipe";
+    public bool CanChoose => !IsCurrent;
 }
-public sealed record RecipePlannerLevel(ObservableCollection<RecipePlannerItemViewModel> Cards);

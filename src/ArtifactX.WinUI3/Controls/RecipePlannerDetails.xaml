@@ -1,73 +1,75 @@
 <UserControl x:Class="ArtifactX.WinUI3.Controls.RecipePlannerDetails"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:vm="using:ArtifactX.WinUI3.ViewModels">
- <UserControl.Resources>
-  <Storyboard x:Name="SelectionPulse">
-   <DoubleAnimation Storyboard.TargetName="SelectionHighlight" Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.9"/>
-  </Storyboard>
- </UserControl.Resources>
- <Grid>
- <Border Padding="14" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="2" CornerRadius="{ThemeResource ThemeCardCornerRadius}">
-  <StackPanel Spacing="12">
-   <TextBlock Text="VIEWING INGREDIENT" Style="{StaticResource ThemeEyebrowStyle}"/>
-   <StackPanel Orientation="Horizontal" Spacing="8"><Image Source="{x:Bind Item.Icon, Mode=OneWay}" Width="38" Height="38"/><TextBlock x:Name="SelectedName" Text="{x:Bind Item.Name, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="190" AutomationProperties.LiveSetting="Polite"/></StackPanel>
-   <StackPanel Visibility="{x:Bind Item.BaseSourcesVisibility, Mode=OneWay}" Spacing="8">
+ xmlns:vm="using:ArtifactX.WinUI3.ViewModels"
+ xmlns:controls="using:ArtifactX.WinUI3.Controls">
+ <!-- The Selected step tab: where to gather the item and the closest systems, then a raw ingredient's other sources or a step's equipment and inputs. -->
+ <StackPanel Spacing="14">
+  <Grid ColumnSpacing="12">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <Image Source="{x:Bind Item.Icon, Mode=OneWay}" Width="44" Height="44" VerticalAlignment="Center"/>
+   <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+    <TextBlock Text="{x:Bind Item.Name, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap"
+     AutomationProperties.LiveSetting="Polite"/>
+    <TextBlock Text="{x:Bind Item.HaveText, Mode=OneWay}" Foreground="{x:Bind Item.TileStatusBrush, Mode=OneWay}" TextWrapping="Wrap"/>
+   </StackPanel>
+  </Grid>
+  <TextBlock Text="{x:Bind Item.Buff, Mode=OneWay}" Visibility="{x:Bind Item.BuffVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+
+  <!-- Where to gather it: also for an item a recipe makes (Meaty Chunks, Mordite), since most players hunt or pick it
+       instead; the panel hides itself when nothing gives the item. -->
+  <controls:IngredientSourcePanel ViewModel="{x:Bind Source, Mode=OneWay}"/>
+
+  <!-- A raw ingredient -->
+  <StackPanel Spacing="14" Visibility="{x:Bind Item.RawVisibility, Mode=OneWay}">
+   <StackPanel Spacing="6" Visibility="{x:Bind Item.BaseSourcesVisibility, Mode=OneWay}">
     <TextBlock Text="EXTRACTORS AT YOUR BASES" Style="{StaticResource ThemeEyebrowStyle}"/>
     <TextBlock Text="{x:Bind Item.BaseSources, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-    <TextBlock Text="Visit the base to collect supplies. Uncollected output is not included in your owned total." Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    </StackPanel>
-   <StackPanel Visibility="{x:Bind Item.SupplyPlanVisibility, Mode=OneWay}" Spacing="8">
-    <TextBlock Text="{x:Bind Item.SupplyPlan, Mode=OneWay}" Foreground="{ThemeResource ThemeDoneBrush}" TextWrapping="Wrap"/>
-    <Button Content="Make this item instead" Command="{x:Bind Item.RestoreRecipeCommand, Mode=OneWay}" Visibility="{x:Bind Item.AlternativesVisibility, Mode=OneWay}" HorizontalAlignment="Stretch"/>
-   </StackPanel>
-   <StackPanel Visibility="{x:Bind Item.SupplyOptionsVisibility, Mode=OneWay}" Spacing="8">
-    <TextBlock Text="CHOOSE A SOURCE" Style="{StaticResource ThemeEyebrowStyle}"/>
-    <ItemsControl ItemsSource="{x:Bind Item.SupplyOptions, Mode=OneWay}">
-     <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerSupplyOption">
-      <Button Command="{x:Bind ChooseCommand}" AutomationProperties.Name="{x:Bind ActionName}" HorizontalAlignment="Stretch" Margin="0,3">
-       <TextBlock Text="{x:Bind Label}" TextWrapping="Wrap"/>
-      </Button>
-     </DataTemplate></ItemsControl.ItemTemplate>
-    </ItemsControl>
-   </StackPanel>
-   <StackPanel Visibility="{x:Bind Item.RecipeVisibility, Mode=OneWay}" Spacing="10">
-    <StackPanel Orientation="Horizontal" Spacing="10"><Image Source="{x:Bind Item.StationIcon, Mode=OneWay}" Width="56" Height="56"/><TextBlock Text="{x:Bind Item.Station, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap" MaxWidth="170"/></StackPanel>
-    <TextBlock Text="Put these ingredients into the equipment:" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-    <ItemsControl ItemsSource="{x:Bind Item.Ingredients, Mode=OneWay}">
-     <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerItemViewModel">
-      <Button Command="{x:Bind ExploreCommand}" AutomationProperties.Name="{x:Bind SelectionName}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,3" Padding="8">
-       <StackPanel Orientation="Horizontal" Spacing="7"><Image Source="{x:Bind Icon}" Width="25" Height="25"/><TextBlock Text="{x:Bind Amount}" TextWrapping="Wrap" MaxWidth="200"/></StackPanel>
-      </Button>
-     </DataTemplate></ItemsControl.ItemTemplate>
-    </ItemsControl>
-    <TextBlock Text="{x:Bind Item.UsedFor, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-    <Button Content="Explore this branch" Command="{x:Bind Item.ExploreCommand, Mode=OneWay}" HorizontalAlignment="Stretch"/>
-   </StackPanel>
-   <StackPanel Visibility="{x:Bind Item.AlternativesVisibility, Mode=OneWay}" Spacing="8">
-    <TextBlock Text="RECIPES TO MAKE IT" Style="{StaticResource ThemeEyebrowStyle}"/>
-    <TextBlock Text="Choose a recipe to use in your plan. Circular conversions may need a starting supply." TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
-    <ItemsControl ItemsSource="{x:Bind Item.Alternatives, Mode=OneWay}">
-     <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerAlternative">
-      <Border Style="{StaticResource ThemeCardStyle}" Padding="10" Margin="0,3">
-       <StackPanel Spacing="8">
-        <TextBlock Text="{x:Bind Equipment}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeAccentBrush}"/>
-        <TextBlock Text="{x:Bind Label}" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
-        <Button Content="Use this recipe" Command="{x:Bind ChooseCommand}" AutomationProperties.Name="{x:Bind ActionName}"/>
-       </StackPanel>
-      </Border>
-     </DataTemplate></ItemsControl.ItemTemplate>
-    </ItemsControl>
-   </StackPanel>
-   <StackPanel Visibility="{x:Bind Item.SourceVisibility, Mode=OneWay}" Spacing="10">
-    <TextBlock Text="HOW TO GET IT" Style="{StaticResource ThemeEyebrowStyle}"/>
+   <StackPanel Spacing="6" Visibility="{x:Bind Item.SourceVisibility, Mode=OneWay}">
+    <TextBlock Text="WHAT THE GAME SAYS" Style="{StaticResource ThemeEyebrowStyle}"/>
     <TextBlock Text="{x:Bind Item.Source, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
    </StackPanel>
-   <TextBlock Text="{x:Bind Item.Inventory, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-   <TextBlock Text="{x:Bind Item.InventoryLocations, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-   <TextBlock Text="{x:Bind Item.Buff, Mode=OneWay}" Visibility="{x:Bind Item.BuffVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
   </StackPanel>
- </Border>
- <Border x:Name="SelectionHighlight" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="5" Opacity="0" IsHitTestVisible="False" CornerRadius="{ThemeResource ThemeCardCornerRadius}"/>
- </Grid>
+
+  <!-- A cooking or refining step -->
+  <StackPanel Spacing="10" Visibility="{x:Bind Item.RecipeVisibility, Mode=OneWay}">
+   <TextBlock Text="HOW TO MAKE IT" Style="{StaticResource ThemeEyebrowStyle}"/>
+   <Border Padding="10" CornerRadius="6" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+    <StackPanel Orientation="Horizontal" Spacing="10">
+     <Image Source="{x:Bind Item.StationIcon, Mode=OneWay}" Width="40" Height="40"/>
+     <TextBlock Text="{x:Bind Item.Station, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+    </StackPanel>
+   </Border>
+   <TextBlock Text="Put in:" Foreground="{ThemeResource ThemeTextBrush}"/>
+   <ItemsControl ItemsSource="{x:Bind Item.Ingredients, Mode=OneWay}" IsTabStop="False">
+    <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerItemViewModel">
+     <Button Command="{x:Bind SelectCommand}" AutomationProperties.Name="{x:Bind Amount}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,3" Padding="8">
+      <StackPanel Orientation="Horizontal" Spacing="8"><Image Source="{x:Bind Icon}" Width="26" Height="26"/><TextBlock Text="{x:Bind Amount}" VerticalAlignment="Center" TextWrapping="Wrap"/></StackPanel>
+     </Button>
+    </DataTemplate></ItemsControl.ItemTemplate>
+   </ItemsControl>
+   <TextBlock Text="{x:Bind Item.UsedFor, Mode=OneWay}" Visibility="{x:Bind Item.UsedForVisibility, Mode=OneWay}" Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
+  </StackPanel>
+
+  <StackPanel Spacing="8" Visibility="{x:Bind Item.InventoryLocationsVisibility, Mode=OneWay}">
+   <TextBlock Text="WHERE YOURS ARE" Style="{StaticResource ThemeEyebrowStyle}"/>
+   <TextBlock Text="{x:Bind Item.InventoryLocations, Mode=OneWay}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+  </StackPanel>
+
+  <StackPanel Spacing="8" Visibility="{x:Bind Item.AlternativesVisibility, Mode=OneWay}">
+   <TextBlock Text="{x:Bind Item.AlternativesHeading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>
+   <ItemsControl ItemsSource="{x:Bind Item.Alternatives, Mode=OneWay}" IsTabStop="False">
+    <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:RecipePlannerAlternative">
+     <Border Margin="0,3" Padding="10" CornerRadius="6" Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+      <StackPanel Spacing="6">
+       <TextBlock Text="{x:Bind Equipment}" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+       <TextBlock Text="{x:Bind Label}" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+       <Button Content="{x:Bind ButtonText}" IsEnabled="{x:Bind CanChoose}" Command="{x:Bind ChooseCommand}" AutomationProperties.Name="{x:Bind ActionName}"/>
+      </StackPanel>
+     </Border>
+    </DataTemplate></ItemsControl.ItemTemplate>
+   </ItemsControl>
+  </StackPanel>
+ </StackPanel>
 </UserControl>

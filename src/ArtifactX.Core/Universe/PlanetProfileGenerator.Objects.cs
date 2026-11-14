@@ -5,7 +5,18 @@ namespace ArtifactX.Core.Universe;
 /// <param name="TileType">GcTerrainTileType: 4 Underwater, 5 Cave, 7 Liquid matter here.</param>
 /// <param name="Options">How many model files it picks from (one more draw when placed).</param>
 /// <param name="Hint">ResourceHint, the scanner line it adds (PLANT_LUSH, UI_BONES_HINT...), or "".</param>
-public sealed record ObjectList(string Name, int Order, float Probability, int TileType, int Options, string Hint = "");
+/// <param name="Files">The spawn files (GcExternalObjectList) it picks from, upper case; null in catalogs before format 93.</param>
+public sealed record ObjectList(string Name, int Order, float Probability, int TileType, int Options, string Hint = "",
+    string[]? Files = null);
+
+/// <summary>An item a spawn file's objects give when picked or broken (catalog format 93): a placed object's
+/// GcSimpleInteractionComponentData reward id, looked up in rewardtable.mbin.</summary>
+/// <param name="OneOf">The reward gives one of its items (RewardChoice other than GiveAll), not all of them.</param>
+public sealed record HarvestItem(string ItemId, int Min, int Max, bool OneOf = false);
+
+/// <summary>An item a planet's placed objects give (wild plants, clams, storm crystals...).</summary>
+/// <param name="TileType">Where its list places objects (GcTerrainTileType: 4 underwater, 5 in caves, else on the ground).</param>
+public sealed record PlanetHarvest(string ItemId, int Min, int Max, int TileType, bool OneOf = false);
 
 /// <summary>Conditions an optional object group (GcExternalObjectFileList) puts on a planet.</summary>
 [Flags]
@@ -49,7 +60,10 @@ public sealed record TerrainTables(TerrainSetting[] Settings, int PrimeIndexStar
 public sealed record TerrainChoice(int SettingIndex, int DrawsBeforeLayers, float Sea, BiomeObjects BiomeFile);
 
 /// <param name="BiomeFiles">[biome][subtype], null where the game has no file for that subtype.</param>
-public sealed record ObjectTables(BiomeObjects?[][] BiomeFiles, ObjectList[] Common, ObjectGroup[] Groups, TerrainTables Terrain);
+/// <param name="Harvest">What each spawn file (upper-case path, as in <see cref="ObjectList.Files"/>) gives; null in
+/// catalogs before format 93.</param>
+public sealed record ObjectTables(BiomeObjects?[][] BiomeFiles, ObjectList[] Common, ObjectGroup[] Groups, TerrainTables Terrain,
+    Dictionary<string, HarvestItem[]>? Harvest = null);
 
 public static partial class PlanetProfileGenerator
 {
@@ -158,8 +172,9 @@ public static partial class PlanetProfileGenerator
     /// chance leaves the total, so a 2-of-2 group gets both). Underwater and
     /// liquid lists need a sea, cave lists caves. Bones, scrap and bugs matched a real save's
     /// records on 776 of 808 planets (2026-10-22; most misses are records of another planet).
+    /// Also returns every list it placed (what <see cref="Harvest"/> reads).
     /// </summary>
-    private static string[] PlacedHints(Rng main, BiomeObjects b, ObjectTables t, PlanetFacts p)
+    private static (string[] Hints, List<ObjectList> Placed) PlacedObjects(Rng main, BiomeObjects b, ObjectTables t, PlanetFacts p)
     {
         ulong lo = main.Next(), hi = main.Next();
         var own = Rng.Start(Mix64((hi << 32) | lo));
@@ -176,6 +191,7 @@ public static partial class PlanetProfileGenerator
         int seen = p.SubType == SwampSub ? Swamp : p.SubType == LavaSub ? Lava : p.Biome;
 
         var placed = new HashSet<string>(StringComparer.Ordinal);
+        var placedLists = new List<ObjectList>();
         var hints = new List<string>();
         foreach (var (list, group, _) in sorted)
         {
@@ -186,6 +202,7 @@ public static partial class PlanetProfileGenerator
                 if (Blocked(list) || f > list.Probability) continue;
                 own.Next();
                 placed.Add(list.Name);
+                placedLists.Add(list);
                 continue;
             }
             var g = group!;
@@ -207,6 +224,7 @@ public static partial class PlanetProfileGenerator
                     {
                         main.Next();
                         placed.Add(file.Name);
+                        placedLists.Add(file);
                         total -= file.Probability;
                         if (file.Hint.Length > 0 && !hints.Contains(file.Hint)) hints.Add(file.Hint);
                         break;
@@ -215,7 +233,40 @@ public static partial class PlanetProfileGenerator
                 }
             }
         }
-        return hints.ToArray();
+        return (hints.ToArray(), placedLists);
+    }
+
+    /// <summary>
+    /// What a planet's placed object lists give (catalog format 93): each list's spawn file, through its objects'
+    /// reward ids, to items. A list with several spawn files takes one by a draw this port doesn't make, so only items
+    /// every one of its files gives are counted (the wild plant and rare object lists have a single file each in build
+    /// 185034). Objects whose placement isn't in spawndensitylist.mbin are left out by the catalog (the lush, toxic and
+    /// barren farm files list Solanium under BIOMEPLANTX, which the game never places).
+    /// </summary>
+    public static PlanetHarvest[] Harvest(IEnumerable<ObjectList> placed, ObjectTables t)
+    {
+        if (t.Harvest is not { } harvest) return Array.Empty<PlanetHarvest>();
+        var found = new List<PlanetHarvest>();
+        foreach (var list in placed)
+        {
+            if (list.Files is not { Length: > 0 } files) continue;
+            IEnumerable<HarvestItem> items = harvest.GetValueOrDefault(files[0]) ?? Array.Empty<HarvestItem>();
+            foreach (var other in files.Skip(1))
+            {
+                var ids = (harvest.GetValueOrDefault(other) ?? Array.Empty<HarvestItem>()).Select(i => i.ItemId).ToHashSet(StringComparer.Ordinal);
+                items = items.Where(i => ids.Contains(i.ItemId));
+            }
+            foreach (var item in items)
+            {
+                int at = found.FindIndex(f => f.ItemId == item.ItemId);
+                if (at < 0) { found.Add(new PlanetHarvest(item.ItemId, item.Min, item.Max, list.TileType, item.OneOf)); continue; }
+                var f = found[at];
+                // Ground beats underwater or caves: the easier place to pick it up.
+                int tile = f.TileType is 4 or 5 && list.TileType is not (4 or 5) ? list.TileType : f.TileType;
+                found[at] = f with { Min = Math.Min(f.Min, item.Min), Max = Math.Max(f.Max, item.Max), TileType = tile, OneOf = f.OneOf && item.OneOf };
+            }
+        }
+        return found.ToArray();
     }
 
     /// <summary>A group's conditions (0x14169c240), as the game sees the planet: Swamp and Lava
