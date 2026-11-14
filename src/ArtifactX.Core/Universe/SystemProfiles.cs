@@ -30,6 +30,27 @@ public static class SystemProfiles
         return profiles;
     }
 
+    /// <summary>The bodies' <see cref="PlanetBasics"/> in planet order (weather, life, sentinels, resources, descriptor;
+    /// no objects or creatures), like <see cref="Generate"/>; a body the generator can't predict is null.</summary>
+    public static PlanetBasics?[] Basics(ulong systemAddress, BiomeTables biomes, PlanetProfileTables tables)
+    {
+        var (portal, galaxy) = PortalOf(systemAddress);
+        PlanetType[] types;
+        try { types = PlanetGenerator.Generate(portal, galaxy, biomes); }
+        catch { return []; }
+        var basics = new PlanetBasics?[types.Length];
+        try
+        {
+            var attributes = SystemGenerator.Attributes(portal, galaxy);
+            var seeds = SystemGenerator.Bodies(portal, galaxy).PlanetSeeds;
+            for (int i = 0; i < types.Length && i < seeds.Length; i++)
+                basics[i] = PlanetProfileGenerator.Basics(seeds[i], i, types[i],
+                    (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy), attributes.GasGiantPlanet, tables);
+        }
+        catch { /* leave the rest unknown */ }
+        return basics;
+    }
+
     /// <summary>A packed system address as the generators take it: the portal code (system index in bits 32-43,
     /// region below) and the galaxy number.</summary>
     public static (ulong Portal, int Galaxy) PortalOf(ulong systemAddress) =>

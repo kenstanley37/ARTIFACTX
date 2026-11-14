@@ -16,10 +16,11 @@ namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>
 /// The Planet Finder: every planet in the discoveries of this save and the account's other
-/// save slots, and every body in the systems of the player's region and the regions touching
-/// it worked out by the game's generator (<see cref="NearbyIndex"/>; a save keeps only so many
-/// discoveries, so it can't map a region on its own), searched and filtered by what the save
-/// knows, what the generator says about each system, and what the player recorded. Distances are from where the
+/// save slots, and every body in the nearest systems worked out by the game's generator
+/// (<see cref="NearbyIndex"/>; a save keeps only so many discoveries, so it can't map a region
+/// on its own), searched and filtered by what the save knows, what the generator says about
+/// each system and planet (weather, sentinels, life, resources: PlanetFinderFactsService), and
+/// what the player recorded. Distances are from where the
 /// save is now, so it follows the game (Show). The galaxy picker starts on (and follows)
 /// the galaxy the player is in until they pick another: a portal can't reach other galaxies.
 /// The search box, planet type, rings and infested show at once; the rest sits behind
@@ -31,8 +32,9 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     private List<KnownPlanet> _otherSaves = new();
     private List<KnownPlanet> _all = new();
     private HashSet<ulong> _waterSystems = new();
-    private HashSet<(ulong System, int Planet)> _infested = new();
-    private int _infestedVersion;
+    /// <summary>Each listed planet's weather, sentinels, life, resources and infested flag (<see cref="FindFactsAsync"/>).</summary>
+    private Dictionary<(ulong System, int Planet), PlanetFinderFacts> _facts = new();
+    private int _factsVersion;
     private PlanetVocabulary? _vocabulary;
     private ulong? _here;
     private int _loadVersion;
@@ -47,6 +49,9 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     private (ulong Region, int Reach)? _nearbyFor;
     private int _nearbyVersion;
     private int _applyVersion;
+    /// <summary>How many of the nearest systems' undiscovered planets are added (2026-11-14, the owner: half of the
+    /// ~47,000 bodies of the region and its neighbours is plenty): about 24,000 bodies within ~570 ly.</summary>
+    private const int NearbySystemCount = 5000;
     /// <summary>The most result cards built at once: the list is sorted, and a card per body for
     /// tens of thousands of generated planets would stall the page. Filters narrow it.</summary>
     private const int MaxCards = 500;
@@ -74,6 +79,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     public ChoiceFilter Conflict { get; } = new("Conflict", FilterWidth);
     public ChoiceFilter Race { get; } = new("Race", FilterWidth);
     public ChoiceFilter Ship { get; } = new("Ships seen", FilterWidth);
+    public ChoiceFilter Weather { get; } = new("Weather", FilterWidth);
     public ChoiceFilter Sentinels { get; } = new("Sentinels", FilterWidth);
     public ChoiceFilter Flora { get; } = new("Flora", FilterWidth);
     public ChoiceFilter Fauna { get; } = new("Fauna", FilterWidth);
@@ -83,8 +89,8 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     public IReadOnlyList<ChoiceFilter> ChoiceFilters => (ChoiceFilter[])[.. SystemFilters, .. PlanetFilters];
     /// <summary>The star system group's pickers, in the order shown.</summary>
     public IReadOnlyList<ChoiceFilter> SystemFilters => (ChoiceFilter[])[Star, Economy, Wealth, Conflict, Race, Ship];
-    /// <summary>The planet group's pickers made from what the player recorded, in the order shown.</summary>
-    public IReadOnlyList<ChoiceFilter> PlanetFilters => (ChoiceFilter[])[Sentinels, Flora, Fauna, Resource];
+    /// <summary>The planet group's pickers (the generator's facts, the player's records winning), in the order shown.</summary>
+    public IReadOnlyList<ChoiceFilter> PlanetFilters => (ChoiceFilter[])[Weather, Sentinels, Flora, Fauna, Resource];
 
     [ObservableProperty] public partial string Search { get; set; } = "";
     [ObservableProperty] public partial int SortIndex { get; set; }      // 0 nearest, 1 newest, 2 furthest from core, 3 nearest to core
@@ -93,8 +99,8 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     [ObservableProperty] public partial bool MineOnly { get; set; }
     /// <summary>The less used filters are open (remembered).</summary>
     [ObservableProperty] public partial bool ShowMoreFilters { get; set; }
-    /// <summary>Which undiscovered planets to add: 0 your region and the regions touching it (remembered), 1 your
-    /// region, 2 none (your saves only).</summary>
+    /// <summary>Which undiscovered planets to add: 0 the <see cref="NearbySystemCount"/> nearest systems' (remembered),
+    /// 1 your region's, 2 none (your saves only).</summary>
     [ObservableProperty] public partial int NearbyIndex { get; set; }
     /// <summary>"More filters", or "More filters (2 on)" when some of them are in use, open or not.</summary>
     [ObservableProperty] public partial string MoreFiltersLabel { get; private set; } = "More filters";
@@ -106,14 +112,16 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     [ObservableProperty] public partial string InfestedLabel { get; private set; } = "";
     [ObservableProperty] public partial string RingsLabel { get; private set; } = "Rings only";
     [ObservableProperty] public partial bool ShowInfested { get; private set; }
+    /// <summary>Calm weather, low sentinels, plants and animals (<see cref="PlanetFinderFacts.Paradise"/>).</summary>
+    [ObservableProperty] public partial bool ParadiseOnly { get; set; }
+    [ObservableProperty] public partial string ParadiseLabel { get; private set; } = "Paradise";
+    [ObservableProperty] public partial bool ShowParadise { get; private set; }
 
     [ObservableProperty] public partial string WaterLabel { get; private set; } = "";
     [ObservableProperty] public partial bool ShowWater { get; private set; }
     [ObservableProperty] public partial string DissonantLabel { get; private set; } = "";
     [ObservableProperty] public partial bool ShowDissonant { get; private set; }
     [ObservableProperty] public partial bool ShowBodies { get; private set; }
-    /// <summary>No planet has recorded sentinels, life, resources or moons yet, so the planet group says how to get those filters.</summary>
-    [ObservableProperty] public partial bool ShowPlanetNotesHint { get; private set; }
     [ObservableProperty] public partial string Status { get; private set; } = "";
 
     [ObservableProperty] public partial IReadOnlyList<PlanetRowViewModel> Results { get; private set; } = [];
@@ -144,6 +152,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     partial void OnWaterOnlyChanged(bool value) => Apply();
     partial void OnDissonantOnlyChanged(bool value) => Apply();
     partial void OnInfestedOnlyChanged(bool value) => Apply();
+    partial void OnParadiseOnlyChanged(bool value) => Apply();
     partial void OnShowMoreFiltersChanged(bool value) => SettingsStore.Set(SettingsStore.Scope.Profile, MoreFiltersSetting, value ? "1" : null);
     partial void OnNearbyIndexChanged(int value)
     {
@@ -211,14 +220,14 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         var have = known.Select(p => (p.SystemAddress, p.PlanetIndex)).ToHashSet();
         _all = [.. known, .. _nearby.Where(p => !have.Contains((p.SystemAddress, p.PlanetIndex)))];
         FillChoices();
-        _ = FindInfestedAsync();
+        _ = FindFactsAsync();
         Apply();
         _ = LoadNearbyAsync();
     }
 
     /// <summary>
-    /// Every body in the systems of the player's region (and the regions touching it, <see cref="NearbyIndex"/>),
-    /// from the game's generator (NearbySystems, PlanetTypesService.Undiscovered: the same port the Ingredient Finder
+    /// Every body in the <see cref="NearbySystemCount"/> systems nearest the player (or the player's region,
+    /// <see cref="NearbyIndex"/>), from the game's generator (NearbySystems, PlanetTypesService.Undiscovered: the same port the Ingredient Finder
     /// searches with), worked out off the UI thread and again only when the player reaches another region. A save
     /// keeps a limited number of discoveries, so older ones drop out and a region can't be mapped from the save alone
     /// (the owner, 2026-11-14).
@@ -226,6 +235,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     private async Task LoadNearbyAsync()
     {
         int reach = NearbyIndex switch { 0 => 1, 1 => 0, _ => -1 };
+        ulong from = _here ?? 0;
         (ulong, int)? want = _here is ulong here && reach >= 0 ? (RegionMapService.RegionKey(here), reach) : null;
         if (want == _nearbyFor) return;
         int version = ++_nearbyVersion;
@@ -242,8 +252,12 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         var found = await Task.Run(() =>
         {
             var bodies = new ConcurrentBag<KnownPlanet>();
-            // About 10,000 systems and 47,000 bodies with the regions around (build 185034, 2026-11-14: 0.4 s).
-            Parallel.ForEach(NearbySystems.Around(region, radius, settings), system =>
+            // The region and the ones around hold ~10,000 systems; the nearest 5,000 give ~24,000 bodies (build
+            // 185034, 2026-11-14: their types in ~0.2 s, their weather, life and sentinels in 29 ms more).
+            var systems = NearbySystems.Around(from, radius, settings);
+            if (radius > 0)
+                systems = systems.OrderBy(s => NmsPlanets.DistanceLightYears(from, s.SystemAddress) ?? double.MaxValue).Take(NearbySystemCount);
+            Parallel.ForEach(systems, system =>
             {
                 UniverseInfo.For(system.SystemAddress); // the star, economy and race pickers read these on the UI thread
                 foreach (var body in PlanetTypesService.Undiscovered(system.SystemAddress, Array.Empty<int>())) bodies.Add(body);
@@ -258,27 +272,51 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Which planets are infested (the infested variant of their type, where Whispering Eggs and ground worms are -
-    /// <see cref="NmsPlanets.InfestedSubType"/>). The save records only the type, so it comes from the game's
-    /// generator (PlanetTypesService.For), off the UI thread; the checkbox and list update when it's done.
+    /// Each listed planet's weather, sentinels, life, resources and whether it's infested (the infested variant of its
+    /// type, where Whispering Eggs and ground worms are - <see cref="NmsPlanets.InfestedSubType"/>): the save records
+    /// almost none of it, so it comes from the game's generator (PlanetFinderFactsService), off the UI thread. Then the
+    /// planet pickers' choices, counted in planets, and the list.
     /// </summary>
-    private async Task FindInfestedAsync()
+    private async Task FindFactsAsync()
     {
-        int version = ++_infestedVersion;
+        int version = ++_factsVersion;
         var planets = _all;
+        var words = _vocabulary?.Words ?? [];
         await PlanetTypesService.EnsureLoadedAsync();
-        var infested = await Task.Run(() => planets
-            .Where(p => PlanetTypesService.For(p.SystemAddress) is var types
-                && p.PlanetIndex >= 1 && p.PlanetIndex <= types.Length && types[p.PlanetIndex - 1].SubType == NmsPlanets.InfestedSubType)
-            .Select(p => (p.SystemAddress, p.PlanetIndex)).ToHashSet());
-        if (version != _infestedVersion) return;
-        bool changed = !infested.SetEquals(_infested);
-        _infested = infested;
-        bool any = planets.Any(p => infested.Contains((p.SystemAddress, p.PlanetIndex)));
-        ShowInfested = any;
-        if (!any && InfestedOnly) InfestedOnly = false;
-        else if (changed) Apply(); // the infested and planet type counts
+        var itemNames = await CatalogService.GetItemNamesAsync();
+        var facts = await Task.Run(() => PlanetFinderFactsService.Build(planets, words, itemNames));
+        if (version != _factsVersion) return;
+        _facts = facts;
+        var all = facts.Values.ToList();
+
+        IEnumerable<ChoiceItem> Ordered(IEnumerable<string> values, string[] order) => values.Where(v => v.Length > 0)
+            .GroupBy(v => v).OrderBy(g => Array.IndexOf(order, g.Key) is int i and >= 0 ? i : order.Length).ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Select(g => new ChoiceItem($"{FactLabel(g.Key)} ({g.Count():N0})", g.Key));
+        Weather.Refill("Any", Ordered(all.Select(f => f.Weather), PlanetFinderFactsService.WeatherOrder));
+        Sentinels.Refill("Any", Ordered(all.Select(f => f.Sentinels), PlanetFinderFactsService.SentinelOrder));
+        Flora.Refill("Any", Ordered(all.Select(f => f.Flora), PlanetFinderFactsService.LifeOrder));
+        Fauna.Refill("Any", Ordered(all.Select(f => f.Fauna), PlanetFinderFactsService.LifeOrder));
+        Resource.Refill("Any", all.SelectMany(f => f.Resources).Where(r => r.Length > 0).GroupBy(r => r, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Select(g => new ChoiceItem($"{g.Key} ({g.Count():N0})", g.Key)));
+
+        ShowInfested = all.Any(f => f.Infested);
+        ShowParadise = all.Any(f => f.Paradise);
+        _quiet = true;
+        if (!ShowInfested) InfestedOnly = false;
+        if (!ShowParadise) ParadiseOnly = false;
+        _quiet = false;
+        Apply(); // the planet type, infested and paradise counts
     }
+
+    /// <summary>A planet picker choice's words: the weather levels spelled out ("Calm, no storms"), others as they are.</summary>
+    private static string FactLabel(string value) => value switch
+    {
+        PlanetFinderFactsService.Calm => "Calm, no storms",
+        PlanetFinderFactsService.Stormy => "Storms, not extreme",
+        PlanetFinderFactsService.Extreme => "Extreme weather",
+        _ => value,
+    };
 
     private void FillChoices()
     {
@@ -303,19 +341,11 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         Conflict.Refill("Any", Known(UniverseInfo.Conflict));
         Race.Refill("Any", Known(PlanetText.RaceOf));
 
-        // Planet details: only what's been recorded, counted in planets, by level
-        // ("Frenzied" and "Aggressive" are both High sentinels).
+        // Ships seen: only what's been recorded. The planet pickers fill when the facts are worked out (FindFactsAsync).
         var notes = SystemNotesService.All;
-        var details = PlanetDetailsService.All;
-        var words = _vocabulary?.Words ?? [];
-        static IEnumerable<ChoiceItem> Levels(IEnumerable<string> values) => values.Where(v => v.Length > 0)
+        Ship.Refill("Any", notes.SelectMany(n => n.Ships).Where(v => v.Length > 0)
             .GroupBy(v => v).OrderBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
-            .Select(g => new ChoiceItem($"{g.Key} ({g.Count():N0})", g.Key));
-        Ship.Refill("Any", Levels(notes.SelectMany(n => n.Ships)));
-        Sentinels.Refill("Any", Levels(details.Select(d => PlanetText.LevelOf(words, "Sentinels", d.Sentinels))));
-        Flora.Refill("Any", Levels(details.Select(d => PlanetText.LevelOf(words, "Life", d.Flora))));
-        Fauna.Refill("Any", Levels(details.Select(d => PlanetText.LevelOf(words, "Life", d.Fauna))));
-        Resource.Refill("Any", Levels(details.SelectMany(d => d.Resources)));
+            .Select(g => new ChoiceItem($"{g.Key} ({g.Count():N0})", g.Key)));
 
         _quiet = true;
         _waterSystems = WaterSystems();
@@ -329,7 +359,6 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         ShowBodies = moons > 0;
         if (moons == 0) BodiesIndex = 0;
         _quiet = false;
-        ShowPlanetNotesHint = !PlanetFilters.Any(f => f.IsShown) && moons == 0;
     }
 
     /// <summary>Systems known to have water: recorded as such (a Galaxy Map card, or the player's
@@ -354,7 +383,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         FollowGalaxy();
         BodiesIndex = 0;
         foreach (var filter in ChoiceFilters) filter.Reset();
-        RingsOnly = MineOnly = WaterOnly = DissonantOnly = InfestedOnly = false;
+        RingsOnly = MineOnly = WaterOnly = DissonantOnly = InfestedOnly = ParadiseOnly = false;
         _quiet = false;
         Apply();
     }
@@ -392,28 +421,32 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         int galaxy = int.TryParse(Galaxy.Value, out int g) ? g : -1;
         ulong? region = ulong.TryParse(Region.Value, out ulong rk) ? rk : null;
         string search = Search.Trim();
-        var words = _vocabulary?.Words ?? [];
         var all = _all;
         ulong? here = _here;
-        var infested = _infested;
+        var facts = _facts;
         var water = _waterSystems;
-        bool rings = RingsOnly, infestedOnly = InfestedOnly, mine = MineOnly, waterOnly = WaterOnly, dissonant = DissonantOnly;
+        bool rings = RingsOnly, infestedOnly = InfestedOnly, paradiseOnly = ParadiseOnly, mine = MineOnly, waterOnly = WaterOnly, dissonant = DissonantOnly;
         int bodies = BodiesIndex, sort = SortIndex;
         string star = Star.Value, economy = Economy.Value, wealth = Wealth.Value, conflict = Conflict.Value, race = Race.Value, ship = Ship.Value;
-        string sentinels = Sentinels.Value, flora = Flora.Value, fauna = Fauna.Value, resource = Resource.Value;
+        string weather = Weather.Value, sentinels = Sentinels.Value, flora = Flora.Value, fauna = Fauna.Value, resource = Resource.Value;
         bool systemFilter = star.Length > 0 || economy.Length > 0 || wealth.Length > 0 || conflict.Length > 0 || race.Length > 0 || waterOnly || dissonant;
-        bool planetFilter = sentinels.Length > 0 || flora.Length > 0 || fauna.Length > 0 || resource.Length > 0;
+        bool planetFilter = weather.Length > 0 || sentinels.Length > 0 || flora.Length > 0 || fauna.Length > 0 || resource.Length > 0;
 
         int more = new[] { GalaxyMoved, region is not null, bodies > 0, mine, waterOnly, dissonant }
             .Concat(ChoiceFilters.Select(f => f.IsSet)).Count(on => on);
         MoreFiltersLabel = more > 0 ? $"More filters ({more} on)" : "More filters";
-        ActiveFilters = more + new[] { search.Length > 0, type >= 0 || hauntedOnly, rings, infestedOnly }.Count(on => on);
+        ActiveFilters = more + new[] { search.Length > 0, type >= 0 || hauntedOnly, rings, infestedOnly, paradiseOnly }.Count(on => on);
 
-        var (shown, total, typeCounts, infestedCount, ringsCount) = await Task.Run(() =>
+        var (shown, total, typeCounts, infestedCount, ringsCount, paradiseCount) = await Task.Run(() =>
         {
+            PlanetFinderFacts? Facts(KnownPlanet p) => facts.TryGetValue((p.SystemAddress, p.PlanetIndex), out var f) ? f : null;
             bool TypeOk(KnownPlanet p) => (type < 0 || p.BiomeIndex == type) && (!hauntedOnly || NmsPlanets.IsHaunted(p.BiomeIndex));
-            bool IsInfested(KnownPlanet p) => infested.Contains((p.SystemAddress, p.PlanetIndex));
-            // Everything but planet type, rings and infested, whose counts each leave out their own filter.
+            bool IsInfested(KnownPlanet p) => Facts(p)?.Infested == true;
+            bool IsParadise(KnownPlanet p) => Facts(p)?.Paradise == true;
+            // The compact row's filters, each count leaving out its own: 0 type, 1 rings, 2 infested, 3 paradise.
+            bool Row(KnownPlanet p, int skip) => (skip == 0 || TypeOk(p)) && (skip == 1 || !rings || p.HasRings)
+                && (skip == 2 || !infestedOnly || IsInfested(p)) && (skip == 3 || !paradiseOnly || IsParadise(p));
+            // Everything but the compact row's filters.
             var others = all
                 .Where(p => galaxy < 0 || p.Galaxy == galaxy)
                 .Where(p => region is null || RegionMapService.RegionKey(p.SystemAddress) == region)
@@ -427,11 +460,12 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
                         && (!waterOnly || water.Contains(p.SystemAddress))
                         && (!dissonant || SystemNotesService.Get(p.SystemAddress)?.Dissonant == true)))
                 .Where(p => !planetFilter
-                    || PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex) is { } d
-                        && (sentinels.Length == 0 || PlanetText.LevelOf(words, "Sentinels", d.Sentinels) == sentinels)
-                        && (flora.Length == 0 || PlanetText.LevelOf(words, "Life", d.Flora) == flora)
-                        && (fauna.Length == 0 || PlanetText.LevelOf(words, "Life", d.Fauna) == fauna)
-                        && (resource.Length == 0 || d.Resources.Contains(resource, StringComparer.OrdinalIgnoreCase)))
+                    || Facts(p) is { } f
+                        && (weather.Length == 0 || f.Weather == weather)
+                        && (sentinels.Length == 0 || f.Sentinels == sentinels)
+                        && (flora.Length == 0 || f.Flora == flora)
+                        && (fauna.Length == 0 || f.Fauna == fauna)
+                        && (resource.Length == 0 || f.Resources.Contains(resource, StringComparer.OrdinalIgnoreCase)))
                 .Where(p => ship.Length == 0 || SystemNotesService.Get(p.SystemAddress)?.Ships.Contains(ship, StringComparer.OrdinalIgnoreCase) == true)
                 // A generated body is searched by its names and type only: its descriptor would mean working out every
                 // nearby system's weather and creatures for one search.
@@ -443,11 +477,11 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
                     _ => true,
                 })
                 .ToList();
-            var typeCounts = others.Where(p => (!rings || p.HasRings) && (!infestedOnly || IsInfested(p)))
-                .GroupBy(p => p.BiomeIndex).ToDictionary(g => g.Key, g => g.Count());
-            int infestedCount = others.Count(p => TypeOk(p) && (!rings || p.HasRings) && IsInfested(p));
-            int ringsCount = others.Count(p => TypeOk(p) && (!infestedOnly || IsInfested(p)) && p.HasRings);
-            var filtered = others.Where(p => TypeOk(p) && (!rings || p.HasRings) && (!infestedOnly || IsInfested(p)))
+            var typeCounts = others.Where(p => Row(p, 0)).GroupBy(p => p.BiomeIndex).ToDictionary(g => g.Key, g => g.Count());
+            int ringsCount = others.Count(p => Row(p, 1) && p.HasRings);
+            int infestedCount = others.Count(p => Row(p, 2) && IsInfested(p));
+            int paradiseCount = others.Count(p => Row(p, 3) && IsParadise(p));
+            var filtered = others.Where(p => Row(p, -1))
                 .Select(p => (Planet: p, Distance: here is ulong h ? NmsPlanets.DistanceLightYears(h, p.SystemAddress) : null));
 
             // Nearest first: same-galaxy planets by distance, other galaxies after.
@@ -460,7 +494,7 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
             }).ToList();
             // What the cards read that the generator works out (the descriptor needs the system's profile), done here.
             foreach (var (p, _) in ordered.Take(MaxCards)) PlanetTypesService.Descriptor(p.SystemAddress, p.PlanetIndex);
-            return (ordered.Take(MaxCards).ToList(), ordered.Count, typeCounts, infestedCount, ringsCount);
+            return (ordered.Take(MaxCards).ToList(), ordered.Count, typeCounts, infestedCount, ringsCount, paradiseCount);
         });
         if (version != _applyVersion) return;
         _quiet = true;
@@ -468,7 +502,9 @@ public sealed partial class PlanetFinderViewModel : ObservableObject
         _quiet = false;
         InfestedLabel = $"Infested ({infestedCount:N0} {(infestedCount == 1 ? "planet" : "planets")})";
         RingsLabel = $"Rings only ({ringsCount:N0})";
-        Results = shown.Select(x => new PlanetRowViewModel(x.Planet, here, x.Distance)).ToList();
+        ParadiseLabel = $"Paradise ({paradiseCount:N0})";
+        Results = shown.Select(x => new PlanetRowViewModel(x.Planet, here, x.Distance,
+            facts.TryGetValue((x.Planet.SystemAddress, x.Planet.PlanetIndex), out var f) ? f : null)).ToList();
         ResultCount = total == all.Count ? $"{total:N0} planets" : $"{total:N0} of {all.Count:N0} planets";
         ShownNote = total > shown.Count ? $"Showing the first {shown.Count:N0} of {total:N0}. Pick a planet type or other filters to narrow the list." : "";
     }

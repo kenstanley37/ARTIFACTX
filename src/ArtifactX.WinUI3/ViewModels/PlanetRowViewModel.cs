@@ -8,7 +8,8 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// <summary>One result in the Planet Finder - a KnownPlanet (NmsPlanets) shaped for display.</summary>
 public sealed class PlanetRowViewModel
 {
-    public PlanetRowViewModel(KnownPlanet planet, ulong? here, double? distance)
+    /// <param name="facts">The finder's facts for the planet: their summary shows when nothing about it is recorded.</param>
+    public PlanetRowViewModel(KnownPlanet planet, ulong? here, double? distance, PlanetFinderFacts? facts = null)
     {
         Planet = planet;
         var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
@@ -25,6 +26,7 @@ public sealed class PlanetRowViewModel
             PlanetText.DetailsSummary(details, PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex)),
             PlanetText.NoteSummary(SystemNotesService.Get(planet.SystemAddress)),
         }.Where(s => s.Length > 0));
+        if (NotesLabel.Length == 0 && facts is not null) NotesLabel = facts.Summary;
         DistanceLabel = PlanetText.Distance(planet, here, distance);
         DiscoveredLabel = planet.Predicted ? "Not in your saves: worked out the way the game does"
             : $"{(planet.DiscoveredHere ? "You" : planet.Discoverer)} · {PlanetText.Date(planet.DiscoveredUnixSeconds)}";

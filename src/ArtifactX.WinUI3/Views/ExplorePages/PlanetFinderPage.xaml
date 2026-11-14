@@ -62,6 +62,9 @@
                             <CheckBox Content="{x:Bind ViewModel.InfestedLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.InfestedOnly, Mode=TwoWay}"
                                       Visibility="{x:Bind ViewModel.ShowInfested, Mode=OneWay}" VerticalAlignment="Bottom"
                                       ToolTipService.ToolTip="Planets of the infested kind, where Whispering Eggs and the small ground worms are. Combine it with Planet type for, say, infested Lush planets."/>
+                            <CheckBox Content="{x:Bind ViewModel.ParadiseLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.ParadiseOnly, Mode=TwoWay}"
+                                      Visibility="{x:Bind ViewModel.ShowParadise, Mode=OneWay}" VerticalAlignment="Bottom"
+                                      ToolTipService.ToolTip="Good planets for a base: calm weather (no storms or extreme weather), low sentinels, and both plants and animals. Combine it with Planet type for, say, a calm Lush planet."/>
                             <ToggleButton Content="{x:Bind ViewModel.MoreFiltersLabel, Mode=OneWay}" IsChecked="{x:Bind ViewModel.ShowMoreFilters, Mode=TwoWay}"
                                           VerticalAlignment="Bottom"
                                           ToolTipService.ToolTip="Galaxy, region, sentinels, life, resources, star colour, economy and the other filters"/>
@@ -80,7 +83,7 @@
                                               ItemsSource="{x:Bind ViewModel.Region.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Region.Selected, Mode=TwoWay}"/>
                                     <ComboBox Header="Undiscovered planets" Width="260" SelectedIndex="{x:Bind ViewModel.NearbyIndex, Mode=TwoWay}"
                                               ToolTipService.ToolTip="Planets not in your saves, worked out the way the game does, so the list isn't limited to what your save still remembers">
-                                        <ComboBoxItem Content="Your region and the ones around it"/>
+                                        <ComboBoxItem Content="The 5,000 nearest systems"/>
                                         <ComboBoxItem Content="Your region only"/>
                                         <ComboBoxItem Content="None (your saves only)"/>
                                     </ComboBox>
@@ -98,6 +101,8 @@
                                         <ComboBoxItem Content="Planets only"/>
                                         <ComboBoxItem Content="Moons only"/>
                                     </ComboBox>
+                                    <ComboBox Header="{x:Bind ViewModel.Weather.Header}" Width="{x:Bind ViewModel.Weather.Width}" Visibility="{x:Bind ViewModel.Weather.IsShown, Mode=OneWay}"
+                                              ItemsSource="{x:Bind ViewModel.Weather.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Weather.Selected, Mode=TwoWay}"/>
                                     <ComboBox Header="{x:Bind ViewModel.Sentinels.Header}" Width="{x:Bind ViewModel.Sentinels.Width}" Visibility="{x:Bind ViewModel.Sentinels.IsShown, Mode=OneWay}"
                                               ItemsSource="{x:Bind ViewModel.Sentinels.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Sentinels.Selected, Mode=TwoWay}"/>
                                     <ComboBox Header="{x:Bind ViewModel.Flora.Header}" Width="{x:Bind ViewModel.Flora.Width}" Visibility="{x:Bind ViewModel.Flora.IsShown, Mode=OneWay}"
@@ -107,9 +112,6 @@
                                     <ComboBox Header="{x:Bind ViewModel.Resource.Header}" Width="{x:Bind ViewModel.Resource.Width}" Visibility="{x:Bind ViewModel.Resource.IsShown, Mode=OneWay}"
                                               ItemsSource="{x:Bind ViewModel.Resource.Choices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Resource.Selected, Mode=TwoWay}"/>
                                 </ctcontrols:WrapPanel>
-                                <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                           Visibility="{x:Bind ViewModel.ShowPlanetNotesHint, Mode=OneWay}"
-                                           Text="Record a planet's sentinels, life and resources on its page, or a system's moons on Current System, and filters for them appear here."/>
                             </StackPanel>
 
                             <StackPanel Spacing="10">
