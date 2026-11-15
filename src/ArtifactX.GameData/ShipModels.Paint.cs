@@ -47,12 +47,12 @@ public sealed partial class ShipModels
     /// materials (2026-11-13; ACC_EAR1 loads GRADIENT where its own pick is HALF).</param>
     public ModelTexture? Painted(string material, Func<string, string, float[]?> colour, int size = 512, ulong? textureSeed = null,
         ISet<string>? styles = null, float? layerGain = null, IReadOnlyDictionary<string, string?>? layerPicks = null,
-        IReadOnlyList<float[]>? baseColours = null)
+        IReadOnlyList<float[]>? baseColours = null, int textureLayer = 0)
     {
         if (Decode(material) is not TkMaterialData data) return null;
         if (baseColours is not null)
-            return Painted(material, colour, size, textureSeed, styles, layerGain, layerPicks) is { } plain
-                ? Colourise(data, plain, baseColours) ?? plain : null;
+            return Painted(material, colour, size, textureSeed, styles, layerGain, layerPicks, textureLayer: textureLayer) is { } plain
+                ? Colourise(data, plain, baseColours, textureLayer) ?? plain : null;
         var samplers = data.Samplers ?? new();
         TkProceduralTextureList? ListIn(string slot) =>
             samplers.FirstOrDefault(s => (s.Name?.Value ?? "") == slot)?.Map?.Value is { Length: > 0 } map
@@ -84,7 +84,8 @@ public sealed partial class ShipModels
         }
         // No layers: the plain diffuse image.
         var diffuse = samplers.FirstOrDefault(s => (s.Name?.Value ?? "") == "gDiffuseMap")?.Map?.Value;
-        return diffuse is { Length: > 0 } && Image(diffuse) is { } img ? Resample(img, size, (r, g, b, _) => (r, g, b)) : null;
+        return diffuse is { Length: > 0 } && (Image(diffuse, textureLayer) ?? Image(diffuse)) is { } img
+            ? Resample(img, size, (r, g, b, _) => (r, g, b)) : null;
     }
 
     /// <summary>The layers a seed paints on a material's main texture list - "LAYER=option (palette/slot)" - for
@@ -323,11 +324,11 @@ public sealed partial class ShipModels
     /// texture by that colour of the part's palette (GcBaseBuildingPalette Primary, Secondary, Ternary, Quaternary).
     /// The corvette trim mask has 255 (Primary), 192 (Secondary), 14 and 0 (left as is).
     /// </summary>
-    private ModelTexture? Colourise(TkMaterialData data, ModelTexture texture, IReadOnlyList<float[]> palette)
+    private ModelTexture? Colourise(TkMaterialData data, ModelTexture texture, IReadOnlyList<float[]> palette, int layer)
     {
         if (data.Flags?.Any(f => f.MaterialFlag == TkMaterialFlags.MaterialFlagEnum._F53_COLOURISABLE) != true
             || data.Samplers?.FirstOrDefault(s => s.Name?.Value == "gColouriseMaskMap")?.Map?.Value is not { Length: > 0 } map
-            || Image(map) is not { } mask || palette.Count < 4) return null;
+            || (Image(map, layer) ?? Image(map)) is not { } mask || palette.Count < 4) return null;
         var px = (uint[])texture.Pixels.Clone();
         for (int y = 0; y < texture.Height; y++)
             for (int x = 0; x < texture.Width; x++)
@@ -355,13 +356,17 @@ public sealed partial class ShipModels
         return new ModelTexture(size, size, px);
     }
 
-    /// <summary>A DDS from the game files as RGBA bytes (cached; Pfim decodes BC formats).</summary>
-    private (int W, int H, byte[] Rgba)? Image(string path) => _images.GetOrAdd(path.Replace('\\', '/').ToUpperInvariant(), p =>
+    /// <summary>A DDS from the game files as RGBA bytes (cached; Pfim decodes BC formats). <paramref name="layer"/>: one
+    /// layer of a texture array (null when the file has no such layer).</summary>
+    private (int W, int H, byte[] Rgba)? Image(string path, int layer = 0) =>
+        _images.GetOrAdd(path.Replace('\\', '/').ToUpperInvariant() + (layer > 0 ? "|" + layer : ""), key =>
     {
+        string p = layer > 0 ? key[..key.LastIndexOf('|')] : key;
         if (p.Length == 0 || !_index.TryFind(p, out var pak, out var entry, out var header)) return null;
         try
         {
             var bytes = _extraction.ExtractEntryBytes(pak, entry, header);
+            if (bytes is not null && layer > 0) bytes = ArrayLayer(bytes, layer);
             if (bytes is null) return null;
             if (Bc4(bytes) is { } single) return Reduced(single);
             using IImage img = Pfimage.FromStream(new MemoryStream(bytes));
@@ -381,6 +386,22 @@ public sealed partial class ShipModels
         }
         catch { return null; }
     });
+
+    /// <summary>One layer of a DX10 texture array as a DDS of its own (the header with array size 1, then that layer's
+    /// mips; layers are stored one after another, all the same size). Corvette textures are 4-layer arrays, one layer
+    /// per material (GcBaseBuildingMaterial.MaterialIndex: BIGGS_A..D). Null for anything else.</summary>
+    private static byte[]? ArrayLayer(byte[] dds, int layer)
+    {
+        if (dds.Length < 148 || BitConverter.ToUInt32(dds, 0) != 0x20534444 || BitConverter.ToUInt32(dds, 84) != 0x30315844) return null;
+        int count = BitConverter.ToInt32(dds, 140);
+        if (layer < 0 || layer >= count || (dds.Length - 148) % count != 0) return null;
+        int size = (dds.Length - 148) / count;
+        var single = new byte[148 + size];
+        Buffer.BlockCopy(dds, 0, single, 0, 148);
+        BitConverter.GetBytes(1).CopyTo(single, 140);
+        Buffer.BlockCopy(dds, 148 + layer * size, single, 148, size);
+        return single;
+    }
 
     private const int CachedImageSide = 1024;
 
