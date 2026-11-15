@@ -68,7 +68,7 @@ public static class CrashedShipService
         IReadOnlyList<SystemStarship>? Pool, ulong SystemAddress, ShipPoolSettings? ShipPool, InventoryGenerationTables? Inventory,
         PlanetTerrainData? Terrain, bool Prime, float BuildingRadius, float WaterBuildingRadius, bool Waterworld,
         IReadOnlyDictionary<ulong, (int SizeTypeIndex, string SizeType, bool Cool)>? ModelSizes,
-        IReadOnlyList<OverrideBuilding>? UnchartedWrecks)
+        IReadOnlyList<OverrideBuilding>? UnchartedWrecks, Func<string, IReadOnlyList<string>?>? Words = null)
     {
         public bool Uncharted => Attributes.Race == SystemRace.None;
 
@@ -214,7 +214,7 @@ public static class CrashedShipService
                     .ElementAtOrDefault(index - 1)?.Where(b => b.Placed && b.Class == WaterDistressSignal).ToArray();
             return new PlanetContext(planetAddress, radius, PlanetBuildingSites.Divisions(radius),
                 PlanetBuildingSites.VoronoiSeeds(seeds[index - 1]).SectorSeed, PlanetBuildingSites.Slots(placement, facts), c,
-                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius, waterRadius, body.Biome == 14, modelSizes, unchartedWrecks);   // 14 = Waterworld (GcBiomeType)
+                attributes, pool, layout?.Address ?? 0, solar?.ShipPool, inventory, terrain, body.Prime, buildingRadius, waterRadius, body.Biome == 14, modelSizes, unchartedWrecks, k => words.GetValueOrDefault(k));   // 14 = Waterworld (GcBiomeType)
         });
     }
 
@@ -226,7 +226,7 @@ public static class CrashedShipService
         // to be the same site-key roll as other wrecks.
         bool sentinel = site.Class == SentinelDistressSignal;
         var ship = context.Pool is null || context.ShipPool is null ? null
-            : sentinel ? context.Pool.FirstOrDefault(s => s.Type == SystemStarshipType.SentinelInterceptor)
+            : sentinel ? SentinelWreck(context, site.Key)
             : SystemShipPool.CrashedShip(site.Key, context.Pool, context.Attributes.Race, context.Attributes.Pirate,
                 context.SystemAddress, context.ShipPool);
         int? shipClass = SystemShipPool.CrashedShipClass(site.Key, context.Attributes.Wealth, context.Attributes.Pirate, context.Inventory);
@@ -242,6 +242,16 @@ public static class CrashedShipService
             lat, lon, angle * context.Radius / 1000, ship,
             shipClass, site.Class == WaterDistressSignal,
             site.Class == WaterDistressSignal ? Depth(context, site) : null, sentinel, invSummary);
+    }
+
+    /// <summary>A crashed Sentinel ship: the system's own Sentinel Interceptor (pool #36, assumed), named from the
+    /// site key with the Sentinel naming routine - the game titles them that way (Nionne Sigma 2026-10-29: Crimson-σ,
+    /// Flameborn-9-MH3 and Hope-1-D are exactly ShipNames.GenerateSentinel of their site keys).</summary>
+    private static SystemStarship? SentinelWreck(PlanetContext context, ulong siteKey)
+    {
+        var ship = context.Pool?.FirstOrDefault(s => s.Type == SystemStarshipType.SentinelInterceptor);
+        return ship is not null && context.Words is { } words && ShipNames.GenerateSentinel(siteKey, words) is { } name
+            ? ship with { DefaultName = name } : ship;
     }
 
     /// <summary>How deep the sea floor is at an underwater site: sea level minus Core's generated ground height. On the

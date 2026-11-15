@@ -122,18 +122,21 @@ public static class StarshipService
     };
 
     /// <summary>The name the game gives a starship nobody renamed ("Ashes of the
-    /// Suitaka") - ShipNames, words from the catalog (format 12). Null for living
-    /// ships and Sentinel ships (their own name routines, not read yet) and corvettes.</summary>
+    /// Suitaka") - ShipNames, words from the catalog (format 12). Living Ships ("Yulin KV4")
+    /// and Sentinel ships ("μ-Flameborn", catalog format 96) use their own routines. Null for
+    /// reward Living Ships (The Wraith, seed 0), the Vintage Interceptor and corvettes.</summary>
     public static async Task<string?> ShipNameAsync(ulong seed, string scenePath)
     {
         string path = (scenePath ?? "").ToUpperInvariant();
-        bool living = path.Contains("/BIOPARTS/BIOSHIP_PROC.");
-        if (seed == 0 || (path.Contains("/BIOPARTS/") && !living) || path.Contains("/SENTINELSHIP/") || path.Contains("/VINTAGEINTERCEPTOR.")
+        bool living = path.Contains("/BIOPARTS/BIOSHIP_PROC."), sentinel = path.Contains("/SENTINELSHIP/");
+        if (seed == 0 || (path.Contains("/BIOPARTS/") && !living) || path.Contains("/VINTAGEINTERCEPTOR.")
             || ShipBaseService.IsCorvetteModel(scenePath ?? ""))
             return null;
         var words = await CatalogService.GetProceduralNameWordsAsync();
         if (words.Count == 0) return null;
-        return living ? ShipNames.GenerateLiving(seed, list => words.GetValueOrDefault(list))
-            : ShipNames.Generate(seed, list => words.GetValueOrDefault(list));
+        IReadOnlyList<string>? List(string list) => words.GetValueOrDefault(list);
+        return living ? ShipNames.GenerateLiving(seed, List)
+            : sentinel ? ShipNames.GenerateSentinel(seed, List)
+            : ShipNames.Generate(seed, List);
     }
 }
