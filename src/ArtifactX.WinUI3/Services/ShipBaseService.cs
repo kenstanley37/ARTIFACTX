@@ -89,6 +89,20 @@ public static class ShipBaseService
         return result;
     }
 
+    /// <summary>The corvette put together from its build (CorvetteAssembly): its pieces and the size the game
+    /// measures, which damps its Maneuverability. Reads the staged save; null without a build or game files.</summary>
+    public static async System.Threading.Tasks.Task<ArtifactX.GameData.CorvetteBuild?> AssembleAsync(int shipIndex)
+    {
+        if (SaveSessionManager.GetValue(S.BasesPath) is not JArray bases || IndexFor(bases, shipIndex) is not int index
+            || FreighterBuildService.ReadParts(bases[index]["@ZJ"]) is not { Count: > 0 } saved
+            || GameDataService.Game is not { } game
+            || await ModelPreviewService.CorvettesAsync(game) is not { } assembly) return null;
+        static System.Numerics.Vector3 V(double[] v) => new((float)v[0], (float)v[1], (float)v[2]);
+        var parts = saved.Where(p => p.Position.Length == 3 && p.Up.Length == 3 && p.At.Length == 3)
+            .Select(p => new ArtifactX.GameData.CorvettePart(p.Id, V(p.Position), V(p.Up), V(p.At))).ToList();
+        return await System.Threading.Tasks.Task.Run(() => assembly.Assemble(parts));
+    }
+
     /// <summary>Removes the build linked to a ship slot (when the ship is deleted).</summary>
     public static void Remove(int shipIndex)
     {

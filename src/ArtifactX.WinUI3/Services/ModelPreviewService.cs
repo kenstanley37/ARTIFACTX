@@ -19,6 +19,16 @@ public static class ModelPreviewService
     public static Task<ShipModels?> ModelsAsync(GameInstall game) =>
         _models ??= Task.Run(() => { try { return new ShipModels(game); } catch { return (ShipModels?)null; } });
 
+    private static Task<CorvetteAssembly?>? _corvettes;
+
+    /// <summary>Puts corvette builds together from their parts (base building tables read once per session).</summary>
+    public static Task<CorvetteAssembly?> CorvettesAsync(GameInstall game) =>
+        _corvettes ??= Task.Run(async () =>
+        {
+            try { return await ModelsAsync(game) is { } models ? CorvetteAssembly.Create(models) : null; }
+            catch { return (CorvetteAssembly?)null; }
+        });
+
     /// <summary>Every option id reachable from a tree, through nested groups and
     /// the trees of the scenes its options use - which parts the model can have at all.</summary>
     public static HashSet<string> AllOptionIds(IReadOnlyList<PartGroup> root, Func<string, IReadOnlyList<PartGroup>?> loadTree,
