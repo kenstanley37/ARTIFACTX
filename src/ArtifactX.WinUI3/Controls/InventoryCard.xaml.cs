@@ -106,7 +106,7 @@ public sealed partial class InventoryCard : UserControl
         AutomationProperties.SetName(UnlockBtn, $"Unlock all {subject} slots");
         Scroll.Subject = subject;
         SuperchargeBtn.Visibility = RepairBtn.Visibility = ArrangeBtn.Visibility = tech ? Visibility.Visible : Visibility.Collapsed;
-        MaxAllBtn.Visibility = MergeBtn.Visibility = SortBtn.Visibility = tech ? Visibility.Collapsed : Visibility.Visible;
+        MaxAllBtn.Visibility = RemoveDuplicatesBtn.Visibility = SortBtn.Visibility = tech ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void Unlock_Click(object sender, RoutedEventArgs e) => Apply(vm => vm.UnlockAll());
@@ -114,11 +114,11 @@ public sealed partial class InventoryCard : UserControl
     private void Repair_Click(object sender, RoutedEventArgs e) => Apply(vm => vm.RepairAll());
     private void MaxAll_Click(object sender, RoutedEventArgs e) => Apply(vm => vm.MaxAllQuantities(Slots is { } grid ? grid.FullStackOf : null));
 
-    private void Merge_Click(object sender, RoutedEventArgs e)
+    private void RemoveDuplicates_Click(object sender, RoutedEventArgs e)
     {
         if (Kind != InventoryKind.Cargo || Slots is null || Slots.IsReadOnly || Slots.ViewModel is not { } vm) return;
-        bool changed = vm.TryMergeDuplicates(out _);
-        MergeResultTxt.Text = changed ? "Merged compatible stacks." : "No stacks to merge.";
+        bool changed = vm.TryRemoveDuplicates(out int stacks, out long items);
+        RemoveResultTxt.Text = ViewModels.InventoryGridViewModel.RemoveDuplicatesResult(changed, stacks, items);
         if (!changed) return;
         Slots.Refresh();
         Edited?.Invoke(this, EventArgs.Empty);
