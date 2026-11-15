@@ -176,14 +176,6 @@
                                                               SelectionChanged="CrewRaceComboBox_SelectionChanged"/>
                                                 </StackPanel>
                                                 <StackPanel Spacing="6">
-                                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                                        <TextBlock Text="CREW SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                        <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
-                                                                  ToolTipService.ToolTip="Drives the captain's look, alongside their Race. Paste a seed you've found elsewhere, or Generate a new one."/>
-                                                    </StackPanel>
-                                                    <controls:SeedBox x:Name="CrewSeedBox" Label="Crew seed" Changed="Seed_Changed"/>
-                                                </StackPanel>
-                                                <StackPanel Spacing="6">
                                                     <TextBlock Text="ENGINE FLARE" Style="{StaticResource ThemeEyebrowStyle}"/>
                                                     <ComboBox x:Name="EngineFlareBox" AutomationProperties.Name="Engine flare" HorizontalAlignment="Stretch"
                                                               DisplayMemberPath="Name" SelectionChanged="EngineFlareBox_SelectionChanged"
@@ -191,6 +183,15 @@
                                                 </StackPanel>
                                             </StackPanel>
                                         </ctcontrols:WrapPanel>
+                                        <!-- Crew seed on its own row at full width, so the whole seed shows (owner, 2026-11-15). -->
+                                        <StackPanel Width="420" Spacing="6" HorizontalAlignment="Left">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="CREW SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
+                                                          ToolTipService.ToolTip="Drives the captain's look, alongside their Race. Paste a seed you've found elsewhere, or Generate a new one."/>
+                                            </StackPanel>
+                                            <controls:SeedBox x:Name="CrewSeedBox" Label="Crew seed" Changed="Seed_Changed"/>
+                                        </StackPanel>
                                         <!-- Base stats under who it is (user, 2026-10-22 - they were first). -->
                                         <StackPanel Spacing="6">
                                             <TextBlock Text="BASE STATS" Style="{StaticResource ThemeEyebrowStyle}"
