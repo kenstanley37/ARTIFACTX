@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Companions: the Advanced Fields now use the game's own names (Predator, Has fur, Has been summoned, Home address...) instead of "Unknown Bool (Q6I)".
 - Companions: personality traits are named as the game shows them ("Gentleness 82") instead of "Trait 1/2/3".
 - Companions: the Battle Abilities grades show under the battle seeds and change as soon as you press Generate, so you can roll until you get the grades you want. "Find S / S / S" rolls one for you in an instant. The old Battle Ability Override is gone: it only changed the companion's screen, and the Holo-Arena used the seed grades anyway. Companions that still have it on can switch back with "Use the seed grades". Body parts moved under the 3D preview, with plain slot names ("Head: Ears", "Head extra 1") instead of the game's codes. Changing a part now also swaps in that part's own extras (a new head brings its own head extras, a winged body its wings) instead of keeping the old part's.
 - Egg Sequencer: eggs with no name of their own now show the name the game shows ("Beary-Beary", "Iihila") instead of "Companion egg 13".
