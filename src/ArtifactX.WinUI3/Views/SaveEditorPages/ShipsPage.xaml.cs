@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.UI;
+using ArtifactX.WinUI3.Helpers.Text;
 
 namespace ArtifactX.WinUI3.Views.SaveEditorPages;
 
@@ -262,7 +263,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         var after = _ships.FirstOrDefault(s => s.Index == _selectedIndex);
         // Only fill the box if the player hasn't typed into it meanwhile.
         if (after is { IsUnnamed: true } && before is { IsUnnamed: true } && string.IsNullOrEmpty(typed)) ShowName(after);
-        if (after is not null) TechCard.Title = $"TECHNOLOGY  —  {after.Name.ToUpperInvariant()}";
+        if (after is not null) TechCard.Title = $"TECHNOLOGY  —  {HeadingText.Upper(after.Name)}";
     }
 
     /// <summary>The name box: the player's name, or the one the game made up for an
@@ -400,7 +401,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         TechGrid.Refresh();
         CargoGrid.Refresh();
 
-        TechCard.Title = $"TECHNOLOGY  —  {(_ships.FirstOrDefault(s => s.Index == selectedShip.Index) ?? selectedShip).Name.ToUpperInvariant()}";
+        TechCard.Title = $"TECHNOLOGY  —  {HeadingText.Upper((_ships.FirstOrDefault(s => s.Index == selectedShip.Index) ?? selectedShip).Name)}";
 
         // The tech this kind of ship can fit, to click in - the same list
         // limits the right-click search.
@@ -580,7 +581,7 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         PageResetBtn.Visibility = Visibility.Visible;
         if (!typing) { LoadShipList(); return; }
         LoadShipList(live: true);
-        TechCard.Title = $"TECHNOLOGY  —  {newName.ToUpperInvariant()}";
+        TechCard.Title = $"TECHNOLOGY  —  {HeadingText.Upper(newName)}";
     }
 
     private void ShowClass()

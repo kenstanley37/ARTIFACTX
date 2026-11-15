@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Markup;
+using ArtifactX.WinUI3.Helpers.Text;
 
 namespace ArtifactX.WinUI3.Controls;
 
@@ -124,6 +125,6 @@ public sealed partial class FoldingCard : UserControl
         SummaryTxt.Text = Summary;
         ToolTipService.SetToolTip(SummaryTxt, Summary);
         HeaderContentPresenter.Content = HeaderContent;
-        HeaderTxt.Text = folded && FoldedName.Length > 0 ? $"{Title} - {FoldedName.ToUpperInvariant()}" : Title;
+        HeaderTxt.Text = folded && FoldedName.Length > 0 ? $"{Title} - {HeadingText.Upper(FoldedName)}" : Title;
     }
 }
