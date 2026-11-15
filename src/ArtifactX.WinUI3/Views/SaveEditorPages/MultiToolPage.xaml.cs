@@ -816,7 +816,10 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
             return;
         }
         ToolPreviewGroup.Visibility = Visibility.Visible;
-        ToolPreviewNote.Text = "Building the model from your game files...";
+        // Cleared first, as on Starships: the previous tool stayed on screen for a few seconds while
+        // the next one built (owner, 2026-11-14).
+        ToolPreviewView.ShowMessage("Building this tool's model from your game files...");
+        ToolPreviewNote.Text = "";
 
         var preview = await MultiToolService.BuildOwnedPreviewAsync(_selectedIndex, () => version != _previewVersion);
         if (preview is null || version != _previewVersion) return;
