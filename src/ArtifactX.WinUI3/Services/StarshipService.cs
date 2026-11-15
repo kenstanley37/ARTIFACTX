@@ -121,6 +121,18 @@ public static class StarshipService
         _ => new[] { "UP_HYP", "UP_LAUN", "UP_PULSE", "UP_SGUN", "UP_SLASR", "UP_SMINI", "UP_SSHOT", "UP_S_SHL", "UP_SBLOB" },
     };
 
+    /// <summary>A ship's name as the game shows it: the player's name (NKm), else the
+    /// game's generated name (ShipNameAsync), else "Starship N".</summary>
+    public static async Task<string> DisplayNameAsync(int shipIndex)
+    {
+        string[] ship = NmsInventoryContainer.ShipArrayPath.Append(shipIndex.ToString()).ToArray();
+        string name = SaveSessionManager.GetString(ship.Append("NKm").ToArray()) ?? "";
+        if (name.Length > 0) return name;
+        string scene = SaveSessionManager.GetValue(ship.Append("NTx").Append("93M").ToArray())?.Value<string>() ?? "";
+        return ShipBuilderService.TryParseSeed(shipIndex) is ulong seed && await ShipNameAsync(seed, scene) is { } gameName
+            ? gameName : $"Starship {shipIndex + 1}";
+    }
+
     /// <summary>The name the game gives a starship nobody renamed ("Ashes of the
     /// Suitaka") - ShipNames, words from the catalog (format 12). Living Ships ("Yulin KV4")
     /// and Sentinel ships ("μ-Flameborn", catalog format 96) use their own routines. Null for

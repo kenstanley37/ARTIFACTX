@@ -93,11 +93,19 @@ public sealed partial class EggSequencerViewModel : ObservableObject
             + $"Raw materials count {rules.SubstanceModifier:0.#} times their value. A slot holds up to {rules.ItemLimit:N0}.";
         Slots.Clear();
         foreach (var slot in Enum.GetValues<EggCatalystSlot>()) Slots.Add(new EggSlotViewModel(slot, rules, fullDose, Text));
-        // The egg's own name, as the game shows it ("Mecha-Mouse Egg"); a number only tells same-named eggs apart.
-        var saved = CompanionService.ReadEggs(await CreatureNameService.LoadAsync());
+        // The egg's name as the game shows it ("Mecha-Mouse", "Beary-Beary") and the inventory
+        // holding it; a number only tells same-named eggs apart.
+        var saved = CompanionService.ReadEggs(await CreatureNameService.LoadAsync()).ToList();
+        var places = await CompanionService.EggPlacesAsync();
+        string Label(int i)
+        {
+            var (slot, egg) = saved[i];
+            string name = saved.Count(o => o.Egg.Name == egg.Name) > 1
+                ? $"{egg.Name} {saved.Take(i + 1).Count(o => o.Egg.Name == egg.Name)}" : egg.Name;
+            return places.TryGetValue(slot, out var place) ? $"{name} (in {place})" : name;
+        }
         Eggs = (EggChoice[])[new EggChoice("Any egg (no exact numbers)", null),
-            .. saved.Select((e, i) => new EggChoice(saved.Count(o => o.Name == e.Name) > 1
-                ? $"{e.Name} ({saved.Take(i + 1).Count(o => o.Name == e.Name)})" : e.Name, e))];
+            .. saved.Select((e, i) => new EggChoice(Label(i), e.Egg))];
         SelectedEgg = Eggs.Count > 1 ? Eggs[1] : Eggs[0];
         IsReady = true;
         Select(Slots[^1]);

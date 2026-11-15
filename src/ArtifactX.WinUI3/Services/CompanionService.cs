@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
@@ -57,9 +58,9 @@ public static class CompanionService
     /// game: egg 12 (CAT, tDR = companion 2's XwC 1790793453) "Beary-Beary's Genetic
     /// Material", egg 13 (TREX, tDR = companion 11's XwC 1790952999) "Orangipti's",
     /// and egg 8 (LAND_JELLYFISH, tDR 0) "Iihila's".</summary>
-    public static List<EggCreature> ReadEggs(CreatureNameService? names = null)
+    public static List<(int Slot, EggCreature Egg)> ReadEggs(CreatureNameService? names = null)
     {
-        var eggs = new List<EggCreature>();
+        var eggs = new List<(int Slot, EggCreature Egg)>();
         if (SaveSessionManager.GetValue(NmsCompanionPaths.EggArrayPath) is not JArray array) return eggs;
         for (int i = 0; i < array.Count; i++)
         {
@@ -68,10 +69,44 @@ public static class CompanionService
             string name = array[i]?["fH8"]?.Value<string>() ?? "";
             if (string.IsNullOrWhiteSpace(name))
                 name = names?.CompanionName(xid, NmsSpaceStationPaths.ParsePackedAddress(array[i]?["tDR"]) ?? 0) ?? "";
-            eggs.Add(new EggCreature(string.IsNullOrWhiteSpace(name) ? $"Companion egg {eggs.Count + 1}" : name, xid,
-                array[i]?["unY"]?.Value<float>() ?? 1f, traits.Take(3).Select(t => t.Value<float>()).ToArray()));
+            eggs.Add((i, new EggCreature(string.IsNullOrWhiteSpace(name) ? $"Companion egg {eggs.Count + 1}" : name, xid,
+                array[i]?["unY"]?.Value<float>() ?? 1f, traits.Take(3).Select(t => t.Value<float>()).ToArray())));
         }
         return eggs;
+    }
+
+    /// <summary>Where the player carries each egg: egg slot to the inventory holding
+    /// its item ("Exosuit", a starship's name, "Freighter", an exocraft, a storage
+    /// container). The item ^EGGn is egg slot n-1 (NmsCompanionPaths.EggArrayPath).
+    /// An egg slot with no item in these inventories is left out.</summary>
+    public static async Task<Dictionary<int, string>> EggPlacesAsync()
+    {
+        var places = new Dictionary<int, string>();
+        void Scan(JToken? container, string place)
+        {
+            if (container?[":No"] is not JArray items) return;
+            foreach (var item in items)
+            {
+                string id = (item?["b2n"]?.Value<string>() ?? "").TrimStart('^');
+                if (id.StartsWith("EGG", StringComparison.OrdinalIgnoreCase)
+                    && int.TryParse(id.AsSpan(3), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int n)
+                    && n >= 1) places.TryAdd(n - 1, place);
+            }
+        }
+
+        Scan(SaveSessionManager.GetValue(NmsInventoryContainer.ExosuitCargoPath), "Exosuit");
+        if (SaveSessionManager.GetValue(NmsInventoryContainer.ShipArrayPath) is JArray ships)
+            for (int i = 0; i < ships.Count; i++)
+                if (ships[i]?[";l5"]?[":No"] is JArray { Count: > 0 } cargo
+                    && cargo.Any(c => (c?["b2n"]?.Value<string>() ?? "").StartsWith("^EGG", StringComparison.OrdinalIgnoreCase)))
+                    Scan(ships[i]?[";l5"], await StarshipService.DisplayNameAsync(i));
+        Scan(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCargoPath), "Freighter");
+        if (SaveSessionManager.GetValue(NmsInventoryContainer.ExocraftArrayPath) is JArray vehicles)
+            for (int i = 0; i < vehicles.Count; i++)
+                Scan(vehicles[i]?[";l5"], Enum.IsDefined((ExocraftType)i) ? ExocraftCapacity.DisplayName((ExocraftType)i) : "Exocraft");
+        foreach (var container in BaseStorageService.DiscoverContainers())
+            Scan(SaveSessionManager.GetValue(NmsInventoryContainer.BaseStorageContainerPath(container.Key)), container.Name);
+        return places;
     }
 
     /// <summary>"^PLANTCAT" -> "Plantcat" - just enough formatting to be readable; not
