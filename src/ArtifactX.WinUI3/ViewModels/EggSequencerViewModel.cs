@@ -52,6 +52,8 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     [ObservableProperty] public partial string DoseNote { get; private set; } = "";
     [ObservableProperty] public partial bool IsReady { get; private set; }
     [ObservableProperty] public partial bool OnlyOwned { get; set; }
+    /// <summary>Only items that give the slot's full effect (100%); with OnlyOwned, ones you carry enough of.</summary>
+    [ObservableProperty] public partial bool OnlyFullDose { get; set; }
     [ObservableProperty] public partial bool HasSave { get; private set; }
     [ObservableProperty] public partial IReadOnlyList<EggChoice> Eggs { get; private set; } = [];
     [ObservableProperty] public partial EggChoice? SelectedEgg { get; set; }
@@ -214,6 +216,7 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     }
     partial void OnSearchTextChanged(string value) => Apply();
     partial void OnOnlyOwnedChanged(bool value) => Apply();
+    partial void OnOnlyFullDoseChanged(bool value) => Apply();
 
     private IReadOnlyList<EggFilterOption> Options(EggCatalystSlot slot)
     {
@@ -237,6 +240,8 @@ public sealed partial class EggSequencerViewModel : ObservableObject
             .Where(r => Filter?.Matches(r) ?? true)
             .Where(r => text.Length == 0 || r.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
             .Where(r => !OnlyOwned || r.HasOwned)
+            // A full dose (100%): with your own items, enough of them; otherwise one a slot can hold enough of.
+            .Where(r => !OnlyFullDose || (r.ReachesFull && (!OnlyOwned || r.OwnsEnough)))
             .OrderByDescending(r => OnlyOwned && r.OwnsEnough)
             .ThenBy(r => r.Needed)
             .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)
