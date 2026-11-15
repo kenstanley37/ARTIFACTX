@@ -11,9 +11,11 @@ namespace ArtifactX.WinUI3.Services;
 /// The Damage Potential and Scanner Range the game shows for an owned multi-tool (#17): its saved technology,
 /// module rolls, supercharged slots, adjacency and stat bonuses through the evaluators that reproduce the
 /// station cabinet tools' displayed values (MultiToolDamageGeneration.StandardPotential, standard OVERHEAT
-/// animation; MultiToolScannerGeneration.Range). Reads the tool with staged edits. Mining has no displayed total
-/// here (not researched). Null when the catalog lacks the tables, a technology can't be read, or a technology is
-/// damaged (the damage evaluator supports intact inventories only). Not yet checked in game on owned tools.
+/// animation; MultiToolScannerGeneration.Range). Reads the tool with staged edits. No Mining total: the game's
+/// multi-tool screen shows only Damage Potential and Scanner Range (owner's screenshot, 2026-11-15). Null when the
+/// catalog lacks the tables, a technology can't be read, or a technology is damaged (the damage evaluator supports
+/// intact inventories only). Confirmed in game on an owned tool 2026-11-15: Slot 8's tool 1 (Kiss of Hovaldoma-VIII)
+/// evaluates to 17334.9 / 4769.3, the game's Damage Potential and Scanner Range exactly.
 /// </summary>
 internal static class OwnedMultiToolDisplayStatsService
 {
