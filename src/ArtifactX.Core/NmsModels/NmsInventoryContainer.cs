@@ -85,8 +85,19 @@ public class NmsInventoryContainer
     /// up to 43) - confirming Class only gates the roll RANGE at generation
     /// time, not a value read live off the Class letter. This is exactly why
     /// ShipsPage's Class buttons (SetClass) alone don't make a ship
-    /// perform any better - they never touched this array.</summary>
+    /// perform any better - they never touched this array.
+    /// Like the class letter, the array is stored on BOTH inventories and the
+    /// game reads the Cargo one (;l5.@bB): confirmed 2026-11-14 on Slot 8
+    /// MainShip, whose Technology copy had been edited to 100/100/100/60 while
+    /// Cargo kept 85.9/38.0/0/40.3; the game's analysis visor showed
+    /// 442.2/339.9/1,932.2/3,911.2, exactly the totals computed from the Cargo
+    /// copy. Edits mirror into <see cref="ShipTechnologyStatBonusesPath"/>.</summary>
     public static string[] ShipStatBonusesPath(int shipIndex) =>
+        ShipCargoPath(shipIndex).Append("@bB").ToArray();
+
+    /// <summary>The Technology inventory's copy of the stats, which the game ignores
+    /// (see <see cref="ShipStatBonusesPath"/>); kept equal so both copies agree, as every untouched ship's do.</summary>
+    public static string[] ShipTechnologyStatBonusesPath(int shipIndex) =>
         ShipTechnologyPath(shipIndex).Append("@bB").ToArray();
 
     /// <summary>A ship's model seed - the hex value that (together with its

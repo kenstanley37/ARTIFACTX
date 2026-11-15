@@ -23,6 +23,27 @@ internal static class StarshipDisplayEvaluationChecks
             throw new InvalidOperationException("Normal ship model guards accepted unresolved or special-category equipment");
     }
 
+    /// <summary>Owned-ship model scenes (NTx.93M, as saved on Slot 8) map to native ship classes.</summary>
+    public static void CheckOwnedShipClasses()
+    {
+        (string Scene, int? Class)[] cases =
+        [
+            ("MODELS/COMMON/SPACECRAFT/DROPSHIPS/DROPSHIP_PROC.SCENE.MBIN", 1),
+            ("MODELS/COMMON/SPACECRAFT/FIGHTERS/FIGHTER_PROC.SCENE.MBIN", 2),
+            ("MODELS/COMMON/SPACECRAFT/SCIENTIFIC/SCIENTIFIC_PROC.SCENE.MBIN", 3),
+            ("MODELS/COMMON/SPACECRAFT/SHUTTLE/SHUTTLE_PROC.SCENE.MBIN", 4),
+            ("MODELS/COMMON/SPACECRAFT/S-CLASS/S-CLASS_PROC.SCENE.MBIN", 6),
+            ("MODELS/COMMON/SPACECRAFT/S-CLASS/BIOPARTS/BIOSHIP_PROC.SCENE.MBIN", 7),
+            ("MODELS/COMMON/SPACECRAFT/SAILSHIP/SAILSHIP_PROC.SCENE.MBIN", 8),
+            ("MODELS/COMMON/SPACECRAFT/SENTINELSHIP/SENTINELSHIP_PROC.SCENE.MBIN", 9),
+            ("MODELS/COMMON/SPACECRAFT/BIGGS/BIGGS.SCENE.MBIN", null),
+            ("", null),
+        ];
+        foreach (var (scene, expected) in cases)
+            if (NmsStarshipComparisonPaths.NativeShipClass(scene) != expected)
+                throw new InvalidOperationException($"Owned ship class for {scene}: expected {expected?.ToString() ?? "none"}");
+    }
+
     // Local fixture contains extracted game tables and read-only player inventory;
     // never commit it. Expected values are native floats unless the fixture explicitly
     // requests comparison at the game screenshots' one-decimal display precision.

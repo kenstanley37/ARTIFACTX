@@ -18,8 +18,8 @@ namespace ArtifactX.Core.Procedural;
 ///   4. a made-up name (the planet name builder, letter set 5, 5 to 8 letters);
 ///   5. the pattern: one of the first 15 (the 16th is never picked).
 ///
-/// Living ships and Sentinel ships have their own routines (NAMEGEN_WEIRDSHIP_*,
-/// NAMEGEN_ROBOTSHIP_*) and aren't covered here.
+/// Living ships: <see cref="GenerateLiving"/>. Sentinel ships have their own routine
+/// (NAMEGEN_ROBOTSHIP_*, "μ-Flameborn") that isn't covered yet (#25).
 /// </summary>
 public static class ShipNames
 {
@@ -49,6 +49,29 @@ public static class ShipNames
         return format.Replace("%NOUN%", noun).Replace("%VERB%", verb).Replace("%POSSESSION%", possession)
             .Replace("%PROPERTY%", property).Replace("%ADJECTIVE%", adjective).Replace("%NUMERAL%", numeral)
             .Replace("%SHIPCODE%", code).Replace("%PROCNAME%", procName).Trim();
+    }
+
+    /// <summary>
+    /// The name the game gives an unnamed Living Ship (NAMEGEN_WEIRDSHIP_*): "Yulin KV4". Fitted on
+    /// 2026-11-14 to Slot 8's Living Ship, seed 0x2966405E8B675213, named "Yulin KV4" in game: on the
+    /// same Mix64-seeded stream as <see cref="Generate"/>, draws 1-2 are the code's letters in printed
+    /// order and draw 3 its digit (1-9), then the made-up name (letter set 3, as multi-tool names; 5 to
+    /// 8 letters assumed, any maximum fits this sample), then the prefix ("The Lonely"...) and the
+    /// pattern. Code and name fit exactly; the prefix-before-pattern order is the one that picks this
+    /// ship's pattern (the reverse picks the prefix pattern) - one sample, provisional.
+    /// </summary>
+    public static string? GenerateLiving(ulong seed, Func<string, IReadOnlyList<string>?> words)
+    {
+        if (words("WEIRDSHIP_FORMAT") is not { Count: > 0 } formats
+            || words("WEIRDSHIP_PREFIX") is not { Count: > 0 } prefixes) return null;
+        var rng = new UniverseRandom(StartState(Mix64(seed)));
+        char first = (char)('A' + rng.Next(26)), second = (char)('A' + rng.Next(26));
+        uint digit = rng.Next(9) + 1;
+        string procName = NameGenerator.Capitalize(NameGenerator.Generate(rng, 3, 5, 8));
+        string prefix = Pick(rng, prefixes);
+        string format = Pick(rng, formats);
+        return format.Replace("%PREFIX%", prefix).Replace("%PROCNAME%", procName)
+            .Replace("%SHIPCODE%", $"{first}{second}{digit}").Trim();
     }
 
     private static string Pick(UniverseRandom rng, IReadOnlyList<string> list) => list[(int)rng.Next((uint)list.Count)];

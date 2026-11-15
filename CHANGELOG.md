@@ -5,10 +5,13 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Starships: each base stat now shows the number the game shows under it ("In game 222.8"), which adds your installed technology, supercharged slots and adjacency. It updates as you edit tech or stats, before you save. Not shown for Corvettes yet.
 - Current System: the system map is now an orrery, like the freighter's system scanner. The star sits in the middle in its own colour, planets circle it on rings in planet order, moons circle their planet, and the space station sits beside its planet. You're marked on your planet, or beside whatever you're nearest in space. It opens looking straight down: drag to turn and tilt it, scroll to zoom, and press "Top-down" (or Home) to look straight down again. Labels no longer pile on top of each other. The rings turn slowly unless Windows' animation effects are off. Systems your save hasn't placed yet (just after you warp in) get the same map, without the station and you; the old flat drawing is gone.
 - Current System: before you've captured a system, its economy, wealth and conflict now read in the game's own words ("Prospecting // Struggling", "Testy") instead of just the level ("Mining // Low ★"). The app works out the same word the game picks for each system.
 
 ### Fixed
+- Starships: unnamed Living Ships now show the name the game gives them (like "Yulin KV4") instead of "Starship 8", and their Type reads "Living Ship" instead of "(Current - not in known list)".
+- Starships: editing a ship's base stats (Damage, Shield, Hyperdrive, Maneuverability) now changes the ship in game. The game reads a second copy of the stats that the app never changed, so earlier edits had no effect; the boxes now show the values the game uses.
 - Screen capture no longer saves another system's economy, wealth, conflict, race or star colour onto the system you're in. A reading that can't belong to that system is skipped. Values an older version saved this way are cleared when the app starts, so the system shows its own again (your typed notes are kept).
 - Exotic planets (Fissured, Ossified, Finned, Rattling...) get the right type word. The app used to give them another exotic kind's words.
 - A lush planet with corrupted sentinels no longer has its weather called "Anomalous". The app now names weather the way the game's own words do (humid, in that case).

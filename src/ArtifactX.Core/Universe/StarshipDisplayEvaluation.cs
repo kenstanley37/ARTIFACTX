@@ -33,13 +33,36 @@ public static class StarshipDisplayEvaluation
                 shipClass == 9 ? 0f : rules.BrokenTechnologyChance) is not { } damage) return null;
         var inventory = new GeneratedMultiToolInventory(layout, technology, special);
         var damaged = technology.Where((_, i) => damage[i]).Select(t => t.Position).ToHashSet();
+        return Compose(inventory, intrinsicBonuses, damaged, shipClass, rating, rules, context);
+    }
+
+    /// <summary>
+    /// An owned ship's displayed stats (#17): the same final stage as a wreck on Compare, run on the
+    /// ship's saved technology, supercharged cells, damage and cargo intrinsic bonuses
+    /// (<see cref="ArtifactX.Core.NmsModels.NmsStarshipComparisonPaths.Read"/>), with the ship as its own
+    /// active context (photon range, beam damage and the resource-seeded rolls come from the ship itself).
+    /// When the ship is the active one this is exactly the left-hand side of the Compare screen that matched
+    /// the owner's wreck screenshots on 2026-10-31. Not yet checked: a non-active ship against its own in-game
+    /// stats screen (the resource seed is assumed to be the ship's own NTx seed).
+    /// </summary>
+    public static StarshipDisplayedStats? EvaluateOwned(StarshipComparisonContext ship, int shipClass, int rating,
+        StarshipEvaluationTables rules) =>
+        rules.Weapons.Length == 7 && rules.UseMultiplierBonus
+            ? Compose(ship.ActiveTechnology, ship.ActiveIntrinsicBonuses, ship.ActiveDamagedPositions, shipClass, rating, rules, ship)
+            : null;
+
+    private static StarshipDisplayedStats? Compose(GeneratedMultiToolInventory inventory,
+        IReadOnlyList<KeyValuePair<string, float>> intrinsicBonuses, IReadOnlySet<GeneratedInventoryPosition> damaged,
+        int shipClass, int rating, StarshipEvaluationTables rules, StarshipComparisonContext context)
+    {
         var ids = rules.Stats;
+        var unlinked = new HashSet<int> { ids.Shots };
         float? Stat(GeneratedMultiToolInventory inv, IReadOnlyList<KeyValuePair<string, float>> bonuses,
             IReadOnlySet<GeneratedInventoryPosition> broken, int id, MultiToolStatCombination combination,
             int filter = 0, bool includeDamaged = true)
         {
             var value = MultiToolStatGeneration.Evaluate(inv, rules.Technology, id, combination, filter,
-                damagedTechnologyPositions: broken, includeDamagedTechnology: includeDamaged);
+                damagedTechnologyPositions: broken, includeDamagedTechnology: includeDamaged, unlinkedStats: unlinked);
             return value is { } v ? StarshipIntrinsicStatGeneration.Apply(v, id, bonuses,
                 rules.IntrinsicTargets, rules.UseMultiplierBonus) : null;
         }
@@ -69,7 +92,7 @@ public static class StarshipDisplayEvaluation
         // Compare applies the intrinsic shield percentage in its final expression,
         // unlike jump and flight stats; applying it here would count it twice.
         float? shield = MultiToolStatGeneration.Evaluate(inventory, rules.Technology, ids.Shield,
-            MultiToolStatCombination.Add, damagedTechnologyPositions: damaged);
+            MultiToolStatCombination.Add, damagedTechnologyPositions: damaged, unlinkedStats: unlinked);
         float? jump = Wreck(ids.JumpDistance, MultiToolStatCombination.Add);
         float? pulse = Wreck(ids.PulseSpeed, MultiToolStatCombination.Multiply);
         float? boost = Wreck(ids.BoostManeuverability, MultiToolStatCombination.Multiply);

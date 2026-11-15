@@ -11,6 +11,7 @@ namespace ArtifactX.WinUI3.Controls;
 public sealed partial class StatBonusBoxes : UserControl
 {
     private string[]? _bonusesPath;
+    private string[]? _mirrorPath;
 
     public StatBonusBoxes() => InitializeComponent();
 
@@ -24,10 +25,12 @@ public sealed partial class StatBonusBoxes : UserControl
     /// <summary>A stat was changed and staged.</summary>
     public event EventHandler? Edited;
 
-    /// <summary>Shows the stats of the bonus array at bonusesPath, labelled.</summary>
-    public void Show(string[] bonusesPath, IReadOnlyList<(string Label, string Key)> stats)
+    /// <summary>Shows the stats of the bonus array at bonusesPath, labelled. Edits also
+    /// write the whole array to mirrorPath when given (a starship's second copy).</summary>
+    public void Show(string[] bonusesPath, IReadOnlyList<(string Label, string Key)> stats, string[]? mirrorPath = null)
     {
         _bonusesPath = bonusesPath;
+        _mirrorPath = mirrorPath;
         if (Stats.Count == stats.Count && Stats.Select(s => s.Key).SequenceEqual(stats.Select(s => s.Key)))
         {
             // Same boxes: just new values, so a box being typed in keeps its focus.
@@ -39,11 +42,23 @@ public sealed partial class StatBonusBoxes : UserControl
             Stats.Add(new NumberFieldViewModel(label, key, StatBonusService.Read(bonusesPath, key) ?? double.NaN, OnEdited));
     }
 
+    /// <summary>Puts "In game N" under each box that has a total (keyed like the stats); null clears them.</summary>
+    public void ShowInGameTotals(IReadOnlyDictionary<string, double>? totals)
+    {
+        foreach (var stat in Stats)
+            stat.Note = totals is not null && totals.TryGetValue(stat.Key, out double total) ? $"In game {total:N1}" : "";
+    }
+
     /// <summary>Nothing selected: the boxes stay, blank.</summary>
     public void Clear()
     {
         _bonusesPath = null;
-        foreach (var stat in Stats) stat.Load(double.NaN);
+        _mirrorPath = null;
+        foreach (var stat in Stats)
+        {
+            stat.Load(double.NaN);
+            stat.Note = "";
+        }
     }
 
     private void OnEdited(NumberFieldViewModel stat)
@@ -52,7 +67,7 @@ public sealed partial class StatBonusBoxes : UserControl
         IsStaging = true;
         try
         {
-            StatBonusService.Write(_bonusesPath, stat.Key, stat.Value);
+            StatBonusService.Write(_bonusesPath, stat.Key, stat.Value, _mirrorPath);
         }
         finally
         {
