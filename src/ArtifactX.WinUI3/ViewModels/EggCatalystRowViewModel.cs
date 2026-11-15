@@ -31,6 +31,7 @@ public sealed partial class EggCatalystRowViewModel : ObservableObject
             EggCatalystSlot.DyeInjector => "Its own colours",
             _ => $"Toward {TraitWord}",
         };
+        ReachesFull = HasEffect && Needed <= itemLimit;
         string what = slot is EggCatalystSlot.GeneSplitter or EggCatalystSlot.DyeInjector ? "Certain with" : "Full dose:";
         AmountText = !HasEffect ? "No value, so no effect"
             : Needed > itemLimit ? $"Never a full effect: a slot holds {itemLimit:N0}"
@@ -52,7 +53,11 @@ public sealed partial class EggCatalystRowViewModel : ObservableObject
     /// <summary>How many the loaded save carries across its inventories.</summary>
     public long Owned { get; }
     public bool HasOwned => Owned > 0;
-    public string OwnedText => Owned > 0 ? $"You have {Owned:N0}" : "";
+    /// <summary>A slot can hold enough of it for the full effect (100%).</summary>
+    public bool ReachesFull { get; }
+    /// <summary>What you carry and, when it's short of a full dose, how many more you need.</summary>
+    public string OwnedText => Owned <= 0 ? ""
+        : ReachesFull && Owned < Needed ? $"You have {Owned:N0} · {Needed - Owned:N0} more needed" : $"You have {Owned:N0}";
     public string OwnedSuffix => Owned > 0 ? $" · {OwnedText}" : "";
     public bool OwnsEnough => Owned >= Needed;
 
