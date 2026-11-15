@@ -221,7 +221,7 @@ public sealed partial class CompanionViewModel : ObservableObject
         Trust.Load(Math.Round((Read<double?>(P.TrustPath(index)) ?? 0) * 100, 1));
         _sizeRange = _eggRules?.Species.GetValueOrDefault(archetypeId);
         Size.Load(Read<double?>(P.ScalePath(index)) is double size ? Math.Round(size, 3) : double.NaN);
-        Size.Note = _sizeRange is { } range ? $"This species: {range.MinScale:0.##} to {range.MaxScale:0.##}" : "";
+        Size.Note = SizeNote(Size.Value);
         var traits = SaveSessionManager.GetValue(P.TraitsPath(index)) as JArray;
         double Trait(int i) => traits?.Count > i ? Math.Round(Math.Abs(traits[i].Value<double>()) * 100, 1) : double.NaN;
         Trait1.Load(Trait(0));
@@ -281,17 +281,24 @@ public sealed partial class CompanionViewModel : ObservableObject
     private void StageSize(NumberFieldViewModel field)
     {
         double value = field.Value;
-        if (_sizeRange is { } range)
+        bool held = false;
+        if (_sizeRange is { } range && Math.Clamp(value, range.MinScale, range.MaxScale) is var kept && kept != value)
         {
-            double held = Math.Clamp(value, range.MinScale, range.MaxScale);
-            if (held != value)
-            {
-                field.Load(held);
-                field.Note = $"Kept to this species' range, {range.MinScale:0.##} to {range.MaxScale:0.##}";
-                value = held;
-            }
+            field.Load(kept);
+            value = kept;
+            held = true;
         }
+        field.Note = (held ? "Kept to this species' range. " : "") + SizeNote(value);
         Stage(Math.Round(value, 4), P.ScalePath(_index));
+    }
+
+    /// <summary>The game's Weight for a size and the species' range: the size IS the height in metres the game shows,
+    /// and the weight is 40 kg per metre. Slot 8, 2026-11-15, three species: Winginnia 1.0207 -> 40.8 kg / 1.0 m,
+    /// Gerbilil 2.4184 -> 96.7 kg / 2.4 m, Bihi-Bihi 12 -> 480.0 kg / 12.0 m.</summary>
+    private string SizeNote(double size)
+    {
+        string weight = double.IsNaN(size) ? "" : $"Weight {size * 40:0.#} kg. ";
+        return weight + (_sizeRange is { } range ? $"This species: {range.MinScale:0.##} to {range.MaxScale:0.##} m." : "");
     }
 
     /// <summary>Genetic profile points (max 10) per mutation stat.</summary>
