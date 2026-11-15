@@ -124,6 +124,21 @@ namespace ArtifactX.Core.NmsModels;
 ///    Independence for one, Helpfulness/Aggression/Devotion for another)
 ///    corresponds to which array index isn't determinable from the save
 ///    alone, so these are exposed generically (Trait 1/2/3), not by name.
+///    UPDATE 2026-11-15: the index order IS known - Helpfulness/Playfulness,
+///    Aggression/Gentleness, Independence/Devotion, the sign picking the word
+///    (EggSequencer, NMS.exe 0x1407875f4; EggCatalystRowViewModel keys). Slot 8
+///    eggs showed it in game: CAT JAy[1] -0.81 "gentle", TREX +0.78 "aggressive";
+///    the Neural Calibrator moved exactly the predicted index (issue #71).
+///  - Found by Slot 8 save diffs 2026-11-15 (egg sequencing and hatching, #71):
+///    eK9 = re-sequenced: set true by any catalyst (the egg's "re-sequenced"
+///    note). uAX = [true, item hash] after a Dye Injector change
+///    (EggSequencer.DyeColourSeed). tDR: on an egg a companion laid it holds the
+///    parent's XwC, and the egg's game name is CreatureNames on (XID, tDR) -
+///    exact for all three unnamed eggs, tDR 0 included; on a freshly hatched
+///    companion tDR = @Hb = XwC = the hatch time. Hatching keeps XID, osl, WTp,
+///    uAX, m9o, JrL, 5L6, unY and jtr; sets WQX true (on the companion and on
+///    the emptied egg slot); sets 6fX to WTp; changes xDJ (0.8 -> 0.7) and
+///    nudges JAy slightly (0.20 -> 0.22, 0.80 -> 0.88).
 ///  - IEo (2 floats) = Moods - not exposed, no clear single-value mapping
 ///    to the one-word "Current Mood" display (e.g. "Lively").
 ///  - a2U (Genes Improved) is NOT a simple stored display number - real
