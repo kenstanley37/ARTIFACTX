@@ -294,7 +294,7 @@ public static class ShipPartsService
         {
             if (isCancelled()) return null;
             return new ShipPreviewBuild(mesh, Colour, m => own.GetValueOrDefault(m), false,
-                "Your corvette as built, shape and colours from your game files - drag to turn.");
+                "Your corvette as built, from your game files, in the parts' plain finish - your paint isn't shown yet. Drag to turn.");
         }
         return new ShipPreviewBuild(mesh, Colour, null, true,
             "Your corvette as built, from your game files - drag to turn. Its paint can't be shown yet.");
