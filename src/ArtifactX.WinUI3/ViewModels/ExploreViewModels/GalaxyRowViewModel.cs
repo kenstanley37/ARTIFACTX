@@ -33,8 +33,9 @@ public sealed partial class GalaxyRowViewModel : ObservableObject
     public IReadOnlyList<string> Stations => Presence.Stations;
     public string PresenceSummary => Presence.PresenceSummary;
 
-    public string BasesBadgeText => $"{BaseCount} ⌂";
-    public string StationsBadgeText => $"{StationCount} ✦";
+    /// <summary>Plain words, not symbols: "⌂" / "✦" at 10 px were unreadable (owner, 2026-11-14).</summary>
+    public string BasesBadgeText => $"{BaseCount} base{(BaseCount == 1 ? "" : "s")}";
+    public string StationsBadgeText => $"{StationCount} station{(StationCount == 1 ? "" : "s")}";
 
     public string FormattedTitle => $"{Number}. {Name}";
 

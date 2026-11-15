@@ -102,6 +102,10 @@ public static class GalaxyTransferService
                 if (g < 1 || g > 256) continue;
 
                 string kind = b["peI"]?["DPp"]?.Value<string>() ?? "";
+                // The freighter (FreighterBase) and a corvette's build (PlayerShipBase) travel with the player: their
+                // address is wherever they are now, so they'd count as bases in the current galaxy (#68, Slot 8:
+                // galaxy 239 showed "Base" and "Default" beside its one planet base). Fixed space bases still count.
+                if (kind is "FreighterBase" or "PlayerShipBase") continue;
                 string name = b["NKm"]?.Value<string>() ?? "";
                 if (string.IsNullOrWhiteSpace(name))
                 {
