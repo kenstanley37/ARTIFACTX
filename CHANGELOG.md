@@ -5,9 +5,11 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- 3D previews (ships, corvettes, multi-tools, creatures, freighters): a "View larger" button in the corner opens the model in a big view where you can scroll to zoom toward the mouse, right-drag to move it and drag to turn it; "Reset view" puts it back. The small previews zoom with Ctrl+scroll, so the page still scrolls normally. Keyboard: arrows turn, + and - zoom, 0 resets.
 - Closing ArtifactX at the moment No Man's Sky saved could crash it on the way out; it now closes cleanly.
 - Starships: corvettes now show the game's Shield, Hyperdrive and Maneuverability under their base stats ("In game 394.9"), and corvette upgrade modules have their correct stats. Maneuverability depends on how big your build is, like in the game: the bigger the corvette, the more sluggish it turns. It can read 0.1 off the game on corvettes with magnet modules. Damage for corvettes comes later. Update your game data once to get this.
 - Starships: a corvette's 3D preview now shows your corvette as you built it - habs, cockpit, wings, landing gear, turrets and all, in its parts' colours, put together from your game files the way the game does - instead of a "coming soon" note.
+- Starships: a corvette's 3D preview shows each part in the colour and finish you painted it in game (Weathered, metal and the others).
 - 3D previews use much less memory: a corvette's preview went from over 1 GB to about 400 MB.
 - Starships: a corvette you never renamed now shows the name the game gives it ("Jiyodat RR1") instead of "Starship 7".
 - Technology grids: technology that charges (launch thrusters, shields, hyperdrive, pulse engine, life support...) shows its charge as a percentage like the game ("84%"), and other technology no longer shows a "100/100". Hover a slot for the exact charge. Update your game data once to get this.

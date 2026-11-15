@@ -26,7 +26,7 @@ public sealed class ShipPreview : UserControl
     private readonly Image _image = new() { Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform };
     private readonly TextBlock _hint = new()
     {
-        Text = "Drag to turn", FontSize = 11, Opacity = 0.6, Margin = new Thickness(8, 6, 8, 6),
+        Text = "Drag to turn, Ctrl+scroll to zoom, right-drag to move", FontSize = 11, Opacity = 0.6, Margin = new Thickness(8, 6, 8, 6),
         HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
     };
     private ShipMesh? _mesh;
@@ -52,6 +52,25 @@ public sealed class ShipPreview : UserControl
     private bool _hologram;
     private bool _silhouette;
     private Windows.Foundation.Point? _drag;
+    private bool _panning;
+    // Zoom (1 = the whole model fits) and pan (screen offset in units of the shorter side), 2026-11-15: a corvette's
+    // landing gear couldn't be made out in a 420 x 260 preview (owner).
+    private float _zoom = 1, _panX, _panY;
+    private const float MaxZoom = 24;
+    private readonly Button _expand = new()
+    {
+        Content = new FontIcon { Glyph = "\uE740", FontSize = 14 }, Padding = new Thickness(8), Margin = new Thickness(6),
+        HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed,
+    };
+
+    /// <summary>A small preview on a page: shows the "View larger" button, and zooms only with Ctrl+scroll so the
+    /// page still scrolls under the mouse. Off in the large view, where plain scrolling zooms.</summary>
+    public bool AllowExpand
+    {
+        get => _allowExpand;
+        set { _allowExpand = value; _hint.Text = value ? "Drag to turn, Ctrl+scroll to zoom, right-drag to move" : "Drag to turn, scroll to zoom, right-drag to move"; }
+    }
+    private bool _allowExpand = true;
     private int _drawing, _pending;
 
     public int PixelWidth { get; set; } = 420;
@@ -67,10 +86,26 @@ public sealed class ShipPreview : UserControl
         grid.Children.Add(_image);
         grid.Children.Add(_status);
         grid.Children.Add(_hint);
+        grid.Children.Add(_expand);
         Content = grid;
-        PointerPressed += (_, e) => { _drag = e.GetCurrentPoint(this).Position; CapturePointer(e.Pointer); };
-        PointerReleased += (_, e) => { _drag = null; ReleasePointerCapture(e.Pointer); };
+        IsTabStop = true;
+        UseSystemFocusVisuals = true;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(this, "3D preview. Arrow keys turn it, plus and minus zoom, 0 resets the view.");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_expand, "View larger");
+        ToolTipService.SetToolTip(_expand, "View larger");
+        _expand.Click += async (_, _) => await ModelViewerDialog.ShowAsync(this);
+        PointerPressed += (_, e) =>
+        {
+            var point = e.GetCurrentPoint(this);
+            _panning = point.Properties.IsRightButtonPressed;
+            _drag = point.Position;
+            CapturePointer(e.Pointer);
+            Focus(FocusState.Pointer);
+        };
+        PointerReleased += (_, e) => { _drag = null; _panning = false; ReleasePointerCapture(e.Pointer); };
         PointerMoved += OnPointerMoved;
+        PointerWheelChanged += OnPointerWheelChanged;
+        KeyDown += OnKeyDown;
         ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
         SizeChanged += (_, e) =>
         {
@@ -90,6 +125,7 @@ public sealed class ShipPreview : UserControl
         _status.Text = text;
         _status.Visibility = Visibility.Visible;
         _hint.Visibility = Visibility.Collapsed;
+        _expand.Visibility = Visibility.Collapsed;
         ProtectedCursor = null;
     }
 
@@ -106,6 +142,8 @@ public sealed class ShipPreview : UserControl
         _silhouette = silhouette;
         _mesh = mesh;
         _yaw = StartYaw + (float)StartYawOffset; _pitch = StartPitch; // each ship opens on its front
+        _zoom = 1; _panX = _panY = 0;
+        _expand.Visibility = AllowExpand && mesh is not null ? Visibility.Visible : Visibility.Collapsed;
         if (mesh is null) { _image.Source = null; return; }
         var colours = new uint[mesh.Materials.Length];
         var cache = new Dictionary<string, uint>();
@@ -149,11 +187,82 @@ public sealed class ShipPreview : UserControl
     {
         if (_drag is not { } from || _mesh is null) return;
         var to = e.GetCurrentPoint(this).Position;
-        // The model follows the mouse, like turning a real object (the first
-        // version turned it the opposite way - "feels backwards", 2026-10-15).
-        _yaw -= (float)(to.X - from.X) * 0.01f;
-        _pitch = Math.Clamp(_pitch - (float)(to.Y - from.Y) * 0.01f, -1.4f, 1.4f);
+        if (_panning)
+        {
+            float unit = MathF.Max(1, MathF.Min((float)ActualWidth, (float)ActualHeight));
+            _panX += (float)(to.X - from.X) / unit;
+            _panY += (float)(to.Y - from.Y) / unit;
+        }
+        else
+        {
+            // The model follows the mouse, like turning a real object (the first
+            // version turned it the opposite way - "feels backwards", 2026-10-15).
+            _yaw -= (float)(to.X - from.X) * 0.01f;
+            _pitch = Math.Clamp(_pitch - (float)(to.Y - from.Y) * 0.01f, -1.4f, 1.4f);
+        }
         _drag = to;
+        Redraw();
+    }
+
+    /// <summary>Zooms toward the point under the mouse, so what you point at stays put.</summary>
+    private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        if (_mesh is null) return;
+        if (_allowExpand && (e.KeyModifiers & Windows.System.VirtualKeyModifiers.Control) == 0) return; // let the page scroll
+        var point = e.GetCurrentPoint(this);
+        float unit = MathF.Max(1, MathF.Min((float)ActualWidth, (float)ActualHeight));
+        float rx = (float)(point.Position.X - ActualWidth / 2) / unit, ry = (float)(point.Position.Y - ActualHeight / 2) / unit;
+        ZoomBy(MathF.Pow(1.15f, point.Properties.MouseWheelDelta / 120f), rx, ry);
+        e.Handled = true;
+    }
+
+    private void ZoomBy(float factor, float towardX = 0, float towardY = 0)
+    {
+        float next = Math.Clamp(_zoom * factor, 1f, MaxZoom);
+        float k = next / _zoom;
+        _panX = towardX - (towardX - _panX) * k;
+        _panY = towardY - (towardY - _panY) * k;
+        if (next <= 1f) _panX = _panY = 0;
+        _zoom = next;
+        Redraw();
+    }
+
+    /// <summary>Keyboard: arrows turn, plus / minus zoom, 0 or Home resets.</summary>
+    private void OnKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (_mesh is null) return;
+        switch (e.Key)
+        {
+            case Windows.System.VirtualKey.Left: _yaw += 0.15f; Redraw(); break;
+            case Windows.System.VirtualKey.Right: _yaw -= 0.15f; Redraw(); break;
+            case Windows.System.VirtualKey.Up: _pitch = Math.Clamp(_pitch + 0.15f, -1.4f, 1.4f); Redraw(); break;
+            case Windows.System.VirtualKey.Down: _pitch = Math.Clamp(_pitch - 0.15f, -1.4f, 1.4f); Redraw(); break;
+            case Windows.System.VirtualKey.Add or (Windows.System.VirtualKey)187: ZoomBy(1.25f); break;
+            case Windows.System.VirtualKey.Subtract or (Windows.System.VirtualKey)189: ZoomBy(0.8f); break;
+            case Windows.System.VirtualKey.Number0 or Windows.System.VirtualKey.NumberPad0 or Windows.System.VirtualKey.Home: ResetView(); break;
+            default: return;
+        }
+        e.Handled = true;
+    }
+
+    /// <summary>Back to the opening angle, whole model in view.</summary>
+    public void ResetView()
+    {
+        _yaw = StartYaw + (float)StartYawOffset; _pitch = StartPitch;
+        _zoom = 1; _panX = _panY = 0;
+        Redraw();
+    }
+
+    /// <summary>Shows the model another preview shows, at its current angle (the large view).</summary>
+    public void ShowFrom(ShipPreview source)
+    {
+        _status.Visibility = Visibility.Collapsed;
+        _hint.Visibility = source._mesh is null ? Visibility.Collapsed : Visibility.Visible;
+        _expand.Visibility = Visibility.Collapsed;
+        _mesh = source._mesh; _triColours = source._triColours; _triTextures = source._triTextures; _centre = source._centre;
+        _hologram = source._hologram; _silhouette = source._silhouette;
+        StartYawOffset = source.StartYawOffset;
+        _yaw = source._yaw; _pitch = source._pitch; _zoom = 1; _panX = _panY = 0;
         Redraw();
     }
 
@@ -163,9 +272,9 @@ public sealed class ShipPreview : UserControl
         if (_mesh is null) return;
         if (Interlocked.Exchange(ref _drawing, 1) == 1) { _pending = 1; return; }
         var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre;
-        float yaw = _yaw, pitch = _pitch; int w = PixelWidth, h = PixelHeight;
+        float yaw = _yaw, pitch = _pitch, zoom = _zoom, panX = _panX, panY = _panY; int w = PixelWidth, h = PixelHeight;
         bool holo = _hologram; bool sil = _silhouette;
-        Task.Run(() => Render(mesh, colours, textures, centre, yaw, pitch, w, h, holo, sil)).ContinueWith(t =>
+        Task.Run(() => Render(mesh, colours, textures, centre, yaw, pitch, w, h, holo, sil, zoom, panX, panY)).ContinueWith(t =>
             DispatcherQueue.TryEnqueue(() =>
             {
                 if (t.Result is { } pixels && ReferenceEquals(mesh, _mesh))
@@ -203,7 +312,8 @@ public sealed class ShipPreview : UserControl
     private static byte ToSrgb(float linear) => SrgbTable[Math.Clamp((int)(linear * (4095f / 2f)), 0, 4095)];
 
     /// <summary>Rotate, fit to the frame, z-buffer, light from above-front.</summary>
-    private static byte[] Render(ShipMesh mesh, uint[] colours, ModelTexture?[] textures, Vector3 centre, float yaw, float pitch, int w, int h, bool hologram = false, bool silhouette = false)
+    private static byte[] Render(ShipMesh mesh, uint[] colours, ModelTexture?[] textures, Vector3 centre, float yaw, float pitch, int w, int h,
+        bool hologram = false, bool silhouette = false, float zoom = 1, float panX = 0, float panY = 0)
     {
         var rot = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateRotationX(pitch);
         var p = new Vector3[mesh.Corners.Length];
@@ -219,8 +329,10 @@ public sealed class ShipPreview : UserControl
             minY = MathF.Min(minY, p[i].Y); maxY = MathF.Max(maxY, p[i].Y);
         }
         // Fit what is on screen (not the 3D diagonal), with a margin.
-        float scale = 0.9f * MathF.Min(w / MathF.Max(1e-3f, maxX - minX), h / MathF.Max(1e-3f, maxY - minY));
-        float cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        float scale = zoom * 0.9f * MathF.Min(w / MathF.Max(1e-3f, maxX - minX), h / MathF.Max(1e-3f, maxY - minY));
+        float unit = MathF.Min(w, h);
+        // Panning moves the model on screen: shift the model's centre the other way, in model units.
+        float cx = (minX + maxX) / 2 - panX * unit / scale, cy = (minY + maxY) / 2 + panY * unit / scale;
         var zbuf = new float[w * h];
         Array.Fill(zbuf, float.MaxValue);
         var px = new uint[w * h];

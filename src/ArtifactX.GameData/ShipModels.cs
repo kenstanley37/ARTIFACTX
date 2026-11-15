@@ -185,7 +185,8 @@ public sealed partial class ShipModels
 
     /// <summary>One model from scenes placed in a shared space - a corvette's pieces (CorvetteAssembly).
     /// Each scene is built once and copied to every place it's used; a mirroring placement keeps the
-    /// triangles facing out. A piece with a palette names its materials "material#palette". The geometry files
+    /// triangles facing out. A piece with a palette names its materials "material#palette" ("material#palette#finish"
+    /// for a finish other than the first). The geometry files
     /// it reads are let go afterwards.</summary>
     public ShipMesh? BuildPlaced(IEnumerable<CorvettePiece> pieces, int lod = 0, ISet<string>? hiddenNodes = null)
     {
@@ -193,9 +194,10 @@ public sealed partial class ShipModels
         var built = new Dictionary<string, ShipMesh?>(StringComparer.OrdinalIgnoreCase);
         var geometryBefore = new HashSet<string>(_geometry.Keys, StringComparer.OrdinalIgnoreCase);
         // One name per material and palette, not one string per triangle (321,000 on Slot 8's corvette).
-        var names = new Dictionary<(string, int), string>();
-        string Named(string material, int palette) => names.TryGetValue((material, palette), out var n) ? n
-            : names[(material, palette)] = material + "#" + palette.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var names = new Dictionary<(string, int, int), string>();
+        string Named(string material, int palette, int finish) => names.TryGetValue((material, palette, finish), out var n) ? n
+            : names[(material, palette, finish)] = material + "#" + palette.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + (finish > 0 ? "#" + finish.ToString(System.Globalization.CultureInfo.InvariantCulture) : "");
         var corners = new List<Vector3>();
         var uvs = new List<Vector2>();
         var uvs2 = new List<Vector2>();
@@ -213,7 +215,7 @@ public sealed partial class ShipModels
                 corners.Add(Vector3.Transform(mesh.Corners[c], piece.World));
                 if (mesh.Uvs.Length == mesh.Corners.Length) { uvs.Add(mesh.Uvs[a]); uvs.Add(mesh.Uvs[b]); uvs.Add(mesh.Uvs[c]); }
                 if (mesh.Uvs2.Length == mesh.Corners.Length) { uvs2.Add(mesh.Uvs2[a]); uvs2.Add(mesh.Uvs2[b]); uvs2.Add(mesh.Uvs2[c]); }
-                materials.Add(piece.Palette >= 0 ? Named(mesh.Materials[i / 3], piece.Palette) : mesh.Materials[i / 3]);
+                materials.Add(piece.Palette >= 0 ? Named(mesh.Materials[i / 3], piece.Palette, piece.Finish) : mesh.Materials[i / 3]);
             }
         }
         // The geometry files read for this model hold every mesh and detail level (a corvette's interiors too):
