@@ -127,10 +127,13 @@ public static class StarshipService
     public static async Task<string?> ShipNameAsync(ulong seed, string scenePath)
     {
         string path = (scenePath ?? "").ToUpperInvariant();
-        if (seed == 0 || path.Contains("/BIOPARTS/") || path.Contains("/SENTINELSHIP/") || path.Contains("/VINTAGEINTERCEPTOR.")
+        bool living = path.Contains("/BIOPARTS/BIOSHIP_PROC.");
+        if (seed == 0 || (path.Contains("/BIOPARTS/") && !living) || path.Contains("/SENTINELSHIP/") || path.Contains("/VINTAGEINTERCEPTOR.")
             || ShipBaseService.IsCorvetteModel(scenePath ?? ""))
             return null;
         var words = await CatalogService.GetProceduralNameWordsAsync();
-        return words.Count == 0 ? null : ShipNames.Generate(seed, list => words.GetValueOrDefault(list));
+        if (words.Count == 0) return null;
+        return living ? ShipNames.GenerateLiving(seed, list => words.GetValueOrDefault(list))
+            : ShipNames.Generate(seed, list => words.GetValueOrDefault(list));
     }
 }

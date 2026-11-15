@@ -60,6 +60,7 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
     StarshipDisplayStatChecks.CheckInputs();
     StarshipDisplayEvaluationChecks.CheckModelGuards();
     StarshipDisplayEvaluationChecks.CheckOwnedShipClasses();
+    ShipNameChecks.CheckLivingShipName();
     StarshipTechnologyDamageChecks.CheckInputs();
     PlanetShopCabinetChecks.Check();
     PlanetRingChecks.Check();
