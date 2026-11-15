@@ -230,6 +230,17 @@ public sealed partial class InventorySlotGrid : UserControl
                 // The game's class letter on a rolled upgrade module (C/B/A/S/X); without it an X-class module looks
                 // like an ordinary one (user, 2026-10-27).
                 string? moduleClass = CatalogService.ModuleClassLetter(cell.ItemId);
+                // Technology: the game shows a charge percentage on tech that charges, rounded up (Pulse Engine
+                // 149/200 "75%", Life Support 100/120 "84%", Launch Thruster 200/200 "100%"), and no number on the
+                // rest (owner's corvette screenshot, 2026-11-15). Cargo keeps its stack sizes.
+                string amountText = cell.DisplayText;
+                string chargeNote = "";
+                if (cell.CategoryLabel == "Technology" && CatalogService.IsChargeableTech(cell.ItemId) is bool chargeable)
+                {
+                    amountText = chargeable && cell.MaxAmount > 0
+                        ? $"{Math.Ceiling(Math.Max(0, cell.Amount) * 100.0 / cell.MaxAmount):0}%" : "";
+                    if (chargeable && cell.MaxAmount > 0) chargeNote = $"\nCharge {cell.Amount} of {cell.MaxAmount}";
+                }
                 var amountLabel = new Border
                 {
                     Background = ThemeBrush("ThemeSlotLabelBackgroundBrush"),
@@ -237,10 +248,10 @@ public sealed partial class InventorySlotGrid : UserControl
                     VerticalAlignment = VerticalAlignment.Bottom,
                     // A module's stored amount is a placeholder (-1/100 on starships, 1/100 on corvettes); the game
                     // shows no number on it (owner's corvette screenshot, 2026-11-15).
-                    Visibility = moduleClass is null ? Visibility.Visible : Visibility.Collapsed,
+                    Visibility = moduleClass is null && amountText.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
                     Child = new TextBlock
                     {
-                        Text = cell.DisplayText,
+                        Text = amountText,
                         FontFamily = (FontFamily)Application.Current.Resources["ThemeDisplayFont"],
                         FontSize = 10,
                         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
@@ -282,7 +293,7 @@ public sealed partial class InventorySlotGrid : UserControl
                     ((TextBlock)nameLabel.Child).Text = name.ToUpperInvariant();
                     ToolTipService.SetToolTip(border, isDamaged
                         ? "Malfunctioning - right-click to repair"
-                        : $"{name}{classSuffix}\nRight-click for options - edit, duplicate, remove");
+                        : $"{name}{classSuffix}{chargeNote}\nRight-click for options - edit, duplicate, remove");
                 }
                 UpdateItemPresentation(showLoadingItems);
                 _catalogUpdates.Add(() => UpdateItemPresentation(false));

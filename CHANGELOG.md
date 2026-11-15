@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Technology grids: technology that charges (launch thrusters, shields, hyperdrive, pulse engine, life support...) shows its charge as a percentage like the game ("84%"), and other technology no longer shows a "100/100". Hover a slot for the exact charge. Update your game data once to get this.
 - Starships: a corvette's technology now shows the pictures the game shows - each upgrade comes from a part of your corvette (a hab, landing thrusters, a booster), and shows that part. Update your game data once to get this.
 - Technology grids: upgrade modules (the C/B/A/S ones) no longer show a meaningless "1/100" or "-1/100"; the game shows no number on them.
 - Companions: a companion's height can now be changed (the game's Height in metres; weight follows at 40 kg per metre), within the range its species can have, shown under the box (a T-Rex: 0.6 to 5 m; a Triceratops up to 12 m).

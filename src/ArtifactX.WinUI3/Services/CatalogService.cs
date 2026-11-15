@@ -27,6 +27,7 @@ public static partial class CatalogService
     /// catalog up as they load.</summary>
     private static Dictionary<string, IReadOnlyList<string>>? _namingWords;
     private static volatile IReadOnlyDictionary<string, string>? _moduleClasses;
+    private static volatile IReadOnlySet<string>? _chargeableTech;
     private static volatile IReadOnlyDictionary<string, ProceduralProductNaming>? _productNaming;
 
     public static void Reload()
@@ -36,6 +37,7 @@ public static partial class CatalogService
         _namingWords = null;
         _corvettePartModules = null;
         _moduleClasses = null;
+        _chargeableTech = null;
         _productNaming = null;
         _languageWordsCache = null;
         _unlockableItemsCache = null;
@@ -248,6 +250,35 @@ public static partial class CatalogService
             Debug.WriteLine($"[CatalogService] Module classes unavailable (catalog before format 43?): {ex.Message}");
         }
         return classes;
+    }
+
+    /// <summary>The technology that charges (catalog format 101, "TechCharge"): the only tech the game puts a charge
+    /// percentage on. Null on an older catalog, so callers keep their old display.</summary>
+    public static bool? IsChargeableTech(string? gameId)
+    {
+        if (string.IsNullOrEmpty(gameId)) return null;
+        var charge = _chargeableTech ??= LoadChargeableTech();
+        return charge.Count == 0 ? null : charge.Contains(NormalizeId(gameId).Split('#')[0]);
+    }
+
+    private static IReadOnlySet<string> LoadChargeableTech()
+    {
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (ResolveDbPath() is not string dbPath) return ids;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT i.NameEnglish FROM Items i JOIN Categories c ON c.Id = i.CategoryId WHERE c.TemplateType = 'TechCharge'";
+            using var reader = command.ExecuteReader();
+            while (reader.Read()) ids.Add(reader.GetString(0));
+        }
+        catch (SqliteException ex)
+        {
+            Debug.WriteLine($"[CatalogService] Chargeable tech unavailable (catalog before format 101?): {ex.Message}");
+        }
+        return ids;
     }
 
     /// <summary>
