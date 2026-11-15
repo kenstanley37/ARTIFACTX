@@ -6,7 +6,9 @@ public sealed record ProceduralModuleStat(int Stat, float Minimum, float Maximum
 /// <param name="FreighterTemplate">The module's template technology is in the Freighter category (6). The module
 /// generator (0x140EE20D0, build 184271) names those from "%s_%d" without stepping the stat stream first, so their
 /// rolls start two draws earlier than other modules': checked 2026-11-14 on three UP_FRHYP4 modules of Slot 8's
-/// freighter, whose in-game tooltips (256 / 276 / 309 ly supercharged) equal these rolls, stat order included.</param>
+/// freighter, whose in-game tooltips (256 / 276 / 309 ly supercharged) equal these rolls, stat order included.
+/// Corvette modules (IsBiggsProcTech, CV_*) start two draws earlier as well (catalog format 102): with it Slot 8's
+/// corvette gives the game's Shield 394.9 and Hyperdrive 1344.0 exactly (2026-11-15).</param>
 public sealed record ProceduralModuleDefinition(string Id, int Quality, int MinimumStats, int MaximumStats,
     int CountCurve, ProceduralModuleStat[] Stats, bool FreighterTemplate = false);
 public sealed record GeneratedModuleStat(int Stat, float Value, int Level);

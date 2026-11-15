@@ -84,7 +84,9 @@ public static partial class CatalogSteps
         var modules = resolvableModules.Select(p => new ProceduralModuleDefinition(p.ID.Value, (int)p.Quality,
             p.NumStatsMin, p.NumStatsMax, (int)p.WeightingCurve.WeightingCurve, p.StatLevels.Select(s =>
                 new ProceduralModuleStat((int)s.Stat.StatsType, s.ValueMin, s.ValueMax, (int)s.WeightingCurve.WeightingCurve, s.AlwaysChoose)).ToArray(),
-            byId[p.Template.Value].Category.TechnologyCategory == Category.Freighter)).ToArray();
+            // Format 102: corvette modules (IsBiggsProcTech) roll two draws earlier too - with it Slot 8's corvette
+            // evaluates to the game's Shield 394.9 and Hyperdrive 1344.0 exactly (391.0 / 1313.0 without), 2026-11-15.
+            byId[p.Template.Value].Category.TechnologyCategory == Category.Freighter || p.IsBiggsProcTech)).ToArray();
         var coefficients = new MultiToolScannerRules((int)Stat.Ship_Armour_Shield_Strength, 0f,
             gameplay.SpecialTechSlotBonus, gameplay.BonusSameTypeElementsMultiply, gameplay.BonusChildTypeElementsMultiply,
             gameplay.MaxNumSameGroupTech, gameplay.BonusSameTypeElementsAdd, gameplay.BonusChildTypeElementsAdd);
