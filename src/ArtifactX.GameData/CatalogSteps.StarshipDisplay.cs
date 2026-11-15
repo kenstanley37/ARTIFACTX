@@ -10,6 +10,34 @@ namespace ArtifactX.GameData;
 
 public static partial class CatalogSteps
 {
+    /// <summary>
+    /// Stat groups the name-prefix rule gets wrong: NMS.exe's per-stat table at 0x144AE6484 (6 ints per stat, first =
+    /// group; build 184271, read with Ghidra 2026-11-14), which the adjacency count 0x1405B1B90 compares for "same
+    /// type". All other stats' groups equal the prefix rule (checked over the whole enum). The fleet stats' group 175
+    /// (Freighter_Fleet_Boost) is what makes neighbouring fleet modules of different kinds count as adjacent:
+    /// Slot 8 freighter Fleet Coordination 86.0 with prefix groups, 99.7 with these (game 98.7).
+    /// </summary>
+    private static readonly Dictionary<Stat, Stat> NativeStatGroups = new()
+    {
+        [Stat.Suit_UnderwaterLifeSupport] = Stat.Suit_Underwater,
+        [Stat.Suit_DamageReduce_Cold] = Stat.Suit_Protection, [Stat.Suit_DamageReduce_Heat] = Stat.Suit_Protection,
+        [Stat.Suit_DamageReduce_Toxic] = Stat.Suit_Protection, [Stat.Suit_DamageReduce_Radiation] = Stat.Suit_Protection,
+        [Stat.Suit_Utility] = Stat.Suit_Jetpack,
+        [Stat.Ship_Tech_Slots] = Stat.Ship_Inventory, [Stat.Ship_Cargo_Slots] = Stat.Ship_Inventory,
+        [Stat.Ship_WaterLandingJet] = Stat.Ship_CargoShield,
+        [Stat.Freighter_Fleet_Speed] = Stat.Freighter_Fleet_Boost, [Stat.Freighter_Fleet_Fuel] = Stat.Freighter_Fleet_Boost,
+        [Stat.Freighter_Fleet_Combat] = Stat.Freighter_Fleet_Boost, [Stat.Freighter_Fleet_Trade] = Stat.Freighter_Fleet_Boost,
+        [Stat.Freighter_Fleet_Explore] = Stat.Freighter_Fleet_Boost, [Stat.Freighter_Fleet_Mine] = Stat.Freighter_Fleet_Boost,
+        [Stat.Vehicle_EngineFuelUse] = Stat.Vehicle_Engine, [Stat.Vehicle_EngineTopSpeed] = Stat.Vehicle_Engine,
+        [Stat.Vehicle_Grip] = Stat.Vehicle_Engine, [Stat.Vehicle_SkidGrip] = Stat.Vehicle_Engine,
+        [Stat.Vehicle_BoostSpeed] = Stat.Vehicle_Boost, [Stat.Vehicle_BoostTanks] = Stat.Vehicle_Boost,
+        [Stat.Vehicle_SubBoostSpeed] = Stat.Vehicle_Boost,
+        [Stat.Vehicle_LaserDamage] = Stat.Vehicle_Laser, [Stat.Vehicle_LaserHeatTime] = Stat.Vehicle_Laser,
+        [Stat.Vehicle_LaserStrongLaser] = Stat.Vehicle_Laser,
+        [Stat.Vehicle_GunDamage] = Stat.Vehicle_Gun, [Stat.Vehicle_GunHeatTime] = Stat.Vehicle_Gun, [Stat.Vehicle_GunRate] = Stat.Vehicle_Gun,
+        [Stat.Vehicle_FlameDamage] = Stat.Vehicle_Flame, [Stat.Vehicle_FlameHeatTime] = Stat.Vehicle_Flame,
+    };
+
     /// <summary>Normal-ship comparison metadata. Native category-6 eligibility and stat parents
     /// checked against the executable and two wreck references, 2026-10-31. Candidate order,
     /// Impossible entries and duplicate intrinsic targets are significant.</summary>
@@ -50,6 +78,7 @@ public static partial class CatalogSteps
             }
             if (stat is Stat.Ship_Boost or Stat.Ship_Maneuverability or Stat.Ship_BoostManeuverability or Stat.Ship_Drift)
                 parent = Stat.Ship_PulseDrive;
+            if (NativeStatGroups.TryGetValue(stat, out var native)) parent = native;
             parents[(int)stat] = (int)parent;
         }
         var modules = resolvableModules.Select(p => new ProceduralModuleDefinition(p.ID.Value, (int)p.Quality,
