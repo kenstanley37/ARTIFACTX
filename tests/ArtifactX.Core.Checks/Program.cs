@@ -18,6 +18,7 @@ try
     RecipePlannerChecks.Check();
     CargoSuppliesChecks.Check();
     BaseExtractionChecks.Check();
+    EggSequencerChecks.Check();
     if (args.Length == 2 && args[0] == "--hotspot-near-vectors")
     { BaseExtractionChecks.PolesNative(args[1], neighborhood: true); return; }
     if (args.Length == 2 && args[0] == "--hotspot-pole-vectors")

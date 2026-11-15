@@ -38,12 +38,17 @@
                         <ComboBox Header="Your egg" HorizontalAlignment="Center" MinWidth="320" ItemsSource="{x:Bind ViewModel.Eggs, Mode=OneWay}"
                                   SelectedItem="{x:Bind ViewModel.SelectedEgg, Mode=TwoWay}" AutomationProperties.Name="The egg to sequence"
                                   ToolTipService.ToolTip="The eggs in your save. Choose the one you will put in the sequencer to see its exact size and personality before and after."/>
-                        <!-- The picked egg's creature as it is now (EggSequencerViewModel.Look). -->
+                        <!-- The picked egg's creature, now or after the catalysts (EggSequencerViewModel.Look). -->
                         <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.HasLook, Mode=OneWay}">
+                            <RadioButtons MaxColumns="2" HorizontalAlignment="Center" SelectedIndex="{x:Bind ViewModel.PreviewIndex, Mode=TwoWay}"
+                                          Visibility="{x:Bind ViewModel.HasChanges, Mode=OneWay}" AutomationProperties.Name="Show the creature now or after sequencing">
+                                <x:String>Now</x:String>
+                                <x:String>After sequencing</x:String>
+                            </RadioButtons>
                             <controls:ModelPreviewPanel x:Name="EggPreview" Subject="egg's creature" StartYawOffset="3.14159" Height="300"
                                                         AutomationProperties.Name="3D view of the creature in this egg"/>
                             <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap" HorizontalAlignment="Center"
-                                       Text="The creature in this egg as it is now, before sequencing."/>
+                                       TextAlignment="Center" Text="{x:Bind ViewModel.PreviewCaption, Mode=OneWay}"/>
                         </StackPanel>
                         <TextBlock Text="{x:Bind ViewModel.CatalystsHeading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}" HorizontalAlignment="Center"/>
                         <ItemsControl ItemsSource="{x:Bind ViewModel.Slots}" HorizontalAlignment="Center">
