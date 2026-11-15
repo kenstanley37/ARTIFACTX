@@ -75,6 +75,23 @@ public static class CompanionService
         return eggs;
     }
 
+    /// <summary>What an egg's creature looks like now, for the 3D preview: species (XID,
+    /// with its "^"), body parts (osl) and look seeds (CreatureModelService.CompanionLookSeeds).
+    /// An egg record has the same fields as a companion (NmsCompanionPaths.EggArrayPath).
+    /// Null for an empty slot.</summary>
+    public static (string Species, List<string> Parts, ulong Seed, ulong ColourSeed, ulong SpeciesSeed, ulong GenusSeed)? EggLook(int slot)
+    {
+        if (SaveSessionManager.GetValue(NmsCompanionPaths.EggArrayPath) is not JArray array
+            || slot < 0 || slot >= array.Count || array[slot] is not JObject egg) return null;
+        string species = egg["XID"]?.Value<string>() ?? "";
+        if (species.TrimStart('^').Length == 0) return null;
+        var parts = (egg["osl"] as JArray)?.Select(p => p?.Value<string>() ?? "").Where(p => p.Length > 0).ToList() ?? [];
+        var (seed, colourSeed) = CreatureModelService.CompanionLookSeeds(egg);
+        // m9o / JrL: the species and genus seeds behind the Battle Abilities; hatching keeps them (issue #71).
+        return (species, parts, seed, colourSeed,
+            NmsSpaceStationPaths.ParsePackedAddress(egg["m9o"]) ?? 0, NmsSpaceStationPaths.ParsePackedAddress(egg["JrL"]) ?? 0);
+    }
+
     /// <summary>Where the player carries each egg: egg slot to the inventory holding
     /// its item ("Exosuit", a starship's name, "Freighter", an exocraft, a storage
     /// container). The item ^EGGn is egg slot n-1 (NmsCompanionPaths.EggArrayPath).

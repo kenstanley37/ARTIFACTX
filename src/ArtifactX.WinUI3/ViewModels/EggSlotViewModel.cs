@@ -50,6 +50,9 @@ public sealed partial class EggSlotViewModel : ObservableObject
     [ObservableProperty] public partial string StatusLabel { get; private set; } = "";
     [ObservableProperty] public partial string StatusText { get; private set; } = "";
     [ObservableProperty] public partial string Explanation { get; private set; } = "";
+    /// <summary>What the slot does to the chosen egg, or null when it does nothing (empty,
+    /// too little, or the species can't change here). Read by the "after" preview.</summary>
+    [ObservableProperty] public partial EggSlotOutcome? Result { get; private set; }
 
     public bool HasItem => Item is not null;
     public bool IsEmpty => Item is null;
@@ -86,6 +89,10 @@ public sealed partial class EggSlotViewModel : ObservableObject
 
     private EggSpecies? Species => _egg is null ? null : _rules.Species.GetValueOrDefault(_egg.Species);
 
+    /// <summary>The egg's size after this slot (Growth Hormone only), or null.</summary>
+    public float? SizeAfter => Slot == EggCatalystSlot.GrowthHormone && Result is { } o && _egg is not null && Species is { } species && Item is not null
+        ? EggSequencer.ScaleAfter(species, _egg.Scale, Item.Effect.Grows, o.Dose, _rules) : null;
+
     private string TraitWord(int trait, float value) =>
         _text((value > 0 ? EggCatalystRowViewModel.PositiveKeys : EggCatalystRowViewModel.NegativeKeys)[trait]);
 
@@ -103,6 +110,7 @@ public sealed partial class EggSlotViewModel : ObservableObject
             IsOverdosed = false;
             StatusText = _text("UI_EGG_MODIFIER_OUT_INHERITED");
             Explanation = $"Empty, so the new companion keeps its parent's {BaseStatusLabel.ToLowerInvariant()}.";
+            Result = null;
             OnPropertyChanged(nameof(AccessibleName));
             return;
         }
@@ -120,6 +128,7 @@ public sealed partial class EggSlotViewModel : ObservableObject
             EggCatalystSlot.DyeInjector => !species.CanChangeColour,
             _ => !species.CanChangeTraits,
         };
+        Result = locked || o.Dose <= 0 ? null : o;
         if (locked)
         {
             StatusText = _text("UI_EGG_MODIFIER_OUT_INHERITED");
@@ -134,9 +143,10 @@ public sealed partial class EggSlotViewModel : ObservableObject
         {
             case EggCatalystSlot.GrowthHormone:
                 StatusText = _text(e.Grows ? "UI_EGG_MODIFIER_OUT_INCREASING" : "UI_EGG_MODIFIER_OUT_DECREASING");
-                // No size numbers: the egg's stored size (unY) is not on the species' MinScale..MaxScale
-                // scale (Mecha-Mouse 1.0 against 1.4-2.5, Slot 8 2026-11-04), so a before/after would be a guess.
-                Explanation = $"The new companion will be {(e.Grows ? "bigger" : "smaller")}: up to {o.SizeShare:P0} of the size range its species can have.";
+                // Exact for a saved egg: its unY moves, then is held to the species' range (EggSequencer.ScaleAfter).
+                Explanation = _egg is not null && species is not null && SizeAfter is float size
+                    ? $"{_egg.Name}: size {_egg.Scale:0.##} becomes {size:0.##} (its species can be {species.MinScale:0.##} to {species.MaxScale:0.##})."
+                    : $"The new companion will be {(e.Grows ? "bigger" : "smaller")}: up to {o.SizeShare:P0} of the size range its species can have.";
                 Explanation += More(e.FullDoseCount, o.Count, "a full dose");
                 break;
             case EggCatalystSlot.GeneSplitter:

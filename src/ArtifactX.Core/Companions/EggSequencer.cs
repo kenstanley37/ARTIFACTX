@@ -195,15 +195,20 @@ public static class EggSequencer
         Math.Clamp(current + (effect.TraitIncreases ? 1 : -1) * (float)(outcome.TraitChange / 100), -1f, 1f);
 
     /// <summary>A size after the Growth Hormone: current +- min((max - min) *
-    /// ScaleRangeModifier * dose, ScaleRangeMax), within the species' range. Not used
-    /// with a saved egg yet: the egg's unY is not on this scale (Slot 8 Mecha-Mouse
-    /// 1.0 against ROBO_RODENT 1.4-2.5), so where the sequencer's current size comes
-    /// from is still open.</summary>
+    /// ScaleRangeModifier * dose, ScaleRangeMax), then clamped to the species' range;
+    /// current is the egg's unY, even when it lies outside that range. Confirmed
+    /// 2026-11-15 on Slot 8 by save diffs, Abyssal Stew x1 (full dose, grows):
+    /// LAND_JELLYFISH (range 1-1) 1.1 -> 1.0 and ROBO_RODENT (1.4-2.5) 1.0 -> 1.5.</summary>
     public static float ScaleAfter(EggSpecies species, float current, bool grows, double dose, EggSequencerRules rules)
     {
         double change = Math.Min((species.MaxScale - species.MinScale) * rules.ScaleRangeModifier * dose, rules.ScaleRangeMax);
         return (float)Math.Clamp(current + (grows ? change : -change), species.MinScale, species.MaxScale);
     }
+
+    /// <summary>The colour seed a Dye Injector change gives: the item's hash, written
+    /// to the egg as ColourBaseSeed (uAX = [true, seed]). Confirmed 2026-11-15 on Slot 8:
+    /// Geodesite (ALLOY7) x1 gave 0x95CF21B2ED2ADD7C to both a CAT and a TREX egg.</summary>
+    public static ulong DyeColourSeed(string itemId) => ItemHash(itemId.TrimStart('^'));
 
     private static double Unit(bool isSubstance, long baseValue, EggSequencerRules rules) =>
         baseValue * (isSubstance ? rules.SubstanceModifier : 1f);

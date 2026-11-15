@@ -15,11 +15,14 @@ public sealed record EggFilterOption(string Label, Func<EggCatalystRowViewModel,
     public override string ToString() => Label;
 }
 
-/// <summary>An egg to sequence, or none (Egg null).</summary>
-public sealed record EggChoice(string Label, EggCreature? Egg)
+/// <summary>An egg to sequence, or none (Egg null, Slot -1); Slot is its place in the save's egg array.</summary>
+public sealed record EggChoice(string Label, EggCreature? Egg, int Slot = -1)
 {
     public override string ToString() => Label;
 }
+
+/// <summary>An egg's creature as it is now, for the 3D preview: model rig, body parts and look seeds.</summary>
+public sealed record EggPreviewLook(string Rig, IReadOnlyList<string> Parts, ulong Seed, ulong ColourSeed);
 
 /// <summary>
 /// The Egg Sequencer page: a copy of the game's sequencer screen. Pick a
@@ -52,6 +55,18 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     [ObservableProperty] public partial bool HasSave { get; private set; }
     [ObservableProperty] public partial IReadOnlyList<EggChoice> Eggs { get; private set; } = [];
     [ObservableProperty] public partial EggChoice? SelectedEgg { get; set; }
+    /// <summary>The picked egg's look, or null for "Any egg" or a creature with no model.</summary>
+    [ObservableProperty] public partial EggPreviewLook? Look { get; private set; }
+    [ObservableProperty] public partial bool HasLook { get; private set; }
+    /// <summary>0 = the egg now, 1 = after the chosen catalysts.</summary>
+    [ObservableProperty] public partial int PreviewIndex { get; set; } = 1;
+    /// <summary>True when a catalyst changes the chosen egg, so "After sequencing" means something.</summary>
+    [ObservableProperty] public partial bool HasChanges { get; private set; }
+    [ObservableProperty] public partial string PreviewCaption { get; private set; } = "";
+    /// <summary>The egg's Battle Abilities (Helpers.Fauna.CreatureTraitText.Classes); sequencing and hatching keep them.</summary>
+    [ObservableProperty] public partial ExploreViewModels.CreatureBattleViewModel? Battle { get; private set; }
+    private EggPreviewLook? _nowLook;
+    private int _lookVersion;
 
     public async Task LoadAsync()
     {
@@ -92,7 +107,12 @@ public sealed partial class EggSequencerViewModel : ObservableObject
         DoseNote = $"A full dose is {fullDose:N0} units of value, the worth of one {full?.Name ?? rules.FullDoseProductId}. "
             + $"Raw materials count {rules.SubstanceModifier:0.#} times their value. A slot holds up to {rules.ItemLimit:N0}.";
         Slots.Clear();
-        foreach (var slot in Enum.GetValues<EggCatalystSlot>()) Slots.Add(new EggSlotViewModel(slot, rules, fullDose, Text));
+        foreach (var slot in Enum.GetValues<EggCatalystSlot>())
+        {
+            var vm = new EggSlotViewModel(slot, rules, fullDose, Text);
+            vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(EggSlotViewModel.Result)) UpdateLook(); };
+            Slots.Add(vm);
+        }
         // The egg's name as the game shows it ("Mecha-Mouse", "Beary-Beary") and the inventory
         // holding it; a number only tells same-named eggs apart.
         var saved = CompanionService.ReadEggs(await CreatureNameService.LoadAsync()).ToList();
@@ -105,7 +125,7 @@ public sealed partial class EggSequencerViewModel : ObservableObject
             return places.TryGetValue(slot, out var place) ? $"{name} (in {place})" : name;
         }
         Eggs = (EggChoice[])[new EggChoice("Any egg (no exact numbers)", null),
-            .. saved.Select((e, i) => new EggChoice(Label(i), e.Egg))];
+            .. saved.Select((e, i) => new EggChoice(Label(i), e.Egg, e.Slot))];
         SelectedEgg = Eggs.Count > 1 ? Eggs[1] : Eggs[0];
         IsReady = true;
         Select(Slots[^1]);
@@ -134,6 +154,63 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     partial void OnSelectedEggChanged(EggChoice? value)
     {
         foreach (var slot in Slots) slot.SetEgg(value?.Egg);
+        _ = LoadLookAsync(value);
+    }
+
+    /// <summary>The picked egg's creature as it is now (CompanionService.EggLook), so a
+    /// player who forgot the parent sees what they are sequencing.</summary>
+    private async Task LoadLookAsync(EggChoice? choice)
+    {
+        int version = ++_lookVersion;
+        EggPreviewLook? look = null;
+        Helpers.Fauna.CreatureBattle? battle = null;
+        if (choice is { Slot: >= 0 } && CompanionService.EggLook(choice.Slot) is { } egg)
+        {
+            if (await CreatureModelService.ResolveRigAsync(egg.Species, egg.Parts) is { Length: > 0 } rig)
+                look = new EggPreviewLook(rig, egg.Parts, egg.Seed, egg.ColourSeed);
+            await PlanetTypesService.EnsureLoadedAsync();
+            battle = Helpers.Fauna.CreatureTraitText.Classes(egg.SpeciesSeed, egg.GenusSeed, PlanetTypesService.CreatureTables);
+        }
+        if (version != _lookVersion) return;
+        Battle = battle is null ? null : new ExploreViewModels.CreatureBattleViewModel(battle);
+        _nowLook = look;
+        HasLook = look is not null;   // shown first, so the panel draws while visible
+        UpdateLook();
+    }
+
+    partial void OnPreviewIndexChanged(int value) => UpdateLook();
+
+    /// <summary>The look to draw and its caption: the egg now, or after the catalysts. A Dye Injector
+    /// change gives the item's colour seed (EggSequencer.DyeColourSeed); the body seed and parts stay.
+    /// Confirmed by Slot 8 save diffs 2026-11-15 (issue #71).</summary>
+    private void UpdateLook()
+    {
+        if (_nowLook is not { } now) { Look = null; HasChanges = false; PreviewCaption = ""; return; }
+        EggSlotViewModel? Slot(EggCatalystSlot s) => Slots.FirstOrDefault(x => x.Slot == s && x.Result is not null);
+        var dye = Slot(EggCatalystSlot.DyeInjector);
+        var growth = Slot(EggCatalystSlot.GrowthHormone);
+        var splitter = Slot(EggCatalystSlot.GeneSplitter);
+        HasChanges = Slots.Any(s => s.Result is not null);
+        if (!HasChanges || PreviewIndex == 0)
+        {
+            Look = now;
+            PreviewCaption = "The creature in this egg as it is now, before sequencing.";
+            return;
+        }
+
+        var notes = new List<string>();
+        var look = now;
+        if (dye is { Item: { } dyeItem, Result: { } dyeResult })
+        {
+            look = now with { ColourSeed = EggSequencer.DyeColourSeed(dyeItem.Id) };
+            notes.Add(dyeResult.ChangeChance >= 1 ? $"Colours from {dyeItem.Name}."
+                : $"{dyeResult.ChangeChance:P0} chance of these colours from {dyeItem.Name}; otherwise it keeps its own.");
+        }
+        if (growth?.SizeAfter is float size && SelectedEgg?.Egg is { } egg) notes.Add($"Size {egg.Scale:0.##} becomes {size:0.##}.");
+        if (splitter is not null) notes.Add("The Gene Splitter changes some body parts at random, so the parts shown are the ones it has now.");
+        if (Slot(EggCatalystSlot.NeuralCalibrator) is not null) notes.Add("Personality changes are under What will happen.");
+        Look = look;
+        PreviewCaption = "After sequencing: " + string.Join(" ", notes);
     }
     partial void OnSearchTextChanged(string value) => Apply();
     partial void OnOnlyOwnedChanged(bool value) => Apply();
