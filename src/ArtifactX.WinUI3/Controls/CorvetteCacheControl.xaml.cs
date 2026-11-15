@@ -81,10 +81,12 @@ public sealed partial class CorvetteCacheControl : UserControl
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    private void MergeDuplicatesBtn_Click(object sender, RoutedEventArgs e)
+    private void RemoveDuplicatesBtn_Click(object sender, RoutedEventArgs e)
     {
-        bool changed = _viewModel is not null && _viewModel.TryMergeDuplicates(out _);
-        TidyResultTxt.Text = changed ? "Merged compatible stacks." : "No stacks to merge.";
+        int stacks = 0;
+        long items = 0;
+        bool changed = _viewModel is not null && _viewModel.TryRemoveDuplicates(out stacks, out items);
+        TidyResultTxt.Text = InventoryGridViewModel.RemoveDuplicatesResult(changed, stacks, items);
         if (!changed) return;
         CacheGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Visible;

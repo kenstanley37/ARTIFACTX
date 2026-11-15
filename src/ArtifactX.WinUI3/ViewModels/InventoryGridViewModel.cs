@@ -271,18 +271,23 @@ public partial class InventoryGridViewModel : ObservableObject
         Load();
     }
 
-    /// <summary>Combines compatible cargo stacks, retaining overflow and all
-    /// saved item metadata. True even when repacking frees no whole slot.</n    /// Stages the entire slot array; Reset can undo the operation.</summary>
-    public bool TryMergeDuplicates(out int freedSlots)
+    /// <summary>Remove Duplicates (#67): keeps one stack of each stackable item, deletes the rest
+    /// (InventoryDuplicateRemover). Stages the entire slot array; Reset can undo it.</summary>
+    public bool TryRemoveDuplicates(out int removedStacks, out long removedItems)
     {
-        freedSlots = 0;
+        removedStacks = 0;
+        removedItems = 0;
         if (SaveSessionManager.GetValue(NoPath) is not JArray slots) return false;
-        var merged = ArtifactX.Core.Inventory.InventoryStackMerger.Merge(slots, out freedSlots);
-        if (merged is null) return false;
-        SaveSessionManager.StageEdit(merged, NoPath);
+        var kept = ArtifactX.Core.Inventory.InventoryDuplicateRemover.Remove(slots, out removedStacks, out removedItems);
+        if (kept is null) return false;
+        SaveSessionManager.StageEdit(kept, NoPath);
         Load();
         return true;
     }
+
+    /// <summary>The line shown after Remove Duplicates.</summary>
+    public static string RemoveDuplicatesResult(bool changed, int stacks, long items) => !changed ? "No duplicate stacks."
+        : $"Removed {stacks:N0} duplicate stack{(stacks == 1 ? "" : "s")} ({items:N0} item{(items == 1 ? "" : "s")}).";
 
     /// <summary>Re-packs every item into the unlocked slots in reading order,
     /// grouped by category (Technology, Raw Materials/Substances, Crafted Components,
