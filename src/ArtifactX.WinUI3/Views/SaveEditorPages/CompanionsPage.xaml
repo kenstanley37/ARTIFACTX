@@ -157,6 +157,10 @@
                                    Text="Two co-inputs that together drive the in-game Battle Abilities badges (Combat Effectiveness/Agility/Health grades) AND the fancy auto-generated species name shown in-game - changing either one alone shifts both the name and all three badges. Distinct from the color Seed above, which does not touch either of these."/>
                         <controls:SeedBox x:Name="BattleAbilitySeedBox" Label="Battle abilities seed" Changed="Seed_Changed" BoxWidth="220" HorizontalAlignment="Left"/>
                         <controls:SeedBox x:Name="BattleAbilitySeed2Box" Label="Battle abilities second seed" Changed="Seed_Changed" BoxWidth="220" HorizontalAlignment="Left"/>
+                        <!-- What the game shows for these seeds; Generate updates it at once. Hidden while Override Active is on. -->
+                        <controls:CreatureBattlePanel Battle="{x:Bind ViewModel.SeedBattle, Mode=OneWay}" HorizontalAlignment="Left" Width="320" Margin="0,4,0,0"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="{x:Bind ViewModel.LetterOverrideActive, Mode=OneWay}"
+                                   Text="Override Active is on, so the game shows the Class Letters below instead of these seeds' grades."/>
                     </StackPanel>
 
                     <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14" Background="{ThemeResource ThemePanelAltBrush}">
@@ -211,22 +215,6 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14" Background="{ThemeResource ThemePanelAltBrush}">
-                        <StackPanel Spacing="6">
-                            <!-- osl descriptors. On some species one row is labelled "- ARCHETYPE":
-                                 it decides which OTHER slots apply, so changing it rebuilds every row
-                                 below with default picks rather than swapping in place - NOT yet
-                                 tested in-game. Labels are cleaned-up internal part codes
-                                 ("_HEAD_TURTLE" -> "Turtle"; hover for the raw code); unnamed
-                                 accessory slots show as "Variant N". A row with no dropdown matches no
-                                 catalog option (e.g. the per-instance detail seed) and isn't editable. -->
-                            <TextBlock Text="BODY PARTS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="820" HorizontalAlignment="Left"
-                                       Text="Each row swaps one body part for another option from the same slot. On some species one row is marked &quot;- ARCHETYPE&quot;: changing it resets the other parts, so save and check in-game before relying on the result. Hover an option to see the game's own part code."/>
-                            <controls:CompanionPartsPanel Rows="{x:Bind ViewModel.Parts}" ShowNoData="{x:Bind ViewModel.NoPartsData, Mode=OneWay}"/>
-                        </StackPanel>
-                    </Border>
-
                     <StackPanel Spacing="8">
                         <TextBlock Text="ADVANCED FIELDS (UNCONFIRMED PURPOSE)" Style="{StaticResource ThemeEyebrowStyle}"/>
                         <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="820" HorizontalAlignment="Left"
@@ -237,8 +225,9 @@
               </StackPanel>
             </Border>
 
-            <!-- 3D Creature & Companion Model Preview -->
-            <StackPanel x:Name="CompanionPreviewGroup" Width="400" Spacing="8" VerticalAlignment="Top" Visibility="Collapsed">
+            <!-- Right column: the 3D preview, then the body parts it shows (owner, 2026-11-15). -->
+            <StackPanel Width="520" Spacing="18" VerticalAlignment="Top">
+            <StackPanel x:Name="CompanionPreviewGroup" Spacing="8" Visibility="Collapsed">
                 <Border Style="{StaticResource ThemeCardStyle}">
                     <StackPanel>
                         <Border Style="{StaticResource ThemeBandStyle}">
@@ -251,6 +240,27 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
+            </StackPanel>
+
+            <Border Style="{StaticResource ThemeCardStyle}" Visibility="{x:Bind HasCompanion(ViewModel.Species), Mode=OneWay}">
+                <StackPanel>
+                    <Border Style="{StaticResource ThemeBandStyle}">
+                        <TextBlock Text="BODY PARTS" Style="{StaticResource ThemeBandTextStyle}"/>
+                    </Border>
+                    <StackPanel Padding="16" Spacing="8">
+                        <!-- osl descriptors. On some species one row is labelled "- ARCHETYPE":
+                             it decides which OTHER slots apply, so changing it rebuilds every row
+                             below with default picks rather than swapping in place - NOT yet
+                             tested in-game. Labels are cleaned-up internal part codes
+                             ("_HEAD_TURTLE" -> "Turtle"; hover for the raw code); unnamed
+                             accessory slots show as "Variant N". A row with no dropdown matches no
+                             catalog option (e.g. the per-instance detail seed) and isn't editable. -->
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                   Text="Each row swaps one body part for another option from the same slot; the preview above shows it. On some species one row is marked &quot;- ARCHETYPE&quot;: changing it resets the other parts, so save and check in-game before relying on the result. Hover an option to see the game's own part code."/>
+                        <controls:CompanionPartsPanel Rows="{x:Bind ViewModel.Parts}" ShowNoData="{x:Bind ViewModel.NoPartsData, Mode=OneWay}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
             </StackPanel>
         </ctcontrols:WrapPanel>
         </StackPanel>

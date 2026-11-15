@@ -103,6 +103,14 @@ public sealed partial class CompanionViewModel : ObservableObject
 
     /// <summary>While on, the Battle Abilities badges come from the class letters, not the seeds.</summary>
     [ObservableProperty] public partial bool LetterOverrideActive { get; set; }
+
+    /// <summary>The Battle Abilities the game shows from the Battle Ability Seeds (m9o / JrL), recomputed on every
+    /// reload so Generate shows the new grades at once (Helpers.Fauna.CreatureTraitText.Classes). Confirmed on Slot 8
+    /// 2026-11-15: Gerbilil S/S/A overall S and Winginnia A/C/S overall A, as in game. Hidden while the letter
+    /// override is on: the letters decide then, and what overall the game shows for them is unchecked.</summary>
+    [ObservableProperty] public partial ExploreViewModels.CreatureBattleViewModel? Battle { get; private set; }
+    public ExploreViewModels.CreatureBattleViewModel? SeedBattle => LetterOverrideActive ? null : Battle;
+    partial void OnBattleChanged(ExploreViewModels.CreatureBattleViewModel? value) => OnPropertyChanged(nameof(SeedBattle));
     [ObservableProperty] public partial int HealthLetter { get; set; } = -1;
     [ObservableProperty] public partial int AgilityLetter { get; set; } = -1;
     [ObservableProperty] public partial int CombatLetter { get; set; } = -1;
@@ -140,6 +148,7 @@ public sealed partial class CompanionViewModel : ObservableObject
         _species ??= await CatalogService.GetCreatureSpeciesAsync();
         _names ??= await CreatureNameService.LoadAsync();
         _traitWords ??= (await CatalogService.GetEggSequencerRulesAsync())?.Texts;
+        await PlanetTypesService.EnsureLoadedAsync();   // the class weights for Battle
         string rigId = archetypeId.ToLowerInvariant();
         if (!_trees.TryGetValue(rigId, out var tree))
         {
@@ -186,6 +195,9 @@ public sealed partial class CompanionViewModel : ObservableObject
         HealthLetter = LetterIndex(Read<string>(P.ClassLetterPath(index, 0)));
         AgilityLetter = LetterIndex(Read<string>(P.ClassLetterPath(index, 1)));
         CombatLetter = LetterIndex(Read<string>(P.ClassLetterPath(index, 2)));
+        var battle = Helpers.Fauna.CreatureTraitText.Classes(Seed(P.RollSeedPrimaryPath(index)), Seed(P.RollSeedSecondaryPath(index)),
+            PlanetTypesService.CreatureTables);
+        Battle = battle is null ? null : new ExploreViewModels.CreatureBattleViewModel(battle);
         _loading = false;
 
         ShowParts();
@@ -265,6 +277,7 @@ public sealed partial class CompanionViewModel : ObservableObject
 
     partial void OnLetterOverrideActiveChanged(bool value)
     {
+        OnPropertyChanged(nameof(SeedBattle));
         if (!_loading && _index >= 0) StageField(() => Stage(value, P.ClassLetterOverrideActivePath(_index)));
     }
 
