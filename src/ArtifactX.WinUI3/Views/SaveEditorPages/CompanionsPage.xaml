@@ -94,21 +94,21 @@
                     <StackPanel Spacing="8">
                         <TextBlock Text="TRAITS" Style="{StaticResource ThemeEyebrowStyle}"/>
                         <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12"
-                                   Text="The 3 personality traits shown in-game (e.g. Playfulness/Gentleness/Independence) - which named trait each slot below actually is differs per pet and isn't determinable from the save, so they're labeled generically. Only magnitude is editable; each value's underlying sign (which descriptor word it picks, e.g. Placid vs its opposite) is preserved as-is."/>
+                                   Text="Named as the game shows them. Editing changes the percentage; the trait keeps its direction (for example Gentleness stays Gentleness)."/>
                         <StackPanel Orientation="Horizontal" Spacing="32">
                             <StackPanel Spacing="6" Width="190">
-                                <TextBlock Text="Trait 1" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="Trait 1"
+                                <TextBlock Text="{x:Bind ViewModel.Trait1Label, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="{x:Bind ViewModel.Trait1Label, Mode=OneWay}"
                                            Value="{x:Bind ViewModel.Trait1.Value, Mode=TwoWay}"/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="190">
-                                <TextBlock Text="Trait 2" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="Trait 2"
+                                <TextBlock Text="{x:Bind ViewModel.Trait2Label, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="{x:Bind ViewModel.Trait2Label, Mode=OneWay}"
                                            Value="{x:Bind ViewModel.Trait2.Value, Mode=TwoWay}"/>
                             </StackPanel>
                             <StackPanel Spacing="6" Width="190">
-                                <TextBlock Text="Trait 3" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="Trait 3"
+                                <TextBlock Text="{x:Bind ViewModel.Trait3Label, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                                <NumberBox Style="{StaticResource FieldStyle}" Maximum="100" AutomationProperties.Name="{x:Bind ViewModel.Trait3Label, Mode=OneWay}"
                                            Value="{x:Bind ViewModel.Trait3.Value, Mode=TwoWay}"/>
                             </StackPanel>
                         </StackPanel>
