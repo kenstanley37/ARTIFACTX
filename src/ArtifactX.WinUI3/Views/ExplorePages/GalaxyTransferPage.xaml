@@ -222,10 +222,10 @@
                                 </ItemsControl>
                             </StackPanel>
 
-                            <!-- Space Stations List (if any) -->
+                            <!-- Owned (claimed) space stations, if any (#68) -->
                             <StackPanel Spacing="6" Visibility="{x:Bind ViewModel.SelectedGalaxy.HasStations, Mode=OneWay}">
                                 <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,2"/>
-                                <TextBlock Text="TELEPORT NETWORK SPACE STATIONS" Style="{StaticResource ThemeEyebrowStyle}" FontSize="11"/>
+                                <TextBlock Text="SPACE STATIONS YOU OWN" Style="{StaticResource ThemeEyebrowStyle}" FontSize="11"/>
                                 <ItemsControl ItemsSource="{x:Bind ViewModel.SelectedGalaxy.Stations, Mode=OneWay}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="x:String">

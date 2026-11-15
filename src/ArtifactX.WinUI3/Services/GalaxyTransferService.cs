@@ -25,10 +25,10 @@ public static class GalaxyTransferService
         public List<string> Bases { get; } = new();
         public List<string> Stations { get; } = new();
 
-        /// <summary>Stations already counted, by system address (or by name when the record has no address):
-        /// a claimed station is both a base record and a Teleport Network marker, often under different names
-        /// ("240 - Iniskei-Che VII Platform" vs "Iniskei-Che VII Platform"), so names alone counted it twice
-        /// (#68, Slot 8, 2026-11-14).</summary>
+        /// <summary>Owned (claimed) stations already counted, by system address. The station badge means stations
+        /// the player OWNS (owner, #68, 2026-11-14): Teleport Network markers are added for every station landed
+        /// at, so they only mark the galaxy visited. Slot 8 before: galaxy 240 showed 3 (claimed base, its own
+        /// teleporter marker under another name, the Gateway arrival station's marker); now 1.</summary>
         private readonly HashSet<string> _stationKeys = new(StringComparer.Ordinal);
 
         /// <summary>Counts a station once per system; true when it was new.</summary>
@@ -123,7 +123,7 @@ public static class GalaxyTransferService
                 }
                 else if (kind == "PlayerSpaceStationBase")
                 {
-                    acc.AddStation(addr, $"{name} (Claimed Station)");
+                    acc.AddStation(addr, name);
                 }
                 else
                 {
@@ -133,7 +133,8 @@ public static class GalaxyTransferService
             }
         }
 
-        // 3. Space Stations in Teleport Network (nlG / snapshot.Markers)
+        // 3. Space Stations in Teleport Network (nlG / snapshot.Markers): every station landed at is here,
+        //    so these mark the galaxy visited but don't count as owned stations (#68).
         var markersArray = snapshot?.Markers ?? SaveSessionManager.GetValue(NmsSpaceStationPaths.MarkersPath) as JArray;
         if (markersArray is not null)
         {
@@ -153,10 +154,7 @@ public static class GalaxyTransferService
 
                 if (g < 1 || g > 256) continue;
 
-                string name = m["NKm"]?.Value<string>() ?? "Space Station";
-                var acc = accumulators[g];
-                acc.IsVisited = true;
-                acc.AddStation(NmsSpaceStationPaths.ReadSystemAddress(m["yhJ"]), name);
+                accumulators[g].IsVisited = true;
             }
         }
 

@@ -52,7 +52,7 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
     [ObservableProperty] public partial string VisitedFilterLabel { get; private set; } = "Visited (0)";
     [ObservableProperty] public partial string UnvisitedFilterLabel { get; private set; } = "Unvisited (256)";
     [ObservableProperty] public partial string BasesFilterLabel { get; private set; } = "Bases (0)";
-    [ObservableProperty] public partial string StationsFilterLabel { get; private set; } = "Stations (0)";
+    [ObservableProperty] public partial string StationsFilterLabel { get; private set; } = "Owned stations (0)";
 
     public ObservableCollection<GalaxyRowViewModel> FilteredGalaxies { get; } = new();
 
@@ -190,7 +190,7 @@ public sealed partial class GalaxyTransferViewModel : ObservableObject
         VisitedFilterLabel = $"Visited ({visited})";
         UnvisitedFilterLabel = $"Unvisited ({unvisited})";
         BasesFilterLabel = $"Bases ({bases})";
-        StationsFilterLabel = $"Stations ({stations})";
+        StationsFilterLabel = $"Owned stations ({stations})";
     }
 
     private void ApplyFilter()
