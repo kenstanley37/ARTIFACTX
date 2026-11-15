@@ -15,11 +15,14 @@ public sealed record EggFilterOption(string Label, Func<EggCatalystRowViewModel,
     public override string ToString() => Label;
 }
 
-/// <summary>An egg to sequence, or none (Egg null).</summary>
-public sealed record EggChoice(string Label, EggCreature? Egg)
+/// <summary>An egg to sequence, or none (Egg null, Slot -1); Slot is its place in the save's egg array.</summary>
+public sealed record EggChoice(string Label, EggCreature? Egg, int Slot = -1)
 {
     public override string ToString() => Label;
 }
+
+/// <summary>An egg's creature as it is now, for the 3D preview: model rig, body parts and look seeds.</summary>
+public sealed record EggPreviewLook(string Rig, IReadOnlyList<string> Parts, ulong Seed, ulong ColourSeed);
 
 /// <summary>
 /// The Egg Sequencer page: a copy of the game's sequencer screen. Pick a
@@ -52,6 +55,10 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     [ObservableProperty] public partial bool HasSave { get; private set; }
     [ObservableProperty] public partial IReadOnlyList<EggChoice> Eggs { get; private set; } = [];
     [ObservableProperty] public partial EggChoice? SelectedEgg { get; set; }
+    /// <summary>The picked egg's look, or null for "Any egg" or a creature with no model.</summary>
+    [ObservableProperty] public partial EggPreviewLook? Look { get; private set; }
+    [ObservableProperty] public partial bool HasLook { get; private set; }
+    private int _lookVersion;
 
     public async Task LoadAsync()
     {
@@ -105,7 +112,7 @@ public sealed partial class EggSequencerViewModel : ObservableObject
             return places.TryGetValue(slot, out var place) ? $"{name} (in {place})" : name;
         }
         Eggs = (EggChoice[])[new EggChoice("Any egg (no exact numbers)", null),
-            .. saved.Select((e, i) => new EggChoice(Label(i), e.Egg))];
+            .. saved.Select((e, i) => new EggChoice(Label(i), e.Egg, e.Slot))];
         SelectedEgg = Eggs.Count > 1 ? Eggs[1] : Eggs[0];
         IsReady = true;
         Select(Slots[^1]);
@@ -134,6 +141,21 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     partial void OnSelectedEggChanged(EggChoice? value)
     {
         foreach (var slot in Slots) slot.SetEgg(value?.Egg);
+        _ = LoadLookAsync(value);
+    }
+
+    /// <summary>The picked egg's creature as it is now (CompanionService.EggLook), so a
+    /// player who forgot the parent sees what they are sequencing.</summary>
+    private async Task LoadLookAsync(EggChoice? choice)
+    {
+        int version = ++_lookVersion;
+        EggPreviewLook? look = null;
+        if (choice is { Slot: >= 0 } && CompanionService.EggLook(choice.Slot) is { } egg
+            && await CreatureModelService.ResolveRigAsync(egg.Species, egg.Parts) is { Length: > 0 } rig)
+            look = new EggPreviewLook(rig, egg.Parts, egg.Seed, egg.ColourSeed);
+        if (version != _lookVersion) return;
+        HasLook = look is not null;   // shown first, so the panel draws while visible
+        Look = look;
     }
     partial void OnSearchTextChanged(string value) => Apply();
     partial void OnOnlyOwnedChanged(bool value) => Apply();

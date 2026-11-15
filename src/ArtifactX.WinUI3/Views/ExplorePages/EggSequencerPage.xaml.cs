@@ -13,7 +13,15 @@ public sealed partial class EggSequencerPage : Page
     public EggSequencerPage()
     {
         InitializeComponent();
+        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         _ = ViewModel.LoadAsync();
+    }
+
+    /// <summary>Draws the picked egg's creature (the panel is a control, so the page hands it the look).</summary>
+    private async void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(EggSequencerViewModel.Look) && ViewModel.Look is { } look)
+            await EggPreview.ShowCreatureAsync(look.Rig, look.Parts, seed: look.Seed, colourSeed: look.ColourSeed);
     }
 
     public Visibility IsNotReady(bool ready) => ready ? Visibility.Collapsed : Visibility.Visible;
