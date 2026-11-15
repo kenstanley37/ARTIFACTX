@@ -34,6 +34,7 @@ public static partial class CatalogService
         Revision++;
         Cache.Clear();
         _namingWords = null;
+        _corvettePartModules = null;
         _moduleClasses = null;
         _productNaming = null;
         _languageWordsCache = null;

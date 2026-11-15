@@ -49,6 +49,42 @@ public static partial class CatalogService
         _ => ("Not sold at the workshop", 3),
     };
 
+    private static Dictionary<string, string>? _corvettePartModules;
+
+    /// <summary>Corvette part id ("B_HAB_C") to the upgrade module it gives the corvette ("CV_INV2"), from the
+    /// CorvetteParts facts' "tech" (catalog format 100; empty before). Cached; cleared in Reload.</summary>
+    public static async Task<IReadOnlyDictionary<string, string>> GetCorvettePartModulesAsync()
+    {
+        if (_corvettePartModules is { } cached) return cached;
+        string? dbPath = ResolveDbPath();
+        if (dbPath is null) return new Dictionary<string, string>();
+        return await Task.Run(() =>
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                    WHERE c.TemplateType = 'CorvetteParts' AND i.DescriptionEnglish LIKE '%""tech"":""CV_%'";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    using var facts = System.Text.Json.JsonDocument.Parse(reader.GetString(1));
+                    if (facts.RootElement.TryGetProperty("tech", out var tech) && tech.GetString() is { Length: > 0 } module)
+                        map[reader.GetString(0)] = module;
+                }
+            }
+            catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
+            {
+                Debug.WriteLine($"[CatalogService] GetCorvettePartModulesAsync failed: {ex.Message}");
+            }
+            return _corvettePartModules = map;
+        });
+    }
+
     /// <summary>The parts a corvette is built from - the game's own
     /// BuildableInShipStructural flag (DataCataloger add-corvette-parts) -
     /// joined to the product row for the name and stack size, A-Z.</summary>

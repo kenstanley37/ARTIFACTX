@@ -371,10 +371,14 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         _techViewModel.Load();
         _cargoViewModel.Load();
 
+        // A corvette's upgrade modules show the part that gives them (ShipBaseService.ModulePartsAsync).
+        var modulePartIcons = selectedShip.IsCorvette ? await ShipBaseService.ModulePartsAsync(_selectedIndex) : null;
         var itemIds = _techViewModel.Cells.Concat(_cargoViewModel.Cells)
             .Where(c => c.IsOccupied)
-            .Select(c => c.ItemId);
+            .Select(c => c.ItemId)
+            .Concat(modulePartIcons?.Values ?? []);
         await CatalogService.WarmCacheAsync(itemIds);
+        TechGrid.IconStandIns = modulePartIcons;
 
         TechGrid.ViewModel = _techViewModel;
         TechGrid.AllowedCategories = new[] { "Technology" };
