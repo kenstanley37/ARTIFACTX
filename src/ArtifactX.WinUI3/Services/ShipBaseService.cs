@@ -99,7 +99,7 @@ public static class ShipBaseService
             || await ModelPreviewService.CorvettesAsync(game) is not { } assembly) return null;
         static System.Numerics.Vector3 V(double[] v) => new((float)v[0], (float)v[1], (float)v[2]);
         var parts = saved.Where(p => p.Position.Length == 3 && p.Up.Length == 3 && p.At.Length == 3)
-            .Select(p => new ArtifactX.GameData.CorvettePart(p.Id, V(p.Position), V(p.Up), V(p.At))).ToList();
+            .Select(p => new ArtifactX.GameData.CorvettePart(p.Id, V(p.Position), V(p.Up), V(p.At), unchecked((ulong)p.UserData))).ToList();
         return await System.Threading.Tasks.Task.Run(() => assembly.Assemble(parts));
     }
 

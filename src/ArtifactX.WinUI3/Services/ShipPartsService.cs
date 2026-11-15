@@ -277,7 +277,7 @@ public static class ShipPartsService
     }
 
     /// <summary>A corvette as built (#73): its parts put together the game's way (ShipBaseService.AssembleAsync),
-    /// drawn in the parts' own textures where they carry their colours, else as a shape scan.
+    /// each painted with its own base-building palette (CorvetteAssembly.PaintOutside).
     /// Null without game files or a build.</summary>
     public static async Task<ShipPreviewBuild?> BuildCorvettePreviewAsync(int shipIndex, Func<bool> isCancelled)
     {
@@ -290,14 +290,10 @@ public static class ShipPartsService
         var look = Look;
         uint Colour(string material) => MaterialColour(material, look);
         if (mesh is null) return new ShipPreviewBuild(null, Colour, null, true, "");
-        if (await ModelPreviewService.FixedLookAsync(models, mesh) is { } own)
-        {
-            if (isCancelled()) return null;
-            return new ShipPreviewBuild(mesh, Colour, m => own.GetValueOrDefault(m), false,
-                "Your corvette as built, from your game files, in the parts' plain finish - your paint isn't shown yet. Drag to turn.");
-        }
-        return new ShipPreviewBuild(mesh, Colour, null, true,
-            "Your corvette as built, from your game files - drag to turn. Its paint can't be shown yet.");
+        var textures = await Task.Run(() => assembly.PaintOutside(mesh));
+        if (isCancelled()) return null;
+        return new ShipPreviewBuild(mesh, Colour, m => textures.GetValueOrDefault(m), false,
+            "Your corvette as built, in its parts' colours, from your game files - drag to turn.");
     }
 
     /// <summary>The ship types the station builder makes, and so can be painted (an

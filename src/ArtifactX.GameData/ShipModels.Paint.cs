@@ -46,9 +46,13 @@ public sealed partial class ShipModels
     /// pick with <paramref name="textureSeed"/> - unconfirmed: it matched what the game loaded on 7 of 10 such
     /// materials (2026-11-13; ACC_EAR1 loads GRADIENT where its own pick is HALF).</param>
     public ModelTexture? Painted(string material, Func<string, string, float[]?> colour, int size = 512, ulong? textureSeed = null,
-        ISet<string>? styles = null, float? layerGain = null, IReadOnlyDictionary<string, string?>? layerPicks = null)
+        ISet<string>? styles = null, float? layerGain = null, IReadOnlyDictionary<string, string?>? layerPicks = null,
+        IReadOnlyList<float[]>? baseColours = null)
     {
         if (Decode(material) is not TkMaterialData data) return null;
+        if (baseColours is not null)
+            return Painted(material, colour, size, textureSeed, styles, layerGain, layerPicks) is { } plain
+                ? Colourise(data, plain, baseColours) ?? plain : null;
         var samplers = data.Samplers ?? new();
         TkProceduralTextureList? ListIn(string slot) =>
             samplers.FirstOrDefault(s => (s.Name?.Value ?? "") == slot)?.Map?.Value is { Length: > 0 } map
@@ -279,6 +283,65 @@ public sealed partial class ShipModels
     /// <summary>A colour slot's number ("Primary" 0, "Alternative1" 1... "Unique" 5, "None" 7), or -1.</summary>
     public static int SlotIndex(string name) => Enum.TryParse<TkPaletteTexture.ColourAltEnum>(name, out var a) ? (int)a : -1;
 
+    /// <summary>A one-channel BC4 DDS (DX10 header, DXGI 80 - the corvette parts' COLOURISEMASK), top mip, as grey RGBA;
+    /// null for any other format. Pfim leaves these out (fewer than 3 bytes a pixel).</summary>
+    private static (int W, int H, byte[] Rgba)? Bc4(byte[] dds)
+    {
+        if (dds.Length < 148 || BitConverter.ToUInt32(dds, 0) != 0x20534444 || BitConverter.ToUInt32(dds, 84) != 0x30315844
+            || BitConverter.ToInt32(dds, 128) != 80) return null;
+        int h = BitConverter.ToInt32(dds, 12), w = BitConverter.ToInt32(dds, 16);
+        int bw = (w + 3) / 4, bh = (h + 3) / 4;
+        if (w <= 0 || h <= 0 || 148L + (long)bw * bh * 8 > dds.Length) return null;
+        var rgba = new byte[w * h * 4];
+        Span<byte> pal = stackalloc byte[8];
+        for (int by = 0; by < bh; by++)
+            for (int bx = 0; bx < bw; bx++)
+            {
+                int o = 148 + (by * bw + bx) * 8;
+                byte a0 = dds[o], a1 = dds[o + 1];
+                ulong bits = 0;
+                for (int i = 0; i < 6; i++) bits |= (ulong)dds[o + 2 + i] << (8 * i);
+                pal[0] = a0; pal[1] = a1;
+                if (a0 > a1) for (int i = 1; i < 7; i++) pal[i + 1] = (byte)(((7 - i) * a0 + i * a1) / 7);
+                else { for (int i = 1; i < 5; i++) pal[i + 1] = (byte)(((5 - i) * a0 + i * a1) / 5); pal[6] = 0; pal[7] = 255; }
+                for (int i = 0; i < 16; i++)
+                {
+                    int x = bx * 4 + i % 4, y = by * 4 + i / 4;
+                    if (x >= w || y >= h) continue;
+                    byte v = pal[(int)((bits >> (3 * i)) & 7)];
+                    int k = (y * w + x) * 4;
+                    rgba[k] = rgba[k + 1] = rgba[k + 2] = v;
+                    rgba[k + 3] = 255;
+                }
+            }
+        return (w, h, rgba);
+    }
+
+    /// <summary>
+    /// Base-building colours on a COLOURISABLE material (_F53, gColouriseMaskMap), as the ubershader does it (NMS
+    /// 7.14 SPIR-V, ubershader_frag_gen_imposter_*): slot = 4 - int(mask x 4 + 0.5), and a slot under 4 multiplies the
+    /// texture by that colour of the part's palette (GcBaseBuildingPalette Primary, Secondary, Ternary, Quaternary).
+    /// The corvette trim mask has 255 (Primary), 192 (Secondary), 14 and 0 (left as is).
+    /// </summary>
+    private ModelTexture? Colourise(TkMaterialData data, ModelTexture texture, IReadOnlyList<float[]> palette)
+    {
+        if (data.Flags?.Any(f => f.MaterialFlag == TkMaterialFlags.MaterialFlagEnum._F53_COLOURISABLE) != true
+            || data.Samplers?.FirstOrDefault(s => s.Name?.Value == "gColouriseMaskMap")?.Map?.Value is not { Length: > 0 } map
+            || Image(map) is not { } mask || palette.Count < 4) return null;
+        var px = (uint[])texture.Pixels.Clone();
+        for (int y = 0; y < texture.Height; y++)
+            for (int x = 0; x < texture.Width; x++)
+            {
+                byte m = mask.Rgba[((y * mask.H / texture.Height) * mask.W + x * mask.W / texture.Width) * 4];
+                int slot = 4 - (int)(m / 255f * 4f + 0.5f);
+                if (slot is < 0 or > 3 || palette[slot] is not { Length: >= 3 } c) continue;
+                uint p = px[y * texture.Width + x];
+                byte Tint(int shift, float f) => (byte)Math.Clamp((int)(((p >> shift) & 0xFF) * f + 0.5f), 0, 255);
+                px[y * texture.Width + x] = (p & 0xFF000000u) | (uint)Tint(16, c[0]) << 16 | (uint)Tint(8, c[1]) << 8 | Tint(0, c[2]);
+            }
+        return texture with { Pixels = px };
+    }
+
     private static ModelTexture Resample((int W, int H, byte[] Rgba) img, int size, Func<byte, byte, byte, byte, (byte, byte, byte)> map)
     {
         var px = new uint[size * size];
@@ -300,6 +363,7 @@ public sealed partial class ShipModels
         {
             var bytes = _extraction.ExtractEntryBytes(pak, entry, header);
             if (bytes is null) return null;
+            if (Bc4(bytes) is { } single) return Reduced(single);
             using IImage img = Pfimage.FromStream(new MemoryStream(bytes));
             int bpp = img.BitsPerPixel / 8;
             if (bpp < 3) return null;
@@ -313,8 +377,25 @@ public sealed partial class ShipModels
                     rgba[o + 2] = img.Data[i];
                     rgba[o + 3] = bpp >= 4 ? img.Data[i + 3] : (byte)255;
                 }
-            return (img.Width, img.Height, rgba);
+            return Reduced((img.Width, img.Height, rgba));
         }
         catch { return null; }
     });
+
+    private const int CachedImageSide = 1024;
+
+    /// <summary>The cached copy of an image at most <see cref="CachedImageSide"/> pixels a side, picked by nearest pixel
+    /// (no averaging, so a mask's exact levels survive). Previews paint at 512; a corvette's ~100 materials kept at
+    /// 2048 x 4096 held over 1 GB (2026-11-15).</summary>
+    private static (int W, int H, byte[] Rgba) Reduced((int W, int H, byte[] Rgba) img)
+    {
+        int step = Math.Max(1, (Math.Max(img.W, img.H) + CachedImageSide - 1) / CachedImageSide);
+        if (step == 1) return img;
+        int w = Math.Max(1, img.W / step), h = Math.Max(1, img.H / step);
+        var rgba = new byte[w * h * 4];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                Buffer.BlockCopy(img.Rgba, ((y * step) * img.W + x * step) * 4, rgba, (y * w + x) * 4, 4);
+        return (w, h, rgba);
+    }
 }

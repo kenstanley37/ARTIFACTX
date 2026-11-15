@@ -10,10 +10,11 @@ namespace ArtifactX.GameData;
 
 /// <summary>One part of a corvette build as the save keeps it (@ZJ: r&lt;7 id, wMC position, wJ0 up, aNu at),
 /// in the ship's own space.</summary>
-public sealed record CorvettePart(string Id, Vector3 Position, Vector3 Up, Vector3 At);
+public sealed record CorvettePart(string Id, Vector3 Position, Vector3 Up, Vector3 At, ulong UserData = 0);
 
-/// <summary>A sub-part scene the build is drawn with and where it sits in ship space.</summary>
-public sealed record CorvettePiece(string Scene, Matrix4x4 World);
+/// <summary>A sub-part scene the build is drawn with, where it sits in ship space, and its part's colour palette
+/// (index into GcBaseBuildingTable.Palettes; -1 none).</summary>
+public sealed record CorvettePiece(string Scene, Matrix4x4 World, int Palette = -1);
 
 /// <summary>An assembled corvette: its pieces and the size the game measures for it
 /// (<c>cGcBuildableSpaceshipComponent</c> +0x90 centre, +0xA0 size = half the mesh box plus 1 m).</summary>
@@ -48,13 +49,21 @@ public sealed class CorvetteAssembly
 
     private readonly ShipModels _models;
     private readonly Dictionary<string, string> _placementScenes;
-    private readonly Dictionary<string, string> _subPartScenes;
+    private readonly Dictionary<string, List<(GcBaseBuildingPartStyle.StyleEnum Style, string Scene)>> _subPartScenes;
+    private readonly Dictionary<string, GcBaseBuildingPartStyle.StyleEnum> _styles;
+    private readonly Dictionary<string, int> _defaultPalettes;
+    private readonly IReadOnlyList<float[][]> _palettes;
 
-    private CorvetteAssembly(ShipModels models, Dictionary<string, string> placement, Dictionary<string, string> subParts)
+    private CorvetteAssembly(ShipModels models, Dictionary<string, string> placement,
+        Dictionary<string, List<(GcBaseBuildingPartStyle.StyleEnum, string)>> subParts,
+        Dictionary<string, GcBaseBuildingPartStyle.StyleEnum> styles, Dictionary<string, int> defaultPalettes, IReadOnlyList<float[][]> palettes)
     {
         _models = models;
         _placementScenes = placement;
         _subPartScenes = subParts;
+        _styles = styles;
+        _defaultPalettes = defaultPalettes;
+        _palettes = palettes;
     }
 
     /// <summary>Null when the game's base building tables can't be read.</summary>
@@ -65,10 +74,24 @@ public sealed class CorvetteAssembly
         var placement = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var o in objects.Objects)
             if (o.PlacementScene?.Filename?.Value is { Length: > 0 } scene) placement.TryAdd(o.ID.Value, scene);
-        var subParts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var subParts = new Dictionary<string, List<(GcBaseBuildingPartStyle.StyleEnum, string)>>(StringComparer.OrdinalIgnoreCase);
         foreach (var p in partsTable.Parts)
-            if (p.StyleModels?.FirstOrDefault()?.Model?.Filename?.Value is { Length: > 0 } scene) subParts.TryAdd(p.ID.Value, scene);
-        return new CorvetteAssembly(models, placement, subParts);
+        {
+            var models_ = (p.StyleModels ?? new()).Where(m => m.Model?.Filename?.Value is { Length: > 0 })
+                .Select(m => (m.Style?.Style ?? default, m.Model.Filename.Value)).ToList();
+            if (models_.Count > 0) subParts.TryAdd(p.ID.Value, models_);
+        }
+        var styles = new Dictionary<string, GcBaseBuildingPartStyle.StyleEnum>(StringComparer.OrdinalIgnoreCase);
+        foreach (var o in objects.Objects)
+            if (o.Style is { } style) styles.TryAdd(o.ID.Value, style.Style);
+        float[] C(libMBIN.NMS.Colour c) => [c.R, c.G, c.B];
+        var palettes = (objects.Palettes ?? new()).Select(p => new[] { C(p.PrimaryColour), C(p.SecondaryColour), C(p.TernaryColour), C(p.QuaternaryColour) }).ToList();
+        var paletteIndex = (objects.Palettes ?? new()).Select((p, i) => (p.Id.Value, i)).GroupBy(p => p.Value, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().i, StringComparer.OrdinalIgnoreCase);
+        var defaults = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var o in objects.Objects)
+            if (o.DefaultColourPaletteId?.Value is { Length: > 0 } id && paletteIndex.TryGetValue(id, out int index)) defaults.TryAdd(o.ID.Value, index);
+        return new CorvetteAssembly(models, placement, subParts, styles, defaults, palettes);
     }
 
     /// <summary>The build's pieces and measured size; null when no part could be placed.</summary>
@@ -79,7 +102,7 @@ public sealed class CorvetteAssembly
         {
             string id = s.Id.TrimStart('^');
             if (!_placementScenes.TryGetValue(id, out var scene) || _models.Decode(scene) is not TkSceneNodeData root) continue;
-            var placed = new Placed(id, PartMatrix(s), scene);
+            var placed = new Placed(id, PartMatrix(s), scene, PaletteOf(id, s.UserData), _styles.GetValueOrDefault(id));
             CollectSnaps(root, Matrix4x4.Identity, placed, 0);
             parts.Add(placed);
         }
@@ -135,6 +158,38 @@ public sealed class CorvetteAssembly
         { "ExclusionVolumes", "MESHBOUNDS", "ReEntryTunnel", "SpeedCool", "ConeMesh", "CANOPYFADE" };
     private static readonly Regex Inside = new("INT_?MAT|ROUGHSHIPINT|BIGGES_TECH|RODTECH", RegexOptions.IgnoreCase);
 
+    /// <summary>A sub-part's model for the part's style (GcBaseBuildingEntry.Style): B_DECO_F is decoration style F,
+    /// B_TUR_C gun C. Taking the first style for every part drew all of Slot 8's decorations as style A's 5.7 m
+    /// antennas (thin rods out of the hull the game doesn't show, owner 2026-11-15). A part without that style uses
+    /// the sub-part's first model.</summary>
+    private string? SubPartScene(string subPartId, GcBaseBuildingPartStyle.StyleEnum style) =>
+        _subPartScenes.TryGetValue(subPartId, out var models)
+            ? models.FirstOrDefault(m => m.Style == style).Scene ?? models[0].Scene : null;
+
+    /// <summary>A part's colour palette: its UserData (CVX) is the index into GcBaseBuildingTable.Palettes - all 70 of
+    /// Slot 8's unpainted corvette parts have 99 = BIGGS0, the parts' DefaultColourPaletteId (2026-11-15; the owner
+    /// never painted it). A value outside the table falls back to the part's default. A repainted corvette's UserData
+    /// isn't checked yet.</summary>
+    private int PaletteOf(string id, ulong userData) =>
+        userData < (ulong)_palettes.Count ? (int)userData : _defaultPalettes.GetValueOrDefault(id, -1);
+
+    /// <summary>The outside's textures, each material painted with its part's base colours (ShipModels.Painted
+    /// colourise). Keys are BuildOutside's material names ("material#palette"). 256 px: a corvette has ~95 materials
+    /// (100 MB at 512).</summary>
+    public Dictionary<string, ModelTexture?> PaintOutside(ShipMesh mesh, int size = 256)
+    {
+        var result = new Dictionary<string, ModelTexture?>(StringComparer.OrdinalIgnoreCase);
+        foreach (string key in mesh.Materials.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            int cut = key.LastIndexOf('#');
+            string material = cut > 0 ? key[..cut] : key;
+            float[][]? palette = cut > 0 && int.TryParse(key[(cut + 1)..], out int index) && index >= 0 && index < _palettes.Count
+                ? _palettes[index] : null;
+            result[key] = _models.Painted(material, (_, _) => null, size, baseColours: palette);
+        }
+        return result;
+    }
+
     /// <summary>The save's up and at vectors as rows (right = up x at), then the position.</summary>
     private static Matrix4x4 PartMatrix(CorvettePart p)
     {
@@ -173,7 +228,7 @@ public sealed class CorvetteAssembly
         if (level > 6 || _models.Decode(scene) is not TkSceneNodeData root) return;
         // Placement scenes hold the build-mode ghost; the visible model is the rules' sub-parts.
         bool ghost = level == 0 && scene.EndsWith("_PLACEMENT.SCENE.MBIN", StringComparison.OrdinalIgnoreCase);
-        if (!ghost) pieces.Add(new CorvettePiece(scene, world));
+        if (!ghost) pieces.Add(new CorvettePiece(scene, world, part.Palette));
         var locators = new List<(string Name, Matrix4x4 World)>();
         var rules = new List<GcBasePlacementRule>();
         var lods = ghost ? null : LodLevels(root);
@@ -181,7 +236,9 @@ public sealed class CorvetteAssembly
         var hi = max;
         void Walk(TkSceneNodeData node, Matrix4x4 parent, int depth)
         {
-            if (depth > 32) return;
+            // Under a JOINT the meshes are animated (the tech wall's robot arms); their scene place isn't where the
+            // game has them - counted, the arms put the bottom 1 m too low (9.73 against the game's 9.25).
+            if (depth > 32 || node.Type?.Value == "JOINT") return;
             var local = SceneTransformMath.Local(node.Transform) * parent;
             string name = node.Name?.Value ?? "";
             locators.Add((name, local));
@@ -211,7 +268,7 @@ public sealed class CorvetteAssembly
                 || (rule.ORConditions ? conditions.Any(c => Holds(c, part, all)) : conditions.All(c => Holds(c, part, all)));
             if (!applies) continue;
             string id = rule.PartID?.Value ?? "";
-            string? subScene = _subPartScenes.GetValueOrDefault(id) ?? _placementScenes.GetValueOrDefault(id);
+            string? subScene = SubPartScene(id, part.Style) ?? _placementScenes.GetValueOrDefault(id);
             if (subScene is null) continue;
             string locator = rule.PositionLocator?.Value ?? "";
             if (locator.Length == 0) Place(subScene, world, level + 1, part, all, pieces, ref min, ref max);
@@ -300,7 +357,7 @@ public sealed class CorvetteAssembly
         public List<string> In { get; } = new();
     }
 
-    private sealed record Placed(string Id, Matrix4x4 World, string Scene)
+    private sealed record Placed(string Id, Matrix4x4 World, string Scene, int Palette, GcBaseBuildingPartStyle.StyleEnum Style)
     {
         public List<Snap> Snaps { get; } = new();
     }
