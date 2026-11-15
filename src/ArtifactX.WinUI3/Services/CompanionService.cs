@@ -50,8 +50,15 @@ public static class CompanionService
     }
 
     /// <summary>The eggs in the save (NmsCompanionPaths.EggArrayPath): name, species,
-    /// size (unY) and trait values (JAy), for the Egg Sequencer page. Read-only.</summary>
-    public static List<EggCreature> ReadEggs()
+    /// size (unY) and trait values (JAy), for the Egg Sequencer page. Read-only.
+    /// An egg a companion laid has no fH8; the game names it after its parent - the
+    /// companion name (CreatureNames) from the egg's XID and its tDR, which holds the
+    /// parent's BirthTime (XwC). Confirmed 2026-11-14 on Slot 8: egg 12 (CAT, tDR =
+    /// companion 2's XwC 1790793453) shows "Beary-Beary's Genetic Material" and egg 13
+    /// (TREX, tDR = companion 11's XwC 1790952999) "Orangipti's Genetic Material" in
+    /// game, both exact. Eggs with tDR 0 and no fH8 (Slot 8's LAND_JELLYFISH) are not
+    /// confirmed yet and keep the plain fallback.</summary>
+    public static List<EggCreature> ReadEggs(CreatureNameService? names = null)
     {
         var eggs = new List<EggCreature>();
         if (SaveSessionManager.GetValue(NmsCompanionPaths.EggArrayPath) is not JArray array) return eggs;
@@ -60,6 +67,8 @@ public static class CompanionService
             string xid = (array[i]?["XID"]?.Value<string>() ?? "").TrimStart('^');
             if (xid.Length == 0 || array[i]?["JAy"] is not JArray traits || traits.Count < 3) continue;
             string name = array[i]?["fH8"]?.Value<string>() ?? "";
+            ulong parentBirth = NmsSpaceStationPaths.ParsePackedAddress(array[i]?["tDR"]) ?? 0;
+            if (string.IsNullOrWhiteSpace(name) && parentBirth != 0) name = names?.CompanionName(xid, parentBirth) ?? "";
             eggs.Add(new EggCreature(string.IsNullOrWhiteSpace(name) ? $"Companion egg {eggs.Count + 1}" : name, xid,
                 array[i]?["unY"]?.Value<float>() ?? 1f, traits.Take(3).Select(t => t.Value<float>()).ToArray()));
         }

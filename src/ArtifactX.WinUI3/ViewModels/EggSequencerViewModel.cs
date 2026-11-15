@@ -94,7 +94,7 @@ public sealed partial class EggSequencerViewModel : ObservableObject
         Slots.Clear();
         foreach (var slot in Enum.GetValues<EggCatalystSlot>()) Slots.Add(new EggSlotViewModel(slot, rules, fullDose, Text));
         // The egg's own name, as the game shows it ("Mecha-Mouse Egg"); a number only tells same-named eggs apart.
-        var saved = CompanionService.ReadEggs();
+        var saved = CompanionService.ReadEggs(await CreatureNameService.LoadAsync());
         Eggs = (EggChoice[])[new EggChoice("Any egg (no exact numbers)", null),
             .. saved.Select((e, i) => new EggChoice(saved.Count(o => o.Name == e.Name) > 1
                 ? $"{e.Name} ({saved.Take(i + 1).Count(o => o.Name == e.Name)})" : e.Name, e))];

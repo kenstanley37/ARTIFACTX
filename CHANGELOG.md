@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Egg Sequencer: eggs your companions laid now use the name the game shows ("Beary-Beary") instead of "Companion egg 13".
 - Freighter: Hyperdrive and Fleet Coordination now show the number the game shows under them ("In game 5,383.8"), with your installed technology, upgrades, supercharged slots and adjacency. It updates as you edit, before you save. Update your game data once to get this.
 - Multi-Tool: Damage and Scanner now show the number the game shows under them ("In game 443.3"): Damage Potential and Scanner Range with your installed technology, upgrades, supercharged slots and adjacency. It updates as you edit, before you save. Mining has no in-game total yet.
 - Cargo and storage pages: Merge Duplicates is now Remove Duplicates. It keeps one stack of each item (the fullest) and deletes the other stacks of it, freeing those slots. Technology and one-per-slot items such as eggs are never removed, and Reset brings everything back before you save.

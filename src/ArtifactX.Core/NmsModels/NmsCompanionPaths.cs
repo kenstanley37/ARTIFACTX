@@ -212,8 +212,11 @@ public static class NmsCompanionPaths
     /// is "Mecha-Mouse" (XID ROBO_RODENT, JAy [0.8, -0.5, 0.2]), the robot egg the
     /// owner sequenced; every Neural Calibrator word the game showed for it fits those
     /// values (Sac Venom: Gentleness Decreasing, Dioxite: Helpfulness Increasing,
-    /// Silver: Independence Decreasing). An empty slot has XID "^". Which slot an
-    /// inventory egg (^EGG13, no seed) belongs to is not stored on the item.</summary>
+    /// Silver: Independence Decreasing). An empty slot has XID "^". An inventory
+    /// egg's item id is its slot: ^EGGn is slot n-1 (items EGG1..EGG18). Confirmed
+    /// 2026-11-14 on Slot 8: 14 filled slots and exactly EGG1..EGG14 held; EGG13 and
+    /// EGG14 in the Exosuit showed slot 12's and slot 13's names (Beary-Beary,
+    /// Orangipti) and trait words (gentle, aggressive) in game.</summary>
     public static readonly string[] EggArrayPath = { "vLc", "6f=", "uKZ" };
 
     public static string[] CompanionPath(int companionIndex) =>
