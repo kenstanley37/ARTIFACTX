@@ -198,22 +198,9 @@ public static class CompanionService
         return new JArray(result.Cast<object>());
     }
 
-    /// <summary>Turns a raw descriptor slot code like "_HTAZEARS_" into
-    /// "Htazears" - title-cased for readability. Rig slot names are the
-    /// game's own internal shorthand (not always a recognizable English
-    /// word), so this is cosmetic cleanup only, not a translation - see
-    /// HumanizeDescriptorOption below for the same caveat on option
-    /// values.</summary>
-    public static string HumanizeDescriptorCategory(string category)
-    {
-        string trimmed = category.Trim('_');
-        if (trimmed.Length == 0) return category;
-        return char.ToUpperInvariant(trimmed[0]) + trimmed[1..].ToLowerInvariant();
-    }
-
     /// <summary>Turns a raw descriptor option code like "_HEAD_TURTLE" into
     /// "Turtle" for the dropdown label - strips the category's own prefix
-    /// (already shown as the row label via HumanizeDescriptorCategory),
+    /// (the row label names the slot: Helpers.Fauna.BodyPartLabels),
     /// splits what's left on underscores, and capitalizes each piece. The
     /// game ships no separate display-name data for these at all -
     /// TkResourceDescriptorData's own "Name" field turned out to just be a

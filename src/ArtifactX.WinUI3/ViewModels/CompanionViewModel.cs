@@ -374,14 +374,19 @@ public sealed partial class CompanionViewModel : ObservableObject
         bool singleRootArchetype = _tree.Where(n => n.ParentOptionId == null)
             .Select(n => n.Category).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1;
 
+        // Plain slot names ("Head: Ears", "Head extra 1") instead of the game's group codes (_ACB_, _ACC_).
+        var slotNodes = Enumerable.Range(0, osl.Count)
+            .Select(i => byOptionId.GetValueOrDefault((osl[i]?.Value<string>() ?? "").TrimStart('^'))).ToList();
+        var labels = Helpers.Fauna.BodyPartLabels.For(slotNodes, _tree);
+
         for (int i = 0; i < osl.Count; i++)
         {
             string raw = osl[i]?.Value<string>() ?? "";
-            if (!byOptionId.TryGetValue(raw.TrimStart('^'), out var node))
+            if (slotNodes[i] is not { } node)
             {
                 // Matches no known option (e.g. the trailing per-instance detail seed):
                 // shown read-only so the array stays visible in full.
-                Parts.Add(CompanionPartRowViewModel.ReadOnly(i, raw));
+                Parts.Add(CompanionPartRowViewModel.ReadOnly(i, labels[i], raw));
                 continue;
             }
 
@@ -391,7 +396,7 @@ public sealed partial class CompanionViewModel : ObservableObject
                 .Select(n => new CompanionPartOption(n.OptionId, CompanionService.HumanizeDescriptorOption(node.Category, n.OptionId)))
                 .ToList();
             int selected = options.FindIndex(o => string.Equals(o.Id, node.OptionId, StringComparison.OrdinalIgnoreCase));
-            Parts.Add(new CompanionPartRowViewModel(i, $"{CompanionService.HumanizeDescriptorCategory(node.Category)} (osl[{i}])",
+            Parts.Add(new CompanionPartRowViewModel(i, labels[i],
                 options, selected, node.ParentOptionId == null && singleRootArchetype, OnPartPicked));
         }
     }
