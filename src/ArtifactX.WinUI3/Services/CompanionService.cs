@@ -158,35 +158,7 @@ public static class CompanionService
     /// swap built this way.</summary>
     public static JArray BuildDefaultDescriptorArray(List<CreatureDescriptorNode> tree, string newRootOptionId, JArray currentOsl)
     {
-        var childrenByParent = tree
-            .Where(n => n.ParentOptionId != null)
-            .GroupBy(n => n.ParentOptionId!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-
-        var result = new List<string>();
-
-        void Visit(string optionId)
-        {
-            result.Add("^" + optionId);
-
-            if (!childrenByParent.TryGetValue(optionId, out var children)) return;
-
-            var categoriesInOrder = children
-                .GroupBy(n => n.Category)
-                .OrderBy(g => g.Min(n => n.SortOrder));
-
-            foreach (var categoryGroup in categoriesInOrder)
-            {
-                var defaultChoice = categoryGroup
-                    .OrderBy(n => n.OptionId.EndsWith("XRARE", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
-                    .ThenBy(n => n.SortOrder)
-                    .First();
-                Visit(defaultChoice.OptionId);
-            }
-        }
-
-        Visit(newRootOptionId);
-
+        var result = DefaultSubtree(tree, newRootOptionId);
         var byOptionId = new HashSet<string>(tree.Select(n => n.OptionId), StringComparer.OrdinalIgnoreCase);
         foreach (var entry in currentOsl)
         {
@@ -195,6 +167,54 @@ public static class CompanionService
                 result.Add(raw);
         }
 
+        return new JArray(result.Cast<object>());
+    }
+
+    /// <summary>An option and, depth-first, one default pick per slot below it (BuildDefaultDescriptorArray's
+    /// rule: a non-rare option first, then the game's own order), as "^"-prefixed osl entries.</summary>
+    private static List<string> DefaultSubtree(List<CreatureDescriptorNode> tree, string optionId)
+    {
+        var childrenByParent = tree
+            .Where(n => n.ParentOptionId != null)
+            .GroupBy(n => n.ParentOptionId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+        var result = new List<string>();
+        void Visit(string id)
+        {
+            result.Add("^" + id);
+            if (!childrenByParent.TryGetValue(id, out var children)) return;
+            foreach (var categoryGroup in children.GroupBy(n => n.Category).OrderBy(g => g.Min(n => n.SortOrder)))
+                Visit(categoryGroup
+                    .OrderBy(n => n.OptionId.EndsWith("XRARE", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+                    .ThenBy(n => n.SortOrder)
+                    .First().OptionId);
+        }
+        Visit(optionId);
+        return result;
+    }
+
+    /// <summary>Swaps the part at <paramref name="index"/> for <paramref name="newOptionId"/> together with its extras:
+    /// the entries right after it that hang off any option of the same slot (osl is depth-first, so they follow it)
+    /// are replaced by the new option's default extras. A plain swap kept the old part's extras: switching Slot 8's
+    /// Gerbilil from the Turtle to the Grunt head left the Turtle head's extras, which the game ignored (2026-11-15:
+    /// Grunt head, no ears, in game) while the Grunt head's own extras could not be picked.</summary>
+    public static JArray SwapPart(List<CreatureDescriptorNode> tree, JArray current, int index, string newOptionId)
+    {
+        var byOption = tree.GroupBy(n => n.OptionId, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var entries = current.Select(v => v?.Value<string>() ?? "").ToList();
+        if (index < 0 || index >= entries.Count || !byOption.TryGetValue(entries[index].TrimStart('^'), out var slot)) return current;
+
+        // Under the slot: some ancestor is an option of the slot (same group, same parent).
+        bool UnderSlot(string entry)
+        {
+            if (!byOption.TryGetValue(entry.TrimStart('^'), out var node)) return false;
+            for (int guard = 0; node.ParentOptionId is { } parentId && byOption.TryGetValue(parentId, out var parent) && guard < 32; guard++, node = parent)
+                if (parent.Category == slot.Category && parent.ParentOptionId == slot.ParentOptionId) return true;
+            return false;
+        }
+        int end = index + 1;
+        while (end < entries.Count && UnderSlot(entries[end])) end++;
+        var result = entries.Take(index).Concat(DefaultSubtree(tree, newOptionId)).Concat(entries.Skip(end));
         return new JArray(result.Cast<object>());
     }
 

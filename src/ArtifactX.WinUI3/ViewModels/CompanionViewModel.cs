@@ -418,8 +418,11 @@ public sealed partial class CompanionViewModel : ObservableObject
         }
 
         if (row.Index >= current.Count || "^" + picked == current[row.Index]?.Value<string>()) return;
-        var updated = new JArray(current.Select(v => v.DeepClone())) { [row.Index] = "^" + picked };
+        // The part and its extras: a head brings its own head extras (CompanionService.SwapPart).
+        var updated = CompanionService.SwapPart(_tree, current, row.Index, picked);
         SaveSessionManager.StageEdit(updated, path);
+        if (updated.Count != current.Count || !updated.Skip(row.Index + 1).Zip(current.Skip(row.Index + 1)).All(p => JToken.DeepEquals(p.First, p.Second)))
+            ShowParts();   // the rows below changed with it
     }
 
     // ------------------------------------------------------------ raw fields

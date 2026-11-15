@@ -6,7 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Changed
 - Companions: personality traits are named as the game shows them ("Gentleness 82") instead of "Trait 1/2/3".
-- Companions: the Battle Abilities grades show under the battle seeds and change as soon as you press Generate, so you can roll until you get the grades you want. "Find S / S / S" rolls one for you in an instant. Body parts moved under the 3D preview, with plain slot names ("Head: Ears", "Head extra 1") instead of the game's codes.
+- Companions: the Battle Abilities grades show under the battle seeds and change as soon as you press Generate, so you can roll until you get the grades you want. "Find S / S / S" rolls one for you in an instant. Body parts moved under the 3D preview, with plain slot names ("Head: Ears", "Head extra 1") instead of the game's codes. Changing a part now also swaps in that part's own extras (a new head brings its own head extras, a winged body its wings) instead of keeping the old part's.
 - Egg Sequencer: eggs with no name of their own now show the name the game shows ("Beary-Beary", "Iihila") instead of "Companion egg 13".
 - Egg Sequencer: each of your eggs now says where it is ("Beary-Beary (in Exosuit)", "Diplodocus (in MainShip)"), so you can find the egg you picked.
 - Egg Sequencer: the egg you pick is shown in 3D, now and after sequencing: the Dye Injector's colours are shown exactly, and the Growth Hormone says the exact new size ("size 1 becomes 1.5"). Each egg also shows its Battle Abilities (Combat, Agility, Health), which the companion keeps when it hatches.
