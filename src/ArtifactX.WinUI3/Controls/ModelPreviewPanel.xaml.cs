@@ -31,12 +31,16 @@ public sealed partial class ModelPreviewPanel : UserControl
     /// <param name="glowColour">Colour (0xRRGGBB) for engine glow materials - a freighter's engine
     /// flare. Glow parts aren't painted: the paint texture turned them dark grey (2026-10-22).</param>
     /// <param name="built">Built ship parts, colours and styles, for fabricated starships.</param>
+    /// <param name="colourSeedText">The seed the default paint comes from when it isn't the model seed: a freighter's
+    /// Home Seed (#69 - in game, rerolling Home Seed changed the paint pattern and kept the shape; Model Seed is the
+    /// shape). Null: the model seed.</param>
     public async Task ShowAsync(
         string? scene,
         string? seedText,
         Dictionary<(string, string), float[]>? customColours = null,
         uint? glowColour = null,
-        BuiltLook? built = null)
+        BuiltLook? built = null,
+        string? colourSeedText = null)
     {
         int version = ++_version;
         if (string.IsNullOrEmpty(scene) || GameDataService.Game is not { } game)
@@ -58,6 +62,7 @@ public sealed partial class ModelPreviewPanel : UserControl
         }
 
         ulong seed = ShipPartsService.TryParseSeed(seedText, out ulong s) ? s : 0;
+        ulong paintSeed = colourSeedText is not null && ShipPartsService.TryParseSeed(colourSeedText, out ulong c) ? c : seed;
         var root = ShipPartsService.LoadTree(ShipParts.DescriptorFor(scene));
         var options = root is null ? new HashSet<string>(StringComparer.Ordinal)
             : ModelPreviewService.AllOptionIds(root, ShipPartsService.LoadTree, StringComparer.Ordinal);
@@ -101,12 +106,14 @@ public sealed partial class ModelPreviewPanel : UserControl
             NoteTxt.Text = "Shape and colours from your game files - drag to turn.";
             return;
         }
-        if (await ModelPreviewService.SeedColoursAsync(seed, rawSeed: true) is { } seedColours)
+        if (await ModelPreviewService.SeedColoursAsync(paintSeed, rawSeed: true) is { } seedColours)
         {
-            var textures = await ModelPreviewService.PaintAsync(models, mesh, seedColours, seed);
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, seedColours, paintSeed);
             if (version != _version) return;
             Preview.Show(mesh, Colour, m => IsGlow(m) ? null : textures.GetValueOrDefault(m));
-            NoteTxt.Text = "Shape and colours from your game files and the ship's seed - drag to turn.";
+            NoteTxt.Text = colourSeedText is not null
+                ? $"Shape from the Model Seed, paint from the Home Seed - colours close to the game's, not always exact. Drag to turn."
+                : "Shape and colours from your game files and the ship's seed - drag to turn.";
             return;
         }
         Preview.Show(mesh, Colour, hologram: true);

@@ -178,7 +178,7 @@
                                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                                         <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
                                                         <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
-                                                                  ToolTipService.ToolTip="Sets the hull's default paint pattern in game (the shape stays the same). The preview doesn't show it - it shows the colours you picked in game. This value is also your freighter's home-system address, so change it only to copy a look you've found elsewhere."/>
+                                                                  ToolTipService.ToolTip="Sets the hull's default paint pattern in game (the shape stays the same). The preview shows this pattern when you haven't picked your own colours in game - your own colours win, as in game. This value is also your freighter's home-system address, so change it only to copy a look you've found elsewhere."/>
                                                     </StackPanel>
                                                     <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed"/>
                                                 </StackPanel>

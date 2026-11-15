@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Freighter: when you haven't picked your own colours in game, the 3D preview paints the freighter from its Home Seed - the seed the game's paint pattern comes from - and changing the Home Seed updates the preview.
 - 3D previews (ships, corvettes, multi-tools, creatures, freighters): a "View larger" button in the corner opens the model in a big view where you can scroll to zoom toward the mouse, right-drag to move it and drag to turn it; "Reset view" puts it back. The small previews zoom with Ctrl+scroll, so the page still scrolls normally. Keyboard: arrows turn, + and - zoom, 0 resets.
 - Closing ArtifactX at the moment No Man's Sky saved could crash it on the way out; it now closes cleanly.
 - Starships: corvettes now show the game's Shield, Hyperdrive and Maneuverability under their base stats ("In game 394.9"), and corvette upgrade modules have their correct stats. Maneuverability depends on how big your build is, like in the game: the bigger the corvette, the more sluggish it turns. It can read 0.1 off the game on corvettes with magnet modules. Damage for corvettes comes later. Update your game data once to get this.

@@ -230,14 +230,15 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     {
         string? scene = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>();
         string? seed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
+        string? homeSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>();
         var paint = CustomisationFor(scene)?["wnR"]?["Aak"];
         string? flare = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterEngineEffectPath)?.Value<string>();
         // The page reloads on every edit and game save; a Dreadnought is ~2 million
         // triangles, so the model is only rebuilt when something it shows changed.
-        string key = $"{scene}|{seed}|{flare}|{paint?.ToString(Newtonsoft.Json.Formatting.None)}";
+        string key = $"{scene}|{seed}|{homeSeed}|{flare}|{paint?.ToString(Newtonsoft.Json.Formatting.None)}";
         if (key == _previewKey) return Task.CompletedTask;
         _previewKey = key;
-        return FreighterPreview.ShowAsync(scene, seed, ModelPreviewService.StoredColours(paint), FlareColour(flare));
+        return FreighterPreview.ShowAsync(scene, seed, ModelPreviewService.StoredColours(paint), FlareColour(flare), colourSeedText: homeSeed);
     }
 
     private string? _previewKey;
@@ -634,6 +635,6 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private void Seed_Changed(object? sender, SeedChange change)
     {
         PageResetBtn.Visibility = Visibility.Visible;
-        if (ReferenceEquals(sender, ModelSeedBox)) _ = ShowFreighterPreviewAsync();
+        if (ReferenceEquals(sender, ModelSeedBox) || ReferenceEquals(sender, HomeSeedBox)) _ = ShowFreighterPreviewAsync();
     }
 }
