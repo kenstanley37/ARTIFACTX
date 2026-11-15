@@ -118,7 +118,8 @@ public sealed partial class CompanionViewModel : ObservableObject
 
     /// <summary>Rolls the first Battle Ability Seed (m9o) until the grades are S/S/S and stages it, keeping the second
     /// (JrL) - what pressing Generate until all S would do, about 1 roll in 300 (15% per grade in build 185034). The
-    /// species name changes with it, as with Generate.</summary>
+    /// species name changes with it, as with Generate. Confirmed in game 2026-11-15 on Slot 8: Gerbilil with the found
+    /// seed 0x01C2786DBF5451ED (JrL kept) showed S / S / S and the new species T. Allihadoctosa.</summary>
     [CommunityToolkit.Mvvm.Input.RelayCommand]
     private async Task FindTopBattleSeedAsync()
     {
