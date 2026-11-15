@@ -25,8 +25,6 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// </summary>
 public sealed partial class CompanionViewModel : ObservableObject
 {
-    public static IReadOnlyList<string> ClassLetters { get; } = new[] { "S", "A", "B", "C" };
-
     // Species archetype (XID, e.g. "RODENT") -> catalog data, loaded once.
     private static Dictionary<string, (string DisplayName, string Rarity, string Description)>? _species;
 
@@ -101,17 +99,25 @@ public sealed partial class CompanionViewModel : ObservableObject
     [ObservableProperty] public partial bool ColourOverrideActive { get; set; }
     [ObservableProperty] public partial string ColourOverrideSeed { get; set; } = "";
 
-    /// <summary>While on, the Battle Abilities badges come from the class letters, not the seeds.</summary>
-    [ObservableProperty] public partial bool LetterOverrideActive { get; set; }
+    /// <summary>The class letter override (isp) is on: the companion's screen shows its stored letters (E&lt;S), but
+    /// the Holo-Arena uses the seed grades - the owner's in-game tests in earlier builds: letters set to S showed S
+    /// until a pet was picked for the arena, then it fought with its seed grades. So the page no longer edits the
+    /// letters; it only shows this and offers to switch the override off (UseSeedGrades). Read-only.</summary>
+    [ObservableProperty] public partial bool LetterOverrideActive { get; private set; }
 
-    /// <summary>The Battle Abilities the game shows from the Battle Ability Seeds (m9o / JrL), recomputed on every
-    /// reload so Generate shows the new grades at once (Helpers.Fauna.CreatureTraitText.Classes). Confirmed on Slot 8
-    /// 2026-11-15: Gerbilil S/S/A overall S and Winginnia A/C/S overall A, as in game. Hidden while the letter
-    /// override is on: the letters decide then, and what overall the game shows for them is unchecked.</summary>
+    /// <summary>The Battle Abilities from the Battle Ability Seeds (m9o / JrL), what the arena uses, recomputed on
+    /// every reload so Generate shows the new grades at once (Helpers.Fauna.CreatureTraitText.Classes). Confirmed on
+    /// Slot 8 2026-11-15: Gerbilil S/S/A overall S and Winginnia A/C/S overall A, as in game.</summary>
     [ObservableProperty] public partial ExploreViewModels.CreatureBattleViewModel? Battle { get; private set; }
-    public ExploreViewModels.CreatureBattleViewModel? SeedBattle => LetterOverrideActive ? null : Battle;
-    /// <summary>The seeds decide the badges (the letter override is off): Find S / S / S applies.</summary>
-    public bool SeedsDecideBattle => !LetterOverrideActive && Battle is not null;
+    public bool HasBattle => Battle is not null;
+
+    /// <summary>Switches the class letter override off, so the companion's screen shows the seed grades too.</summary>
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    private void UseSeedGrades()
+    {
+        if (_index < 0 || !LetterOverrideActive) return;
+        Stage(false, P.ClassLetterOverrideActivePath(_index));   // a staged edit: the page reloads
+    }
 
     /// <summary>Feedback from FindTopBattleSeed when it can't stage a seed; "" otherwise.</summary>
     [ObservableProperty] public partial string BattleSearchMessage { get; private set; } = "";
@@ -146,14 +152,7 @@ public sealed partial class CompanionViewModel : ObservableObject
         if (found is null) { BattleSearchMessage = "No S/S/S seed turned up this time; try again."; return; }
         Stage(found, P.RollSeedPrimaryPath(index));   // a staged edit: the page reloads and shows the new grades
     }
-    partial void OnBattleChanged(ExploreViewModels.CreatureBattleViewModel? value)
-    {
-        OnPropertyChanged(nameof(SeedBattle));
-        OnPropertyChanged(nameof(SeedsDecideBattle));
-    }
-    [ObservableProperty] public partial int HealthLetter { get; set; } = -1;
-    [ObservableProperty] public partial int AgilityLetter { get; set; } = -1;
-    [ObservableProperty] public partial int CombatLetter { get; set; } = -1;
+    partial void OnBattleChanged(ExploreViewModels.CreatureBattleViewModel? value) => OnPropertyChanged(nameof(HasBattle));
 
     /// <summary>Body parts: one row per descriptor (osl) entry.</summary>
     public ObservableCollection<CompanionPartRowViewModel> Parts { get; } = new();
@@ -172,7 +171,6 @@ public sealed partial class CompanionViewModel : ObservableObject
         _loading = true;
         Name = Species = SpeciesName = GameName = Climate = Rarity = ColourOverrideSeed = "";
         ColourOverrideActive = LetterOverrideActive = false;
-        HealthLetter = AgilityLetter = CombatLetter = -1;
         foreach (var field in NumberFields) field.Load(double.NaN);
         _loading = false;
         Parts.Clear();
@@ -232,9 +230,6 @@ public sealed partial class CompanionViewModel : ObservableObject
         ColourOverrideActive = Read<bool?>(P.ColourBaseSeedActivePath(index)) ?? false;
         ColourOverrideSeed = Read<string>(P.ColourBaseSeedPath(index)) ?? "";
         LetterOverrideActive = Read<bool?>(P.ClassLetterOverrideActivePath(index)) ?? false;
-        HealthLetter = LetterIndex(Read<string>(P.ClassLetterPath(index, 0)));
-        AgilityLetter = LetterIndex(Read<string>(P.ClassLetterPath(index, 1)));
-        CombatLetter = LetterIndex(Read<string>(P.ClassLetterPath(index, 2)));
         var battle = Helpers.Fauna.CreatureTraitText.Classes(Seed(P.RollSeedPrimaryPath(index)), Seed(P.RollSeedSecondaryPath(index)),
             PlanetTypesService.CreatureTables);
         Battle = battle is null ? null : new ExploreViewModels.CreatureBattleViewModel(battle);
@@ -314,29 +309,6 @@ public sealed partial class CompanionViewModel : ObservableObject
         Stage(seed, P.ColourBaseSeedPath(_index));
         Stage(true, P.ColourBaseSeedActivePath(_index));
     }
-
-    partial void OnLetterOverrideActiveChanged(bool value)
-    {
-        OnPropertyChanged(nameof(SeedBattle));
-        OnPropertyChanged(nameof(SeedsDecideBattle));
-        if (!_loading && _index >= 0) StageField(() => Stage(value, P.ClassLetterOverrideActivePath(_index)));
-    }
-
-    partial void OnHealthLetterChanged(int value) => StageLetter(0, value);
-    partial void OnAgilityLetterChanged(int value) => StageLetter(1, value);
-    partial void OnCombatLetterChanged(int value) => StageLetter(2, value);
-
-    /// <summary>Stat order in the save is Health/Agility/Combat here (not the
-    /// Agility/Health/Combat order of the mutation points).</summary>
-    private void StageLetter(int stat, int letterIndex)
-    {
-        if (_loading || _index < 0 || letterIndex < 0) return;
-        string letter = ClassLetters[letterIndex];
-        if (letter != (Read<string>(P.ClassLetterPath(_index, stat)) ?? "")) StageField(() => Stage(letter, P.ClassLetterPath(_index, stat)));
-    }
-
-    private static int LetterIndex(string? letter) =>
-        ClassLetters.ToList().FindIndex(l => string.Equals(l, letter, StringComparison.OrdinalIgnoreCase));
 
     // ------------------------------------------------------------ body parts
 

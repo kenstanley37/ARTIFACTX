@@ -175,6 +175,11 @@ namespace ArtifactX.Core.NmsModels;
 ///    Health/Combat order - statIndex 0 is Health and statIndex 1 is
 ///    Agility (swapped relative to ujr), while statIndex 2 (Combat) does
 ///    match. See ClassLetterPath below for the corrected mapping.
+///    LIMIT (owner, 2026-11-15, from earlier builds): the override is display
+///    only - letters set to S showed S on the companion's screen, but once the
+///    pet was picked in the Holo-Arena it fought with its seed (m9o/JrL)
+///    grades. The app therefore no longer edits the letters; it rolls the
+///    seeds instead (Find S / S / S, confirmed in game).
 ///  - m9o AND JrL (hex strings, RollSeedPrimaryPath/RollSeedSecondaryPath
 ///    below) are BOTH CONFIRMED co-inputs driving the Battle Abilities
 ///    badges (Combat Effectiveness/Agility/Health grades) AND the in-game

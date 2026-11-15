@@ -157,46 +157,22 @@
                                    Text="Two co-inputs that together drive the in-game Battle Abilities badges (Combat Effectiveness/Agility/Health grades) AND the fancy auto-generated species name shown in-game - changing either one alone shifts both the name and all three badges. Distinct from the color Seed above, which does not touch either of these."/>
                         <controls:SeedBox x:Name="BattleAbilitySeedBox" Label="Battle abilities seed" Changed="Seed_Changed" BoxWidth="220" HorizontalAlignment="Left"/>
                         <controls:SeedBox x:Name="BattleAbilitySeed2Box" Label="Battle abilities second seed" Changed="Seed_Changed" BoxWidth="220" HorizontalAlignment="Left"/>
-                        <!-- What the game shows for these seeds; Generate updates it at once. Hidden while Override Active is on. -->
-                        <controls:CreatureBattlePanel Battle="{x:Bind ViewModel.SeedBattle, Mode=OneWay}" HorizontalAlignment="Left" Width="320" Margin="0,4,0,0"/>
-                        <StackPanel Orientation="Horizontal" Spacing="12" Visibility="{x:Bind ViewModel.SeedsDecideBattle, Mode=OneWay}">
+                        <!-- The grades these seeds give, what the Holo-Arena uses; Generate updates it at once. -->
+                        <controls:CreatureBattlePanel Battle="{x:Bind ViewModel.Battle, Mode=OneWay}" HorizontalAlignment="Left" Width="320" Margin="0,4,0,0"/>
+                        <StackPanel Orientation="Horizontal" Spacing="12" Visibility="{x:Bind ViewModel.HasBattle, Mode=OneWay}">
                             <Button Content="Find S / S / S" Command="{x:Bind ViewModel.FindTopBattleSeedCommand}"
                                     AutomationProperties.Name="Find a battle seed that gives S in Combat, Agility and Health"
                                     ToolTipService.ToolTip="Rolls the first battle seed until all three grades are S, then puts it in like Generate. The species name changes with it. Save to keep it."/>
                             <TextBlock Text="{x:Bind ViewModel.BattleSearchMessage, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" Visibility="{x:Bind ViewModel.LetterOverrideActive, Mode=OneWay}"
-                                   Text="Override Active is on, so the game shows the Class Letters below instead of these seeds' grades."/>
-                    </StackPanel>
-
-                    <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14" Background="{ThemeResource ThemePanelAltBrush}">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="BATTLE ABILITY OVERRIDE" Style="{StaticResource ThemeEyebrowStyle}"/>
-                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" MaxWidth="700" HorizontalAlignment="Left"
-                                       Text="When Override Active is checked, the Battle Abilities badges are read directly from the Class Letters below instead of the Battle Ability Seeds above. Unchecked (the default on every wild-tamed pet) leaves the badges driven by the Seeds, and these letters sit dormant - disabled below so it's clear they don't do anything while Override Active is off, no matter what they say. Display order here is Health/Agility/Combat, NOT the Agility/Health/Combat order used above and in Genetic Profile below."/>
-                            <CheckBox Content="Override Active" IsChecked="{x:Bind ViewModel.LetterOverrideActive, Mode=TwoWay}"/>
-                            <StackPanel Orientation="Horizontal" Spacing="32">
-                                <StackPanel Spacing="6" Width="190">
-                                    <TextBlock Text="Health" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <ComboBox Width="70" HorizontalAlignment="Left" AutomationProperties.Name="Health class letter"
-                                              ItemsSource="{x:Bind viewmodels:CompanionViewModel.ClassLetters}"
-                                              SelectedIndex="{x:Bind ViewModel.HealthLetter, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.LetterOverrideActive, Mode=OneWay}"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="190">
-                                    <TextBlock Text="Agility" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <ComboBox Width="70" HorizontalAlignment="Left" AutomationProperties.Name="Agility class letter"
-                                              ItemsSource="{x:Bind viewmodels:CompanionViewModel.ClassLetters}"
-                                              SelectedIndex="{x:Bind ViewModel.AgilityLetter, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.LetterOverrideActive, Mode=OneWay}"/>
-                                </StackPanel>
-                                <StackPanel Spacing="6" Width="190">
-                                    <TextBlock Text="Combat" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
-                                    <ComboBox Width="70" HorizontalAlignment="Left" AutomationProperties.Name="Combat class letter"
-                                              ItemsSource="{x:Bind viewmodels:CompanionViewModel.ClassLetters}"
-                                              SelectedIndex="{x:Bind ViewModel.CombatLetter, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.LetterOverrideActive, Mode=OneWay}"/>
-                                </StackPanel>
-                            </StackPanel>
+                        <!-- Only for a companion with the old class letter override on (reward pets, earlier edits). -->
+                        <StackPanel Spacing="6" Visibility="{x:Bind ViewModel.LetterOverrideActive, Mode=OneWay}" MaxWidth="700" HorizontalAlignment="Left">
+                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                       Text="This companion's screen shows fixed class letters, but Holo-Arena battles use the grades above. Use the seed grades so its screen shows what it really fights with."/>
+                            <Button Content="Use the seed grades" Command="{x:Bind ViewModel.UseSeedGradesCommand}" HorizontalAlignment="Left"
+                                    AutomationProperties.Name="Turn off the fixed class letters and show the seed grades"/>
                         </StackPanel>
-                    </Border>
+                    </StackPanel>
 
                     <StackPanel Spacing="8">
                         <TextBlock Text="GENETIC PROFILE" Style="{StaticResource ThemeEyebrowStyle}"/>
