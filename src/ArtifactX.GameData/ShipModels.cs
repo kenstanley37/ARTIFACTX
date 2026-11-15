@@ -61,8 +61,13 @@ public sealed partial class ShipModels
         }
     }
 
-    internal NMSTemplate? Decode(string path) => _files.GetOrAdd(path.Replace('\\', '/').ToUpperInvariant(), p =>
+    internal NMSTemplate? Decode(string path) => _files.GetOrAdd(path.Replace('\\', '/').ToUpperInvariant(), Load);
+
+    /// <summary>Reads and decodes a game file without keeping it - geometry and stream files are large and only
+    /// needed until their meshes are copied out (Geometry keeps those).</summary>
+    private NMSTemplate? Load(string path)
     {
+        string p = path.Replace('\\', '/').ToUpperInvariant();
         if (!_index.TryFind(p, out var pak, out var entry, out var header)) return null;
         try
         {
@@ -73,7 +78,7 @@ public sealed partial class ShipModels
             return mbin.GetData();
         }
         catch { return null; }
-    });
+    }
 
     /// <summary>The model for a ship type's scene. <paramref name="optionIds"/>
     /// are every part id the type can have, <paramref name="chosen"/> the ones
@@ -180,11 +185,17 @@ public sealed partial class ShipModels
 
     /// <summary>One model from scenes placed in a shared space - a corvette's pieces (CorvetteAssembly).
     /// Each scene is built once and copied to every place it's used; a mirroring placement keeps the
-    /// triangles facing out.</summary>
+    /// triangles facing out. A piece with a palette names its materials "material#palette". The geometry files
+    /// it reads are let go afterwards.</summary>
     public ShipMesh? BuildPlaced(IEnumerable<CorvettePiece> pieces, int lod = 0, ISet<string>? hiddenNodes = null)
     {
         var none = new HashSet<string>(StringComparer.Ordinal);
         var built = new Dictionary<string, ShipMesh?>(StringComparer.OrdinalIgnoreCase);
+        var geometryBefore = new HashSet<string>(_geometry.Keys, StringComparer.OrdinalIgnoreCase);
+        // One name per material and palette, not one string per triangle (321,000 on Slot 8's corvette).
+        var names = new Dictionary<(string, int), string>();
+        string Named(string material, int palette) => names.TryGetValue((material, palette), out var n) ? n
+            : names[(material, palette)] = material + "#" + palette.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var corners = new List<Vector3>();
         var uvs = new List<Vector2>();
         var uvs2 = new List<Vector2>();
@@ -202,9 +213,12 @@ public sealed partial class ShipModels
                 corners.Add(Vector3.Transform(mesh.Corners[c], piece.World));
                 if (mesh.Uvs.Length == mesh.Corners.Length) { uvs.Add(mesh.Uvs[a]); uvs.Add(mesh.Uvs[b]); uvs.Add(mesh.Uvs[c]); }
                 if (mesh.Uvs2.Length == mesh.Corners.Length) { uvs2.Add(mesh.Uvs2[a]); uvs2.Add(mesh.Uvs2[b]); uvs2.Add(mesh.Uvs2[c]); }
-                materials.Add(mesh.Materials[i / 3]);
+                materials.Add(piece.Palette >= 0 ? Named(mesh.Materials[i / 3], piece.Palette) : mesh.Materials[i / 3]);
             }
         }
+        // The geometry files read for this model hold every mesh and detail level (a corvette's interiors too):
+        // ~190 MB for Slot 8's corvette, kept for nothing once its triangles are copied out (2026-11-15).
+        foreach (string file in _geometry.Keys.Where(k => !geometryBefore.Contains(k)).ToList()) _geometry.TryRemove(file, out _);
         if (corners.Count == 0) return null;
         return new ShipMesh(corners.ToArray(), materials.ToArray())
         {
@@ -268,8 +282,8 @@ public sealed partial class ShipModels
     private Dictionary<ulong, (Vector3[] P, Vector4[] T, uint[] I)> Geometry(string geometry) => _geometry.GetOrAdd(geometry, g =>
     {
         var result = new Dictionary<ulong, (Vector3[], Vector4[], uint[])>();
-        if (Decode(g + ".PC") is not TkGeometryData gd
-            || Decode(Regex.Replace(g, @"\.GEOMETRY\.MBIN$", ".GEOMETRY.DATA.MBIN", RegexOptions.IgnoreCase) + ".PC") is not TkGeometryStreamData sd)
+        if (Load(g + ".PC") is not TkGeometryData gd
+            || Load(Regex.Replace(g, @"\.GEOMETRY\.MBIN$", ".GEOMETRY.DATA.MBIN", RegexOptions.IgnoreCase) + ".PC") is not TkGeometryStreamData sd)
             return result;
         int stride = gd.PositionVertexLayout.Stride;
         int at = gd.PositionVertexLayout.VertexElements?.FirstOrDefault(v => v.SemanticID == 0)?.Offset ?? 0;
