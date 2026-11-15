@@ -244,6 +244,13 @@ public static class NmsCompanionPaths
 
     public static string[] NamePath(int companionIndex) => CompanionPath(companionIndex).Append("fH8").ToArray();
     public static string[] TrustPath(int companionIndex) => CompanionPath(companionIndex).Append("xDJ").ToArray();
+
+    /// <summary>Scale (unY): the companion's size, a multiplier on its species' model. Kept as stored - a laid egg
+    /// copies its parent's and hatching keeps it (Slot 8, 2026-11-15); the game produces values within the species'
+    /// range (wild spawn, Egg Sequencer), though stored ones can sit outside it (Land Jellyfish egg 1.1, maximum 1.0).
+    /// Confirmed in game 2026-11-15: Slot 8's Bihi-Bihi (TRICERATOPS, range 0.4-12) set from 1.52 to 12 showed a
+    /// giant, the player smaller than its foot, with no problem loading or summoning. Issue #72.</summary>
+    public static string[] ScalePath(int companionIndex) => CompanionPath(companionIndex).Append("unY").ToArray();
     public static string[] NativeClimatePath(int companionIndex) => CompanionPath(companionIndex).Append("8jm").Append("8jm").ToArray();
     public static string[] SpeciesArchetypePath(int companionIndex) => CompanionPath(companionIndex).Append("XID").ToArray();
 
