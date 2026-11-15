@@ -352,6 +352,13 @@ public static partial class CatalogSteps
         }).ToList();
         Replace(statsDb, "TechStats", "GcTechnology", "metadata/reality/tables/nms_reality_gctechnologytable.mbin", rows);
 
+        // Format 101: the technology that charges (GcTechnology.Chargeable). The game puts a charge percentage only on
+        // these slots (Launch Thruster "100%", Pulse Engine at 149/200 "75%"); other tech shows no number.
+        var chargeRows = techTable.Table.Where(t => t.Chargeable && (t.ID?.Value ?? "").Length > 0)
+            .Select(t => t.ID!.Value).Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(id => new CatalogItem { GameId = "TECHCHARGE:" + id, NameEnglish = id }).ToList();
+        Replace(statsDb, "TechCharge", "GcTechnology", "metadata/reality/tables/nms_reality_gctechnologytable.mbin", chargeRows);
+
         ConsoleStyle.Success($"Wrote {techStats.Count} tech stats to {statsDbPath}.");
     }
 }
