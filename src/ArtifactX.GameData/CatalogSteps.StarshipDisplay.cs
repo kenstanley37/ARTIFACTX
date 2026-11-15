@@ -83,7 +83,8 @@ public static partial class CatalogSteps
             b.BoostingTurnDampMin, b.TurnStrengthMax, b.TurnStrengthMin);
         var flightRules = new StarshipFlightRules(controls, [Bonus(flight.ControlBonusC), Bonus(flight.ControlBonusB), Bonus(flight.ControlBonusA), Bonus(flight.ControlBonusS)]);
         var intrinsic = inventory.BaseStats.Where(b => b.BaseStatID.Value.StartsWith("SHIP_", StringComparison.Ordinal)
-                || b.BaseStatID.Value is "ROBOT_SHIP" or "ALIEN_SHIP")
+                || b.BaseStatID.Value is "ROBOT_SHIP" or "ALIEN_SHIP"
+                || b.BaseStatID.Value.StartsWith("FREI_", StringComparison.Ordinal))
             .ToDictionary(b => b.BaseStatID.Value, b => b.StatBonus.Select(s => new StarshipIntrinsicStatTarget((int)s.StatType.StatsType, s.LessIsBetter)).ToArray());
         var beams = projectiles.Lasers.Where(l => l.Id.Value == "PLAYER_SHIP").ToArray();
         if (beams.Length != 1 || reality.ShipWeapons.Length != 7) return null;
@@ -97,6 +98,10 @@ public static partial class CatalogSteps
                 (int)Stat.Ship_Weapons_Lasers_HeatTime, (int)Stat.Ship_Armour_Shield_Strength, (int)Stat.Ship_Hyperdrive_JumpDistance,
                 (int)Stat.Ship_Maneuverability, (int)Stat.Ship_BoostManeuverability), weapons,
             new(special.SpecialTechSlotMaxIndex.X, special.SpecialTechSlotMaxIndex.Y, special.MaxNumSpecialTechSlots), ai.CrashedShipBrokenTechChance,
-            sentinelSelection);
+            sentinelSelection,
+            // Freighter stats panel (0x1406BAD90): Hyperdrive Range and Fleet Coordination's six averaged stats.
+            new((int)Stat.Freighter_Hyperdrive_JumpDistance, [(int)Stat.Freighter_Fleet_Speed, (int)Stat.Freighter_Fleet_Fuel,
+                (int)Stat.Freighter_Fleet_Combat, (int)Stat.Freighter_Fleet_Trade, (int)Stat.Freighter_Fleet_Explore,
+                (int)Stat.Freighter_Fleet_Mine]));
     }
 }

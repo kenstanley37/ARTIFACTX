@@ -44,6 +44,34 @@ internal static class StarshipDisplayEvaluationChecks
                 throw new InvalidOperationException($"Owned ship class for {scene}: expected {expected?.ToString() ?? "none"}");
     }
 
+    /// <summary>Freighter panel arithmetic (0x1406BAD90): jump distance + 1, and the six fleet multipliers averaged x 20,
+    /// with intrinsic bonuses applied as percentages (Fuel less-is-better). Synthetic tables, not game data.</summary>
+    public static void CheckFreighterPanel()
+    {
+        int[] fleet = [176, 177, 178, 179, 180, 181];
+        var parents = new Dictionary<int, int> { [170] = 170, [171] = 170 };
+        foreach (int f in fleet) parents[f] = f;
+        var tables = new MultiToolTechnologyTables([], [],
+            [new("DRIVE", "DRIVE", 0, 0, "", true, 170, [171], [new(171, 100f, 1)], "")],
+            StatParents: parents, ScannerRules: new(0, 0f, 1.25f, 0.04f, 0.03f, 3, 0.06f, 0.05f));
+        var rules = new StarshipEvaluationTables(tables, new([], []), new()
+            {
+                ["FREI_HYPERDRIVE"] = [new(171, false)],
+                ["FREI_FLEET"] = fleet.Select(f => new StarshipIntrinsicStatTarget(f, f == 177)).ToArray(),
+            }, true, new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), [], new(0, 0, 0), 0f, Freighter: new(171, fleet));
+        var cell = new GeneratedInventoryPosition(0, 0);
+        var inventory = new GeneratedMultiToolInventory(new(1, 1, 1, [cell]), [new("DRIVE", cell)], []);
+        var none = FreighterDisplayEvaluation.Evaluate(inventory, new HashSet<GeneratedInventoryPosition>(), [], rules);
+        // 10% hyperdrive bonus: 100 + 10 = 110 (+1); 10% fleet bonus: five stats 1.1, Fuel 0.9 -> mean 1.0667 x 20.
+        var boosted = FreighterDisplayEvaluation.Evaluate(inventory, new HashSet<GeneratedInventoryPosition>(),
+            [new("FREI_HYPERDRIVE", 10f), new("FREI_FLEET", 10f)], rules);
+        if (none is not { Hyperdrive: 101f, FleetCoordination: 20f } || boosted is null
+            || Math.Abs(boosted.Hyperdrive - 111f) > 1e-3f || Math.Abs(boosted.FleetCoordination - (5 * 1.1f + 0.9f) / 6f * 20f) > 1e-3f
+            || FreighterDisplayEvaluation.Evaluate(inventory, new HashSet<GeneratedInventoryPosition>(), [], rules with { Freighter = null }) is not null)
+            throw new InvalidOperationException($"Freighter panel arithmetic: {none} / {boosted}");
+        Console.WriteLine("PASS: freighter panel - hyperdrive + 1, fleet multipliers averaged x 20, intrinsic bonuses, missing ids rejected.");
+    }
+
     // Local fixture contains extracted game tables and read-only player inventory;
     // never commit it. Expected values are native floats unless the fixture explicitly
     // requests comparison at the game screenshots' one-decimal display precision.
