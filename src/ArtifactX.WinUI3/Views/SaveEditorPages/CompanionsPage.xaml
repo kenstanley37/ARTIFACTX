@@ -130,6 +130,15 @@
                             <NumberBox Style="{StaticResource FieldStyle}" AutomationProperties.Name="Holo-arena victories"
                                        Value="{x:Bind ViewModel.Victories.Value, Mode=TwoWay}"/>
                         </StackPanel>
+                        <!-- Size (unY), held within the species' range by the ViewModel - no Minimum/Maximum on the box,
+                             so a stored out-of-range size isn't silently rewritten (issue #72). -->
+                        <StackPanel Spacing="6" Width="190">
+                            <TextBlock Text="SIZE" Style="{StaticResource ThemeEyebrowStyle}"/>
+                            <NumberBox Style="{StaticResource FieldStyle}" SmallChange="0.1" AutomationProperties.Name="Size"
+                                       ToolTipService.ToolTip="How big the companion is: 1 is the species' normal size. The game keeps sizes within each species' range."
+                                       Value="{x:Bind ViewModel.Size.Value, Mode=TwoWay}"/>
+                            <TextBlock Text="{x:Bind ViewModel.Size.Note, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        </StackPanel>
                     </StackPanel>
 
                     <StackPanel Spacing="6">

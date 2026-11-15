@@ -1,3 +1,4 @@
+using ArtifactX.Core.Companions;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
@@ -41,6 +42,7 @@ public sealed partial class CompanionViewModel : ObservableObject
     public CompanionViewModel()
     {
         Trust = Field("Trust", v => Stage(v / 100.0, P.TrustPath(_index)));
+        Size = new NumberFieldViewModel("Size", "Size", double.NaN, field => { if (_index >= 0) StageField(() => StageSize(field)); });
         Trait1 = TraitField(1);
         Trait2 = TraitField(2);
         Trait3 = TraitField(3);
@@ -77,6 +79,11 @@ public sealed partial class CompanionViewModel : ObservableObject
     [ObservableProperty] public partial string Rarity { get; private set; } = "";
 
     public NumberFieldViewModel Trust { get; }
+
+    /// <summary>The companion's size (Scale, unY), editable within its species' range (issue #72); the note under the
+    /// box shows the range.</summary>
+    public NumberFieldViewModel Size { get; }
+    private EggSpecies? _sizeRange;
     public NumberFieldViewModel Trait1 { get; }
     public NumberFieldViewModel Trait2 { get; }
     public NumberFieldViewModel Trait3 { get; }
@@ -88,6 +95,8 @@ public sealed partial class CompanionViewModel : ObservableObject
 
     // The game's trait words (catalog EGGSEQUENCER texts: UI_PET_*_RATING), loaded once.
     private static IReadOnlyDictionary<string, string>? _traitWords;
+    // The Egg Sequencer rules: their species size ranges are the Size field's limits.
+    private static EggSequencerRules? _eggRules;
     public NumberFieldViewModel GenesImproved { get; }
     public NumberFieldViewModel MutationProgress { get; }
     public NumberFieldViewModel Victories { get; }
@@ -185,7 +194,8 @@ public sealed partial class CompanionViewModel : ObservableObject
         string archetypeId = archetype.TrimStart('^');
         _species ??= await CatalogService.GetCreatureSpeciesAsync();
         _names ??= await CreatureNameService.LoadAsync();
-        _traitWords ??= (await CatalogService.GetEggSequencerRulesAsync())?.Texts;
+        _eggRules ??= await CatalogService.GetEggSequencerRulesAsync();
+        _traitWords ??= _eggRules?.Texts;
         await PlanetTypesService.EnsureLoadedAsync();   // the class weights for Battle
         string rigId = archetypeId.ToLowerInvariant();
         if (!_trees.TryGetValue(rigId, out var tree))
@@ -209,6 +219,9 @@ public sealed partial class CompanionViewModel : ObservableObject
         Climate = Read<string>(P.NativeClimatePath(index)) ?? "";
 
         Trust.Load(Math.Round((Read<double?>(P.TrustPath(index)) ?? 0) * 100, 1));
+        _sizeRange = _eggRules?.Species.GetValueOrDefault(archetypeId);
+        Size.Load(Read<double?>(P.ScalePath(index)) is double size ? Math.Round(size, 3) : double.NaN);
+        Size.Note = _sizeRange is { } range ? $"This species: {range.MinScale:0.##} to {range.MaxScale:0.##}" : "";
         var traits = SaveSessionManager.GetValue(P.TraitsPath(index)) as JArray;
         double Trait(int i) => traits?.Count > i ? Math.Round(Math.Abs(traits[i].Value<double>()) * 100, 1) : double.NaN;
         Trait1.Load(Trait(0));
@@ -240,7 +253,7 @@ public sealed partial class CompanionViewModel : ObservableObject
     }
 
     private IEnumerable<NumberFieldViewModel> NumberFields => new[]
-        { Trust, Trait1, Trait2, Trait3, GenesImproved, MutationProgress, Victories, AgilityPoints, HealthPoints, CombatPoints };
+        { Trust, Size, Trait1, Trait2, Trait3, GenesImproved, MutationProgress, Victories, AgilityPoints, HealthPoints, CombatPoints };
 
     // ------------------------------------------------------------ fields
 
@@ -262,6 +275,24 @@ public sealed partial class CompanionViewModel : ObservableObject
     private NumberFieldViewModel TraitField(int number) => Field($"Trait {number}", v =>
         SaveArrays.StageEntry(P.TraitsPath(_index), number - 1, 3,
             old => (old.Value<double>() < 0 ? -1.0 : 1.0) * (v / 100.0)));
+
+    /// <summary>Stages a typed size, held within the species' range (the sizes the game itself produces - issue #72;
+    /// larger ones wait for an in-game test). An untouched out-of-range size is left as stored.</summary>
+    private void StageSize(NumberFieldViewModel field)
+    {
+        double value = field.Value;
+        if (_sizeRange is { } range)
+        {
+            double held = Math.Clamp(value, range.MinScale, range.MaxScale);
+            if (held != value)
+            {
+                field.Load(held);
+                field.Note = $"Kept to this species' range, {range.MinScale:0.##} to {range.MaxScale:0.##}";
+                value = held;
+            }
+        }
+        Stage(Math.Round(value, 4), P.ScalePath(_index));
+    }
 
     /// <summary>Genetic profile points (max 10) per mutation stat.</summary>
     private NumberFieldViewModel PointsField(string label, int slot) => Field(label, v =>
