@@ -44,11 +44,17 @@ public static class StarshipDisplayEvaluation
     /// When the ship is the active one this is exactly the left-hand side of the Compare screen that matched
     /// the owner's wreck screenshots on 2026-10-31. Not yet checked: a non-active ship against its own in-game
     /// stats screen (the resource seed is assumed to be the ship's own NTx seed).
+    /// Confirmed in game 2026-11-14 (Slot 8, analysis visor): with the ship active, its four values are
+    /// the ship-as-own-context result (MainShip, Sentinel μ-Flameborn 414.3/184.0/645.0/356.4, Living Ship).
+    /// The visor rates a NON-active ship against the active one like Compare: pass
+    /// <paramref name="activeShip"/> (its resource seed, beam and range) - μ-Flameborn with the Living Ship
+    /// active showed 378.9/184.0/645.0/377.5, exactly this with the Living Ship as activeShip.
     /// </summary>
     public static StarshipDisplayedStats? EvaluateOwned(StarshipComparisonContext ship, int shipClass, int rating,
-        StarshipEvaluationTables rules) =>
+        StarshipEvaluationTables rules, StarshipComparisonContext? activeShip = null) =>
         rules.Weapons.Length == 7 && rules.UseMultiplierBonus
-            ? Compose(ship.ActiveTechnology, ship.ActiveIntrinsicBonuses, ship.ActiveDamagedPositions, shipClass, rating, rules, ship)
+            ? Compose(ship.ActiveTechnology, ship.ActiveIntrinsicBonuses, ship.ActiveDamagedPositions, shipClass, rating, rules,
+                activeShip ?? ship)
             : null;
 
     private static StarshipDisplayedStats? Compose(GeneratedMultiToolInventory inventory,
