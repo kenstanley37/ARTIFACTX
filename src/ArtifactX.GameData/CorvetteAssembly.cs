@@ -12,9 +12,10 @@ namespace ArtifactX.GameData;
 /// in the ship's own space.</summary>
 public sealed record CorvettePart(string Id, Vector3 Position, Vector3 Up, Vector3 At, ulong UserData = 0);
 
-/// <summary>A sub-part scene the build is drawn with, where it sits in ship space, and its part's colour palette
-/// (index into GcBaseBuildingTable.Palettes; -1 none).</summary>
-public sealed record CorvettePiece(string Scene, Matrix4x4 World, int Palette = -1);
+/// <summary>A sub-part scene the build is drawn with, where it sits in ship space, and its part's paint: colour palette
+/// (index into GcBaseBuildingTable.Palettes; -1 none) and finish (GcBaseBuildingMaterial.MaterialIndex, the texture
+/// array layer).</summary>
+public sealed record CorvettePiece(string Scene, Matrix4x4 World, int Palette = -1, int Finish = 0);
 
 /// <summary>An assembled corvette: its pieces and the size the game measures for it
 /// (<c>cGcBuildableSpaceshipComponent</c> +0x90 centre, +0xA0 size = half the mesh box plus 1 m).</summary>
@@ -102,7 +103,7 @@ public sealed class CorvetteAssembly
         {
             string id = s.Id.TrimStart('^');
             if (!_placementScenes.TryGetValue(id, out var scene) || _models.Decode(scene) is not TkSceneNodeData root) continue;
-            var placed = new Placed(id, PartMatrix(s), scene, PaletteOf(id, s.UserData), _styles.GetValueOrDefault(id));
+            var placed = new Placed(id, PartMatrix(s), scene, PaletteOf(id, s.UserData), FinishOf(s.UserData), _styles.GetValueOrDefault(id));
             CollectSnaps(root, Matrix4x4.Identity, placed, 0);
             parts.Add(placed);
         }
@@ -166,26 +167,34 @@ public sealed class CorvetteAssembly
         _subPartScenes.TryGetValue(subPartId, out var models)
             ? models.FirstOrDefault(m => m.Style == style).Scene ?? models[0].Scene : null;
 
-    /// <summary>A part's colour palette: its UserData (CVX) is the index into GcBaseBuildingTable.Palettes - all 70 of
-    /// Slot 8's unpainted corvette parts have 99 = BIGGS0, the parts' DefaultColourPaletteId (2026-11-15; the owner
-    /// never painted it). A value outside the table falls back to the part's default. A repainted corvette's UserData
-    /// isn't checked yet.</summary>
-    private int PaletteOf(string id, ulong userData) =>
-        userData < (ulong)_palettes.Count ? (int)userData : _defaultPalettes.GetValueOrDefault(id, -1);
+    /// <summary>
+    /// A part's paint is its UserData (CVX): the colour palette (index into GcBaseBuildingTable.Palettes) in the low
+    /// 24 bits and the finish (Material, 0-3) in bits 24-31. Confirmed by a controlled repaint on Slot 8, 2026-11-15:
+    /// unpainted parts 99 = 0x63 (BIGGS0, first colour, first finish); the cockpit painted the 3rd colour with the 3rd
+    /// finish (Weathered) became 0x02000065 (BIGGS2, finish 2); a landing gear given the 1st colour and the 4th finish
+    /// 0x03000063. A colour outside the table falls back to the part's DefaultColourPaletteId.
+    /// </summary>
+    private int PaletteOf(string id, ulong userData)
+    {
+        ulong colour = userData & 0xFFFFFF;
+        return colour < (ulong)_palettes.Count ? (int)colour : _defaultPalettes.GetValueOrDefault(id, -1);
+    }
+
+    private static int FinishOf(ulong userData) => (int)((userData >> 24) & 0xFF);
 
     /// <summary>The outside's textures, each material painted with its part's base colours (ShipModels.Painted
-    /// colourise). Keys are BuildOutside's material names ("material#palette"). 256 px: a corvette has ~95 materials
+    /// colourise), in its finish's texture layer. Keys are BuildOutside's material names ("material#palette[#finish]"). 256 px: a corvette has ~95 materials
     /// (100 MB at 512).</summary>
     public Dictionary<string, ModelTexture?> PaintOutside(ShipMesh mesh, int size = 256)
     {
         var result = new Dictionary<string, ModelTexture?>(StringComparer.OrdinalIgnoreCase);
         foreach (string key in mesh.Materials.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            int cut = key.LastIndexOf('#');
-            string material = cut > 0 ? key[..cut] : key;
-            float[][]? palette = cut > 0 && int.TryParse(key[(cut + 1)..], out int index) && index >= 0 && index < _palettes.Count
+            string[] bits = key.Split('#');
+            float[][]? palette = bits.Length > 1 && int.TryParse(bits[1], out int index) && index >= 0 && index < _palettes.Count
                 ? _palettes[index] : null;
-            result[key] = _models.Painted(material, (_, _) => null, size, baseColours: palette);
+            int finish = bits.Length > 2 && int.TryParse(bits[2], out int f) ? f : 0;
+            result[key] = _models.Painted(bits[0], (_, _) => null, size, baseColours: palette, textureLayer: finish);
         }
         return result;
     }
@@ -228,7 +237,7 @@ public sealed class CorvetteAssembly
         if (level > 6 || _models.Decode(scene) is not TkSceneNodeData root) return;
         // Placement scenes hold the build-mode ghost; the visible model is the rules' sub-parts.
         bool ghost = level == 0 && scene.EndsWith("_PLACEMENT.SCENE.MBIN", StringComparison.OrdinalIgnoreCase);
-        if (!ghost) pieces.Add(new CorvettePiece(scene, world, part.Palette));
+        if (!ghost) pieces.Add(new CorvettePiece(scene, world, part.Palette, part.Finish));
         var locators = new List<(string Name, Matrix4x4 World)>();
         var rules = new List<GcBasePlacementRule>();
         var lods = ghost ? null : LodLevels(root);
@@ -357,7 +366,7 @@ public sealed class CorvetteAssembly
         public List<string> In { get; } = new();
     }
 
-    private sealed record Placed(string Id, Matrix4x4 World, string Scene, int Palette, GcBaseBuildingPartStyle.StyleEnum Style)
+    private sealed record Placed(string Id, Matrix4x4 World, string Scene, int Palette, int Finish, GcBaseBuildingPartStyle.StyleEnum Style)
     {
         public List<Snap> Snaps { get; } = new();
     }
