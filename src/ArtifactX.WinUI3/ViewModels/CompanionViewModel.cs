@@ -82,6 +82,14 @@ public sealed partial class CompanionViewModel : ObservableObject
     public NumberFieldViewModel Trait1 { get; }
     public NumberFieldViewModel Trait2 { get; }
     public NumberFieldViewModel Trait3 { get; }
+
+    /// <summary>Each trait's word as the game shows it ("Gentleness"): see TraitWord.</summary>
+    [ObservableProperty] public partial string Trait1Label { get; private set; } = "Trait 1";
+    [ObservableProperty] public partial string Trait2Label { get; private set; } = "Trait 2";
+    [ObservableProperty] public partial string Trait3Label { get; private set; } = "Trait 3";
+
+    // The game's trait words (catalog EGGSEQUENCER texts: UI_PET_*_RATING), loaded once.
+    private static IReadOnlyDictionary<string, string>? _traitWords;
     public NumberFieldViewModel GenesImproved { get; }
     public NumberFieldViewModel MutationProgress { get; }
     public NumberFieldViewModel Victories { get; }
@@ -131,6 +139,7 @@ public sealed partial class CompanionViewModel : ObservableObject
         string archetypeId = archetype.TrimStart('^');
         _species ??= await CatalogService.GetCreatureSpeciesAsync();
         _names ??= await CreatureNameService.LoadAsync();
+        _traitWords ??= (await CatalogService.GetEggSequencerRulesAsync())?.Texts;
         string rigId = archetypeId.ToLowerInvariant();
         if (!_trees.TryGetValue(rigId, out var tree))
         {
@@ -158,6 +167,10 @@ public sealed partial class CompanionViewModel : ObservableObject
         Trait1.Load(Trait(0));
         Trait2.Load(Trait(1));
         Trait3.Load(Trait(2));
+        string Word(int i) => TraitWord(i, traits?.Count > i ? traits[i].Value<double>() : 0) ?? $"Trait {i + 1}";
+        Trait1Label = Word(0);
+        Trait2Label = Word(1);
+        Trait3Label = Word(2);
         GenesImproved.Load(Read<double?>(P.GenesImprovedPath(index)) ?? 0);
         MutationProgress.Load(Math.Round((Read<double?>(P.MutationProgressPath(index)) ?? 0) * 100, 1));
         Victories.Load(Read<double?>(P.HoloArenaVictoriesPath(index)) ?? 0);
@@ -187,8 +200,18 @@ public sealed partial class CompanionViewModel : ObservableObject
     private NumberFieldViewModel Field(string label, Action<double> write) =>
         new(label, label, double.NaN, field => { if (_index >= 0) StageField(() => write(field.Value)); });
 
-    /// <summary>A trait is shown 0-100; the stored value's sign (which descriptor word
-    /// it picks) isn't confirmed, so it's kept and only the magnitude typed is applied.</summary>
+    /// <summary>The game's word for trait <paramref name="index"/> (JAy order: Helpfulness/Playfulness,
+    /// Aggression/Gentleness, Independence/Devotion), picked by the value's sign (NMS.exe 0x1407875f4, as the Egg
+    /// Sequencer). Confirmed 2026-11-15 on Slot 8's Gerbilil: JAy [0.0027, -0.818, 0.165] shows Helpfulness 0%,
+    /// Gentleness 82%, Independence 17% in game. Exactly 0 is taken as the positive word - unconfirmed. Null
+    /// without game data.</summary>
+    private static string? TraitWord(int index, double value) =>
+        index is < 0 or > 2 || _traitWords is null ? null
+        : _traitWords.GetValueOrDefault((value < 0 ? EggCatalystRowViewModel.NegativeKeys : EggCatalystRowViewModel.PositiveKeys)[index]) is { Length: > 0 } word
+            ? word : null;
+
+    /// <summary>A trait is shown 0-100 under its word (TraitWord); the stored value's sign picks the word, so it's
+    /// kept and only the magnitude typed is applied.</summary>
     private NumberFieldViewModel TraitField(int number) => Field($"Trait {number}", v =>
         SaveArrays.StageEntry(P.TraitsPath(_index), number - 1, 3,
             old => (old.Value<double>() < 0 ? -1.0 : 1.0) * (v / 100.0)));
