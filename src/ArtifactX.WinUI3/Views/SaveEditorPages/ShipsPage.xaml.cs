@@ -621,12 +621,16 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         }
     }
 
-    /// <summary>The game's totals under the base stats (#17); dropped if another ship was picked meanwhile.</summary>
+    /// <summary>The game's totals under the base stats (#17); dropped if another ship was picked meanwhile.
+    /// The ship's own values: what the game shows while it is the active ship. For any other ship the
+    /// visor rates it against the active one, so it reads "When flown" rather than "In game".</summary>
     private async void ShowInGameTotals()
     {
         int index = _selectedIndex;
         var totals = await OwnedShipDisplayStatsService.EvaluateAsync(index);
-        if (index == _selectedIndex) StatsBoxes.ShowInGameTotals(totals);
+        if (index != _selectedIndex) return;
+        bool active = _ships.FirstOrDefault(s => s.Index == index)?.IsGameActive == true;
+        StatsBoxes.ShowInGameTotals(totals, active ? "In game" : "When flown");
     }
 
     private void StatsBoxes_Edited(object? sender, EventArgs e)
