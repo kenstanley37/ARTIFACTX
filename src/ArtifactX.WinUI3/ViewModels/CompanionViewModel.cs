@@ -110,7 +110,46 @@ public sealed partial class CompanionViewModel : ObservableObject
     /// override is on: the letters decide then, and what overall the game shows for them is unchecked.</summary>
     [ObservableProperty] public partial ExploreViewModels.CreatureBattleViewModel? Battle { get; private set; }
     public ExploreViewModels.CreatureBattleViewModel? SeedBattle => LetterOverrideActive ? null : Battle;
-    partial void OnBattleChanged(ExploreViewModels.CreatureBattleViewModel? value) => OnPropertyChanged(nameof(SeedBattle));
+    /// <summary>The seeds decide the badges (the letter override is off): Find S / S / S applies.</summary>
+    public bool SeedsDecideBattle => !LetterOverrideActive && Battle is not null;
+
+    /// <summary>Feedback from FindTopBattleSeed when it can't stage a seed; "" otherwise.</summary>
+    [ObservableProperty] public partial string BattleSearchMessage { get; private set; } = "";
+
+    /// <summary>Rolls the first Battle Ability Seed (m9o) until the grades are S/S/S and stages it, keeping the second
+    /// (JrL) - what pressing Generate until all S would do, about 1 roll in 300 (15% per grade in build 185034). The
+    /// species name changes with it, as with Generate.</summary>
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    private async Task FindTopBattleSeedAsync()
+    {
+        BattleSearchMessage = "";
+        if (_index < 0 || PlanetTypesService.CreatureTables?.PetBattle is not { ClassRolls.Length: >= 3 } battle)
+        {
+            BattleSearchMessage = "Read the game data again in Settings to find battle seeds.";
+            return;
+        }
+        int index = _index;
+        ulong genus = Seed(P.RollSeedSecondaryPath(index));
+        string? found = await Task.Run(() =>
+        {
+            for (int i = 0; i < 200_000; i++)
+            {
+                string text = NmsSeedGenerator.GenerateRandom();
+                if (NmsSeedGenerator.TryParse(text, out ulong seed)
+                    && ArtifactX.Core.Companions.PetBattlerClasses.Roll(seed, genus, battle.ClassRolls).Classes.All(c => c == 3))
+                    return text;
+            }
+            return null;
+        });
+        if (index != _index) return;
+        if (found is null) { BattleSearchMessage = "No S/S/S seed turned up this time; try again."; return; }
+        Stage(found, P.RollSeedPrimaryPath(index));   // a staged edit: the page reloads and shows the new grades
+    }
+    partial void OnBattleChanged(ExploreViewModels.CreatureBattleViewModel? value)
+    {
+        OnPropertyChanged(nameof(SeedBattle));
+        OnPropertyChanged(nameof(SeedsDecideBattle));
+    }
     [ObservableProperty] public partial int HealthLetter { get; set; } = -1;
     [ObservableProperty] public partial int AgilityLetter { get; set; } = -1;
     [ObservableProperty] public partial int CombatLetter { get; set; } = -1;
@@ -278,6 +317,7 @@ public sealed partial class CompanionViewModel : ObservableObject
     partial void OnLetterOverrideActiveChanged(bool value)
     {
         OnPropertyChanged(nameof(SeedBattle));
+        OnPropertyChanged(nameof(SeedsDecideBattle));
         if (!_loading && _index >= 0) StageField(() => Stage(value, P.ClassLetterOverrideActivePath(_index)));
     }
 
