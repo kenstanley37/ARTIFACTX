@@ -25,6 +25,22 @@ public static class GalaxyTransferService
         public List<string> Bases { get; } = new();
         public List<string> Stations { get; } = new();
 
+        /// <summary>Stations already counted, by system address (or by name when the record has no address):
+        /// a claimed station is both a base record and a Teleport Network marker, often under different names
+        /// ("240 - Iniskei-Che VII Platform" vs "Iniskei-Che VII Platform"), so names alone counted it twice
+        /// (#68, Slot 8, 2026-11-14).</summary>
+        private readonly HashSet<string> _stationKeys = new(StringComparer.Ordinal);
+
+        /// <summary>Counts a station once per system; true when it was new.</summary>
+        public bool AddStation(ulong? systemAddress, string label)
+        {
+            string key = systemAddress is ulong a ? $"@{NmsSpaceStationPaths.ToSystemAddress(a):X}" : $"#{label}";
+            if (!_stationKeys.Add(key)) return false;
+            StationCount++;
+            Stations.Add(label);
+            return true;
+        }
+
         public PresenceAccumulator(int number) => GalaxyNumber = number;
 
         public GalaxyPresence ToPresence() => new(
@@ -107,8 +123,7 @@ public static class GalaxyTransferService
                 }
                 else if (kind == "PlayerSpaceStationBase")
                 {
-                    acc.StationCount++;
-                    acc.Stations.Add($"{name} (Claimed Station)");
+                    acc.AddStation(addr, $"{name} (Claimed Station)");
                 }
                 else
                 {
@@ -141,11 +156,7 @@ public static class GalaxyTransferService
                 string name = m["NKm"]?.Value<string>() ?? "Space Station";
                 var acc = accumulators[g];
                 acc.IsVisited = true;
-                if (!acc.Stations.Contains(name))
-                {
-                    acc.StationCount++;
-                    acc.Stations.Add(name);
-                }
+                acc.AddStation(NmsSpaceStationPaths.ReadSystemAddress(m["yhJ"]), name);
             }
         }
 
