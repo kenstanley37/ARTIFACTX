@@ -49,16 +49,19 @@ public sealed class CorvetteAssembly
 
     private readonly ShipModels _models;
     private readonly Dictionary<string, string> _placementScenes;
-    private readonly Dictionary<string, string> _subPartScenes;
+    private readonly Dictionary<string, List<(GcBaseBuildingPartStyle.StyleEnum Style, string Scene)>> _subPartScenes;
+    private readonly Dictionary<string, GcBaseBuildingPartStyle.StyleEnum> _styles;
     private readonly Dictionary<string, int> _defaultPalettes;
     private readonly IReadOnlyList<float[][]> _palettes;
 
-    private CorvetteAssembly(ShipModels models, Dictionary<string, string> placement, Dictionary<string, string> subParts,
-        Dictionary<string, int> defaultPalettes, IReadOnlyList<float[][]> palettes)
+    private CorvetteAssembly(ShipModels models, Dictionary<string, string> placement,
+        Dictionary<string, List<(GcBaseBuildingPartStyle.StyleEnum, string)>> subParts,
+        Dictionary<string, GcBaseBuildingPartStyle.StyleEnum> styles, Dictionary<string, int> defaultPalettes, IReadOnlyList<float[][]> palettes)
     {
         _models = models;
         _placementScenes = placement;
         _subPartScenes = subParts;
+        _styles = styles;
         _defaultPalettes = defaultPalettes;
         _palettes = palettes;
     }
@@ -71,9 +74,16 @@ public sealed class CorvetteAssembly
         var placement = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var o in objects.Objects)
             if (o.PlacementScene?.Filename?.Value is { Length: > 0 } scene) placement.TryAdd(o.ID.Value, scene);
-        var subParts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var subParts = new Dictionary<string, List<(GcBaseBuildingPartStyle.StyleEnum, string)>>(StringComparer.OrdinalIgnoreCase);
         foreach (var p in partsTable.Parts)
-            if (p.StyleModels?.FirstOrDefault()?.Model?.Filename?.Value is { Length: > 0 } scene) subParts.TryAdd(p.ID.Value, scene);
+        {
+            var models_ = (p.StyleModels ?? new()).Where(m => m.Model?.Filename?.Value is { Length: > 0 })
+                .Select(m => (m.Style?.Style ?? default, m.Model.Filename.Value)).ToList();
+            if (models_.Count > 0) subParts.TryAdd(p.ID.Value, models_);
+        }
+        var styles = new Dictionary<string, GcBaseBuildingPartStyle.StyleEnum>(StringComparer.OrdinalIgnoreCase);
+        foreach (var o in objects.Objects)
+            if (o.Style is { } style) styles.TryAdd(o.ID.Value, style.Style);
         float[] C(libMBIN.NMS.Colour c) => [c.R, c.G, c.B];
         var palettes = (objects.Palettes ?? new()).Select(p => new[] { C(p.PrimaryColour), C(p.SecondaryColour), C(p.TernaryColour), C(p.QuaternaryColour) }).ToList();
         var paletteIndex = (objects.Palettes ?? new()).Select((p, i) => (p.Id.Value, i)).GroupBy(p => p.Value, StringComparer.OrdinalIgnoreCase)
@@ -81,7 +91,7 @@ public sealed class CorvetteAssembly
         var defaults = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var o in objects.Objects)
             if (o.DefaultColourPaletteId?.Value is { Length: > 0 } id && paletteIndex.TryGetValue(id, out int index)) defaults.TryAdd(o.ID.Value, index);
-        return new CorvetteAssembly(models, placement, subParts, defaults, palettes);
+        return new CorvetteAssembly(models, placement, subParts, styles, defaults, palettes);
     }
 
     /// <summary>The build's pieces and measured size; null when no part could be placed.</summary>
@@ -92,7 +102,7 @@ public sealed class CorvetteAssembly
         {
             string id = s.Id.TrimStart('^');
             if (!_placementScenes.TryGetValue(id, out var scene) || _models.Decode(scene) is not TkSceneNodeData root) continue;
-            var placed = new Placed(id, PartMatrix(s), scene, PaletteOf(id, s.UserData));
+            var placed = new Placed(id, PartMatrix(s), scene, PaletteOf(id, s.UserData), _styles.GetValueOrDefault(id));
             CollectSnaps(root, Matrix4x4.Identity, placed, 0);
             parts.Add(placed);
         }
@@ -147,6 +157,14 @@ public sealed class CorvetteAssembly
     private static readonly HashSet<string> PreviewHidden = new(StringComparer.Ordinal)
         { "ExclusionVolumes", "MESHBOUNDS", "ReEntryTunnel", "SpeedCool", "ConeMesh", "CANOPYFADE" };
     private static readonly Regex Inside = new("INT_?MAT|ROUGHSHIPINT|BIGGES_TECH|RODTECH", RegexOptions.IgnoreCase);
+
+    /// <summary>A sub-part's model for the part's style (GcBaseBuildingEntry.Style): B_DECO_F is decoration style F,
+    /// B_TUR_C gun C. Taking the first style for every part drew all of Slot 8's decorations as style A's 5.7 m
+    /// antennas (thin rods out of the hull the game doesn't show, owner 2026-11-15). A part without that style uses
+    /// the sub-part's first model.</summary>
+    private string? SubPartScene(string subPartId, GcBaseBuildingPartStyle.StyleEnum style) =>
+        _subPartScenes.TryGetValue(subPartId, out var models)
+            ? models.FirstOrDefault(m => m.Style == style).Scene ?? models[0].Scene : null;
 
     /// <summary>A part's colour palette: its UserData (CVX) is the index into GcBaseBuildingTable.Palettes - all 70 of
     /// Slot 8's unpainted corvette parts have 99 = BIGGS0, the parts' DefaultColourPaletteId (2026-11-15; the owner
@@ -218,7 +236,9 @@ public sealed class CorvetteAssembly
         var hi = max;
         void Walk(TkSceneNodeData node, Matrix4x4 parent, int depth)
         {
-            if (depth > 32) return;
+            // Under a JOINT the meshes are animated (the tech wall's robot arms); their scene place isn't where the
+            // game has them - counted, the arms put the bottom 1 m too low (9.73 against the game's 9.25).
+            if (depth > 32 || node.Type?.Value == "JOINT") return;
             var local = SceneTransformMath.Local(node.Transform) * parent;
             string name = node.Name?.Value ?? "";
             locators.Add((name, local));
@@ -248,7 +268,7 @@ public sealed class CorvetteAssembly
                 || (rule.ORConditions ? conditions.Any(c => Holds(c, part, all)) : conditions.All(c => Holds(c, part, all)));
             if (!applies) continue;
             string id = rule.PartID?.Value ?? "";
-            string? subScene = _subPartScenes.GetValueOrDefault(id) ?? _placementScenes.GetValueOrDefault(id);
+            string? subScene = SubPartScene(id, part.Style) ?? _placementScenes.GetValueOrDefault(id);
             if (subScene is null) continue;
             string locator = rule.PositionLocator?.Value ?? "";
             if (locator.Length == 0) Place(subScene, world, level + 1, part, all, pieces, ref min, ref max);
@@ -337,7 +357,7 @@ public sealed class CorvetteAssembly
         public List<string> In { get; } = new();
     }
 
-    private sealed record Placed(string Id, Matrix4x4 World, string Scene, int Palette)
+    private sealed record Placed(string Id, Matrix4x4 World, string Scene, int Palette, GcBaseBuildingPartStyle.StyleEnum Style)
     {
         public List<Snap> Snaps { get; } = new();
     }
