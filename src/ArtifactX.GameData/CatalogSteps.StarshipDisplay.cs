@@ -51,6 +51,7 @@ public static partial class CatalogSteps
             || decode("GCGAMEPLAYGLOBALS.GLOBAL.MBIN") is not GcGameplayGlobals gameplay
             || decode("GCSPACESHIPGLOBALS.GLOBAL.MBIN") is not GcSpaceshipGlobals flight
             || decode("GCAISPACESHIPGLOBALS.GLOBAL.MBIN") is not GcAISpaceshipGlobals ai
+            || decode("GCCAMERAGLOBALS.GLOBAL.MBIN") is not GcCameraGlobals camera
             || decode("METADATA/PROJECTILES/PROJECTILETABLE.MBIN") is not GcProjectileDataTable projectiles) return null;
         bool Eligible(GcTechnology t) => t.Category.TechnologyCategory is Category.Ship or Category.AllShips or Category.AllShipsExceptAlien;
         var byId = technology.Table.ToDictionary(t => t.ID.Value, StringComparer.Ordinal);
@@ -134,6 +135,10 @@ public static partial class CatalogSteps
             // Freighter stats panel (0x1406BAD90): Hyperdrive Range and Fleet Coordination's six averaged stats.
             new((int)Stat.Freighter_Hyperdrive_JumpDistance, [(int)Stat.Freighter_Fleet_Speed, (int)Stat.Freighter_Fleet_Fuel,
                 (int)Stat.Freighter_Fleet_Combat, (int)Stat.Freighter_Fleet_Trade, (int)Stat.Freighter_Fleet_Explore,
-                (int)Stat.Freighter_Fleet_Mine]));
+                (int)Stat.Freighter_Fleet_Mine]),
+            // Format 103: corvette Maneuverability's size damping (#73; stats panel 0x1406BBFC5).
+            new(camera.BuildableShipMinSizeForCamera.X, camera.BuildableShipMinSizeForCamera.Y, camera.BuildableShipMinSizeForCamera.Z,
+                camera.BuildableShipMaxSizeForCamera.X, camera.BuildableShipMaxSizeForCamera.Y, camera.BuildableShipMaxSizeForCamera.Z,
+                flight.CorvetteSizeMaxTurnDamping));
     }
 }

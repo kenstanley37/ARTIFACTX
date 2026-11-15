@@ -12,9 +12,12 @@ namespace ArtifactX.WinUI3.Services;
 /// (<see cref="StarshipDisplayEvaluation.EvaluateOwned"/>). Reads the ship with staged edits, so the
 /// totals follow tech and base-stat edits before saving. Null when the catalog predates the display
 /// tables, or for a loadout the evaluator can't read (cargo technology, high-grade modules).
-/// Corvettes (ship class 10): only Shield and Hyperdrive, which match the game exactly on Slot 8's corvette
-/// (394.9 / 1344.0, flown, 2026-11-15; catalog format 102). Its Damage (226.1 against the game's 220.6) and
-/// Maneuverability (691.9 against 454.6) follow corvette rules not read yet (issue #73), so they're left out.
+/// Corvettes (ship class 10): Shield and Hyperdrive match the game exactly on Slot 8's corvette (394.9 / 1344.0,
+/// flown, 2026-11-15; catalog format 102). Maneuverability is the ordinary value damped by the build's size
+/// (ShipBaseService.AssembleAsync, StarshipDisplayStatGeneration.CorvetteManeuverability; catalog format 103):
+/// with the size the running game measured that's 454.66 (game 454.7); the assembled size gives 454.81 - the
+/// magnet's animated tractor-beam cone sets the height (CorvetteAssembly). Damage (226.1 against the game's
+/// 220.6) is still left out (issue #73).
 /// </summary>
 internal static class OwnedShipDisplayStatsService
 {
@@ -33,11 +36,12 @@ internal static class OwnedShipDisplayStatsService
         if (rating < 0) return null;
         var ship = (JObject)source.DeepClone();
         if (await CatalogService.GetStarshipEvaluationTablesAsync() is not { } rules) return null;
+        var build = corvette ? await ShipBaseService.AssembleAsync(shipIndex) : null;
         return await Task.Run<IReadOnlyDictionary<string, double>?>(() =>
             NmsStarshipComparisonPaths.Read(ship, rules) is { } context
             && StarshipDisplayEvaluation.EvaluateOwned(context, shipClass, rating, rules) is { } stats
                 ? corvette
-                    ? new Dictionary<string, double> { ["^SHIP_SHIELD"] = stats.Shield, ["^SHIP_HYPERDRIVE"] = stats.Hyperdrive }
+                    ? CorvetteStats(stats, build, rules)
                     : new Dictionary<string, double>
                     {
                         ["^SHIP_DAMAGE"] = stats.Damage,
@@ -46,5 +50,15 @@ internal static class OwnedShipDisplayStatsService
                         ["^SHIP_AGILE"] = stats.Maneuverability,
                     }
                 : null);
+    }
+
+    private static Dictionary<string, double> CorvetteStats(StarshipDisplayedStats stats,
+        ArtifactX.GameData.CorvetteBuild? build, StarshipEvaluationTables rules)
+    {
+        var result = new Dictionary<string, double> { ["^SHIP_SHIELD"] = stats.Shield, ["^SHIP_HYPERDRIVE"] = stats.Hyperdrive };
+        if (build is not null && StarshipDisplayStatGeneration.CorvetteManeuverability(stats.Maneuverability,
+                build.Size.X, build.Size.Y, build.Size.Z, rules.CorvetteSize) is { } agile)
+            result["^SHIP_AGILE"] = agile;
+        return result;
     }
 }

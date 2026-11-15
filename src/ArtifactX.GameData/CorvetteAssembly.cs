@@ -1,0 +1,265 @@
+using System.Globalization;
+using System.Numerics;
+using System.Text.RegularExpressions;
+using ArtifactX.GameData.Services;
+using libMBIN;
+using libMBIN.NMS.GameComponents;
+using libMBIN.NMS.Toolkit;
+
+namespace ArtifactX.GameData;
+
+/// <summary>One part of a corvette build as the save keeps it (@ZJ: r&lt;7 id, wMC position, wJ0 up, aNu at),
+/// in the ship's own space.</summary>
+public sealed record CorvettePart(string Id, Vector3 Position, Vector3 Up, Vector3 At);
+
+/// <summary>A sub-part scene the build is drawn with and where it sits in ship space.</summary>
+public sealed record CorvettePiece(string Scene, Matrix4x4 World);
+
+/// <summary>An assembled corvette: its pieces and the size the game measures for it
+/// (<c>cGcBuildableSpaceshipComponent</c> +0x90 centre, +0xA0 size = half the mesh box plus 1 m).</summary>
+public sealed record CorvetteBuild(IReadOnlyList<CorvettePiece> Pieces, Vector3 Centre, Vector3 Size);
+
+/// <summary>
+/// Puts a corvette together from its saved parts the way the game does (#73). A part's placement scene
+/// (GcBaseBuildingEntry.PlacementScene) carries only snap points and an entity whose
+/// GcBasePlacementComponentData rules pick the visible sub-parts (basebuildingpartstable style models):
+/// a rule applies when its conditions hold - GcSnapPointCondition (a snap point is or isn't attached),
+/// GcOutSnapSocketCondition (one of its "_Out_" sockets is attached) and GcGroupCondition (AND / OR) - and
+/// places its sub-part at each locator named by PositionLocator. Two parts are attached at a snap point when
+/// both have one at the same spot and one's "X_Out_" socket meets the other's "X_In_" (and vice versa).
+///
+/// The size is the game's RecalculatePartOffsetandExtents (NMS.exe 184271 0x14176D430): the box round every
+/// visible mesh in ship space, padded 1 m each side, stored as centre and half-size. Checked 2026-11-15 against
+/// the running game (read-only memory) on Slot 8's 71-part corvette: game centre (0, 7.441, 7.575), size
+/// (25.973, 9.249, 28.813); this gives (0, 7.447, 7.573), (25.973, 9.238, 28.811). The width only matches with
+/// the meshes the game had on screen: LOD2 where a mesh has levels (the wing's LOD2 bound 9.9729 is the game's
+/// 24.9729), and a mesh group without that level left out. Placement ghosts, ExclusionVolumes / MESHBOUNDS
+/// helpers and the cockpit's SpeedCool shell don't count; its ReEntryTunnel does (it sets the front, 35.38 vs
+/// 35.388). The last centimetre of height is the magnet's tractor-beam cone, which the game measures wherever
+/// its animation happened to be: Slot 8's Maneuverability comes out 454.81 from this size, 454.66 from the game's
+/// (the game shows 454.7).
+/// </summary>
+public sealed class CorvetteAssembly
+{
+    private const int MeasuredLod = 2;
+    private const float SnapDistance = 0.05f;
+    private static readonly Regex LodSuffix = new(@"LOD\d$", RegexOptions.IgnoreCase);
+    private static readonly HashSet<string> NotMeasured = new(StringComparer.OrdinalIgnoreCase) { "ExclusionVolumes", "MESHBOUNDS", "SpeedCool" };
+
+    private readonly ShipModels _models;
+    private readonly Dictionary<string, string> _placementScenes;
+    private readonly Dictionary<string, string> _subPartScenes;
+
+    private CorvetteAssembly(ShipModels models, Dictionary<string, string> placement, Dictionary<string, string> subParts)
+    {
+        _models = models;
+        _placementScenes = placement;
+        _subPartScenes = subParts;
+    }
+
+    /// <summary>Null when the game's base building tables can't be read.</summary>
+    public static CorvetteAssembly? Create(ShipModels models)
+    {
+        if (models.Decode("METADATA/REALITY/TABLES/BASEBUILDINGOBJECTSTABLE.MBIN") is not GcBaseBuildingTable objects
+            || models.Decode("METADATA/REALITY/TABLES/BASEBUILDINGPARTSTABLE.MBIN") is not GcBaseBuildingPartsTable partsTable) return null;
+        var placement = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var o in objects.Objects)
+            if (o.PlacementScene?.Filename?.Value is { Length: > 0 } scene) placement.TryAdd(o.ID.Value, scene);
+        var subParts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in partsTable.Parts)
+            if (p.StyleModels?.FirstOrDefault()?.Model?.Filename?.Value is { Length: > 0 } scene) subParts.TryAdd(p.ID.Value, scene);
+        return new CorvetteAssembly(models, placement, subParts);
+    }
+
+    /// <summary>The build's pieces and measured size; null when no part could be placed.</summary>
+    public CorvetteBuild? Assemble(IReadOnlyList<CorvettePart> saved)
+    {
+        var parts = new List<Placed>();
+        foreach (var s in saved)
+        {
+            string id = s.Id.TrimStart('^');
+            if (!_placementScenes.TryGetValue(id, out var scene) || _models.Decode(scene) is not TkSceneNodeData root) continue;
+            var placed = new Placed(id, PartMatrix(s), scene);
+            CollectSnaps(root, Matrix4x4.Identity, placed, 0);
+            parts.Add(placed);
+        }
+        if (parts.Count == 0) return null;
+
+        var pieces = new List<CorvettePiece>();
+        var min = new Vector3(float.MaxValue);
+        var max = new Vector3(float.MinValue);
+        foreach (var part in parts) Place(part.Scene, part.World, 0, part, parts, pieces, ref min, ref max);
+        if (min.X > max.X) return null;
+        return new CorvetteBuild(pieces, (min + max) * 0.5f, (max + Vector3.One - (min - Vector3.One)) * 0.5f);
+    }
+
+    /// <summary>The save's up and at vectors as rows (right = up x at), then the position.</summary>
+    private static Matrix4x4 PartMatrix(CorvettePart p)
+    {
+        var up = Vector3.Normalize(p.Up);
+        var at = Vector3.Normalize(p.At);
+        var right = Vector3.Normalize(Vector3.Cross(up, at));
+        return new Matrix4x4(right.X, right.Y, right.Z, 0, up.X, up.Y, up.Z, 0, at.X, at.Y, at.Z, 0,
+            p.Position.X, p.Position.Y, p.Position.Z, 1);
+    }
+
+    private void CollectSnaps(TkSceneNodeData node, Matrix4x4 parent, Placed part, int depth)
+    {
+        if (depth > 24) return;
+        var local = SceneTransformMath.Local(node.Transform) * parent;
+        string name = node.Name?.Value ?? "";
+        if (name.StartsWith("SnapPoint", StringComparison.OrdinalIgnoreCase))
+        {
+            var snap = new Snap(name, Vector3.Transform(Vector3.Zero, local * part.World));
+            foreach (var socket in node.Children ?? new())
+            {
+                string s = socket.Name?.Value ?? "";
+                int o = s.IndexOf("_Out_", StringComparison.Ordinal), i = s.IndexOf("_In_", StringComparison.Ordinal);
+                if (o > 0) snap.Out.Add(s[..o]);
+                else if (i > 0) snap.In.Add(s[..i]);
+            }
+            part.Snaps.Add(snap);
+        }
+        if (node.Type?.Value == "REFERENCE" && Attribute(node, "SCENEGRAPH") is { Length: > 0 } sub && _models.Decode(sub) is TkSceneNodeData child)
+            CollectSnaps(child, local, part, depth + 1);
+        foreach (var c in node.Children ?? new()) CollectSnaps(c, local, part, depth + 1);
+    }
+
+    private void Place(string scene, Matrix4x4 world, int level, Placed part, List<Placed> all, List<CorvettePiece> pieces,
+        ref Vector3 min, ref Vector3 max)
+    {
+        if (level > 6 || _models.Decode(scene) is not TkSceneNodeData root) return;
+        // Placement scenes hold the build-mode ghost; the visible model is the rules' sub-parts.
+        bool ghost = level == 0 && scene.EndsWith("_PLACEMENT.SCENE.MBIN", StringComparison.OrdinalIgnoreCase);
+        if (!ghost) pieces.Add(new CorvettePiece(scene, world));
+        var locators = new List<(string Name, Matrix4x4 World)>();
+        var rules = new List<GcBasePlacementRule>();
+        var lods = ghost ? null : LodLevels(root);
+        var lo = min;
+        var hi = max;
+        void Walk(TkSceneNodeData node, Matrix4x4 parent, int depth)
+        {
+            if (depth > 32) return;
+            var local = SceneTransformMath.Local(node.Transform) * parent;
+            string name = node.Name?.Value ?? "";
+            locators.Add((name, local));
+            if (lods is not null && !NotMeasured.Contains(name) && Measured(node, name, lods) && Box(node) is { } box)
+                for (int i = 0; i < 8; i++)
+                {
+                    var corner = new Vector3((i & 1) != 0 ? box.Max.X : box.Min.X, (i & 2) != 0 ? box.Max.Y : box.Min.Y,
+                        (i & 4) != 0 ? box.Max.Z : box.Min.Z);
+                    var w = Vector3.Transform(corner, local * world);
+                    lo = Vector3.Min(lo, w);
+                    hi = Vector3.Max(hi, w);
+                }
+            if (Attribute(node, "ATTACHMENT") is { Length: > 0 } entity && _models.Decode(entity) is TkAttachmentData attachment)
+                foreach (var component in attachment.Components ?? new())
+                    if (component.Template is GcBasePlacementComponentData placement) rules.AddRange(placement.Rules ?? new());
+            if (node.Type?.Value == "REFERENCE" && Attribute(node, "SCENEGRAPH") is { Length: > 0 } sub && _models.Decode(sub) is TkSceneNodeData child)
+                Walk(child, local, depth + 1);
+            foreach (var c in node.Children ?? new()) Walk(c, local, depth + 1);
+        }
+        Walk(root, Matrix4x4.Identity, 0);
+        min = lo;
+        max = hi;
+        foreach (var rule in rules)
+        {
+            var conditions = rule.Conditions ?? new();
+            bool applies = conditions.Count == 0
+                || (rule.ORConditions ? conditions.Any(c => Holds(c, part, all)) : conditions.All(c => Holds(c, part, all)));
+            if (!applies) continue;
+            string id = rule.PartID?.Value ?? "";
+            string? subScene = _subPartScenes.GetValueOrDefault(id) ?? _placementScenes.GetValueOrDefault(id);
+            if (subScene is null) continue;
+            string locator = rule.PositionLocator?.Value ?? "";
+            if (locator.Length == 0) Place(subScene, world, level + 1, part, all, pieces, ref min, ref max);
+            else
+                foreach (var l in locators.Where(l => l.Name.StartsWith(locator, StringComparison.OrdinalIgnoreCase)).ToList())
+                    Place(subScene, l.World * world, level + 1, part, all, pieces, ref min, ref max);
+        }
+    }
+
+    /// <summary>A mesh in a LOD group counts only at the measured level; one without levels always counts.</summary>
+    private static bool Measured(TkSceneNodeData node, string name, Dictionary<string, int> lods)
+    {
+        if (Attribute(node, "LODLEVEL") is not { } level || !int.TryParse(level, out int l)) return true;
+        return lods.GetValueOrDefault(LodSuffix.Replace(name, "")) == 0 || l == MeasuredLod;
+    }
+
+    /// <summary>The highest LOD level of each mesh group (name without "LODn") in a scene.</summary>
+    private static Dictionary<string, int> LodLevels(TkSceneNodeData root)
+    {
+        var top = new Dictionary<string, int>(StringComparer.Ordinal);
+        void Walk(TkSceneNodeData n)
+        {
+            if (Attribute(n, "LODLEVEL") is { } level && int.TryParse(level, out int l))
+            {
+                string stem = LodSuffix.Replace(n.Name?.Value ?? "", "");
+                top[stem] = Math.Max(top.GetValueOrDefault(stem), l);
+            }
+            foreach (var c in n.Children ?? new()) Walk(c);
+        }
+        Walk(root);
+        return top;
+    }
+
+    private static bool Holds(NMSTemplate condition, Placed part, List<Placed> all) => condition switch
+    {
+        GcSnapPointCondition s => Attached(part, all, s.SnapPoint.Value, null, s.ObjectId.Value)
+            == (s.SnapState.SnapState == GcBaseSnapState.SnapStateEnum.IsSnapped),
+        GcOutSnapSocketCondition o => Attached(part, all, o.SnapPoint.Value, SocketType(o.OutSocket.Value), o.ObjectId.Value)
+            == (o.SnapState.SnapState == GcBaseSnapState.SnapStateEnum.IsSnapped),
+        GcGroupCondition g => g.ORConditions ? g.Conditions.Any(c => Holds(c, part, all)) : g.Conditions.All(c => Holds(c, part, all)),
+        _ => false,
+    };
+
+    private static string SocketType(string socket)
+    {
+        int cut = socket.IndexOf("_Out_", StringComparison.Ordinal);
+        return cut > 0 ? socket[..cut] : socket;
+    }
+
+    /// <summary>Whether another part meets this part's snap point: one of its In sockets takes
+    /// <paramref name="outSocket"/>, or (no socket named) any Out meets an In either way.</summary>
+    private static bool Attached(Placed part, List<Placed> all, string snapName, string? outSocket, string objectId)
+    {
+        foreach (var mine in part.Snaps)
+        {
+            if (!mine.Name.Equals(snapName, StringComparison.OrdinalIgnoreCase)) continue;
+            foreach (var other in all)
+            {
+                if (other == part || (objectId.Length > 0 && !other.Id.Equals(objectId, StringComparison.OrdinalIgnoreCase))) continue;
+                foreach (var theirs in other.Snaps)
+                {
+                    if (Vector3.Distance(theirs.World, mine.World) >= SnapDistance) continue;
+                    if (outSocket is not null ? theirs.In.Contains(outSocket)
+                        : mine.Out.Any(theirs.In.Contains) || mine.In.Any(theirs.Out.Contains)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static (Vector3 Min, Vector3 Max)? Box(TkSceneNodeData node) =>
+        Corner(node, "MIN") is { } min && Corner(node, "MAX") is { } max ? (min, max) : null;
+
+    private static Vector3? Corner(TkSceneNodeData node, string which) =>
+        float.TryParse(Attribute(node, $"AABB{which}X"), NumberStyles.Float, CultureInfo.InvariantCulture, out float x)
+        && float.TryParse(Attribute(node, $"AABB{which}Y"), NumberStyles.Float, CultureInfo.InvariantCulture, out float y)
+        && float.TryParse(Attribute(node, $"AABB{which}Z"), NumberStyles.Float, CultureInfo.InvariantCulture, out float z)
+            ? new Vector3(x, y, z) : null;
+
+    private static string? Attribute(TkSceneNodeData node, string name) =>
+        node.Attributes?.FirstOrDefault(a => a.Name?.Value == name)?.Value?.Value;
+
+    private sealed record Snap(string Name, Vector3 World)
+    {
+        public List<string> Out { get; } = new();
+        public List<string> In { get; } = new();
+    }
+
+    private sealed record Placed(string Id, Matrix4x4 World, string Scene)
+    {
+        public List<Snap> Snaps { get; } = new();
+    }
+}

@@ -5,7 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
-- Starships: corvettes now show the game's Shield and Hyperdrive under their base stats ("In game 394.9"), and corvette upgrade modules have their correct stats. Damage and Maneuverability for corvettes come later. Update your game data once to get this.
+- Starships: corvettes now show the game's Shield, Hyperdrive and Maneuverability under their base stats ("In game 394.9"), and corvette upgrade modules have their correct stats. Maneuverability depends on how big your build is, like in the game: the bigger the corvette, the more sluggish it turns. It can read 0.1 off the game on corvettes with magnet modules. Damage for corvettes comes later. Update your game data once to get this.
 - Starships: a corvette you never renamed now shows the name the game gives it ("Jiyodat RR1") instead of "Starship 7".
 - Technology grids: technology that charges (launch thrusters, shields, hyperdrive, pulse engine, life support...) shows its charge as a percentage like the game ("84%"), and other technology no longer shows a "100/100". Hover a slot for the exact charge. Update your game data once to get this.
 - Starships: a corvette's technology now shows the pictures the game shows - each upgrade comes from a part of your corvette (a hab, landing thrusters, a booster), and shows that part. Update your game data once to get this.
