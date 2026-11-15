@@ -93,6 +93,48 @@ public sealed class CorvetteAssembly
         return new CorvetteBuild(pieces, (min + max) * 0.5f, (max + Vector3.One - (min - Vector3.One)) * 0.5f);
     }
 
+    /// <summary>
+    /// The build's outside for the 3D preview. Wall, floor and ceiling pieces carry both faces, so the inside is left
+    /// out by material: the cabins' surfaces (COR_A_INT_MAT, ROUGHSHIPINTMAT, the interior tech panels) were half of
+    /// Slot 8's 3.8 million LOD0 triangles. Effect and helper meshes the game draws only at times or never (the
+    /// cockpit's re-entry tunnel and speed shell, the magnets' tractor-beam cones, exclusion volumes) are left out
+    /// too - drawn solid they hid the ship. Detail level 3 and no triangle smaller than a preview pixel (0.002 m² -
+    /// the preview is ~420 px across a ~50 m ship) keep it light enough to turn: Slot 8's 71 parts, 321,000 triangles.
+    /// </summary>
+    public ShipMesh? BuildOutside(CorvetteBuild build)
+    {
+        if (_models.BuildPlaced(build.Pieces, PreviewLod, PreviewHidden) is not { } mesh) return null;
+        var keep = new List<int>();
+        for (int t = 0; t * 3 + 2 < mesh.Corners.Length; t++)
+        {
+            int i = t * 3;
+            if (Inside.IsMatch(Path.GetFileName(mesh.Materials[t]))) continue;
+            float area = Vector3.Cross(mesh.Corners[i + 1] - mesh.Corners[i], mesh.Corners[i + 2] - mesh.Corners[i]).Length() * 0.5f;
+            if (area >= SmallestTriangle) keep.Add(t);
+        }
+        if (keep.Count == 0) return null;
+        Vector3[] corners = new Vector3[keep.Count * 3];
+        string[] materials = new string[keep.Count];
+        bool hasUv = mesh.Uvs.Length == mesh.Corners.Length, hasUv2 = mesh.Uvs2.Length == mesh.Corners.Length;
+        Vector2[] uvs = hasUv ? new Vector2[corners.Length] : Array.Empty<Vector2>();
+        Vector2[] uvs2 = hasUv2 ? new Vector2[corners.Length] : Array.Empty<Vector2>();
+        for (int k = 0; k < keep.Count; k++)
+        {
+            int from = keep[k] * 3, to = k * 3;
+            Array.Copy(mesh.Corners, from, corners, to, 3);
+            if (hasUv) Array.Copy(mesh.Uvs, from, uvs, to, 3);
+            if (hasUv2) Array.Copy(mesh.Uvs2, from, uvs2, to, 3);
+            materials[k] = mesh.Materials[keep[k]];
+        }
+        return new ShipMesh(corners, materials) { Uvs = uvs, Uvs2 = uvs2 };
+    }
+
+    private const int PreviewLod = 3;
+    private const float SmallestTriangle = 0.002f;
+    private static readonly HashSet<string> PreviewHidden = new(StringComparer.Ordinal)
+        { "ExclusionVolumes", "MESHBOUNDS", "ReEntryTunnel", "SpeedCool", "ConeMesh", "CANOPYFADE" };
+    private static readonly Regex Inside = new("INT_?MAT|ROUGHSHIPINT|BIGGES_TECH|RODTECH", RegexOptions.IgnoreCase);
+
     /// <summary>The save's up and at vectors as rows (right = up x at), then the position.</summary>
     private static Matrix4x4 PartMatrix(CorvettePart p)
     {

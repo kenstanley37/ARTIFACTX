@@ -904,14 +904,8 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
         var root = ShipPartsService.LoadTree(ShipParts.DescriptorFor(scene));
         bool hasSeed = ShipPartsService.TryParseSeed(SeedBox.Text, out ulong seed);
         var built = ShipPartsService.BuiltLookOf(_selectedIndex);
-        // Corvettes are modular base-built ships placed in game; their parts are stored
-        // apart from the seed, so a placeholder is shown until full modular 3D assembly arrives.
-        if (IsCorvetteSelected())
-        {
-            ShipPreviewGroup.Visibility = Visibility.Visible;
-            ShipPreviewView.ShowMessage("Corvette 3D model coming soon");
-            ShipPreviewNote.Text = "Corvettes are built from modular components placed in game. Full modular 3D assembly is in development.";
-        }
+        // Corvettes are built from parts placed in game, stored apart from the seed (#73).
+        if (IsCorvetteSelected()) ShowCorvettePreview();
         else if (root is null || hasSeed)
         {
             await ShipPartsService.EnsureLookAsync();
@@ -944,6 +938,26 @@ public sealed partial class ShipsPage : Page, ILoadoutTemplateHost
 
         if (preview.Mesh is null)
             ShipPreviewView.ShowMessage("This ship's model couldn't be read from your game files.");
+        else if (preview.Hologram)
+            ShipPreviewView.Show(preview.Mesh, preview.MaterialColour, hologram: true);
+        else
+            ShipPreviewView.Show(preview.Mesh, preview.MaterialColour, preview.Painted);
+        ShipPreviewNote.Text = preview.Note;
+    }
+
+    /// <summary>The 3D preview of a corvette as built: its parts put together from the player's game files.</summary>
+    private async void ShowCorvettePreview()
+    {
+        int version = ++_previewVersion;
+        if (GameDataService.Game is null) { ShipPreviewGroup.Visibility = Visibility.Collapsed; return; }
+        ShipPreviewView.ShowMessage("Putting your corvette together from your game files...");
+        ShipPreviewNote.Text = "";
+        ShipPreviewGroup.Visibility = Visibility.Visible;
+
+        var preview = await ShipPartsService.BuildCorvettePreviewAsync(_selectedIndex, () => version != _previewVersion);
+        if (preview is null || version != _previewVersion) return;
+        if (preview.Mesh is null)
+            ShipPreviewView.ShowMessage("This corvette's build couldn't be read from your game files.");
         else if (preview.Hologram)
             ShipPreviewView.Show(preview.Mesh, preview.MaterialColour, hologram: true);
         else
