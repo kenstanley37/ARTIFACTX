@@ -169,29 +169,6 @@
                                                 </StackPanel>
                                             </StackPanel>
                                             <StackPanel Width="300" Spacing="12">
-                                                <!-- Home Seed: also the freighter's registered home-system address,
-                                                     but 2 isolated in-game tests showed it drives the hull's paint/
-                                                     texture too (shape stays, colours reroll). Model Seed matches a
-                                                     reference tool's field; 2 tests regenerating it showed no visible
-                                                     change - what it controls is still unconfirmed. -->
-                                                <StackPanel Spacing="6">
-                                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                                        <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                        <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
-                                                                  ToolTipService.ToolTip="Sets the hull's default paint pattern in game (the shape stays the same). The preview shows this pattern when you haven't picked your own colours in game - your own colours win, as in game. This value is also your freighter's home-system address, so change it only to copy a look you've found elsewhere."/>
-                                                    </StackPanel>
-                                                    <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed"/>
-                                                </StackPanel>
-                                                <StackPanel Spacing="6">
-                                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                                        <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                        <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
-                                                                  ToolTipService.ToolTip="A second appearance seed for the hull. Its visible effect hasn't been pinned down yet - the paint scheme comes from Home Seed."/>
-                                                    </StackPanel>
-                                                    <controls:SeedBox x:Name="ModelSeedBox" Label="Model seed" Changed="Seed_Changed"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                            <StackPanel Width="300" Spacing="12">
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="CREW RACE" Style="{StaticResource ThemeEyebrowStyle}"/>
                                                     <ComboBox x:Name="CrewRaceComboBox" HorizontalAlignment="Stretch"
@@ -221,8 +198,33 @@
                                             <controls:StatBonusBoxes x:Name="StatsBoxes" Edited="StatsBoxes_Edited"/>
                                         </StackPanel>
                                     </StackPanel>
-                                    <!-- The freighter's own shape from its Type and Model seed (#25). -->
-                                    <controls:ModelPreviewPanel x:Name="FreighterPreview" Subject="freighter" StartYawOffset="3.14159" Width="420"/>
+                                    <!-- The freighter's own shape from its Type and Model seed (#25), with the two hull seeds under it
+                                         at the preview's width so whole seeds show (owner, 2026-11-15). -->
+                                    <StackPanel Width="420" Spacing="16">
+                                        <controls:ModelPreviewPanel x:Name="FreighterPreview" Subject="freighter" StartYawOffset="3.14159"/>
+                                        <StackPanel Spacing="12">
+                                            <!-- Home Seed: also the freighter's registered home-system address, and the hull's default paint
+                                                 (#69, confirmed 2026-11-15 on Slot 8: with custom colours reset, two Home Seeds gave the
+                                                 terracotta/mint and blue-grey/pale-green patterns the preview showed). Model Seed matches a
+                                                 reference tool's field; 2 tests regenerating it showed no visible change. -->
+                                            <StackPanel Spacing="6">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                    <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
+                                                              ToolTipService.ToolTip="Sets the hull's default paint pattern in game (the shape stays the same). The preview shows this pattern when you haven't picked your own colours in game - your own colours win, as in game. This value is also your freighter's home-system address, so change it only to copy a look you've found elsewhere."/>
+                                                </StackPanel>
+                                                <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed"/>
+                                            </StackPanel>
+                                            <StackPanel Spacing="6">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                                    <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
+                                                              ToolTipService.ToolTip="A second appearance seed for the hull. Its visible effect hasn't been pinned down yet - the paint scheme comes from Home Seed."/>
+                                                </StackPanel>
+                                                <controls:SeedBox x:Name="ModelSeedBox" Label="Model seed" Changed="Seed_Changed"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </StackPanel>
                                 </ctcontrols:WrapPanel>
                                 <!-- Destructive, so out of the way: always the card's bottom right (user, 2026-10-22). -->
                                 <Button HorizontalAlignment="Right" Content="Delete this freighter..." Click="DeleteFreighterBtn_Click" Foreground="{ThemeResource ThemeWarningBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}" ToolTipService.ToolTip="Remove your freighter from the save. You can keep it as a template first."/>
