@@ -5,12 +5,14 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Multi-Tool: Damage and Scanner now show the number the game shows under them ("In game 443.3"): Damage Potential and Scanner Range with your installed technology, upgrades, supercharged slots and adjacency. It updates as you edit, before you save. Mining has no in-game total yet.
 - Cargo and storage pages: Merge Duplicates is now Remove Duplicates. It keeps one stack of each item (the fullest) and deletes the other stacks of it, freeing those slots. Technology and one-per-slot items such as eggs are never removed, and Reset brings everything back before you save.
 - Starships: each base stat now shows the number the game shows under it ("In game 222.8"), which adds your installed technology, supercharged slots and adjacency. It updates as you edit tech or stats, before you save. For ships you aren't flying it reads "When flown": the game rates a parked ship against the one you're flying, so its numbers only match once you fly it. Not shown for Corvettes yet.
 - Current System: the system map is now an orrery, like the freighter's system scanner. The star sits in the middle in its own colour, planets circle it on rings in planet order, moons circle their planet, and the space station sits beside its planet. You're marked on your planet, or beside whatever you're nearest in space. It opens looking straight down: drag to turn and tilt it, scroll to zoom, and press "Top-down" (or Home) to look straight down again. Labels no longer pile on top of each other. The rings turn slowly unless Windows' animation effects are off. Systems your save hasn't placed yet (just after you warp in) get the same map, without the station and you; the old flat drawing is gone.
 - Current System: before you've captured a system, its economy, wealth and conflict now read in the game's own words ("Prospecting // Struggling", "Testy") instead of just the level ("Mining // Low ★"). The app works out the same word the game picks for each system.
 
 ### Fixed
+- Multi-Tool: switching tools clears the 3D preview straight away instead of showing the previous tool for a few seconds while the next one builds.
 - Starships and Crashed Ships: Sentinel ships are named the way the game names them ("μ-Flameborn", "Crimson-σ", "Hope-1-D") instead of "Starship 4" or another ship's name. Update your game data once to get this.
 - Starships: unnamed Living Ships now show the name the game gives them (like "Yulin KV4") instead of "Starship 8", and their Type reads "Living Ship" instead of "(Current - not in known list)".
 - Starships: editing a ship's base stats (Damage, Shield, Hyperdrive, Maneuverability) now changes the ship in game. The game reads a second copy of the stats that the app never changed, so earlier edits had no effect; the boxes now show the values the game uses.
