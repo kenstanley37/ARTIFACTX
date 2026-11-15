@@ -83,7 +83,8 @@ public static partial class CatalogSteps
         }
         var modules = resolvableModules.Select(p => new ProceduralModuleDefinition(p.ID.Value, (int)p.Quality,
             p.NumStatsMin, p.NumStatsMax, (int)p.WeightingCurve.WeightingCurve, p.StatLevels.Select(s =>
-                new ProceduralModuleStat((int)s.Stat.StatsType, s.ValueMin, s.ValueMax, (int)s.WeightingCurve.WeightingCurve, s.AlwaysChoose)).ToArray())).ToArray();
+                new ProceduralModuleStat((int)s.Stat.StatsType, s.ValueMin, s.ValueMax, (int)s.WeightingCurve.WeightingCurve, s.AlwaysChoose)).ToArray(),
+            byId[p.Template.Value].Category.TechnologyCategory == Category.Freighter)).ToArray();
         var coefficients = new MultiToolScannerRules((int)Stat.Ship_Armour_Shield_Strength, 0f,
             gameplay.SpecialTechSlotBonus, gameplay.BonusSameTypeElementsMultiply, gameplay.BonusChildTypeElementsMultiply,
             gameplay.MaxNumSameGroupTech, gameplay.BonusSameTypeElementsAdd, gameplay.BonusChildTypeElementsAdd);

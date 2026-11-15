@@ -72,6 +72,29 @@ internal static class StarshipDisplayEvaluationChecks
         Console.WriteLine("PASS: freighter panel - hyperdrive + 1, fleet multipliers averaged x 20, intrinsic bonuses, missing ids rejected.");
     }
 
+    /// <summary>Freighter-template modules roll two draws earlier than others (module generator 0x140EE20D0). Three
+    /// Slot 8 UP_FRHYP4 modules showed 256 / 276 / 309 ly in game, supercharged (x1.25). Ranges as in the 2026-11
+    /// game data (jump 200-250 on curve index 1, warp efficiency 1-1); the same module without the flag rolls
+    /// differently, so the flag is what's checked.</summary>
+    public static void CheckFreighterModuleRolls()
+    {
+        int[] curves = [0, 16, 19, 25, 17, 20, 26];
+        var module = new ProceduralModuleDefinition("UP_FRHYP4", 3, 2, 2, 0,
+            [new(171, 200f, 250f, 1, false), new(172, 1f, 1f, 0, false)], FreighterTemplate: true);
+        foreach (var (suffix, shown, jumpFirst) in new[] { (18794u, 256, false), (30348u, 276, false), (17621u, 309, true) })
+        {
+            var stats = MultiToolProceduralModuleGeneration.RollOrdinaryStats(suffix, module, curves)
+                ?? throw new InvalidOperationException("Freighter module roll rejected");
+            float jump = stats.First(s => s.Stat == 171).Value;
+            if ((int)MathF.Round(jump * 1.25f) != shown || (stats[0].Stat == 171) != jumpFirst)
+                throw new InvalidOperationException($"UP_FRHYP4#{suffix}: {jump * 1.25f} supercharged, expected {shown}");
+        }
+        var notFreighter = MultiToolProceduralModuleGeneration.RollOrdinaryStats(18794u, module with { FreighterTemplate = false }, curves)!;
+        if ((int)MathF.Round(notFreighter.First(s => s.Stat == 171).Value * 1.25f) == 256)
+            throw new InvalidOperationException("Freighter flag had no effect");
+        Console.WriteLine("PASS: freighter upgrade modules roll as in game (256 / 276 / 309 ly supercharged).");
+    }
+
     // Local fixture contains extracted game tables and read-only player inventory;
     // never commit it. Expected values are native floats unless the fixture explicitly
     // requests comparison at the game screenshots' one-decimal display precision.
