@@ -21,10 +21,13 @@ public static partial class CatalogSteps
     ///     GiveRewardOnSpecialPurchase (RS_S19_*, RS_S20_*), the expedition reward
     ///     that hands them out; the expedition itself comes from the Expedition
     ///     Rewards category.
+    ///   - Format 100: each part's BuildableShipTechID, the corvette upgrade module it
+    ///     puts in the corvette's technology (B_HAB_C -> CV_INV2, B_LND_B -> CV_LAUN2,
+    ///     B_WNG_C -> CV_PULSE3). The game shows that module with the part's icon.
     /// The rest (40 of 176 menu parts) are in neither shop: found or earned in play.
     /// The game data doesn't say which update added a part, so none is claimed.
     /// </summary>
-    private static Dictionary<string, (string Shop, string Type)> CorvettePartSources(string pcbanksPath)
+    private static Dictionary<string, (string Shop, string Type, string Tech)> CorvettePartSources(string pcbanksPath)
     {
         var reader = new PakReaderService();
         var index = new GlobalFileIndexService();
@@ -43,7 +46,7 @@ public static partial class CatalogSteps
             return mbin.GetData();
         }
 
-        var result = new Dictionary<string, (string Shop, string Type)>(StringComparer.OrdinalIgnoreCase);
+        var result = new Dictionary<string, (string Shop, string Type, string Tech)>(StringComparer.OrdinalIgnoreCase);
         if (Decode("METADATA/REALITY/DEFAULTREALITY.MBIN") is not GcRealityManagerData reality)
         {
             ConsoleStyle.Warning("Default reality not found - corvette part sources left out.");
@@ -75,7 +78,7 @@ public static partial class CatalogSteps
                 string shop = basic.Contains(id) ? "basic" : barter.Contains(id) ? "barter"
                     : product.GiveRewardOnSpecialPurchase.Value is { Length: > 0 } reward ? "reward:" + reward : "";
                 string type = loc.TryGetValue(product.Subtitle.Value, out var subtitle) ? subtitle.Trim() : "";
-                result[id] = (shop, type);
+                result[id] = (shop, type, product.BuildableShipTechID.Value ?? "");
             }
         }
         ConsoleStyle.Info($"Corvette shops: {basic.Count} sold for units, {barter.Count} by swap offer.");

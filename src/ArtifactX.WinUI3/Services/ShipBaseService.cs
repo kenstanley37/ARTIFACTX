@@ -71,6 +71,24 @@ public static class ShipBaseService
         SaveSessionManager.GetValue(S.BasesPath) is JArray bases && IndexFor(bases, shipIndex) is int index
             ? (bases[index]["@ZJ"] as JArray)?.Count ?? 0 : 0;
 
+    /// <summary>For a corvette's technology: each upgrade module id ("CV_INV2") to the part on this corvette that
+    /// gives it ("B_HAB_C"), whose icon the game shows on the module's slot. A part's module is its product's
+    /// BuildableShipTechID (catalog format 100); when several of the corvette's parts give the same module, the most
+    /// numerous wins. Slot 8's corvette (2026-11-15): CV_INV2 <- B_HAB_C x15, CV_LAUN2 <- B_LND_B x4, CV_PULSE3 <-
+    /// B_WNG_C. Empty for a ship without a build or a catalog before format 100.</summary>
+    public static async System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<string, string>> ModulePartsAsync(int shipIndex)
+    {
+        var result = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (SaveSessionManager.GetValue(S.BasesPath) is not JArray bases || IndexFor(bases, shipIndex) is not int index
+            || bases[index]["@ZJ"] is not JArray objects) return result;
+        var built = objects.Select(o => (o?["r<7"]?.Value<string>() ?? "").TrimStart('^')).Where(id => id.Length > 0)
+            .GroupBy(id => id, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+        var moduleOf = await CatalogService.GetCorvettePartModulesAsync();
+        foreach (var group in built.Where(b => moduleOf.ContainsKey(b.Key)).GroupBy(b => moduleOf[b.Key], StringComparer.OrdinalIgnoreCase))
+            result[group.Key] = group.OrderByDescending(b => b.Value).ThenBy(b => b.Key, StringComparer.Ordinal).First().Key;
+        return result;
+    }
+
     /// <summary>Removes the build linked to a ship slot (when the ship is deleted).</summary>
     public static void Remove(int shipIndex)
     {

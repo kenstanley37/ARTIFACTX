@@ -255,6 +255,8 @@ public static partial class CatalogSteps
                     // Format 72 (CorvettePartSources): "basic", "barter", "reward:RS_..." or "".
                     ["shop"] = corvetteSources.GetValueOrDefault(itemId).Shop ?? "",
                     ["type"] = corvetteSources.GetValueOrDefault(itemId).Type ?? "",
+                    // Format 100: the CV_ upgrade module the part gives the corvette (its icon is this part's).
+                    ["tech"] = corvetteSources.GetValueOrDefault(itemId).Tech ?? "",
                 });
         }
         ConsoleStyle.Header($"Found {corvetteParts.Count} corvette parts " +

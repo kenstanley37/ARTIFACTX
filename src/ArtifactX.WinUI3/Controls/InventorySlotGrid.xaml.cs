@@ -86,6 +86,18 @@ public sealed partial class InventorySlotGrid : UserControl
     /// wires up.</summary>
     public bool SupportsRepair { get; set; } = true;
 
+    /// <summary>Items drawn with another item's icon: base item id ("CV_INV2", no "^" or "#seed") to the item whose
+    /// icon the game shows for it - a corvette's upgrade modules show the part that gives them
+    /// (ShipBaseService.ModulePartsAsync). Null for none.</summary>
+    public IReadOnlyDictionary<string, string>? IconStandIns { get; set; }
+
+    private ImageSource? IconFor(string? itemId)
+    {
+        string baseId = (itemId ?? "").TrimStart('^').Split('#')[0];
+        if (IconStandIns?.GetValueOrDefault(baseId) is { } standIn && CatalogService.TryGet(standIn)?.Icon is { } icon) return icon;
+        return CatalogService.TryGet(itemId)?.Icon;
+    }
+
     /// <summary>Multiplier this container applies on top of a Product's raw catalog
     /// StackMultiplier to get its real max stack here - e.g. 10 for a standard Cargo
     /// container (confirmed: Metal Plating's StackMultiplier of 2 x 10 = the real
@@ -189,7 +201,7 @@ public sealed partial class InventorySlotGrid : UserControl
 
                 var itemImage = new Image
                 {
-                    Source = entry?.Icon,
+                    Source = IconFor(cell.ItemId),
                     Stretch = Stretch.Uniform,
                     Opacity = 0.95
                 };
@@ -215,11 +227,17 @@ public sealed partial class InventorySlotGrid : UserControl
                 };
                 content.Children.Add(nameLabel);
 
+                // The game's class letter on a rolled upgrade module (C/B/A/S/X); without it an X-class module looks
+                // like an ordinary one (user, 2026-10-27).
+                string? moduleClass = CatalogService.ModuleClassLetter(cell.ItemId);
                 var amountLabel = new Border
                 {
                     Background = ThemeBrush("ThemeSlotLabelBackgroundBrush"),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Bottom,
+                    // A module's stored amount is a placeholder (-1/100 on starships, 1/100 on corvettes); the game
+                    // shows no number on it (owner's corvette screenshot, 2026-11-15).
+                    Visibility = moduleClass is null ? Visibility.Visible : Visibility.Collapsed,
                     Child = new TextBlock
                     {
                         Text = cell.DisplayText,
@@ -231,9 +249,6 @@ public sealed partial class InventorySlotGrid : UserControl
                 };
                 content.Children.Add(amountLabel);
 
-                // The game marks every rolled upgrade module with its class (C/B/A/S/X);
-                // without it an X-class module looks like an ordinary one (user, 2026-10-27).
-                string? moduleClass = CatalogService.ModuleClassLetter(cell.ItemId);
                 if (moduleClass is not null)
                     content.Children.Add(new Border
                     {
@@ -263,7 +278,7 @@ public sealed partial class InventorySlotGrid : UserControl
                     var current = CatalogService.TryGet(cell.ItemId);
                     string name = ownName ?? current?.DisplayName
                         ?? (showLoadingItems ? loading ? "Loading item" : "Item" : cell.ShortLabel);
-                    itemImage.Source = current?.Icon;
+                    itemImage.Source = IconFor(cell.ItemId);
                     ((TextBlock)nameLabel.Child).Text = name.ToUpperInvariant();
                     ToolTipService.SetToolTip(border, isDamaged
                         ? "Malfunctioning - right-click to repair"
