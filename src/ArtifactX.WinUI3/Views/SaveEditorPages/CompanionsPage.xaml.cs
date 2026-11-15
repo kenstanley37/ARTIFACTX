@@ -39,6 +39,9 @@ public sealed partial class CompanionsPage : Page
         LoadCompanionList();
     }
 
+    /// <summary>The Body Parts card shows while a companion is selected (its species is known).</summary>
+    public Visibility HasCompanion(string species) => string.IsNullOrEmpty(species) ? Visibility.Collapsed : Visibility.Visible;
+
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
     {
         if (ViewModel.IsStagingField) DispatcherQueue.TryEnqueue(ShowResetButton);

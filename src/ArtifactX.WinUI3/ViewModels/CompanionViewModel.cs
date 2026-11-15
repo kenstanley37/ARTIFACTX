@@ -25,8 +25,6 @@ namespace ArtifactX.WinUI3.ViewModels;
 /// </summary>
 public sealed partial class CompanionViewModel : ObservableObject
 {
-    public static IReadOnlyList<string> ClassLetters { get; } = new[] { "S", "A", "B", "C" };
-
     // Species archetype (XID, e.g. "RODENT") -> catalog data, loaded once.
     private static Dictionary<string, (string DisplayName, string Rarity, string Description)>? _species;
 
@@ -101,11 +99,60 @@ public sealed partial class CompanionViewModel : ObservableObject
     [ObservableProperty] public partial bool ColourOverrideActive { get; set; }
     [ObservableProperty] public partial string ColourOverrideSeed { get; set; } = "";
 
-    /// <summary>While on, the Battle Abilities badges come from the class letters, not the seeds.</summary>
-    [ObservableProperty] public partial bool LetterOverrideActive { get; set; }
-    [ObservableProperty] public partial int HealthLetter { get; set; } = -1;
-    [ObservableProperty] public partial int AgilityLetter { get; set; } = -1;
-    [ObservableProperty] public partial int CombatLetter { get; set; } = -1;
+    /// <summary>The class letter override (isp) is on: the companion's screen shows its stored letters (E&lt;S), but
+    /// the Holo-Arena uses the seed grades - the owner's in-game tests in earlier builds: letters set to S showed S
+    /// until a pet was picked for the arena, then it fought with its seed grades. So the page no longer edits the
+    /// letters; it only shows this and offers to switch the override off (UseSeedGrades). Read-only.</summary>
+    [ObservableProperty] public partial bool LetterOverrideActive { get; private set; }
+
+    /// <summary>The Battle Abilities from the Battle Ability Seeds (m9o / JrL), what the arena uses, recomputed on
+    /// every reload so Generate shows the new grades at once (Helpers.Fauna.CreatureTraitText.Classes). Confirmed on
+    /// Slot 8 2026-11-15: Gerbilil S/S/A overall S and Winginnia A/C/S overall A, as in game.</summary>
+    [ObservableProperty] public partial ExploreViewModels.CreatureBattleViewModel? Battle { get; private set; }
+    public bool HasBattle => Battle is not null;
+
+    /// <summary>Switches the class letter override off, so the companion's screen shows the seed grades too.</summary>
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    private void UseSeedGrades()
+    {
+        if (_index < 0 || !LetterOverrideActive) return;
+        Stage(false, P.ClassLetterOverrideActivePath(_index));   // a staged edit: the page reloads
+    }
+
+    /// <summary>Feedback from FindTopBattleSeed when it can't stage a seed; "" otherwise.</summary>
+    [ObservableProperty] public partial string BattleSearchMessage { get; private set; } = "";
+
+    /// <summary>Rolls the first Battle Ability Seed (m9o) until the grades are S/S/S and stages it, keeping the second
+    /// (JrL) - what pressing Generate until all S would do, about 1 roll in 300 (15% per grade in build 185034). The
+    /// species name changes with it, as with Generate. Confirmed in game 2026-11-15 on Slot 8: Gerbilil with the found
+    /// seed 0x01C2786DBF5451ED (JrL kept) showed S / S / S and the new species T. Allihadoctosa.</summary>
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    private async Task FindTopBattleSeedAsync()
+    {
+        BattleSearchMessage = "";
+        if (_index < 0 || PlanetTypesService.CreatureTables?.PetBattle is not { ClassRolls.Length: >= 3 } battle)
+        {
+            BattleSearchMessage = "Read the game data again in Settings to find battle seeds.";
+            return;
+        }
+        int index = _index;
+        ulong genus = Seed(P.RollSeedSecondaryPath(index));
+        string? found = await Task.Run(() =>
+        {
+            for (int i = 0; i < 200_000; i++)
+            {
+                string text = NmsSeedGenerator.GenerateRandom();
+                if (NmsSeedGenerator.TryParse(text, out ulong seed)
+                    && ArtifactX.Core.Companions.PetBattlerClasses.Roll(seed, genus, battle.ClassRolls).Classes.All(c => c == 3))
+                    return text;
+            }
+            return null;
+        });
+        if (index != _index) return;
+        if (found is null) { BattleSearchMessage = "No S/S/S seed turned up this time; try again."; return; }
+        Stage(found, P.RollSeedPrimaryPath(index));   // a staged edit: the page reloads and shows the new grades
+    }
+    partial void OnBattleChanged(ExploreViewModels.CreatureBattleViewModel? value) => OnPropertyChanged(nameof(HasBattle));
 
     /// <summary>Body parts: one row per descriptor (osl) entry.</summary>
     public ObservableCollection<CompanionPartRowViewModel> Parts { get; } = new();
@@ -124,7 +171,6 @@ public sealed partial class CompanionViewModel : ObservableObject
         _loading = true;
         Name = Species = SpeciesName = GameName = Climate = Rarity = ColourOverrideSeed = "";
         ColourOverrideActive = LetterOverrideActive = false;
-        HealthLetter = AgilityLetter = CombatLetter = -1;
         foreach (var field in NumberFields) field.Load(double.NaN);
         _loading = false;
         Parts.Clear();
@@ -140,6 +186,7 @@ public sealed partial class CompanionViewModel : ObservableObject
         _species ??= await CatalogService.GetCreatureSpeciesAsync();
         _names ??= await CreatureNameService.LoadAsync();
         _traitWords ??= (await CatalogService.GetEggSequencerRulesAsync())?.Texts;
+        await PlanetTypesService.EnsureLoadedAsync();   // the class weights for Battle
         string rigId = archetypeId.ToLowerInvariant();
         if (!_trees.TryGetValue(rigId, out var tree))
         {
@@ -183,9 +230,9 @@ public sealed partial class CompanionViewModel : ObservableObject
         ColourOverrideActive = Read<bool?>(P.ColourBaseSeedActivePath(index)) ?? false;
         ColourOverrideSeed = Read<string>(P.ColourBaseSeedPath(index)) ?? "";
         LetterOverrideActive = Read<bool?>(P.ClassLetterOverrideActivePath(index)) ?? false;
-        HealthLetter = LetterIndex(Read<string>(P.ClassLetterPath(index, 0)));
-        AgilityLetter = LetterIndex(Read<string>(P.ClassLetterPath(index, 1)));
-        CombatLetter = LetterIndex(Read<string>(P.ClassLetterPath(index, 2)));
+        var battle = Helpers.Fauna.CreatureTraitText.Classes(Seed(P.RollSeedPrimaryPath(index)), Seed(P.RollSeedSecondaryPath(index)),
+            PlanetTypesService.CreatureTables);
+        Battle = battle is null ? null : new ExploreViewModels.CreatureBattleViewModel(battle);
         _loading = false;
 
         ShowParts();
@@ -263,27 +310,6 @@ public sealed partial class CompanionViewModel : ObservableObject
         Stage(true, P.ColourBaseSeedActivePath(_index));
     }
 
-    partial void OnLetterOverrideActiveChanged(bool value)
-    {
-        if (!_loading && _index >= 0) StageField(() => Stage(value, P.ClassLetterOverrideActivePath(_index)));
-    }
-
-    partial void OnHealthLetterChanged(int value) => StageLetter(0, value);
-    partial void OnAgilityLetterChanged(int value) => StageLetter(1, value);
-    partial void OnCombatLetterChanged(int value) => StageLetter(2, value);
-
-    /// <summary>Stat order in the save is Health/Agility/Combat here (not the
-    /// Agility/Health/Combat order of the mutation points).</summary>
-    private void StageLetter(int stat, int letterIndex)
-    {
-        if (_loading || _index < 0 || letterIndex < 0) return;
-        string letter = ClassLetters[letterIndex];
-        if (letter != (Read<string>(P.ClassLetterPath(_index, stat)) ?? "")) StageField(() => Stage(letter, P.ClassLetterPath(_index, stat)));
-    }
-
-    private static int LetterIndex(string? letter) =>
-        ClassLetters.ToList().FindIndex(l => string.Equals(l, letter, StringComparison.OrdinalIgnoreCase));
-
     // ------------------------------------------------------------ body parts
 
     /// <summary>
@@ -320,14 +346,19 @@ public sealed partial class CompanionViewModel : ObservableObject
         bool singleRootArchetype = _tree.Where(n => n.ParentOptionId == null)
             .Select(n => n.Category).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1;
 
+        // Plain slot names ("Head: Ears", "Head extra 1") instead of the game's group codes (_ACB_, _ACC_).
+        var slotNodes = Enumerable.Range(0, osl.Count)
+            .Select(i => byOptionId.GetValueOrDefault((osl[i]?.Value<string>() ?? "").TrimStart('^'))).ToList();
+        var labels = Helpers.Fauna.BodyPartLabels.For(slotNodes, _tree);
+
         for (int i = 0; i < osl.Count; i++)
         {
             string raw = osl[i]?.Value<string>() ?? "";
-            if (!byOptionId.TryGetValue(raw.TrimStart('^'), out var node))
+            if (slotNodes[i] is not { } node)
             {
                 // Matches no known option (e.g. the trailing per-instance detail seed):
                 // shown read-only so the array stays visible in full.
-                Parts.Add(CompanionPartRowViewModel.ReadOnly(i, raw));
+                Parts.Add(CompanionPartRowViewModel.ReadOnly(i, labels[i], raw));
                 continue;
             }
 
@@ -337,7 +368,7 @@ public sealed partial class CompanionViewModel : ObservableObject
                 .Select(n => new CompanionPartOption(n.OptionId, CompanionService.HumanizeDescriptorOption(node.Category, n.OptionId)))
                 .ToList();
             int selected = options.FindIndex(o => string.Equals(o.Id, node.OptionId, StringComparison.OrdinalIgnoreCase));
-            Parts.Add(new CompanionPartRowViewModel(i, $"{CompanionService.HumanizeDescriptorCategory(node.Category)} (osl[{i}])",
+            Parts.Add(new CompanionPartRowViewModel(i, labels[i],
                 options, selected, node.ParentOptionId == null && singleRootArchetype, OnPartPicked));
         }
     }
@@ -359,8 +390,11 @@ public sealed partial class CompanionViewModel : ObservableObject
         }
 
         if (row.Index >= current.Count || "^" + picked == current[row.Index]?.Value<string>()) return;
-        var updated = new JArray(current.Select(v => v.DeepClone())) { [row.Index] = "^" + picked };
+        // The part and its extras: a head brings its own head extras (CompanionService.SwapPart).
+        var updated = CompanionService.SwapPart(_tree, current, row.Index, picked);
         SaveSessionManager.StageEdit(updated, path);
+        if (updated.Count != current.Count || !updated.Skip(row.Index + 1).Zip(current.Skip(row.Index + 1)).All(p => JToken.DeepEquals(p.First, p.Second)))
+            ShowParts();   // the rows below changed with it
     }
 
     // ------------------------------------------------------------ raw fields
