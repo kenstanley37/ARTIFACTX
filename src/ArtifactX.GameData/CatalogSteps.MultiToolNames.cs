@@ -18,7 +18,8 @@ public static partial class CatalogSteps
     /// (ArtifactX.Core ShipNames, format 12): NAMEGEN_SHIP_FORMAT/NOUN/VERB/
     /// POSESSION (the game's spelling)/PROPERTY/ADJ. Frigate naming has its
     /// own NAMEGEN_FRIGATE_CODE and NAMEGEN_FLEET lists. Organic frigates use
-    /// NAMEGEN_WEIRDSHIP_FORMAT and PREFIXGEN_WEIRDSHIP_PREFIX. Species names
+    /// NAMEGEN_WEIRDSHIP_FORMAT and PREFIXGEN_WEIRDSHIP_PREFIX (also Living Ship names).
+    /// Sentinel ships (ShipNames.GenerateSentinel, format 96): NAMEGEN_ROBOTSHIP_FORMAT/NAME. Species names
     /// (ArtifactX.Core SpeciesNames, format 69) start with a NAMEGEN_CRE (list
     /// "CRE") or NAMEGEN_FLORA_ROOT word; mineral names end in MINERAL_SUFFIX
     /// (format 70, a one-word list). One row per list,
@@ -44,7 +45,7 @@ public static partial class CatalogSteps
         var extraction = new ExtractionService();
 
         // The lists are spread over several language files (update files included).
-        var key = new Regex(@"^(?:NAMEGEN|PREFIXGEN)_(WEAP|STAFF|SHIP|FLEET|FRIGATE|WEIRDSHIP|CRE|FLORA)(?:_([A-Z0-9_]+))?_(\d+)$", RegexOptions.IgnoreCase);
+        var key = new Regex(@"^(?:NAMEGEN|PREFIXGEN)_(WEAP|STAFF|SHIP|FLEET|FRIGATE|WEIRDSHIP|ROBOTSHIP|CRE|FLORA)(?:_([A-Z0-9_]+))?_(\d+)$", RegexOptions.IgnoreCase);
         var frigateFormatKey = new Regex(@"^FRIGATE_NAME_FORMAT_(\d+)$", RegexOptions.IgnoreCase);
         var lists = new Dictionary<string, SortedDictionary<int, string>>(StringComparer.OrdinalIgnoreCase);
         var frigateFormats = new SortedDictionary<int, string>();
