@@ -12,6 +12,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Current System: before you've captured a system, its economy, wealth and conflict now read in the game's own words ("Prospecting // Struggling", "Testy") instead of just the level ("Mining // Low ★"). The app works out the same word the game picks for each system.
 
 ### Fixed
+- Galaxy Transfer: the station count shows only space stations you own (claimed), each once. It also counted every station in your teleporter, and your own station twice, so a galaxy with one claimed station showed 3. The filter now reads "Owned stations". Your freighter and corvette no longer count as bases in whatever galaxy you're in, and the badges say "3 bases", "1 station", "Here" in larger text instead of small symbols.
 - Multi-Tool: switching tools clears the 3D preview straight away instead of showing the previous tool for a few seconds while the next one builds.
 - Starships and Crashed Ships: Sentinel ships are named the way the game names them ("μ-Flameborn", "Crimson-σ", "Hope-1-D") instead of "Starship 4" or another ship's name. Update your game data once to get this.
 - Starships: unnamed Living Ships now show the name the game gives them (like "Yulin KV4") instead of "Starship 8", and their Type reads "Living Ship" instead of "(Current - not in known list)".

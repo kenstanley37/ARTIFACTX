@@ -25,6 +25,22 @@ public static class GalaxyTransferService
         public List<string> Bases { get; } = new();
         public List<string> Stations { get; } = new();
 
+        /// <summary>Owned (claimed) stations already counted, by system address. The station badge means stations
+        /// the player OWNS (owner, #68, 2026-11-14): Teleport Network markers are added for every station landed
+        /// at, so they only mark the galaxy visited. Slot 8 before: galaxy 240 showed 3 (claimed base, its own
+        /// teleporter marker under another name, the Gateway arrival station's marker); now 1.</summary>
+        private readonly HashSet<string> _stationKeys = new(StringComparer.Ordinal);
+
+        /// <summary>Counts a station once per system; true when it was new.</summary>
+        public bool AddStation(ulong? systemAddress, string label)
+        {
+            string key = systemAddress is ulong a ? $"@{NmsSpaceStationPaths.ToSystemAddress(a):X}" : $"#{label}";
+            if (!_stationKeys.Add(key)) return false;
+            StationCount++;
+            Stations.Add(label);
+            return true;
+        }
+
         public PresenceAccumulator(int number) => GalaxyNumber = number;
 
         public GalaxyPresence ToPresence() => new(
@@ -86,6 +102,10 @@ public static class GalaxyTransferService
                 if (g < 1 || g > 256) continue;
 
                 string kind = b["peI"]?["DPp"]?.Value<string>() ?? "";
+                // The freighter (FreighterBase) and a corvette's build (PlayerShipBase) travel with the player: their
+                // address is wherever they are now, so they'd count as bases in the current galaxy (#68, Slot 8:
+                // galaxy 239 showed "Base" and "Default" beside its one planet base). Fixed space bases still count.
+                if (kind is "FreighterBase" or "PlayerShipBase") continue;
                 string name = b["NKm"]?.Value<string>() ?? "";
                 if (string.IsNullOrWhiteSpace(name))
                 {
@@ -107,8 +127,7 @@ public static class GalaxyTransferService
                 }
                 else if (kind == "PlayerSpaceStationBase")
                 {
-                    acc.StationCount++;
-                    acc.Stations.Add($"{name} (Claimed Station)");
+                    acc.AddStation(addr, name);
                 }
                 else
                 {
@@ -118,7 +137,8 @@ public static class GalaxyTransferService
             }
         }
 
-        // 3. Space Stations in Teleport Network (nlG / snapshot.Markers)
+        // 3. Space Stations in Teleport Network (nlG / snapshot.Markers): every station landed at is here,
+        //    so these mark the galaxy visited but don't count as owned stations (#68).
         var markersArray = snapshot?.Markers ?? SaveSessionManager.GetValue(NmsSpaceStationPaths.MarkersPath) as JArray;
         if (markersArray is not null)
         {
@@ -138,14 +158,7 @@ public static class GalaxyTransferService
 
                 if (g < 1 || g > 256) continue;
 
-                string name = m["NKm"]?.Value<string>() ?? "Space Station";
-                var acc = accumulators[g];
-                acc.IsVisited = true;
-                if (!acc.Stations.Contains(name))
-                {
-                    acc.StationCount++;
-                    acc.Stations.Add(name);
-                }
+                accumulators[g].IsVisited = true;
             }
         }
 
