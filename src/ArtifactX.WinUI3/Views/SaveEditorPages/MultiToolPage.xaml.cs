@@ -506,9 +506,23 @@ public sealed partial class MultiToolPage : Page, ILoadoutTemplateHost
     private void UpdateStatDisplay()
     {
         StatsBoxes.Show(NmsInventoryContainer.MultiToolTechnologyPath(_selectedIndex).Append("@bB").ToArray(), BaseStats);
+        ShowInGameTotals();
     }
 
-    private void StatsBoxes_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
+    /// <summary>The game's Damage Potential and Scanner Range under the base stats (#17); dropped if another
+    /// tool was picked meanwhile.</summary>
+    private async void ShowInGameTotals()
+    {
+        int index = _selectedIndex;
+        var totals = await OwnedMultiToolDisplayStatsService.EvaluateAsync(index);
+        if (index == _selectedIndex) StatsBoxes.ShowInGameTotals(totals);
+    }
+
+    private void StatsBoxes_Edited(object? sender, EventArgs e)
+    {
+        PageResetBtn.Visibility = Visibility.Visible;
+        ShowInGameTotals();
+    }
 
     /// <summary>Stages the rename when the field loses focus - not on every
     /// keystroke, since that would rebuild the selector strip (via LoadToolList,
