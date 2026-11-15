@@ -406,17 +406,18 @@ public sealed partial class CompanionViewModel : ObservableObject
         void Add(string label, RawFieldKind kind, string[] path, string[]? active = null, IReadOnlyList<string>? choices = null) =>
             RawFields.Add(new CompanionRawFieldViewModel(label, kind, path, active, choices));
 
-        Add("Secondary Seed (1p=)", RawFieldKind.HexWithActive, P.SecondarySeedPath(i), P.SecondarySeedActivePath(i));
-        Add("Creature Type (HbY)", RawFieldKind.Choice, P.CreatureTypePath(i), choices: Enum.GetNames<GcCreatureTypes.CreatureTypeEnum>());
+        // The game's own field names (NmsCompanionPaths, read from NMS.exe 2026-11-15), in plain words.
+        Add("Secondary seed", RawFieldKind.HexWithActive, P.SecondarySeedPath(i), P.SecondarySeedActivePath(i));
+        Add("Creature type", RawFieldKind.Choice, P.CreatureTypePath(i), choices: Enum.GetNames<GcCreatureTypes.CreatureTypeEnum>());
         // Uses the same "^" prefix as XID - CONFIRMED 2026-07-28: plain text without the
         // caret broke something in-game; with it, only the Species display text changed.
-        Add("Custom Species Name (HhX)", RawFieldKind.CaretText, P.CustomSpeciesNamePath(i));
-        Add("Unknown Hex (5L6)", RawFieldKind.Hex, P.UnknownHexCPath(i));
-        Add("Unknown Bool (Q6I)", RawFieldKind.Flag, P.UnknownBoolAPath(i));
-        Add("Unknown Bool (IaE)", RawFieldKind.Flag, P.UnknownBoolBPath(i));
-        Add("Unknown Bool (?<V)", RawFieldKind.Flag, P.UnknownBoolCPath(i));
-        Add("Unknown Bool (eK9)", RawFieldKind.Flag, P.UnknownBoolDPath(i));
-        Add("Unknown Bool (WQX)", RawFieldKind.Flag, P.UnknownBoolEPath(i));
+        Add("Custom species name", RawFieldKind.CaretText, P.CustomSpeciesNamePath(i));
+        Add("Home address (where it came from)", RawFieldKind.Hex, P.UniverseAddressPath(i));
+        Add("Predator", RawFieldKind.Flag, P.PredatorPath(i));
+        Add("Has fur", RawFieldKind.Flag, P.HasFurPath(i));
+        Add("Has been summoned", RawFieldKind.Flag, P.HasBeenSummonedPath(i));
+        Add("Re-sequenced (Egg Sequencer)", RawFieldKind.Flag, P.EggModifiedPath(i));
+        Add("Allow unmodified reroll (Egg Sequencer)", RawFieldKind.Flag, P.AllowUnmodifiedRerollPath(i));
     }
 
     // ------------------------------------------------------------ helpers
