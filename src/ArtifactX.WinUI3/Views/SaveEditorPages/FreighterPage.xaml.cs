@@ -373,9 +373,17 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private void UpdateStatDisplay()
     {
         StatsBoxes.Show(NmsInventoryContainer.FreighterStatBonusesPath, BaseStats);
+        ShowInGameTotals();
     }
 
-    private void StatsBoxes_Edited(object? sender, EventArgs e) => PageResetBtn.Visibility = Visibility.Visible;
+    /// <summary>The game's Hyperdrive Range and Fleet Coordination under the base stats (#17).</summary>
+    private async void ShowInGameTotals() => StatsBoxes.ShowInGameTotals(await OwnedFreighterDisplayStatsService.EvaluateAsync());
+
+    private void StatsBoxes_Edited(object? sender, EventArgs e)
+    {
+        PageResetBtn.Visibility = Visibility.Visible;
+        ShowInGameTotals();
+    }
 
     /// <summary>The whole freighter as a Full Build template: tech, unlocked
     /// slots, stats, look and furnished interior.</summary>

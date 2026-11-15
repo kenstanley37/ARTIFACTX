@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Freighter: Hyperdrive and Fleet Coordination now show the number the game shows under them ("In game 5,383.8"), with your installed technology, upgrades, supercharged slots and adjacency. It updates as you edit, before you save. Update your game data once to get this.
 - Multi-Tool: Damage and Scanner now show the number the game shows under them ("In game 443.3"): Damage Potential and Scanner Range with your installed technology, upgrades, supercharged slots and adjacency. It updates as you edit, before you save. Mining has no in-game total yet.
 - Cargo and storage pages: Merge Duplicates is now Remove Duplicates. It keeps one stack of each item (the fullest) and deletes the other stacks of it, freeing those slots. Technology and one-per-slot items such as eggs are never removed, and Reset brings everything back before you save.
 - Starships: each base stat now shows the number the game shows under it ("In game 222.8"), which adds your installed technology, supercharged slots and adjacency. It updates as you edit tech or stats, before you save. For ships you aren't flying it reads "When flown": the game rates a parked ship against the one you're flying, so its numbers only match once you fly it. Not shown for Corvettes yet.

@@ -9,7 +9,7 @@ public sealed record StarshipEvaluationTables(MultiToolTechnologyTables Technolo
     Dictionary<string, StarshipIntrinsicStatTarget[]> IntrinsicTargets, bool UseMultiplierBonus,
     StarshipDisplayStatIds Stats, StarshipWeaponEvaluationRule[] Weapons,
     SuperchargedSlotRules SuperchargedSlots, float BrokenTechnologyChance,
-    MultiToolTechnologyTables? SentinelTechnology = null);
+    MultiToolTechnologyTables? SentinelTechnology = null, FreighterDisplayStatIds? Freighter = null);
 
 public sealed record StarshipComparisonContext(ulong ResourceSeed, GeneratedMultiToolInventory ActiveTechnology,
     IReadOnlyList<KeyValuePair<string, float>> ActiveIntrinsicBonuses,
