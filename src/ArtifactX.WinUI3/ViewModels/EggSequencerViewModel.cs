@@ -63,6 +63,8 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     /// <summary>True when a catalyst changes the chosen egg, so "After sequencing" means something.</summary>
     [ObservableProperty] public partial bool HasChanges { get; private set; }
     [ObservableProperty] public partial string PreviewCaption { get; private set; } = "";
+    /// <summary>The egg's Battle Abilities (Helpers.Fauna.CreatureTraitText.Classes); sequencing and hatching keep them.</summary>
+    [ObservableProperty] public partial ExploreViewModels.CreatureBattleViewModel? Battle { get; private set; }
     private EggPreviewLook? _nowLook;
     private int _lookVersion;
 
@@ -161,10 +163,16 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     {
         int version = ++_lookVersion;
         EggPreviewLook? look = null;
-        if (choice is { Slot: >= 0 } && CompanionService.EggLook(choice.Slot) is { } egg
-            && await CreatureModelService.ResolveRigAsync(egg.Species, egg.Parts) is { Length: > 0 } rig)
-            look = new EggPreviewLook(rig, egg.Parts, egg.Seed, egg.ColourSeed);
+        Helpers.Fauna.CreatureBattle? battle = null;
+        if (choice is { Slot: >= 0 } && CompanionService.EggLook(choice.Slot) is { } egg)
+        {
+            if (await CreatureModelService.ResolveRigAsync(egg.Species, egg.Parts) is { Length: > 0 } rig)
+                look = new EggPreviewLook(rig, egg.Parts, egg.Seed, egg.ColourSeed);
+            await PlanetTypesService.EnsureLoadedAsync();
+            battle = Helpers.Fauna.CreatureTraitText.Classes(egg.SpeciesSeed, egg.GenusSeed, PlanetTypesService.CreatureTables);
+        }
         if (version != _lookVersion) return;
+        Battle = battle is null ? null : new ExploreViewModels.CreatureBattleViewModel(battle);
         _nowLook = look;
         HasLook = look is not null;   // shown first, so the panel draws while visible
         UpdateLook();

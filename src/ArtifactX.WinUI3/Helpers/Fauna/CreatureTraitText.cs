@@ -49,13 +49,22 @@ public static class CreatureTraitText
     /// Agility, Health) with their classes (0 = C ... 3 = S), and the element. Null on game data before format 82.</summary>
     public static CreatureBattle? Battle(PredictedCreature creature, CreatureTables? tables, ulong speciesSeed, ulong genusSeed)
     {
+        if (Classes(speciesSeed, genusSeed, tables) is not { } result || tables?.PetBattle is not { } battle) return null;
+        string element = creature.Info is { Element: >= 0 } info && info.Element < battle.AffinityWords.Length
+            ? battle.AffinityWords[info.Element] : "";
+        return result with { Element = element };
+    }
+
+    /// <summary>A companion's or egg's Battle Abilities from its m9o and JrL (the same species and genus seeds as a
+    /// wild creature's), without the element. Confirmed 2026-11-15: the Slot 8 CAT egg hatched as Winginnia showed
+    /// Combat A, Agility C, Health S, overall A, as rolled from the egg's seeds, which hatching keeps.</summary>
+    public static CreatureBattle? Classes(ulong speciesSeed, ulong genusSeed, CreatureTables? tables)
+    {
         if (tables?.PetBattle is not { Labels.Length: 4 } battle || battle.ClassRolls.Length < 3) return null;
         var (classes, potential) = PetBattlerClasses.Roll(speciesSeed, genusSeed, battle.ClassRolls);
         // The visor lists Combat Effectiveness, Agility, Health: stats 2, 1, 0 in GcPetBattlerCoreStat order.
         var stats = new[] { 2, 1, 0 }.Select(i => (battle.Labels[i], classes[i])).ToArray();
-        string element = creature.Info is { Element: >= 0 } info && info.Element < battle.AffinityWords.Length
-            ? battle.AffinityWords[info.Element] : "";
-        return new CreatureBattle(battle.Labels[3], potential, stats, element);
+        return new CreatureBattle(battle.Labels[3], potential, stats, "");
     }
 
     /// <summary>The species' two forms, each gender with its weight and height ("Male 121.5kg / 3.0m or Female

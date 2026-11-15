@@ -79,7 +79,7 @@ public static class CompanionService
     /// with its "^"), body parts (osl) and look seeds (CreatureModelService.CompanionLookSeeds).
     /// An egg record has the same fields as a companion (NmsCompanionPaths.EggArrayPath).
     /// Null for an empty slot.</summary>
-    public static (string Species, List<string> Parts, ulong Seed, ulong ColourSeed)? EggLook(int slot)
+    public static (string Species, List<string> Parts, ulong Seed, ulong ColourSeed, ulong SpeciesSeed, ulong GenusSeed)? EggLook(int slot)
     {
         if (SaveSessionManager.GetValue(NmsCompanionPaths.EggArrayPath) is not JArray array
             || slot < 0 || slot >= array.Count || array[slot] is not JObject egg) return null;
@@ -87,7 +87,9 @@ public static class CompanionService
         if (species.TrimStart('^').Length == 0) return null;
         var parts = (egg["osl"] as JArray)?.Select(p => p?.Value<string>() ?? "").Where(p => p.Length > 0).ToList() ?? [];
         var (seed, colourSeed) = CreatureModelService.CompanionLookSeeds(egg);
-        return (species, parts, seed, colourSeed);
+        // m9o / JrL: the species and genus seeds behind the Battle Abilities; hatching keeps them (issue #71).
+        return (species, parts, seed, colourSeed,
+            NmsSpaceStationPaths.ParsePackedAddress(egg["m9o"]) ?? 0, NmsSpaceStationPaths.ParsePackedAddress(egg["JrL"]) ?? 0);
     }
 
     /// <summary>Where the player carries each egg: egg slot to the inventory holding

@@ -26,6 +26,8 @@ public sealed partial class EggSequencerPage : Page
 
     public Visibility IsNotReady(bool ready) => ready ? Visibility.Collapsed : Visibility.Visible;
 
+    public Visibility HasBattle(object? battle) => battle is null ? Visibility.Collapsed : Visibility.Visible;
+
     private void Slot_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is EggSlotViewModel slot) ViewModel.Select(slot);

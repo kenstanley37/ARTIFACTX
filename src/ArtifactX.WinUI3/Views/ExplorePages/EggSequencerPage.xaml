@@ -50,6 +50,13 @@
                             <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap" HorizontalAlignment="Center"
                                        TextAlignment="Center" Text="{x:Bind ViewModel.PreviewCaption, Mode=OneWay}"/>
                         </StackPanel>
+                        <!-- Battle Abilities from the egg's seeds; sequencing and hatching keep them (issue #71). -->
+                        <StackPanel Spacing="2" HorizontalAlignment="Center" MinWidth="320">
+                            <controls:CreatureBattlePanel Battle="{x:Bind ViewModel.Battle, Mode=OneWay}"/>
+                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"
+                                       Visibility="{x:Bind HasBattle(ViewModel.Battle), Mode=OneWay}"
+                                       Text="Sequencing doesn't change these, and the companion keeps them when it hatches."/>
+                        </StackPanel>
                         <TextBlock Text="{x:Bind ViewModel.CatalystsHeading, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}" HorizontalAlignment="Center"/>
                         <ItemsControl ItemsSource="{x:Bind ViewModel.Slots}" HorizontalAlignment="Center">
                             <ItemsControl.ItemsPanel>
