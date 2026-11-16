@@ -21,8 +21,29 @@ public sealed partial class ModelPreviewPanel : UserControl
         set => Preview.StartYawOffset = (float)value;
     }
 
+    /// <summary>Added to the opening tilt (ShipPreview.StartPitchOffset): a person opens nearly level.</summary>
+    public double StartPitchOffset
+    {
+        get => Preview.StartPitchOffset;
+        set => Preview.StartPitchOffset = value;
+    }
+
     /// <summary>What to call the model in messages ("freighter").</summary>
     public string Subject { get; set; } = "model";
+
+    /// <summary>The label over the preview ("PREVIEW"; the freighter's captain uses "CAPTAIN").</summary>
+    public string Heading
+    {
+        get => HeadingTxt.Text;
+        set => HeadingTxt.Text = value;
+    }
+
+    /// <summary>The preview's height in pixels (260; smaller for a person beside other fields).</summary>
+    public double PreviewHeight
+    {
+        get => Preview.Height;
+        set => Preview.Height = value;
+    }
 
     /// <summary>Builds and shows the model for a scene and seed ("0x2B2F...", null = the scene's
     /// default parts). A newer call replaces one still building.</summary>
@@ -31,6 +52,8 @@ public sealed partial class ModelPreviewPanel : UserControl
     /// <param name="glowColour">Colour (0xRRGGBB) for engine glow materials - a freighter's engine
     /// flare. Glow parts aren't painted: the paint texture turned them dark grey (2026-10-22).</param>
     /// <param name="built">Built ship parts, colours and styles, for fabricated starships.</param>
+    /// <param name="childPartSeed">Pick parts with the seed's first child seed - people (a freighter captain).</param>
+    /// <param name="shapeOnly">Show a shape scan: for models whose colour rule isn't known (people).</param>
     /// <param name="colourSeedText">The seed the default paint comes from when it isn't the model seed: a freighter's
     /// Home Seed (#69 - in game, rerolling Home Seed changed the paint pattern and kept the shape; Model Seed is the
     /// shape). Null: the model seed.</param>
@@ -40,7 +63,9 @@ public sealed partial class ModelPreviewPanel : UserControl
         Dictionary<(string, string), float[]>? customColours = null,
         uint? glowColour = null,
         BuiltLook? built = null,
-        string? colourSeedText = null)
+        string? colourSeedText = null,
+        bool childPartSeed = false,
+        bool shapeOnly = false)
     {
         int version = ++_version;
         if (string.IsNullOrEmpty(scene) || GameDataService.Game is not { } game)
@@ -63,11 +88,13 @@ public sealed partial class ModelPreviewPanel : UserControl
 
         ulong seed = ShipPartsService.TryParseSeed(seedText, out ulong s) ? s : 0;
         ulong paintSeed = colourSeedText is not null && ShipPartsService.TryParseSeed(colourSeedText, out ulong c) ? c : seed;
+        // People pick their parts with the seed's first child seed (ModelPreviewService.ColourSeed), not the seed itself.
+        ulong partSeed = childPartSeed ? ModelPreviewService.ColourSeed(seed) : seed;
         var root = ShipPartsService.LoadTree(ShipParts.DescriptorFor(scene));
         var options = root is null ? new HashSet<string>(StringComparer.Ordinal)
             : ModelPreviewService.AllOptionIds(root, ShipPartsService.LoadTree, StringComparer.Ordinal);
         var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)
-            : ShipParts.Generate(scene, seed, ShipPartsService.LoadTree, ShipPartsService.StoredOptions(built)).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+            : ShipParts.Generate(scene, partSeed, ShipPartsService.LoadTree, ShipPartsService.StoredOptions(built)).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
         // A freighter is ~280,000 triangles - built off the UI thread.
         var mesh = await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _version) return;
@@ -77,6 +104,12 @@ public sealed partial class ModelPreviewPanel : UserControl
             return;
         }
         uint Colour(string material) => glowColour is uint glow && IsGlow(material) ? glow : ShipPartsService.MaterialColour(material, ShipPartsService.Look);
+        if (shapeOnly)
+        {
+            Preview.Show(mesh, Colour, hologram: true);
+            NoteTxt.Text = $"Shape scan - this {Subject}'s parts from its seed and your game files; its colours can't be shown yet. Drag to turn.";
+            return;
+        }
         if (built is { Colours.Count: > 0 })
         {
             var textures = await ModelPreviewService.PaintAsync(models, mesh, ModelPreviewService.StoredColourLookup(built.Colours), seed, built.Styles);
@@ -113,7 +146,7 @@ public sealed partial class ModelPreviewPanel : UserControl
             Preview.Show(mesh, Colour, m => IsGlow(m) ? null : textures.GetValueOrDefault(m));
             NoteTxt.Text = colourSeedText is not null
                 ? $"Shape from the Model Seed, paint from the Home Seed - colours close to the game's, not always exact. Drag to turn."
-                : "Shape and colours from your game files and the ship's seed - drag to turn.";
+                : $"Shape and colours from your game files and this {Subject}'s seed - drag to turn.";
             return;
         }
         Preview.Show(mesh, Colour, hologram: true);

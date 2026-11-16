@@ -43,6 +43,10 @@ public sealed class ShipPreview : UserControl
     /// their bow along -Z (capital freighter z -3,210..+459, a fighter's -3..+8), so they
     /// open with a half turn (2026-10-22).</summary>
     public double StartYawOffset { get; set; }
+
+    /// <summary>Added to the opening tilt: ships open seen from above; a person opens nearly level so the face shows
+    /// (owner, 2026-11-15: the captain "is looking down a bit so it's hard to see his face").</summary>
+    public double StartPitchOffset { get; set; }
     private readonly TextBlock _status = new()
     {
         FontSize = 13, Opacity = 0.7, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
@@ -141,7 +145,7 @@ public sealed class ShipPreview : UserControl
         _hologram = hologram;
         _silhouette = silhouette;
         _mesh = mesh;
-        _yaw = StartYaw + (float)StartYawOffset; _pitch = StartPitch; // each ship opens on its front
+        _yaw = StartYaw + (float)StartYawOffset; _pitch = StartPitch + (float)StartPitchOffset; // each ship opens on its front
         _zoom = 1; _panX = _panY = 0;
         _expand.Visibility = AllowExpand && mesh is not null ? Visibility.Visible : Visibility.Collapsed;
         if (mesh is null) { _image.Source = null; return; }
@@ -180,7 +184,7 @@ public sealed class ShipPreview : UserControl
         var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre;
         bool holo = _hologram; bool sil = _silhouette;
         float yaw = StartYaw + (float)StartYawOffset;
-        return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, yaw, StartPitch, width, height, holo, sil));
+        return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, yaw, StartPitch + (float)StartPitchOffset, width, height, holo, sil));
     }
 
     private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
@@ -248,7 +252,7 @@ public sealed class ShipPreview : UserControl
     /// <summary>Back to the opening angle, whole model in view.</summary>
     public void ResetView()
     {
-        _yaw = StartYaw + (float)StartYawOffset; _pitch = StartPitch;
+        _yaw = StartYaw + (float)StartYawOffset; _pitch = StartPitch + (float)StartPitchOffset;
         _zoom = 1; _panX = _panY = 0;
         Redraw();
     }
@@ -262,6 +266,7 @@ public sealed class ShipPreview : UserControl
         _mesh = source._mesh; _triColours = source._triColours; _triTextures = source._triTextures; _centre = source._centre;
         _hologram = source._hologram; _silhouette = source._silhouette;
         StartYawOffset = source.StartYawOffset;
+        StartPitchOffset = source.StartPitchOffset;
         _yaw = source._yaw; _pitch = source._pitch; _zoom = 1; _panX = _panY = 0;
         Redraw();
     }

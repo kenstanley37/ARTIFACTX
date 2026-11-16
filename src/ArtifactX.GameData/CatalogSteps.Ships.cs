@@ -27,6 +27,9 @@ public static partial class CatalogSteps
     /// Since format 90 also the descriptor of every scene the creature filename table names outside that folder
     /// (Filename and ExtraFilename): the floral cat (PLANTCAT, MODELS/PLANETS/BIOMES/FLORAL/MEDIUMCREATURE) and the
     /// robots under MODELS/COMMON/ROBOTS - without it the app drew PLANTCAT as a blob (owner, W. Gentaylatica, 2026-11-13).
+    /// Since format 104 also the people under MODELS/COMMON/PLAYER/PLAYERCHARACTER/ (UsageCategory "Character"): a freighter
+    /// captain is NPCGEK / NPCVYKEEN / NPCKORVAX / NPCROBOT.SCENE.MBIN (the save's crew race) and its crew seed picks the
+    /// head accessories, eyes, crests and helmets in the same kind of tree (#25 freighter captain preview).
     /// </summary>
     public static void AddShipDescriptors(string catalogPath, string pcbanksPath)
     {
@@ -62,6 +65,7 @@ public static partial class CatalogSteps
             foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
                          && (e.FileName.StartsWith("MODELS/COMMON/SPACECRAFT/", StringComparison.OrdinalIgnoreCase)
                              || e.FileName.StartsWith("MODELS/COMMON/WEAPONS/MULTITOOL/", StringComparison.OrdinalIgnoreCase)
+                             || e.FileName.StartsWith("MODELS/COMMON/PLAYER/PLAYERCHARACTER/", StringComparison.OrdinalIgnoreCase)
                              || (e.FileName.StartsWith("MODELS/PLANETS/CREATURES/", StringComparison.OrdinalIgnoreCase)
                                  && !System.Text.RegularExpressions.Regex.IsMatch(e.FileName, "/ANIM(S|ATION)?/", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
                          && e.FileName.EndsWith(".DESCRIPTOR.MBIN", StringComparison.OrdinalIgnoreCase)
@@ -81,6 +85,7 @@ public static partial class CatalogSteps
                         GameId = "DESC:" + path,
                         NameEnglish = path,
                         UsageCategory = path.Contains("/weapons/") ? "MultiTool"
+                            : path.Contains("/playercharacter/") ? "Character"
                             : path.Contains("/creatures/") || creatureDescriptors.Contains(entry.FileName) ? "Creature" : "Spacecraft",
                         DescriptionEnglish = JsonSerializer.Serialize(Groups(list)),
                     });
@@ -88,7 +93,7 @@ public static partial class CatalogSteps
                 catch (Exception ex) { ConsoleStyle.Warning($"{entry.FileName}: {ex.Message}"); }
             }
         }
-        ConsoleStyle.Header($"Found {rows.Count} starship, multi-tool and creature part trees.");
+        ConsoleStyle.Header($"Found {rows.Count} starship, multi-tool, creature and character part trees.");
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "ShipDescriptors", "TkModelDescriptorList", "models/common/spacecraft/*.descriptor.mbin", rows);
