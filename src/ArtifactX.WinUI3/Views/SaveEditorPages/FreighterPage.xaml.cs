@@ -221,8 +221,12 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     }
 
     /// <summary>The captain (#25): the crew race is the NPC's scene (NPCGEK / NPCVYKEEN / NPCKORVAX / NPCROBOT) and the
-    /// crew seed picks its parts - head accessories, eyes, crests - from the scene's part tree (catalog format 104),
-    /// like a ship's seed. Rebuilt only when the race or seed changed.</summary>
+    /// crew seed picks its parts - head accessories, eyes, crests - from the scene's part tree (catalog format 104)
+    /// through its first child seed: Slot 8's Gek captain (crew seed 0xC4452DF848A7EE24) has the spiked head and big
+    /// side eyes of _ACC_EYES1 / _CEYES_1 / _BEAKACC_4, which the child seed picks; the seed itself gave tall horns
+    /// (owner's in-game screenshot, 2026-11-15). Colours: neither the seed's nor its child's palette table matched his
+    /// blue-purple face, maroon suit and yellow plates, so the captain is a shape scan until the rule is found.
+    /// Rebuilt only when the race or seed changed.</summary>
     private Task ShowCrewPreviewAsync()
     {
         string? scene = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCrewRacePath)?.Value<string>();
@@ -230,7 +234,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         string key = $"{scene}|{seed}";
         if (key == _crewPreviewKey) return Task.CompletedTask;
         _crewPreviewKey = key;
-        return CrewPreview.ShowAsync(scene, seed);
+        return CrewPreview.ShowAsync(scene, seed, childPartSeed: true, shapeOnly: true);
     }
 
     private string? _crewPreviewKey;
