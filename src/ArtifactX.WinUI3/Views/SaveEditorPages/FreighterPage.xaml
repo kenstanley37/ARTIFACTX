@@ -220,7 +220,7 @@
                                                 </StackPanel>
                                                 <!-- The captain from the crew race's NPC scene and the crew seed (#25, catalog format 104). -->
                                                 <controls:ModelPreviewPanel x:Name="CrewPreview" Subject="captain" Heading="CAPTAIN"
-                                                                            PreviewHeight="230" StartYawOffset="-0.49"/>
+                                                                            PreviewHeight="230" StartYawOffset="2.65"/>
                                             </StackPanel>
                                         </ctcontrols:WrapPanel>
                                         <!-- Base stats under who it is (user, 2026-10-22 - they were first). -->
