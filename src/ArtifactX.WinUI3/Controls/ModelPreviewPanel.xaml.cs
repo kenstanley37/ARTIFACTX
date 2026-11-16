@@ -24,6 +24,20 @@ public sealed partial class ModelPreviewPanel : UserControl
     /// <summary>What to call the model in messages ("freighter").</summary>
     public string Subject { get; set; } = "model";
 
+    /// <summary>The label over the preview ("PREVIEW"; the freighter's captain uses "CAPTAIN").</summary>
+    public string Heading
+    {
+        get => HeadingTxt.Text;
+        set => HeadingTxt.Text = value;
+    }
+
+    /// <summary>The preview's height in pixels (260; smaller for a person beside other fields).</summary>
+    public double PreviewHeight
+    {
+        get => Preview.Height;
+        set => Preview.Height = value;
+    }
+
     /// <summary>Builds and shows the model for a scene and seed ("0x2B2F...", null = the scene's
     /// default parts). A newer call replaces one still building.</summary>
     /// <param name="customColours">Colours the player picked in game, from the save's customisation
@@ -113,7 +127,7 @@ public sealed partial class ModelPreviewPanel : UserControl
             Preview.Show(mesh, Colour, m => IsGlow(m) ? null : textures.GetValueOrDefault(m));
             NoteTxt.Text = colourSeedText is not null
                 ? $"Shape from the Model Seed, paint from the Home Seed - colours close to the game's, not always exact. Drag to turn."
-                : "Shape and colours from your game files and the ship's seed - drag to turn.";
+                : $"Shape and colours from your game files and this {Subject}'s seed - drag to turn.";
             return;
         }
         Preview.Show(mesh, Colour, hologram: true);

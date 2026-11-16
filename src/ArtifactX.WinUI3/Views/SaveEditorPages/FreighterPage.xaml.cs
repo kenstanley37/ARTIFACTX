@@ -217,7 +217,23 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         await SyncCrewRaceComboBoxAsync();
         UpdateStatDisplay();
         _ = ShowFreighterPreviewAsync();
+        _ = ShowCrewPreviewAsync();
     }
+
+    /// <summary>The captain (#25): the crew race is the NPC's scene (NPCGEK / NPCVYKEEN / NPCKORVAX / NPCROBOT) and the
+    /// crew seed picks its parts - head accessories, eyes, crests - from the scene's part tree (catalog format 104),
+    /// like a ship's seed. Rebuilt only when the race or seed changed.</summary>
+    private Task ShowCrewPreviewAsync()
+    {
+        string? scene = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCrewRacePath)?.Value<string>();
+        string? seed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCrewSeedPath)?.Value<string>();
+        string key = $"{scene}|{seed}";
+        if (key == _crewPreviewKey) return Task.CompletedTask;
+        _crewPreviewKey = key;
+        return CrewPreview.ShowAsync(scene, seed);
+    }
+
+    private string? _crewPreviewKey;
 
     /// <summary>The 3D preview from the freighter's Type and Model seed, through staged edits.</summary>
     /// Custom colours the player picked in game are character-customisation entry 15 (l:j) -
@@ -341,6 +357,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
 
         SaveSessionManager.StageEdit(option.ScenePath, NmsInventoryContainer.FreighterCrewRacePath);
         PageResetBtn.Visibility = Visibility.Visible;
+        _ = ShowCrewPreviewAsync();
     }
 
     /// <summary>Reads/writes NmsInventoryContainer.FreighterClassPath (8ZP,
@@ -636,5 +653,6 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     {
         PageResetBtn.Visibility = Visibility.Visible;
         if (ReferenceEquals(sender, ModelSeedBox) || ReferenceEquals(sender, HomeSeedBox)) _ = ShowFreighterPreviewAsync();
+        else if (ReferenceEquals(sender, CrewSeedBox)) _ = ShowCrewPreviewAsync();
     }
 }

@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Freighter: a 3D preview of your freighter's captain sits with Crew race and Crew seed - their race, with the head accessories, eyes and crest the crew seed gives them - and it changes as you change either. Update your game data once to get this.
 - Freighter: when you haven't picked your own colours in game, the 3D preview paints the freighter from its Home Seed - the seed the game's paint pattern comes from - and changing the Home Seed updates the preview. The Home and Model seeds now sit under the preview, wide enough to show the whole seed.
 - 3D previews (ships, corvettes, multi-tools, creatures, freighters): a "View larger" button in the corner opens the model in a big view where you can scroll to zoom toward the mouse, right-drag to move it and drag to turn it; "Reset view" puts it back. The small previews zoom with Ctrl+scroll, so the page still scrolls normally. Keyboard: arrows turn, + and - zoom, 0 resets.
 - Closing ArtifactX at the moment No Man's Sky saved could crash it on the way out; it now closes cleanly.
