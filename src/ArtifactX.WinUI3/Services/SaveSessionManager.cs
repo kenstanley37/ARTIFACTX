@@ -197,6 +197,7 @@ public static class SaveSessionManager
         _session?.StageEdits(edits.Select(e => (e.Value, MapToActiveContext(e.Path))).ToList());
     public static void RevertEdit(params string[] path) => _session?.RevertEdit(MapToActiveContext(path));
     public static bool HasStagedEdit(params string[] path) => _session?.HasStagedEdit(MapToActiveContext(path)) ?? false;
+    public static JToken? GetSavedValue(params string[] path) => _session?.GetSavedValue(MapToActiveContext(path));
     public static bool HasStagedEditsUnder(params string[] pathPrefix) => _session?.HasStagedEditsUnder(MapToActiveContext(pathPrefix)) ?? false;
     public static void RevertEditsUnder(params string[] pathPrefix) => _session?.RevertEditsUnder(MapToActiveContext(pathPrefix));
 
