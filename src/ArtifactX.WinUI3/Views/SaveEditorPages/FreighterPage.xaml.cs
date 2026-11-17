@@ -251,9 +251,9 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
         string? scene = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>();
         string? seed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterModelSeedPath)?.Value<string>();
         string? homeSeed = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath)?.Value<string>();
-        var paint = CustomisationFor(scene)?["wnR"]?["Aak"];
+        var paint = FreighterService.Customisation(scene).Entry?["wnR"]?["Aak"];
         var customColours = ModelPreviewService.StoredColours(paint);
-        HomeSeedCustomNote.Visibility = customColours is { Count: > 0 } ? Visibility.Visible : Visibility.Collapsed;
+        ShowHomeSeedNote();
         string? flare = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterEngineEffectPath)?.Value<string>();
         // The page reloads on every edit and game save; a Dreadnought is ~2 million
         // triangles, so the model is only rebuilt when something it shows changed.
@@ -265,15 +265,22 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
 
     private string? _previewKey;
 
-    /// <summary>The customisation entry holding this freighter model's colours: the one tagged
-    /// with the model's name, else entry 15.</summary>
-    private static JToken? CustomisationFor(string? scene)
+    /// <summary>Under the Home Seed while the save has picked colours: they win, or (with a new Home Seed)
+    /// saving removes them so the game shows the seed's paint.</summary>
+    private void ShowHomeSeedNote()
     {
-        if (SaveSessionManager.GetValue("vLc", "6f=", "l:j") is not JArray entries) return null;
-        string model = "^" + System.IO.Path.GetFileName(scene ?? "").Split('.')[0];
-        return entries.FirstOrDefault(e => e["wnR"]?["T>1"] is JArray tags
-                && tags.Any(t => string.Equals(t["@6c"]?.ToString(), model, StringComparison.OrdinalIgnoreCase)))
-            ?? (entries.Count > 15 ? entries[15] : null);
+        if (!FreighterService.HasSavedCustomColours())
+        {
+            HomeSeedCustomNote.Visibility = Visibility.Collapsed;
+            return;
+        }
+        bool clearing = FreighterService.HomeSeedChanged();
+        HomeSeedCustomNote.Text = clearing
+            ? "Saving removes the colours you picked in game, so the game paints this Home Seed's pattern. Undo the Home Seed to keep your colours."
+            : "Your freighter has colours you picked in game, and those win. Pick a new Home Seed to see its paint - saving it then removes your colours.";
+        HomeSeedCustomNote.Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[
+            clearing ? "ThemeWarningBrush" : "ThemeTextDimBrush"];
+        HomeSeedCustomNote.Visibility = Visibility.Visible;
     }
 
     /// <summary>Each flare's glow, picked by eye from the game's Customisation screen (2026-10-22).</summary>
@@ -658,6 +665,7 @@ public sealed partial class FreighterPage : Page, ILoadoutTemplateHost
     private void Seed_Changed(object? sender, SeedChange change)
     {
         PageResetBtn.Visibility = Visibility.Visible;
+        if (ReferenceEquals(sender, HomeSeedBox)) FreighterService.SyncCustomColoursWithHomeSeed();
         if (ReferenceEquals(sender, ModelSeedBox) || ReferenceEquals(sender, HomeSeedBox)) _ = ShowFreighterPreviewAsync();
         else if (ReferenceEquals(sender, CrewSeedBox)) _ = ShowCrewPreviewAsync();
     }

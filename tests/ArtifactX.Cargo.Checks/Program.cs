@@ -51,6 +51,15 @@ try
     var root = new JObject { ["vLc"] = new JObject { ["6f="] = player } };
     await File.WriteAllTextAsync(temporary, root.ToString());
     SaveSessionManager.Session = await SaveEditSession.LoadAsync(temporary);
+    {
+        // GetSavedValue ignores staged edits (Freighter: a Home Seed back at its saved value restores custom colours).
+        var session = SaveSessionManager.Session;
+        string[] name = { "vLc", "6f=", "container0", "NKm" };
+        session.StageEdit("Renamed", name);
+        Check(session.GetValue(name)?.Value<string>() == "Renamed" && session.GetSavedValue(name)?.Value<string>() == "Container 00",
+            "The saved value stays readable while an edit is staged");
+        session.RevertEdit(name);
+    }
     var vm = new BaseStorageViewModel();
     vm.RefreshContainers();
     Check(vm.Containers.Count == 10, "Only ten reachable containers are shown");

@@ -70,5 +70,52 @@ public static class FreighterService
         // base (2026-10-21).
         foreach (var path in PageRoots.Concat(FreighterBuildService.PageRoots().ToList())) SaveSessionManager.RevertEditsUnder(path);
         FreighterBuildService.RevertRemoval();
+        SyncCustomColoursWithHomeSeed();
+    }
+
+    /// <summary>Character-customisation entry 15 (l:j) holds an ordinary freighter's picked colours
+    /// (paint diff on Slot 8, 2026-10-22). A Dreadnought keeps its own entry, tagged with its model.</summary>
+    private const int FreighterCustomisationIndex = 15;
+
+    /// <summary>The customisation entry for this freighter model: the one tagged with it (a Dreadnought's),
+    /// else the ordinary freighter entry. Null index when the save has neither.</summary>
+    public static (JToken? Entry, int Index) Customisation(string? scene)
+    {
+        if (SaveSessionManager.GetValue("vLc", "6f=", "l:j") is not JArray entries) return (null, -1);
+        string model = "^" + System.IO.Path.GetFileName(scene ?? "").Split('.')[0];
+        for (int i = 0; i < entries.Count; i++)
+            if (entries[i]["wnR"]?["T>1"] is JArray tags
+                && tags.Any(t => string.Equals(t["@6c"]?.ToString(), model, StringComparison.OrdinalIgnoreCase)))
+                return (entries[i], i);
+        return entries.Count > FreighterCustomisationIndex
+            ? (entries[FreighterCustomisationIndex], FreighterCustomisationIndex) : (null, -1);
+    }
+
+    private static readonly string[] CustomColoursPath =
+        { "vLc", "6f=", "l:j", FreighterCustomisationIndex.ToString(System.Globalization.CultureInfo.InvariantCulture), "wnR", "Aak" };
+
+    /// <summary>Colours the player picked in game for an ordinary freighter, as saved (staged edits ignored).</summary>
+    public static bool HasSavedCustomColours() =>
+        SaveSessionManager.GetSavedValue(CustomColoursPath) is JArray { Count: > 0 };
+
+    /// <summary>The Home Seed differs from the one in the save.</summary>
+    public static bool HomeSeedChanged() =>
+        !JToken.DeepEquals(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterHomeSeedPath),
+            SaveSessionManager.GetSavedValue(NmsInventoryContainer.FreighterHomeSeedPath));
+
+    /// <summary>
+    /// Picked colours win over the Home Seed's paint (#69), so a new Home Seed also clears them, as the game's
+    /// Paint screen "Reset Custom Colors" does: on Slot 8 (2026-11-15) that left entry 15's Aak empty, and the
+    /// freighter then showed its Home Seed paint. A Home Seed back at its saved value restores the colours.
+    /// Ordinary freighters only: whether a Dreadnought's paint follows the Home Seed is unknown.
+    /// </summary>
+    public static void SyncCustomColoursWithHomeSeed()
+    {
+        string? scene = SaveSessionManager.GetValue(NmsInventoryContainer.FreighterTypePath)?.Value<string>();
+        if (Customisation(scene).Index != FreighterCustomisationIndex || !HasSavedCustomColours()) return;
+        bool clear = HomeSeedChanged();
+        if (clear == SaveSessionManager.HasStagedEdit(CustomColoursPath)) return;
+        if (clear) SaveSessionManager.StageEdit(new JArray(), CustomColoursPath);
+        else SaveSessionManager.RevertEdit(CustomColoursPath);
     }
 }
