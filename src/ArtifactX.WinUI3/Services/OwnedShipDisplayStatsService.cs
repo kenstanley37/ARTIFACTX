@@ -16,8 +16,9 @@ namespace ArtifactX.WinUI3.Services;
 /// flown, 2026-11-15; catalog format 102). Maneuverability is the ordinary value damped by the build's size
 /// (ShipBaseService.AssembleAsync, StarshipDisplayStatGeneration.CorvetteManeuverability; catalog format 103):
 /// with the size the running game measured that's 454.66 (game 454.7); the assembled size gives 454.81 - the
-/// magnet's animated tractor-beam cone sets the height (CorvetteAssembly). Damage (226.1 against the game's
-/// 220.6) is still left out (issue #73).
+/// magnet's animated tractor-beam cone sets the height (CorvetteAssembly); the game's own reading drifts with that
+/// animation (454.7 on 2026-11-15, 453.3 on 2026-11-17, build unchanged). Damage matches the game's 220.6 once corvette
+/// weapons skip adjacency (StarshipDisplayEvaluation, controlled in-game test 2026-11-17; issue #73).
 /// </summary>
 internal static class OwnedShipDisplayStatsService
 {
@@ -55,7 +56,10 @@ internal static class OwnedShipDisplayStatsService
     private static Dictionary<string, double> CorvetteStats(StarshipDisplayedStats stats,
         ArtifactX.GameData.CorvetteBuild? build, StarshipEvaluationTables rules)
     {
-        var result = new Dictionary<string, double> { ["^SHIP_SHIELD"] = stats.Shield, ["^SHIP_HYPERDRIVE"] = stats.Hyperdrive };
+        var result = new Dictionary<string, double>
+        {
+            ["^SHIP_DAMAGE"] = stats.Damage, ["^SHIP_SHIELD"] = stats.Shield, ["^SHIP_HYPERDRIVE"] = stats.Hyperdrive,
+        };
         if (build is not null && StarshipDisplayStatGeneration.CorvetteManeuverability(stats.Maneuverability,
                 build.Size.X, build.Size.Y, build.Size.Z, rules.CorvetteSize) is { } agile)
             result["^SHIP_AGILE"] = agile;

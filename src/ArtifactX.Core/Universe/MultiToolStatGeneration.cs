@@ -25,12 +25,14 @@ public static class MultiToolStatGeneration
     /// (SHIPMINIGUN) beside Q-Resonator (UT_SHIPMINI, Shots only) showed Damage Potential 414.3; linking
     /// them through their shared Shots parent gave 418.3, unlinked gives 414.3, and the active Fighter's
     /// four confirmed totals are unchanged. One in-game observation: provisional until a second one.
+    /// includeAdjacency=false drops every same-type and child adjacency bonus (corvette weapons, see
+    /// StarshipDisplayEvaluation); supercharge still applies.
     /// </summary>
     public static float? Evaluate(GeneratedMultiToolInventory inventory, MultiToolTechnologyTables tables,
         int statId, MultiToolStatCombination combination, int baseStatFilter = 0,
         bool hasActiveSpecialTechnology = false,
         IReadOnlySet<GeneratedInventoryPosition>? damagedTechnologyPositions = null,
-        bool includeDamagedTechnology = true, IReadOnlySet<int>? unlinkedStats = null)
+        bool includeDamagedTechnology = true, IReadOnlySet<int>? unlinkedStats = null, bool includeAdjacency = true)
     {
         if (hasActiveSpecialTechnology || tables.ScannerRules is not { } rules
             || tables.Definitions is not { } definitions || tables.StatParents is not { } parents
@@ -75,7 +77,7 @@ public static class MultiToolStatGeneration
                     value = multiply && value < 1f ? value * (1f / rules.SpecialSlotBonus) : value * rules.SpecialSlotBonus;
                 if (maximum) { result = Math.Max(result, value); continue; }
                 int same = 0, child = 0;
-                foreach (var neighbor in resolved)
+                foreach (var neighbor in includeAdjacency ? resolved : [])
                 {
                     // Compare includes damaged technology's own stat and special-slot bonus,
                     // but 0x1405B0C40 rejects damaged sources and neighbors for adjacency.

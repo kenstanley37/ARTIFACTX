@@ -63,6 +63,7 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
     StarshipDisplayEvaluationChecks.CheckModelGuards();
     StarshipDisplayEvaluationChecks.CheckOwnedShipClasses();
     StarshipDisplayEvaluationChecks.CheckFreighterPanel();
+    StarshipDisplayEvaluationChecks.CheckAdjacencySwitch();
     StarshipDisplayEvaluationChecks.CheckFreighterModuleRolls();
     ShipNameChecks.CheckLivingShipName();
     ShipNameChecks.CheckSentinelShipNames();
