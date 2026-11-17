@@ -72,6 +72,25 @@ internal static class StarshipDisplayEvaluationChecks
         Console.WriteLine("PASS: freighter panel - hyperdrive + 1, fleet multipliers averaged x 20, intrinsic bonuses, missing ids rejected.");
     }
 
+    /// <summary>includeAdjacency=false (corvette weapons in Damage Potential) drops the adjacency bonus of two
+    /// adjacent cannon technologies but keeps supercharge. Synthetic tables, not game data.</summary>
+    public static void CheckAdjacencySwitch()
+    {
+        var parents = new Dictionary<int, int> { [119] = 119 };
+        var tables = new MultiToolTechnologyTables([], [],
+            [new("GUN", "GUN", 0, 0, "", true, 7, [119], [new(119, 100f, 1)], ""),
+             new("GUN_UP", "GUN_UP", 0, 0, "", false, 7, [119], [new(119, 20f, 1)], "")],
+            StatParents: parents, ScannerRules: new(0, 0f, 1.25f, 0.04f, 0.03f, 3, 0.06f, 0.05f));
+        GeneratedInventoryPosition a = new(0, 0), b = new(1, 0);
+        var inventory = new GeneratedMultiToolInventory(new(2, 1, 2, [a, b]), [new("GUN", a), new("GUN_UP", b)], [b]);
+        float? with = MultiToolStatGeneration.Evaluate(inventory, tables, 119, MultiToolStatCombination.Add);
+        float? without = MultiToolStatGeneration.Evaluate(inventory, tables, 119, MultiToolStatCombination.Add, includeAdjacency: false);
+        // Supercharged upgrade 20 x 1.25 = 25, plus the cannon's 100; only the adjacent evaluation adds a bonus.
+        if (without is not { } w || Math.Abs(w - 125f) > 1e-3f || with is not { } x || x <= 125.5f)
+            throw new InvalidOperationException($"Adjacency switch: with {with}, without {without}");
+        Console.WriteLine("PASS: stat evaluation without adjacency keeps supercharge and drops the adjacency bonus.");
+    }
+
     /// <summary>Freighter-template modules roll two draws earlier than others (module generator 0x140EE20D0). Three
     /// Slot 8 UP_FRHYP4 modules showed 256 / 276 / 309 ly in game, supercharged (x1.25). Ranges as in the 2026-11
     /// game data (jump 200-250 on curve index 1, warp efficiency 1-1); the same module without the flag rolls

@@ -57,23 +57,39 @@ public static class StarshipDisplayEvaluation
                 activeShip ?? ship)
             : null;
 
+    /// <summary>GcSpaceshipClasses.Corvette.</summary>
+    private const int CorvetteClass = 10;
+
+    /// <summary>
+    /// A corvette's weapons get no adjacency bonus in Damage Potential; its shield, hyperdrive and handling do.
+    /// Controlled in-game test 2026-11-17, Slot 8 corvette Jiyodat RR1 (stats screen, build 185034): the game showed
+    /// 220.6 where full adjacency gives 226.10; without weapon adjacency it's 220.55. Moving Nonlinear Optics off the
+    /// Photon Cannon (adjacency predicted -3.2) and then Large Rocket Tubes off the Rocket Launcher (-2.3) left the
+    /// game at 220.6 both times. Dropping ALL adjacency instead breaks the confirmed Shield 394.9 (-> 392.7) and
+    /// Hyperdrive 1344.0 (-> 1293.0). Other ship classes keep weapon adjacency: unconfirmed either way, since no
+    /// Slot 8 ship has an upgrade beside an uncapped weapon.
+    /// </summary>
     private static StarshipDisplayedStats? Compose(GeneratedMultiToolInventory inventory,
         IReadOnlyList<KeyValuePair<string, float>> intrinsicBonuses, IReadOnlySet<GeneratedInventoryPosition> damaged,
         int shipClass, int rating, StarshipEvaluationTables rules, StarshipComparisonContext context)
     {
         var ids = rules.Stats;
         var unlinked = new HashSet<int> { ids.Shots };
+        bool weaponAdjacency = shipClass != CorvetteClass;
         float? Stat(GeneratedMultiToolInventory inv, IReadOnlyList<KeyValuePair<string, float>> bonuses,
             IReadOnlySet<GeneratedInventoryPosition> broken, int id, MultiToolStatCombination combination,
-            int filter = 0, bool includeDamaged = true)
+            int filter = 0, bool includeDamaged = true, bool adjacency = true)
         {
             var value = MultiToolStatGeneration.Evaluate(inv, rules.Technology, id, combination, filter,
-                damagedTechnologyPositions: broken, includeDamagedTechnology: includeDamaged, unlinkedStats: unlinked);
+                damagedTechnologyPositions: broken, includeDamagedTechnology: includeDamaged, unlinkedStats: unlinked,
+                includeAdjacency: adjacency);
             return value is { } v ? StarshipIntrinsicStatGeneration.Apply(v, id, bonuses,
                 rules.IntrinsicTargets, rules.UseMultiplierBonus) : null;
         }
         float? Wreck(int id, MultiToolStatCombination combination, int filter = 0, bool includeDamaged = true)
             => Stat(inventory, intrinsicBonuses, damaged, id, combination, filter, includeDamaged);
+        float? Weapon(int id, MultiToolStatCombination combination, int filter)
+            => Stat(inventory, intrinsicBonuses, damaged, id, combination, filter, false, weaponAdjacency);
         float? Active(int id, MultiToolStatCombination combination, int filter)
             => Stat(context.ActiveTechnology, context.ActiveIntrinsicBonuses, context.ActiveDamagedPositions,
                 id, combination, filter, false);
@@ -81,10 +97,10 @@ public static class StarshipDisplayEvaluation
         for (int mode = 0; mode < potentials.Length; mode++)
         {
             var weapon = rules.Weapons[mode];
-            float? damageStat = weapon.Potential.IsProjectile ? Wreck(ids.Damage, MultiToolStatCombination.Add, weapon.BaseStat, false) : 0f;
-            float? rate = weapon.Potential.IsProjectile ? Wreck(ids.Rate, MultiToolStatCombination.Multiply, weapon.BaseStat, false) : 1f;
-            float? shots = weapon.Potential.IsProjectile ? Wreck(ids.Shots, MultiToolStatCombination.Maximum, weapon.BaseStat, false) : 1f;
-            float? heat = Wreck(weapon.Potential.IsProjectile ? ids.HeatTime : ids.BeamHeat, MultiToolStatCombination.Multiply, weapon.BaseStat, false);
+            float? damageStat = weapon.Potential.IsProjectile ? Weapon(ids.Damage, MultiToolStatCombination.Add, weapon.BaseStat) : 0f;
+            float? rate = weapon.Potential.IsProjectile ? Weapon(ids.Rate, MultiToolStatCombination.Multiply, weapon.BaseStat) : 1f;
+            float? shots = weapon.Potential.IsProjectile ? Weapon(ids.Shots, MultiToolStatCombination.Maximum, weapon.BaseStat) : 1f;
+            float? heat = Weapon(weapon.Potential.IsProjectile ? ids.HeatTime : ids.BeamHeat, MultiToolStatCombination.Multiply, weapon.BaseStat);
             float? beam = weapon.Potential.IsProjectile ? 0f : Active(ids.BeamDamage, MultiToolStatCombination.Add, weapon.BaseStat);
             float? range = weapon.Potential.IsProjectile ? Active(ids.Range, MultiToolStatCombination.Multiply, weapon.BaseStat) : 0f;
             if (damageStat is not { } d || rate is not { } r || shots is not { } s || heat is not { } h

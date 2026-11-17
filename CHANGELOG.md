@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Starships: a corvette now shows its Damage Potential "when flown", matching the game. Corvette weapons get no bonus from upgrades placed beside them, unlike shields and hyperdrives.
 - Multi-tools in station cabinets: Damage Potential matches the game again on the current game version (Forsaken 7.14) while No Man's Sky is running. Since that update it showed less (333.3 where the game said 400.0).
 - Purple systems: the space station now shows on the Current System map, and its multi-tool cabinets (and the Cabinet Multi-Tools search) work there too. Before, purple systems showed no station.
 - Space Stations: docked at a station the game calls "The ..." (like "The Nudbered VIII Sphere"), the page said no station was recorded in the system. It now shows the station and lets you claim it. The title bar shows the station's name as the game does, instead of "Nudbered VIII Station".
