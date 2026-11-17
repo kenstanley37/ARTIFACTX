@@ -56,9 +56,11 @@ public static class PlanetBuildingSites
     private const ulong HashMultiplier = 0x9DDFEA08EB382D69UL;
     private const int Weird = 7, Dead = 6, Waterworld = 14, GasGiant = 15, Infested = 0x18, Structure = 3;
 
-    /// <summary>Planet radius by GcPlanetSize (Large, Medium, Small, Moon) as read from the running game (5 planets
-    /// 2026-10-28); Giant is not known yet.</summary>
-    private static readonly float[] Radii = { 130048f, 98304f, 64512f, 15360f };
+    /// <summary>Planet radius by GcPlanetSize (Large, Medium, Small, Moon, Giant) as read from the running game (5 planets
+    /// 2026-10-28). Giant read 2026-11-17 (build 185034, read-only memory scan of GcPlanetBuildingData: PlanetUA at +0x30,
+    /// PlanetRadius at +0x38): Uwaiimor XIII, body 1 of 0x3EFDAFBFFB004 (galaxy index 218), a size-4 Anomaly world,
+    /// 523264 (= 511 x 1024); its five moons read 15360 in the same scan.</summary>
+    private static readonly float[] Radii = { 130048f, 98304f, 64512f, 15360f, 523264f };
 
     // Face axes of the Voronoi worker (NMS.exe tables 0x1450AF140 and 0x1450AF0F0, indexed by face).
     private static readonly sbyte[,] T1 = { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, -1 }, { 0, 0, 1 } };
@@ -66,6 +68,11 @@ public static class PlanetBuildingSites
 
     /// <summary>Planet radius for a GcPlanetSize, or null for a size not measured yet.</summary>
     public static float? Radius(int planetSize) => planetSize >= 0 && planetSize < Radii.Length ? Radii[planetSize] : null;
+
+    /// <summary>The radius of a body you can land on: null for a true gas giant (biome GasGiant, no surface: no shelter,
+    /// portal, shops, crash sites or hotspots) and for an unmeasured size. A Giant-size body with an ordinary biome
+    /// (Uwaiimor XIII, an anomaly world, 2026-11-17) is landable.</summary>
+    public static float? SurfaceRadius(int planetSize, int biome) => biome == GasGiant ? null : Radius(planetSize);
 
     /// <summary>The planet radius nearest a distance from the planet centre. The radii are at least 30 km apart and
     /// ground heights only a few km, so a point on or above the ground names its planet's radius.</summary>
