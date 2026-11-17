@@ -107,6 +107,8 @@ public static class FreighterService
     /// Picked colours win over the Home Seed's paint (#69), so a new Home Seed also clears them, as the game's
     /// Paint screen "Reset Custom Colors" does: on Slot 8 (2026-11-15) that left entry 15's Aak empty, and the
     /// freighter then showed its Home Seed paint. A Home Seed back at its saved value restores the colours.
+    /// Confirmed 2026-11-17 on Slot 8: custom colours set, Home Seed 0x3EE6031A4EAED6EC picked and saved through
+    /// this rule; in game the freighter wore the yellow + red pattern the preview showed.
     /// Ordinary freighters only: whether a Dreadnought's paint follows the Home Seed is unknown.
     /// </summary>
     public static void SyncCustomColoursWithHomeSeed()
