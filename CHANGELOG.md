@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Space Stations: docked at a station the game calls "The ..." (like "The Nudbered VIII Sphere"), the page said no station was recorded in the system. It now shows the station and lets you claim it.
 - Purple systems with a gas giant: Current System and Planet Details now find the moons' portals, hotspots, coordinates, crashed ships and shops. Before, every moon of a gas giant showed none of these.
 - Freighter: a 3D preview of your freighter's captain sits with Crew race and Crew seed - their race, with the head accessories, eyes and crest the crew seed gives them, as in game - and it changes as you change either. It's a shape scan for now: the captain's colours come later. Update your game data once to get this.
 - Freighter: when you haven't picked your own colours in game, the 3D preview paints the freighter from its Home Seed - the seed the game's paint pattern comes from - and changing the Home Seed updates the preview. The Home and Model seeds now sit under the preview, wide enough to show the whole seed.
