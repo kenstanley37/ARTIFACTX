@@ -56,10 +56,10 @@ No Man's Sky save editor and companion app for ordinary players (modest PCs, som
 
 ## 6. Git, changelog, releases
 
-- Never commit to `main` or `development`. Branch off `development` (`feature/`, `fix/`, `refactor/`, `docs/`) before touching files; hotfixes branch off the release tag. Commit and push once verified; merge only with owner approval (the merge commit is the only commit on `development`).
+- Never commit to `main` or `development`. Branch off `development` (`feature/`, `fix/`, `refactor/`, `docs/`, `release/`) before touching files; hotfixes branch off the release tag. Commit and push once verified; merge only with owner approval (the merge commit is the only commit on `development`).
 - Keep `.gitignore` current with any new project/tool output.
 - `CHANGELOG.md`: a plain player-facing line under "Unreleased" in the same commit as each user-facing change.
-- Releases: owner decides; no fix-only releases. A `development -> main` PR only when cutting a release, merged at once. Tag every release (`git tag -a vX.Y.Z -m "Release vX.Y.Z"`).
+- Releases: often. Ship bug fixes and fixes for a game update in their own release rather than holding them for features; suggest a release when fixes are waiting, the owner approves each one. Patch for fixes only (1.1.1), minor when features are in (1.2.0). The owner smoke-tests the packaged build before it's published. A `development -> main` PR only when cutting a release, merged at once. Tag every release (`git tag -a vX.Y.Z -m "Release vX.Y.Z"`).
 - Issues live in GitHub `kenstanley37/ARTIFACTX`; add to existing issues, no duplicates. Issue #1 tracks features unconfirmed in game.
 - Never create Copilot instruction files.
 
