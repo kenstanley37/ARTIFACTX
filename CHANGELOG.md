@@ -5,7 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
-- Freighter: the Home Seed help no longer warns that it is your freighter's home address. Changing it only changes the default paint; your freighter, its base and summoning stay as they are.
+- Freighter: the Home Seed help no longer warns that it is your freighter's home address. Changing it only changes the default paint; your freighter, its base and summoning stay as they are. When you've picked your own freighter colours in game, a note under the Home Seed now says so: your colours win, so a new Home Seed shows only after Reset Custom Colors in the game's Paint screen.
 
 ## 1.1.0 — 2026-11-17
 

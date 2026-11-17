@@ -250,6 +250,11 @@
                                                               ToolTipService.ToolTip="Sets the hull's default paint pattern in game (the shape stays the same). The preview shows this pattern when you haven't picked your own colours in game - your own colours win, as in game. Changing it only changes the paint: your freighter, its base and summoning stay as they are."/>
                                                 </StackPanel>
                                                 <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed"/>
+                                                <!-- Shown while the save has custom freighter colours (l:j entry): they win over the
+                                                     Home Seed, so a reroll can't show (#69, Slot 8 2026-11-17: 40 backups, all custom). -->
+                                                <TextBlock x:Name="HomeSeedCustomNote" Visibility="Collapsed" TextWrapping="Wrap" MaxWidth="360"
+                                                           FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
+                                                           Text="Your freighter has colours you picked in game, and those win. A new Home Seed only shows after you choose Reset Custom Colors in the game's Paint screen."/>
                                             </StackPanel>
                                             <StackPanel Spacing="6">
                                                 <StackPanel Orientation="Horizontal" Spacing="6">
