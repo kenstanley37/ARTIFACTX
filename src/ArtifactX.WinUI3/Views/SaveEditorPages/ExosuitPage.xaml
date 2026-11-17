@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (see Themes/*.xaml + ThemeStyles.xaml), same card pattern as the
+     other equipment pages. -->
+<Page
+    x:Class="ArtifactX.WinUI3.Views.SaveEditorPages.ExosuitPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel x:Name="MainColumn" Padding="28,26,28,40" Spacing="22">
+            <!-- Reset button on the title's own row, pinned far right, so it
+                 appearing never shifts the page down. -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="EXOSUIT" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Exosuit Changes" Click="PageResetBtn_Click"
+                        Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Tech and cargo stacked, with the list of tech the exosuit can fit
+                 beside them (or underneath on a narrow window) - same as Starships. -->
+            <controls:InventoryLayout x:Name="TechLayout" ListTitle="EXOSUIT TECHNOLOGY">
+                <controls:InventoryLayout.Inventories>
+                    <StackPanel Spacing="22">
+                        <controls:InventoryCard x:Name="TechCard" Title="TECHNOLOGY" Kind="Technology" CollapsedHeight="232" SettingKey="ExosuitTechExpanded" Edited="Inventory_Edited">
+                            <controls:InventorySlotGrid x:Name="TechGrid"/>
+                        </controls:InventoryCard>
+                        <controls:InventoryCard x:Name="CargoCard" Title="CARGO" Kind="Cargo" CollapsedHeight="368" SettingKey="ExosuitCargoExpanded" Edited="Inventory_Edited">
+                            <controls:InventorySlotGrid x:Name="CargoGrid"/>
+                        </controls:InventoryCard>
+                    </StackPanel>
+                </controls:InventoryLayout.Inventories>
+                <controls:InventoryLayout.List>
+                    <controls:ItemListPanel x:Name="TechListPanel"/>
+                </controls:InventoryLayout.List>
+            </controls:InventoryLayout>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

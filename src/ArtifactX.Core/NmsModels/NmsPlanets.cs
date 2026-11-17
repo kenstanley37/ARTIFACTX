@@ -1,6 +1,7 @@
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Linq;
+using ArtifactX.Core.Universe;
 
 namespace ArtifactX.Core.NmsModels;
 
@@ -19,8 +20,8 @@ public sealed record KnownPlanet(
     public string PortalCode => NmsSpaceStationPaths.PortalAddress(Address, PlanetIndex);
     public string TypeName => NmsPlanets.TypeName(BiomeIndex);
     public string BiomeGroup => NmsPlanets.BiomeGroup(BiomeIndex);
-    public string Classification(string? descriptor, string ringSuffix = " with rings") =>
-        NmsPlanets.FormatClassification(BiomeIndex, descriptor, HasRings, ringSuffix);
+    public string Classification(string? descriptor, string ringSuffix = " with rings", bool? isMoon = null) =>
+        NmsPlanets.FormatClassification(BiomeIndex, descriptor, HasRings, ringSuffix, isMoon);
 
     /// <summary>Where this planet was read from, e.g. "Slot 3" - set by
     /// callers that merge several saves; empty for the loaded save.</summary>
@@ -61,7 +62,9 @@ public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals, i
 /// each "Planet" record in the discovery list (fDu/ETO/OsQ/?fB):
 ///   8P3.5L6  packed address - its top nibble is the planet's index (1-6)
 ///   8P3.bEr  [seed, flags]: flags' low 16 bits are the biome (GcBiomeType
-///            order); bit 16 set on ringed planets.
+///            order); bit 16 is Extreme Hazard / Extreme Weather.
+///            (Planetary rings are NOT saved in flags; the solar layout picks
+///            one primary planet per system - see PlanetRings).
 ///   ksu      discoverer name (V?:), owner id (f5Q) and time (3I1).
 /// The discovery list also holds other players' discoveries downloaded by the
 /// game; those have an empty f5Q, which is how "discovered on this save" is
@@ -69,8 +72,12 @@ public sealed record PlanetDiscoveryCounts(int Fauna, int Flora, int Minerals, i
 /// K7E, under all of the player's names and accounts).
 ///
 /// Biome: checked against a real 6-planet system (3 green, 2 brown, 1 red in
-/// the game's Discoveries screen) and planet 1 = Cholton, a ringed Paradise
-/// world. Ring bit: one confirmed ringed planet so far, ~10% of all planets.
+/// the game's Discoveries screen).
+/// Ring determination: PlanetRings (one primary planet per system, drawn on the
+/// solar layout stream; moons never have rings). Confirmed 2026-11-08 on
+/// Apolok-Sats, where the older child-seed-22 / 30% test ringed the wrong three planets.
+/// Bit 16 in bEr[1] was previously assumed to be rings, but cross-save analysis
+/// of 2,069 records proved it is Extreme Weather/Hazard (only occurs on hazard biomes).
 /// </summary>
 public static class NmsPlanets
 {
@@ -102,6 +109,29 @@ public static class NmsPlanets
     /// internal names: it shows these worlds as anomalies - Aukel (Green, grey and blue
     /// to look at) is a "Planetary Anomaly" in the game's Discoveries (2026-10-21) - so
     /// they're grouped as Anomaly rather than by a colour the player never sees.</summary>
+    /// <summary>The worlds the game's fishing text calls "haunted homeworlds" (UI_FISH_BIOME_ODD_DESC, the ODD fish's
+    /// GcFishTable biomes 7-10): Exotic (Weird) and the Red, Green and Blue anomalies. Not a planet setting of its own.</summary>
+    public static bool IsHaunted(int biome) => biome is 7 or 8 or 9 or 10;
+
+    /// <summary>GcBiomeSubType.Infested (24): the infested variant of a planet type, whose biome files place Whispering
+    /// Eggs and the small ground worms (objects/rare/infestation.mbin, build 185034). <see cref="PlanetType.SubType"/>
+    /// holds it for a generated body. Checked 2026-11-13 on the 2,796 bodies of the Slot 8 region (galaxy 246): the 70
+    /// of subtype 24 carry only the game's infested descriptors ("Infested" 23, "Boiling Doom", "Caustic Nightmare",
+    /// "Mutated", "Worm-ridden", "The Nest"...), none of which any other body has; "Corrupted" (4) also occurs elsewhere.</summary>
+    public const int InfestedSubType = 24;
+
+    /// <summary>What players search the haunted worlds by.</summary>
+    public const string HauntedName = "Exotic or anomaly (haunted)";
+
+    /// <summary>A list of biomes in words ("Lush, Swamp"); the four haunted biomes together read as
+    /// <see cref="HauntedName"/>.</summary>
+    public static string TypeList(IEnumerable<int> biomes, string separator = ", ")
+    {
+        var list = biomes.ToList();
+        if (list.Count > 1 && list.All(IsHaunted) && Enumerable.Range(7, 4).All(list.Contains)) return HauntedName;
+        return string.Join(separator, list.Select(TypeName));
+    }
+
     public static string BiomeGroup(int biome) => biome switch
     {
         8 or 9 or 10 => "Anomaly",
@@ -109,23 +139,49 @@ public static class NmsPlanets
     };
 
     /// <summary>Dual classification format combining specific planetary descriptor with broad biome group
-    /// (e.g. "Crimson Planet (Red / Exotic)" or "Paradise Planet (Lush)"). If no descriptor is recorded,
-    /// cleanly falls back to the broad biome group.</summary>
-    public static string FormatClassification(int biome, string? descriptor, bool hasRings = false, string ringSuffix = " with rings")
+    /// (e.g. "Tropical Moon (Lush)" or "Paradise Planet (Lush)"). If no descriptor is recorded,
+    /// cleanly falls back to the broad biome group, indicating moon status if known.</summary>
+    public static string FormatClassification(int biome, string? descriptor, bool hasRings = false, string ringSuffix = " with rings", bool? isMoon = null)
     {
         string group = BiomeGroup(biome);
+        string typeName = TypeName(biome);
         string baseText;
+
         if (string.IsNullOrWhiteSpace(descriptor))
         {
-            baseText = group;
+            if (isMoon == true)
+                baseText = $"{group} Moon";
+            else if (isMoon == false)
+                baseText = $"{group} Planet";
+            else
+                baseText = group;
         }
         else
         {
             string desc = descriptor.Trim();
-            if (string.Equals(desc, group, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(desc, TypeName(biome), StringComparison.OrdinalIgnoreCase)
+
+            // If descriptor doesn't specify Moon or Planet, and isMoon is known, align it
+            if (isMoon == true && !desc.EndsWith("Moon", StringComparison.OrdinalIgnoreCase) && !desc.EndsWith("Anomaly", StringComparison.OrdinalIgnoreCase))
+            {
+                if (desc.EndsWith("Planet", StringComparison.OrdinalIgnoreCase))
+                    desc = desc[..^6].TrimEnd() + " Moon";
+                else
+                    desc = $"{desc} Moon";
+            }
+            else if (isMoon == false && !desc.EndsWith("Planet", StringComparison.OrdinalIgnoreCase) && !desc.EndsWith("Moon", StringComparison.OrdinalIgnoreCase) && !desc.EndsWith("Anomaly", StringComparison.OrdinalIgnoreCase))
+            {
+                desc = $"{desc} Planet";
+            }
+
+            // Check if desc already mentions the group/type
+            bool alreadyHasGroup = string.Equals(desc, group, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(desc, typeName, StringComparison.OrdinalIgnoreCase)
+                || desc.StartsWith(group + " ", StringComparison.OrdinalIgnoreCase)
+                || desc.StartsWith(typeName + " ", StringComparison.OrdinalIgnoreCase)
                 || desc.EndsWith($"({group})", StringComparison.OrdinalIgnoreCase)
-                || desc.EndsWith($" {group}", StringComparison.OrdinalIgnoreCase)) // "Planetary Anomaly"
+                || desc.EndsWith($" {group}", StringComparison.OrdinalIgnoreCase);
+
+            if (alreadyHasGroup)
             {
                 baseText = desc;
             }
@@ -143,8 +199,8 @@ public static class NmsPlanets
 
     /// <summary>Types that always have water: Swamp and Water World. The save has
     /// no water flag for other planets (checked 2026-10-12: across 2,612 planets
-    /// on every slot, bEr's flags only ever use the biome bits, bit 16 = rings
-    /// and bit 17 on 3 Frozen/Scorched worlds), and the system generator doesn't
+    /// on every slot, bEr's flags only ever use the biome bits, bit 16 = extreme
+    /// hazard and bit 17 on 3 Frozen/Scorched worlds), and the system generator doesn't
     /// cover terrain, so for every other type water is unknown.</summary>
     public static bool AlwaysHasWater(int biome) => biome is 12 or 14;
 
@@ -155,6 +211,20 @@ public static class NmsPlanets
         var byAddress = new Dictionary<ulong, KnownPlanet>();
         if (discoveries is null) return new();
 
+        var systemBodiesCache = new Dictionary<ulong, SystemBodies>();
+        SystemBodies GetBodies(ulong addr)
+        {
+            ulong sysAddr = NmsSpaceStationPaths.ToSystemAddress(addr);
+            if (!systemBodiesCache.TryGetValue(sysAddr, out var bodies))
+            {
+                ulong portal = (((addr >> 40) & 0xFFF) << 32) | (addr & 0xFFFFFFFF);
+                int gal = (int)((addr >> 32) & 0xFF);
+                bodies = SystemGenerator.Bodies(portal, gal);
+                systemBodiesCache[sysAddr] = bodies;
+            }
+            return bodies;
+        }
+
         foreach (var record in discoveries.OfType<JObject>())
         {
             if (record["8P3"] is not JObject key || key["<Dn"]?.Value<string>() != "Planet") continue;
@@ -164,12 +234,19 @@ public static class NmsPlanets
             long flags = seedAndFlags[1].Type == JTokenType.Integer ? seedAndFlags[1].Value<long>() : 0;
             var owner = record["ksu"] as JObject;
 
+            int planetIndex = (int)((address >> 52) & 0xF);
+            var bodies = GetBodies(address);
+            bool isMoon = bodies.IsMoon(planetIndex);
+
+            bool hasRings = !isMoon && PlanetRings.HasRings(
+                (((address >> 40) & 0xFFF) << 32) | (address & 0xFFFFFFFF), (int)((address >> 32) & 0xFF), planetIndex);
+
             var planet = new KnownPlanet(
                 address,
                 NmsSpaceStationPaths.GalaxyNumber(address),
-                (int)((address >> 52) & 0xF),
+                planetIndex,
                 (int)(flags & 0xFFFF),
-                ((flags >> 16) & 1) == 1,
+                hasRings,
                 owner?["V?:"]?.Value<string>() ?? "",
                 !string.IsNullOrEmpty(owner?["f5Q"]?.Value<string>()),
                 owner?["3I1"]?.Value<long>() ?? 0);

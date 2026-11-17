@@ -10,6 +10,34 @@ namespace ArtifactX.GameData;
 
 public static partial class CatalogSteps
 {
+    /// <summary>
+    /// Stat groups the name-prefix rule gets wrong: NMS.exe's per-stat table at 0x144AE6484 (6 ints per stat, first =
+    /// group; build 184271, read with Ghidra 2026-11-14), which the adjacency count 0x1405B1B90 compares for "same
+    /// type". All other stats' groups equal the prefix rule (checked over the whole enum). The fleet stats' group 175
+    /// (Freighter_Fleet_Boost) is what makes neighbouring fleet modules of different kinds count as adjacent:
+    /// Slot 8 freighter Fleet Coordination 86.0 with prefix groups, 99.7 with these (game 98.7).
+    /// </summary>
+    private static readonly Dictionary<Stat, Stat> NativeStatGroups = new()
+    {
+        [Stat.Suit_UnderwaterLifeSupport] = Stat.Suit_Underwater,
+        [Stat.Suit_DamageReduce_Cold] = Stat.Suit_Protection, [Stat.Suit_DamageReduce_Heat] = Stat.Suit_Protection,
+        [Stat.Suit_DamageReduce_Toxic] = Stat.Suit_Protection, [Stat.Suit_DamageReduce_Radiation] = Stat.Suit_Protection,
+        [Stat.Suit_Utility] = Stat.Suit_Jetpack,
+        [Stat.Ship_Tech_Slots] = Stat.Ship_Inventory, [Stat.Ship_Cargo_Slots] = Stat.Ship_Inventory,
+        [Stat.Ship_WaterLandingJet] = Stat.Ship_CargoShield,
+        [Stat.Freighter_Fleet_Speed] = Stat.Freighter_Fleet_Boost, [Stat.Freighter_Fleet_Fuel] = Stat.Freighter_Fleet_Boost,
+        [Stat.Freighter_Fleet_Combat] = Stat.Freighter_Fleet_Boost, [Stat.Freighter_Fleet_Trade] = Stat.Freighter_Fleet_Boost,
+        [Stat.Freighter_Fleet_Explore] = Stat.Freighter_Fleet_Boost, [Stat.Freighter_Fleet_Mine] = Stat.Freighter_Fleet_Boost,
+        [Stat.Vehicle_EngineFuelUse] = Stat.Vehicle_Engine, [Stat.Vehicle_EngineTopSpeed] = Stat.Vehicle_Engine,
+        [Stat.Vehicle_Grip] = Stat.Vehicle_Engine, [Stat.Vehicle_SkidGrip] = Stat.Vehicle_Engine,
+        [Stat.Vehicle_BoostSpeed] = Stat.Vehicle_Boost, [Stat.Vehicle_BoostTanks] = Stat.Vehicle_Boost,
+        [Stat.Vehicle_SubBoostSpeed] = Stat.Vehicle_Boost,
+        [Stat.Vehicle_LaserDamage] = Stat.Vehicle_Laser, [Stat.Vehicle_LaserHeatTime] = Stat.Vehicle_Laser,
+        [Stat.Vehicle_LaserStrongLaser] = Stat.Vehicle_Laser,
+        [Stat.Vehicle_GunDamage] = Stat.Vehicle_Gun, [Stat.Vehicle_GunHeatTime] = Stat.Vehicle_Gun, [Stat.Vehicle_GunRate] = Stat.Vehicle_Gun,
+        [Stat.Vehicle_FlameDamage] = Stat.Vehicle_Flame, [Stat.Vehicle_FlameHeatTime] = Stat.Vehicle_Flame,
+    };
+
     /// <summary>Normal-ship comparison metadata. Native category-6 eligibility and stat parents
     /// checked against the executable and two wreck references, 2026-10-31. Candidate order,
     /// Impossible entries and duplicate intrinsic targets are significant.</summary>
@@ -23,6 +51,7 @@ public static partial class CatalogSteps
             || decode("GCGAMEPLAYGLOBALS.GLOBAL.MBIN") is not GcGameplayGlobals gameplay
             || decode("GCSPACESHIPGLOBALS.GLOBAL.MBIN") is not GcSpaceshipGlobals flight
             || decode("GCAISPACESHIPGLOBALS.GLOBAL.MBIN") is not GcAISpaceshipGlobals ai
+            || decode("GCCAMERAGLOBALS.GLOBAL.MBIN") is not GcCameraGlobals camera
             || decode("METADATA/PROJECTILES/PROJECTILETABLE.MBIN") is not GcProjectileDataTable projectiles) return null;
         bool Eligible(GcTechnology t) => t.Category.TechnologyCategory is Category.Ship or Category.AllShips or Category.AllShipsExceptAlien;
         var byId = technology.Table.ToDictionary(t => t.ID.Value, StringComparer.Ordinal);
@@ -50,11 +79,15 @@ public static partial class CatalogSteps
             }
             if (stat is Stat.Ship_Boost or Stat.Ship_Maneuverability or Stat.Ship_BoostManeuverability or Stat.Ship_Drift)
                 parent = Stat.Ship_PulseDrive;
+            if (NativeStatGroups.TryGetValue(stat, out var native)) parent = native;
             parents[(int)stat] = (int)parent;
         }
         var modules = resolvableModules.Select(p => new ProceduralModuleDefinition(p.ID.Value, (int)p.Quality,
             p.NumStatsMin, p.NumStatsMax, (int)p.WeightingCurve.WeightingCurve, p.StatLevels.Select(s =>
-                new ProceduralModuleStat((int)s.Stat.StatsType, s.ValueMin, s.ValueMax, (int)s.WeightingCurve.WeightingCurve, s.AlwaysChoose)).ToArray())).ToArray();
+                new ProceduralModuleStat((int)s.Stat.StatsType, s.ValueMin, s.ValueMax, (int)s.WeightingCurve.WeightingCurve, s.AlwaysChoose)).ToArray(),
+            // Format 102: corvette modules (IsBiggsProcTech) roll two draws earlier too - with it Slot 8's corvette
+            // evaluates to the game's Shield 394.9 and Hyperdrive 1344.0 exactly (391.0 / 1313.0 without), 2026-11-15.
+            byId[p.Template.Value].Category.TechnologyCategory == Category.Freighter || p.IsBiggsProcTech)).ToArray();
         var coefficients = new MultiToolScannerRules((int)Stat.Ship_Armour_Shield_Strength, 0f,
             gameplay.SpecialTechSlotBonus, gameplay.BonusSameTypeElementsMultiply, gameplay.BonusChildTypeElementsMultiply,
             gameplay.MaxNumSameGroupTech, gameplay.BonusSameTypeElementsAdd, gameplay.BonusChildTypeElementsAdd);
@@ -83,7 +116,8 @@ public static partial class CatalogSteps
             b.BoostingTurnDampMin, b.TurnStrengthMax, b.TurnStrengthMin);
         var flightRules = new StarshipFlightRules(controls, [Bonus(flight.ControlBonusC), Bonus(flight.ControlBonusB), Bonus(flight.ControlBonusA), Bonus(flight.ControlBonusS)]);
         var intrinsic = inventory.BaseStats.Where(b => b.BaseStatID.Value.StartsWith("SHIP_", StringComparison.Ordinal)
-                || b.BaseStatID.Value is "ROBOT_SHIP" or "ALIEN_SHIP")
+                || b.BaseStatID.Value is "ROBOT_SHIP" or "ALIEN_SHIP"
+                || b.BaseStatID.Value.StartsWith("FREI_", StringComparison.Ordinal))
             .ToDictionary(b => b.BaseStatID.Value, b => b.StatBonus.Select(s => new StarshipIntrinsicStatTarget((int)s.StatType.StatsType, s.LessIsBetter)).ToArray());
         var beams = projectiles.Lasers.Where(l => l.Id.Value == "PLAYER_SHIP").ToArray();
         if (beams.Length != 1 || reality.ShipWeapons.Length != 7) return null;
@@ -97,6 +131,14 @@ public static partial class CatalogSteps
                 (int)Stat.Ship_Weapons_Lasers_HeatTime, (int)Stat.Ship_Armour_Shield_Strength, (int)Stat.Ship_Hyperdrive_JumpDistance,
                 (int)Stat.Ship_Maneuverability, (int)Stat.Ship_BoostManeuverability), weapons,
             new(special.SpecialTechSlotMaxIndex.X, special.SpecialTechSlotMaxIndex.Y, special.MaxNumSpecialTechSlots), ai.CrashedShipBrokenTechChance,
-            sentinelSelection);
+            sentinelSelection,
+            // Freighter stats panel (0x1406BAD90): Hyperdrive Range and Fleet Coordination's six averaged stats.
+            new((int)Stat.Freighter_Hyperdrive_JumpDistance, [(int)Stat.Freighter_Fleet_Speed, (int)Stat.Freighter_Fleet_Fuel,
+                (int)Stat.Freighter_Fleet_Combat, (int)Stat.Freighter_Fleet_Trade, (int)Stat.Freighter_Fleet_Explore,
+                (int)Stat.Freighter_Fleet_Mine]),
+            // Format 103: corvette Maneuverability's size damping (#73; stats panel 0x1406BBFC5).
+            new(camera.BuildableShipMinSizeForCamera.X, camera.BuildableShipMinSizeForCamera.Y, camera.BuildableShipMinSizeForCamera.Z,
+                camera.BuildableShipMaxSizeForCamera.X, camera.BuildableShipMaxSizeForCamera.Y, camera.BuildableShipMaxSizeForCamera.Z,
+                flight.CorvetteSizeMaxTurnDamping));
     }
 }

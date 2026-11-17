@@ -54,6 +54,18 @@ internal static class StarshipDisplayStatChecks
             "Incomplete weapon modes produced damage");
         Require(StarshipDisplayStatGeneration.Maneuverability(1, 6, 3, null, 1f, 1f) is null,
             "Missing extracted flight rules produced maneuverability");
+        // Slot 8's corvette, 2026-11-15: the size the running game measured (read-only memory) and the
+        // ordinary value 691.8792 give the stats screen's 454.7. Rules: GcCameraGlobals / GcSpaceshipGlobals.
+        var corvette = new CorvetteSizeRules(6f, 4f, 10f, 48f, 20f, 48f, 0.2f);
+        Require(StarshipDisplayStatGeneration.CorvetteManeuverability(691.8792f, 25.9729f, 9.24935f, 28.8126f, corvette)
+                ?.ToString("F1", System.Globalization.CultureInfo.InvariantCulture) == "454.7",
+            "Corvette size damping differs from the game's stats screen");
+        Require(StarshipDisplayStatGeneration.CorvetteManeuverability(500f, 3f, 2f, 5f, corvette) == 500f,
+            "A build under the minimum size was damped");
+        Require(StarshipDisplayStatGeneration.CorvetteManeuverability(500f, 99f, 99f, 99f, corvette) is { } big && MathF.Abs(big - 104f) < 0.01f,
+            "A build over the maximum size wasn't damped to the floor (3 x 0.33 = 0.99, so 0.208 is kept)");
+        Require(StarshipDisplayStatGeneration.CorvetteManeuverability(500f, 30f, 10f, 30f, null) is null,
+            "Missing corvette size rules produced maneuverability");
         // Owner's Compare screenshot: Aomoro's Resistance, 2026-10-29.
         // These are supplied evaluated inputs, not a claim about generated loadout support.
         Require(StarshipDisplayStatGeneration.ShieldStrength(74.01944f, .825f)?.ToString("F1",

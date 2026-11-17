@@ -6,7 +6,7 @@ namespace libMBIN.NMS.GameComponents
     public class GcHUDStartupTable : NMSTemplate
     {
         // size: 0xD
-        public enum HUDStartupEnum : uint {
+        public enum HUDStartupEnum {
             WaitingForInit,
             Startup,
             Booting,

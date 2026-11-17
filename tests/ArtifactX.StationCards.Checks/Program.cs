@@ -26,7 +26,7 @@ try
 
     LocatedMultiToolService.Damage = 441;
     await model.UpdateAsync(123, snapshot);
-    Require(changes == 0 && ReferenceEquals(first, model.StationReloadTools[0]) && first.Stats.Contains("441.0"),
+    Require(changes == 0 && ReferenceEquals(first, model.StationReloadTools[0]) && first.Damage.Contains("441.0"),
         "Damage-only update replaced the card or failed to update text");
 
     var pending = new TaskCompletionSource<IReadOnlyList<TestTool>>();

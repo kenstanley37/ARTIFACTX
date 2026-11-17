@@ -1,4 +1,8 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Procedural;
+using ArtifactX.Core.Universe;
+using ArtifactX.WinUI3.Controls;
+using ArtifactX.WinUI3.Helpers.Fauna;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Dispatching;
@@ -43,11 +47,29 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     [ObservableProperty] public partial string GalaxyLabel { get; private set; } = "";
     [ObservableProperty] public partial string Coordinates { get; private set; } = "";
     [ObservableProperty] public partial string PortalCode { get; private set; } = "";
-    [ObservableProperty] public partial bool IsHere { get; private set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SummaryDetails))] public partial bool IsHere { get; private set; }
     [ObservableProperty] public partial string HereLabel { get; private set; } = "";
     [ObservableProperty] public partial ImageSource? SystemPicture { get; private set; }
 
-    [ObservableProperty] public partial IReadOnlyList<Fact> Conditions { get; private set; } = [];
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SummaryDetails))] public partial IReadOnlyList<Fact> Conditions { get; private set; } = [];
+
+    /// <summary>"Planet 2 of Hikovsky" / "Moon of Hikovsky", for the pinned summary bar.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SummaryDetails))] public partial string Position { get; private set; } = "";
+
+    /// <summary>The pinned summary bar's second line: where the planet is, then the two conditions that change how
+    /// you play there (sentinels, weather), then "You are here" when it's true. Unrecorded values are left out.</summary>
+    public string SummaryDetails
+    {
+        get
+        {
+            var parts = new List<string> { Position };
+            foreach (var label in new[] { "Sentinels", "Weather" })
+                if (Conditions.FirstOrDefault(f => f.Label == label) is { } fact && fact.Value.Length > 0 && fact.Value != NotRecorded)
+                    parts.Add($"{label} {fact.Value.Replace(" · ", ", ")}"); // "Extreme burning, occasional storms": one fact, not two
+            if (IsHere) parts.Add("You are here");
+            return string.Join("  ·  ", parts.Where(p => p.Length > 0));
+        }
+    }
     [ObservableProperty] public partial IReadOnlyList<string> Resources { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<Fact> Recorded { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<Fact> SaveFacts { get; private set; } = [];
@@ -70,15 +92,9 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
 
     [ObservableProperty] public partial PlanetDetailsEditorViewModel? Editor { get; private set; }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CaptureLabel), nameof(CanCapture))]
-    public partial bool IsCapturing { get; private set; }
-
     [ObservableProperty] public partial bool IsFishCollapsed { get; private set; } = AppSettingsService.GetFlag(FishCollapsedKey);
 
     public string EditLabel => IsEditing ? "Close editor" : "Edit details";
-    public string CaptureLabel => IsCapturing ? "Capturing..." : "Capture creature";
-    public bool CanCapture => !IsCapturing;
     public bool HasOriginalName => OriginalName.Length > 0;
     public bool HasResources => Resources.Count > 0;
     public bool HasRecorded => Recorded.Count > 0;
@@ -121,9 +137,10 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         Planet = planet;
         IsEditing = false;
         Editor = null;
+        await PlanetTypesService.EnsureLoadedAsync();
 
-        _siblings = NmsPlanets.ReadAll(_snapshot.Discoveries).Where(p => p.SystemAddress == planet.SystemAddress)
-            .GroupBy(p => p.PlanetIndex).Select(g => g.First()).OrderBy(p => p.PlanetIndex).ToList();
+        _siblings = await Task.Run(() => NmsPlanets.ReadAll(_snapshot.Discoveries).Where(p => p.SystemAddress == planet.SystemAddress)
+            .GroupBy(p => p.PlanetIndex).Select(g => g.First()).OrderBy(p => p.PlanetIndex).ToList());
         int at = _siblings.FindIndex(p => p.PlanetIndex == planet.PlanetIndex);
         HasSiblings = _siblings.Count > 1;
         CanGoPrevious = at > 0;
@@ -135,9 +152,9 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         ShowRecorded();
         ShowSave();
         ShowFinds();
-        await Equipment.LoadAsync(planet, _snapshot);
         await ShowCreaturesAsync();
-        await LoadSystemPictureAsync();
+        _ = Equipment.LoadAsync(planet, _snapshot);
+        _ = LoadSystemPictureAsync();
     }
 
     public Task GoPreviousAsync() => GoToSiblingAsync(-1);
@@ -155,7 +172,8 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         if (Planet is not { } planet) return;
         bool isMoon = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex);
         SystemName = UniverseInfo.SystemName(planet.SystemAddress);
-        Eyebrow = $"{(isMoon ? "MOON" : $"PLANET {planet.PlanetIndex}")} OF {SystemName.ToUpperInvariant()}";
+        Position = isMoon ? $"Moon of {SystemName}" : $"Planet {planet.PlanetIndex} of {SystemName}";
+        Eyebrow = Position.ToUpperInvariant();
         Title = UniverseInfo.PlanetName(planet.SystemAddress, planet.PlanetIndex);
         string generated = UniverseInfo.GeneratedPlanetName(planet.SystemAddress, planet.PlanetIndex);
         OriginalName = string.Equals(Title, generated, StringComparison.OrdinalIgnoreCase) ? "" : $"Originally {generated}";
@@ -170,13 +188,19 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         bool? water = PlanetWaterService.Get(planet.SystemAddress, planet.PlanetIndex);
         string Or(string? value) => string.IsNullOrEmpty(value) ? NotRecorded : value;
 
-        Classification = planet.Classification(d?.Descriptor);
+        bool isMoon = BodyKindsService.IsMoon(planet.SystemAddress, planet.PlanetIndex);
+        var profile = PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex);
+        string? desc = PlanetTypesService.Descriptor(planet.SystemAddress, planet.PlanetIndex);
+        Classification = planet.Classification(desc, isMoon: isMoon);
         // Weather, sentinels and resources from the game's own generator where the game data
         // has its tables (format 16+); what was recorded otherwise.
-        var profile = PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex);
         Conditions =
-        [
-            new("Weather", profile is not null ? PlanetText.Weather(profile) : Or(d?.Weather)),
+        (Fact[])[
+            new("Type", desc is { Length: > 0 }
+                ? (desc.EndsWith(" Moon", StringComparison.OrdinalIgnoreCase) || desc.EndsWith(" Planet", StringComparison.OrdinalIgnoreCase) || desc.EndsWith(" Anomaly", StringComparison.OrdinalIgnoreCase) ? desc : (isMoon ? $"{desc} Moon" : $"{desc} Planet"))
+                : (isMoon ? $"{planet.BiomeGroup} Moon" : $"{planet.BiomeGroup} Planet")),
+            new("Biome", planet.BiomeGroup),
+            new("Weather", profile is not null ? PlanetText.Weather(profile, planet.SystemAddress, planet.PlanetIndex) : Or(d?.Weather)),
             new("Sentinels", profile is not null ? PlanetText.Sentinels(profile) : Or(d?.Sentinels)),
             new("Flora", d?.Flora is { Length: > 0 } flora ? flora : profile is not null ? PlanetText.Flora(profile) : Or(null)),
             new("Fauna", d?.Fauna is { Length: > 0 } fauna ? fauna : profile is not null ? PlanetText.Fauna(profile) : (d?.FaunaTotal is int n ? (n == 0 ? "None" : $"{n} species") : Or(null))),
@@ -247,34 +271,116 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     private async Task ShowCreaturesAsync()
     {
         if (Planet is not { } planet) return;
-        var cards = CreatureListService.On(planet.SystemAddress, planet.PlanetIndex)
-            .Select(c => new CreatureCardViewModel(c, planet.SystemAddress, planet.PlanetIndex)).ToList();
-        Creatures = cards;
-        ShowSpeciesLeft(planet, cards);
-        foreach (var card in cards) await card.LoadPictureAsync();
+
+        var profile = PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex);
+        var predicted = profile?.PredictedCreatures ?? [];
+        var nameService = await CreatureNameService.LoadAsync();
+
+        // 1. The save's discoveries on this planet (bEr[0] is the creature's seed, bEr[2]/[3] its name seeds).
+        var saveDiscoveries = FaunaDiscoveryService.ReadAll(_snapshot.Discoveries as JArray, nameService)
+            .GetValueOrDefault(planet.Address) ?? [];
+
+        // 2. One card per predicted creature, its discovery found by seed (PlanetFaunaPairing), then any discoveries
+        //    beyond the predicted list.
+        var allCards = new List<CreatureCardViewModel>();
+        var slots = PlanetFaunaPairing.Pair(predicted, saveDiscoveries.Select(d => d.Seed).ToList());
+        foreach (var slot in slots)
+        {
+            var pred = slot.Predicted;
+            // The creature's own scene, and the one the game spawns with it (a flock's animal, a crystal's ground
+            // piece; CreatureModelService.ModelPartsAsync).
+            var creatureEntry = pred is null ? null : PlanetTypesService.CreatureTables?.Creatures.FirstOrDefault(c => c.Id == pred.Id);
+            string? scene = creatureEntry?.Scene;
+            string extraScene = creatureEntry?.ModelScene ?? "";
+            // The body its role and an exotic planet's sub-type force (anomalous floaters, rollers and crystals).
+            var bodyType = PlanetTypesService.For(planet.SystemAddress) is { } bodyTypes && planet.PlanetIndex >= 1 && planet.PlanetIndex <= bodyTypes.Length
+                ? bodyTypes[planet.PlanetIndex - 1] : null;
+            var forced = pred is not null && bodyType is not null && PlanetTypesService.CreatureTables is { } creatureTables
+                ? creatureTables.ForcedPartTerms(pred, bodyType.Biome, bodyType.SubType) : (Filter: "", SubType: "");
+            string rigId = pred is null ? FallbackRig(saveDiscoveries[slot.Discovery].SpeciesName)
+                // With an extra scene the rig is the creature's own scene's (a flock's spawner draws nothing itself).
+                : await CreatureModelService.ResolveRigAsync(extraScene.Length > 0 ? null : pred.Id, scenePath: scene)
+                    ?? await CreatureModelService.ResolveRigAsync(pred.Id, scenePath: scene) ?? "antelope";
+            string habitat = pred is null ? "Native Fauna" : $"{PlanetTypesService.CreatureTables?.HabitatOf(pred) ?? pred.Habitat} Fauna";
+            var (rarity, activity) = pred is null ? ("", "") : CreatureTraitText.RarityAndActivity(pred, PlanetTypesService.CreatureTables);
+
+            if (slot.Discovery >= 0)
+            {
+                string name = saveDiscoveries[slot.Discovery].SpeciesName;
+                if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, name)) continue;
+                // Rarity and activity only when the discovery is this very creature (same seed), not a leftover slot.
+                bool same = pred is not null && saveDiscoveries[slot.Discovery].Seed == pred.Seed;
+                var creature = new Creature(Name: name, Rarity: same && rarity.Length > 0 ? rarity : "Discovered", Habitat: habitat,
+                    Activity: same ? activity : "", Gender: "", Size: "", Picture: false, SeenAt: "Discovered");
+                var disc = saveDiscoveries[slot.Discovery];
+                allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true,
+                    about: same ? CreatureTraitText.About(pred!, PlanetTypesService.CreatureTables) : "",
+                    battle: same ? Panel(CreatureTraitText.Battle(pred!, PlanetTypesService.CreatureTables, disc.SpeciesSeed, disc.GenusSeed)) : null,
+                    canTame: same ? PlanetTypesService.CreatureTables?.CanBattle(pred!) : null)
+                {
+                    // The discovery's own seed (bEr[0]) picks its body parts, as the game does.
+                    ModelScene = scene ?? "", ModelExtraScene = extraScene, ModelSeed = disc.Seed, ModelFilter = forced.Filter, ModelSubType = forced.SubType,
+                });
+                continue;
+            }
+
+            // Not discovered yet: the species name the game will give it, marked as a prediction; older game data
+            // can't predict it, so the kind is shown instead.
+            if (pred is null) continue;
+            string? predictedName = nameService.PredictedSpecies(pred, planet.Address);
+            string unscannedName = predictedName ?? $"Unscanned {pred.DefaultDisplayName}";
+            if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, unscannedName)) continue;
+            // Traits as the game's discovery list shows them, then the species' two forms (gender with weight and height).
+            var unscanned = new Creature(Name: unscannedName,
+                Rarity: predictedName is null ? "Undiscovered" : rarity.Length > 0 ? $"Predicted · {rarity}" : "Predicted",
+                Habitat: habitat, Activity: predictedName is null ? "" : activity, Gender: "",
+                Size: predictedName is null ? "" : CreatureTraitText.Forms(pred, PlanetTypesService.CreatureTables),
+                Picture: false, SeenAt: "Unscanned");
+            var (speciesSeed, genusSeed) = SpeciesNames.FaunaSeeds(pred.Seed, string.IsNullOrEmpty(pred.SpeciesId) ? pred.Id : pred.SpeciesId,
+                planet.Address, pred.CreatureType, pred.SizeClass);
+            allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false,
+                about: predictedName is null ? "" : CreatureTraitText.About(pred, PlanetTypesService.CreatureTables),
+                battle: predictedName is null ? null : Panel(CreatureTraitText.Battle(pred, PlanetTypesService.CreatureTables, speciesSeed, genusSeed)),
+                canTame: PlanetTypesService.CreatureTables?.CanBattle(pred))
+            {
+                ModelScene = scene ?? "", ModelExtraScene = extraScene, ModelSeed = pred.Seed, ModelFilter = forced.Filter, ModelSubType = forced.SubType,
+            });
+        }
+
+        // Creatures a player can adopt first (their battle stats are what people look for), the rest after; the
+        // sort is stable, so each group keeps the game's order.
+        allCards = allCards.OrderBy(c => c.CanTame ? 0 : 1).ToList();
+        Creatures = allCards;
+        ShowSpeciesLeft(planet, allCards);
+    }
+
+    private static CreatureBattleViewModel? Panel(CreatureBattle? battle) => battle is null ? null : new CreatureBattleViewModel(battle);
+
+    /// <summary>A stable land model for a discovery the generator didn't predict, picked from its name.</summary>
+    private static string FallbackRig(string speciesName)
+    {
+        uint hash = 2166136261;
+        foreach (char c in speciesName) hash = (hash ^ c) * 16777619;
+        return CreaturePreviewControl.LandRigs[hash % (uint)CreaturePreviewControl.LandRigs.Length];
     }
 
     /// <summary>
-    /// The species still to find (#36): the planet's fauna total - the game's own count read off its
-    /// Discoveries screen, else the generator's prediction (PlanetProfile.FaunaCount, format 19) - less the
-    /// ones known: the save's fauna discoveries or the captured cards, whichever is more. Extinct species are
-    /// left out of both, as the game's "6/8" leaves them out (CreatureListService). No total, no tiles.
+    /// Shows species count found vs total.
     /// </summary>
     private void ShowSpeciesLeft(KnownPlanet planet, IReadOnlyList<CreatureCardViewModel> cards)
     {
         int? total = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex)?.FaunaTotal
             ?? PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex)?.FaunaCount;
-        NmsPlanets.CountDiscoveries(_snapshot.Discoveries).TryGetValue(planet.Address, out var tally);
-        int found = Math.Max(tally?.Fauna ?? 0, cards.Count(c => !c.IsExtinct));
-        if (total is not int all || all == 0)
+        int all = total ?? cards.Count;
+        int found = cards.Count(c => c.IsDiscovered);
+        if (all == 0)
         {
-            SpeciesFound = total == 0 ? "No fauna on this planet." : "";
+            SpeciesFound = "No fauna on this planet.";
             UndiscoveredCreatures = [];
             return;
         }
-        found = Math.Min(found, all);
         SpeciesFound = found == all ? $"All {all} species found." : $"{found} of {all} species found.";
-        UndiscoveredCreatures = Enumerable.Repeat("Not discovered yet", all - found).ToList();
+        UndiscoveredCreatures = [];
     }
 
     private async Task LoadSystemPictureAsync()
@@ -301,29 +407,13 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         IsFishCollapsed = collapsed;
     }
 
-    /// <summary>Reads the game screen now: the open fauna list, or - with a name - that
-    /// creature's picture (screen recording's manual capture).</summary>
-    public async Task<CaptureResult> CaptureAsync(string? creatureName)
-    {
-        if (IsCapturing || Planet is not { } planet) return new CaptureResult(false, "A capture is already running.");
-        IsCapturing = true;
-        try
-        {
-            return await ScreenCaptureLogService.CaptureNowAsync(
-                hintSystem: planet.SystemAddress,
-                forceCreaturePicture: string.IsNullOrWhiteSpace(creatureName) ? null : (planet.SystemAddress, planet.PlanetIndex, creatureName),
-                hintPlanet: (planet.SystemAddress, planet.PlanetIndex));
-        }
-        finally
-        {
-            IsCapturing = false;
-            await ShowCreaturesAsync();
-        }
-    }
-
     public void DeleteCreature(CreatureCardViewModel creature)
     {
-        if (Planet is { } planet) CreatureListService.Delete(planet.SystemAddress, planet.PlanetIndex, creature.Name);
+        if (Planet is { } planet)
+        {
+            CreatureListService.Delete(planet.SystemAddress, planet.PlanetIndex, creature.Name);
+            _ = ShowCreaturesAsync();
+        }
     }
 
     // ---------------------------------------------------------------- Following the game
@@ -383,6 +473,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         _snapshot = snapshot;
         ShowSave();
         ShowRecorded(); // fish caught
+        _ = ShowCreaturesAsync();
         if (Planet is { } p) Equipment.UpdateLocations(p, _snapshot);
     });
 }

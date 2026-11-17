@@ -9,7 +9,7 @@
     xmlns:controls="using:ArtifactX.WinUI3.Controls">
 
     <StackPanel Spacing="6">
-        <TextBlock Text="PREVIEW" Style="{StaticResource ThemeEyebrowStyle}"/>
+        <TextBlock x:Name="HeadingTxt" Text="PREVIEW" Style="{StaticResource ThemeEyebrowStyle}"/>
         <controls:ShipPreview x:Name="Preview" Height="260"/>
         <TextBlock x:Name="NoteTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" TextWrapping="Wrap"/>
     </StackPanel>

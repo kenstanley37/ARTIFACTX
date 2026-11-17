@@ -6,6 +6,7 @@ namespace libMBIN.NMS.GameComponents
     public class GcPhysicsCollisionGroups : NMSTemplate
     {
         // size: 0x58
+        [Flags]
         public enum CollisionGroupEnum : uint {
             Normal,
             Terrain,

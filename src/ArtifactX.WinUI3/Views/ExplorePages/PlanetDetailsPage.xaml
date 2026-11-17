@@ -45,24 +45,34 @@
 
     </Page.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Padding="28,22,28,40" Spacing="18">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Button Content="‹  Back to Planets" Click="Back_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.HasSiblings, Mode=OneWay}">
-                    <Button Content="‹ Previous planet" Click="Previous_Click" IsEnabled="{x:Bind ViewModel.CanGoPrevious, Mode=OneWay}"/>
-                    <Button Content="Next planet ›" Click="Next_Click" IsEnabled="{x:Bind ViewModel.CanGoNext, Mode=OneWay}"/>
-                </StackPanel>
-            </Grid>
+        <!-- Pinned bar (owner idea, 2026-11-11): always on screen; once the header card scrolls away it also
+             says which planet this is, so the page doesn't need scrolling back up. -->
+        <Grid Padding="28,18,28,12" ColumnSpacing="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button Content="‹  Back to Planets" Click="Back_Click" Style="{StaticResource ThemeAccentButtonStyle}" VerticalAlignment="Center"/>
+            <controls:PinnedSummary x:Name="Summary" Grid.Column="1" Title="{x:Bind ViewModel.Title, Mode=OneWay}"
+                                    Accent="{x:Bind ViewModel.Classification, Mode=OneWay}" Details="{x:Bind ViewModel.SummaryDetails, Mode=OneWay}"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.HasSiblings, Mode=OneWay}">
+                <Button Content="‹ Previous planet" Click="Previous_Click" IsEnabled="{x:Bind ViewModel.CanGoPrevious, Mode=OneWay}"/>
+                <Button Content="Next planet ›" Click="Next_Click" IsEnabled="{x:Bind ViewModel.CanGoNext, Mode=OneWay}"/>
+            </StackPanel>
+        </Grid>
+
+        <ScrollViewer x:Name="Scroller" Grid.Row="1" VerticalScrollBarVisibility="Auto" ViewChanged="Scroller_ViewChanged">
+        <StackPanel Padding="28,4,28,40" Spacing="18">
 
             <!-- Header: the planet, where it is, its glyphs and its conditions -->
-            <Border Style="{StaticResource ThemeCardStyle}">
+            <Border x:Name="HeaderCard" Style="{StaticResource ThemeCardStyle}" SizeChanged="HeaderCard_SizeChanged">
                 <Grid>
                     <Border Margin="-1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Opacity="0.25">
                         <Border.Background>
@@ -238,39 +248,25 @@
                         </controls:FoldingCard>
                     </ctcontrols:WrapPanel>
 
-                    <controls:PlanetEquipmentPanel Equipment="{x:Bind ViewModel.Equipment, Mode=OneWay}"/>
+                    <controls:PlanetEquipmentPanel Equipment="{x:Bind ViewModel.Equipment, Mode=OneWay}"
+                                                   CrashedShipsRequested="PlanetEquipment_CrashedShipsRequested"
+                                                   CabinetMultiToolsRequested="PlanetEquipment_CabinetMultiToolsRequested"/>
 
                     <controls:FoldingCard Title="CREATURES" SettingKey="PlanetDetailsCreaturesCollapsed">
                         <Border Style="{StaticResource ThemeCardStyle}">
-                            <StackPanel>
-                                <Button x:Name="CaptureCreatureBtn" Click="CaptureCreature_Click" HorizontalAlignment="Right" Padding="8,3"
-                                            IsEnabled="{x:Bind ViewModel.CanCapture, Mode=OneWay}"
-                                            ToolTipService.ToolTip="Read the creatures from the game screen (open the Discoveries fauna list in game first)">
-                                        <!-- What a capture read; shown beside whichever button started it -->
-                                        <FlyoutBase.AttachedFlyout>
-                                            <Flyout x:Name="CaptureFlyout">
-                                                <StackPanel MaxWidth="320" Spacing="8">
-                                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                                        <FontIcon x:Name="CaptureFlyoutIcon" Glyph="&#xE73E;" FontSize="16"/>
-                                                        <TextBlock x:Name="CaptureFlyoutTitle" FontWeight="SemiBold" FontSize="13"/>
-                                                    </StackPanel>
-                                                    <TextBlock x:Name="CaptureFlyoutDetails" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                                                </StackPanel>
-                                            </Flyout>
-                                        </FlyoutBase.AttachedFlyout>
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <FontIcon Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                            <TextBlock Text="{x:Bind ViewModel.CaptureLabel, Mode=OneWay}" FontSize="11" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                <StackPanel Padding="18,14,18,16" Spacing="10">
-                                <TextBlock Text="Read off the game's Discoveries fauna list with screen recording on - open a creature there to add its picture, gender and size."
-                                           Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                                <StackPanel Spacing="8" Margin="0,4,0,8" Visibility="{x:Bind ViewModel.NoCreatures, Mode=OneWay}">
-                                    <TextBlock Text="No creatures recorded for this planet yet." Style="{StaticResource ThemeBodyTextStyle}"/>
-                                    <TextBlock Text="Open the Discoveries page or a creature in No Man's Sky, then click Capture creature above."
-                                               Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                                </StackPanel>
+                            <StackPanel Padding="18,14,18,16" Spacing="12">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Native fauna species predicted from this planet's procedural generation and your save's discoveries. Click any creature card to inspect its 3D anatomy."
+                                               Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.SpeciesFound, Mode=OneWay}"
+                                               Visibility="{x:Bind ViewModel.HasSpeciesFound, Mode=OneWay}"
+                                               FontWeight="SemiBold" FontSize="13" Foreground="{ThemeResource ThemeAccentBrush}"
+                                               VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                </Grid>
                                 <ItemsControl ItemsSource="{x:Bind ViewModel.Creatures, Mode=OneWay}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -279,32 +275,10 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="explore:CreatureCardViewModel">
-                                            <controls:CreatureCard Creature="{x:Bind}" CaptureRequested="Creature_CaptureRequested" DeleteRequested="Creature_DeleteRequested"/>
+                                            <controls:CreatureCard Creature="{x:Bind}" DeleteRequested="Creature_DeleteRequested" Preview3DRequested="Creature_Preview3DRequested"/>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <!-- Species not found yet (#36): the planet's fauna total less the ones known. -->
-                                <TextBlock Text="{x:Bind ViewModel.SpeciesFound, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasSpeciesFound, Mode=OneWay}"
-                                           Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" Margin="0,6,0,0"/>
-                                <ItemsControl ItemsSource="{x:Bind ViewModel.UndiscoveredCreatures, Mode=OneWay}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="x:String">
-                                            <Border Width="250" Height="96" CornerRadius="6" BorderThickness="1" BorderBrush="{ThemeResource ThemeLineBrush}"
-                                                    Background="{ThemeResource ThemePanelAltBrush}" AutomationProperties.Name="{x:Bind}">
-                                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-                                                    <FontIcon Glyph="&#xE9CE;" FontSize="22" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                                                    <TextBlock Text="{x:Bind}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" HorizontalAlignment="Center"/>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </controls:FoldingCard>
@@ -355,5 +329,6 @@
                 </Grid>
             </Grid>
         </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+    </Grid>
 </Page>

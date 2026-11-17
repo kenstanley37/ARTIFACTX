@@ -10,9 +10,11 @@ public static class LocalisationService
     /// public List&lt;T&gt; field whose elements have "Id"/"ID" + "English" fields) into a
     /// flat lookup dictionary. Done generically rather than casting to TkLocalisationTable
     /// directly so this doesn't break if libMBIN's exact class/field names shift between
-    /// versions - only the *shape* (list of id/text pairs) needs to hold.
+    /// versions - only the *shape* (list of id/text pairs) needs to hold. With
+    /// <paramref name="preferUs"/> the row's "USEnglish" text wins over "English" (a
+    /// <c>nms_*_usenglish.mbin</c> table: the text a US player sees).
     /// </summary>
-    public static Dictionary<string, string> BuildEnglishLookup(NMSTemplate locTableTemplate)
+    public static Dictionary<string, string> BuildEnglishLookup(NMSTemplate locTableTemplate, bool preferUs = false)
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -34,18 +36,12 @@ public static class LocalisationService
             // on the same row (not either/or) - and some entries ship with "English"
             // deliberately blank while the real text only lives in "USEnglish". So we
             // fall back based on the VALUE being empty, not just the field being absent.
-            string? text = null;
+            string? Read(string field) =>
+                row.GetType().GetField(field) is { } f ? ReflectionUtil.ExtractString(f.GetValue(row)) : null;
 
-            var englishField = row.GetType().GetField("English");
-            if (englishField != null)
-                text = ReflectionUtil.ExtractString(englishField.GetValue(row));
-
+            string? text = preferUs ? Read("USEnglish") : Read("English");
             if (string.IsNullOrEmpty(text))
-            {
-                var usEnglishField = row.GetType().GetField("USEnglish");
-                if (usEnglishField != null)
-                    text = ReflectionUtil.ExtractString(usEnglishField.GetValue(row));
-            }
+                text = preferUs ? Read("English") : Read("USEnglish");
 
             if (!string.IsNullOrEmpty(text))
                 result[id] = text;

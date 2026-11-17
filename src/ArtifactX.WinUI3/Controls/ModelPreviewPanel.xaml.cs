@@ -21,8 +21,29 @@ public sealed partial class ModelPreviewPanel : UserControl
         set => Preview.StartYawOffset = (float)value;
     }
 
+    /// <summary>Added to the opening tilt (ShipPreview.StartPitchOffset): a person opens nearly level.</summary>
+    public double StartPitchOffset
+    {
+        get => Preview.StartPitchOffset;
+        set => Preview.StartPitchOffset = value;
+    }
+
     /// <summary>What to call the model in messages ("freighter").</summary>
     public string Subject { get; set; } = "model";
+
+    /// <summary>The label over the preview ("PREVIEW"; the freighter's captain uses "CAPTAIN").</summary>
+    public string Heading
+    {
+        get => HeadingTxt.Text;
+        set => HeadingTxt.Text = value;
+    }
+
+    /// <summary>The preview's height in pixels (260; smaller for a person beside other fields).</summary>
+    public double PreviewHeight
+    {
+        get => Preview.Height;
+        set => Preview.Height = value;
+    }
 
     /// <summary>Builds and shows the model for a scene and seed ("0x2B2F...", null = the scene's
     /// default parts). A newer call replaces one still building.</summary>
@@ -30,7 +51,21 @@ public sealed partial class ModelPreviewPanel : UserControl
     /// entry (StoredColours) - shown painted when there are any, else as a hologram.</param>
     /// <param name="glowColour">Colour (0xRRGGBB) for engine glow materials - a freighter's engine
     /// flare. Glow parts aren't painted: the paint texture turned them dark grey (2026-10-22).</param>
-    public async Task ShowAsync(string? scene, string? seedText, Dictionary<(string, string), float[]>? customColours = null, uint? glowColour = null)
+    /// <param name="built">Built ship parts, colours and styles, for fabricated starships.</param>
+    /// <param name="childPartSeed">Pick parts with the seed's first child seed - people (a freighter captain).</param>
+    /// <param name="shapeOnly">Show a shape scan: for models whose colour rule isn't known (people).</param>
+    /// <param name="colourSeedText">The seed the default paint comes from when it isn't the model seed: a freighter's
+    /// Home Seed (#69 - in game, rerolling Home Seed changed the paint pattern and kept the shape; Model Seed is the
+    /// shape). Null: the model seed.</param>
+    public async Task ShowAsync(
+        string? scene,
+        string? seedText,
+        Dictionary<(string, string), float[]>? customColours = null,
+        uint? glowColour = null,
+        BuiltLook? built = null,
+        string? colourSeedText = null,
+        bool childPartSeed = false,
+        bool shapeOnly = false)
     {
         int version = ++_version;
         if (string.IsNullOrEmpty(scene) || GameDataService.Game is not { } game)
@@ -52,11 +87,14 @@ public sealed partial class ModelPreviewPanel : UserControl
         }
 
         ulong seed = ShipPartsService.TryParseSeed(seedText, out ulong s) ? s : 0;
+        ulong paintSeed = colourSeedText is not null && ShipPartsService.TryParseSeed(colourSeedText, out ulong c) ? c : seed;
+        // People pick their parts with the seed's first child seed (ModelPreviewService.ColourSeed), not the seed itself.
+        ulong partSeed = childPartSeed ? ModelPreviewService.ColourSeed(seed) : seed;
         var root = ShipPartsService.LoadTree(ShipParts.DescriptorFor(scene));
         var options = root is null ? new HashSet<string>(StringComparer.Ordinal)
             : ModelPreviewService.AllOptionIds(root, ShipPartsService.LoadTree, StringComparer.Ordinal);
         var chosen = root is null ? new HashSet<string>(StringComparer.Ordinal)
-            : ShipParts.Generate(scene, seed, ShipPartsService.LoadTree).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+            : ShipParts.Generate(scene, partSeed, ShipPartsService.LoadTree, ShipPartsService.StoredOptions(built)).Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
         // A freighter is ~280,000 triangles - built off the UI thread.
         var mesh = await Task.Run(() => models.Build(scene, options, chosen));
         if (version != _version) return;
@@ -66,6 +104,20 @@ public sealed partial class ModelPreviewPanel : UserControl
             return;
         }
         uint Colour(string material) => glowColour is uint glow && IsGlow(material) ? glow : ShipPartsService.MaterialColour(material, ShipPartsService.Look);
+        if (shapeOnly)
+        {
+            Preview.Show(mesh, Colour, hologram: true);
+            NoteTxt.Text = $"Shape scan - this {Subject}'s parts from its seed and your game files; its colours can't be shown yet. Drag to turn.";
+            return;
+        }
+        if (built is { Colours.Count: > 0 })
+        {
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, ModelPreviewService.StoredColourLookup(built.Colours), seed, built.Styles);
+            if (version != _version) return;
+            Preview.Show(mesh, Colour, m => IsGlow(m) ? null : textures.GetValueOrDefault(m));
+            NoteTxt.Text = $"Shape from your game files, in the paint saved for this {Subject} - drag to turn.";
+            return;
+        }
         if (customColours is { Count: > 0 })
         {
             var textures = await ModelPreviewService.PaintAsync(models, mesh, ModelPreviewService.StoredColourLookup(customColours), seed);
@@ -74,8 +126,31 @@ public sealed partial class ModelPreviewPanel : UserControl
             NoteTxt.Text = $"This {Subject}'s own shape in the colours you picked in game. Drag to turn.";
             return;
         }
+        if (ShipBaseService.IsCorvetteModel(scene))
+        {
+            Preview.Show(mesh, Colour, hologram: true);
+            NoteTxt.Text = "Corvette base chassis. Custom modular parts (cockpit, wings, thrusters) are placed in game — full modular 3D assembly in development. Drag to turn.";
+            return;
+        }
+        if (await ModelPreviewService.FixedLookAsync(models, mesh) is { } own)
+        {
+            if (version != _version) return;
+            Preview.Show(mesh, Colour, m => IsGlow(m) ? null : own.GetValueOrDefault(m));
+            NoteTxt.Text = "Shape and colours from your game files - drag to turn.";
+            return;
+        }
+        if (await ModelPreviewService.SeedColoursAsync(paintSeed, rawSeed: true) is { } seedColours)
+        {
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, seedColours, paintSeed);
+            if (version != _version) return;
+            Preview.Show(mesh, Colour, m => IsGlow(m) ? null : textures.GetValueOrDefault(m));
+            NoteTxt.Text = colourSeedText is not null
+                ? $"Shape from the Model Seed, paint from the Home Seed - colours close to the game's, not always exact. Drag to turn."
+                : $"Shape and colours from your game files and this {Subject}'s seed - drag to turn.";
+            return;
+        }
         Preview.Show(mesh, Colour, hologram: true);
-        NoteTxt.Text = $"Shape scan - the parts are this {Subject}'s own, from its seed and your game files. Its colours show once you pick custom colours for it in game (Customisation). Drag to turn.";
+        NoteTxt.Text = $"Shape scan - the parts are this {Subject}'s own, from its seed and your game files. Drag to turn.";
     }
 
     /// <summary>Engine glow: ENGINEGLOW materials, and a Dreadnought's thruster glow
@@ -85,5 +160,44 @@ public sealed partial class ModelPreviewPanel : UserControl
         string name = System.IO.Path.GetFileName(material);
         return name.Contains("ENGINEGLOW", StringComparison.OrdinalIgnoreCase)
             || (material.Contains("THRUSTER", StringComparison.OrdinalIgnoreCase) && name.Contains("GLOW", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Builds and shows a creature or companion model from its rig and chosen descriptors.</summary>
+    public async Task ShowCreatureAsync(string rigId, IEnumerable<string>? chosenDescriptors = null, bool hologram = false, bool silhouette = false,
+        bool wild = false, CreatureModelService.ExtraModel? extra = null, ulong seed = 0, ulong colourSeed = 0)
+    {
+        int version = ++_version;
+        if (GameDataService.Game is not { } game)
+        {
+            Preview.ShowMessage("Update your game data (Settings › Game data) to see the model.");
+            NoteTxt.Text = "";
+            return;
+        }
+        Preview.ShowMessage($"Building this {Subject}'s model from your game files...");
+        NoteTxt.Text = "";
+        StartYawOffset = Math.PI;
+
+        var mesh = await CreatureModelService.BuildCreatureMeshAsync(game, rigId, chosenDescriptors, wild, extra);
+        if (version != _version) return;
+        if (mesh is null)
+        {
+            Preview.ShowMessage($"This {Subject}'s 3D model couldn't be built from your game files.");
+            return;
+        }
+
+        uint Colour(string material) => CreatureModelService.CreatureMaterialColour(material);
+        if (!hologram && !silhouette && await CreatureModelService.PaintAsync(game, mesh, seed, colourSeed) is { } textures)
+        {
+            if (version != _version) return;
+            Preview.Show(mesh, Colour, m => textures.GetValueOrDefault(m));
+            NoteTxt.Text = "Shape and colours from your game files and its seed - drag to turn.";
+            return;
+        }
+        Preview.Show(mesh, Colour, hologram: hologram, silhouette: silhouette);
+        NoteTxt.Text = silhouette
+            ? $"Unscanned species silhouette from planet generation. Drag to turn."
+            : hologram
+                ? $"Hologram scan — shape and anatomy from your game files. Drag to turn."
+                : $"Shape and anatomy from your game files and saved traits — drag to turn.";
     }
 }

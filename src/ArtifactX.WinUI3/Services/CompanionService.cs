@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
@@ -50,20 +51,79 @@ public static class CompanionService
     }
 
     /// <summary>The eggs in the save (NmsCompanionPaths.EggArrayPath): name, species,
-    /// size (unY) and trait values (JAy), for the Egg Sequencer page. Read-only.</summary>
-    public static List<EggCreature> ReadEggs()
+    /// size (unY) and trait values (JAy), for the Egg Sequencer page. Read-only.
+    /// An egg with no fH8 takes the companion name (CreatureNames) from its XID and
+    /// tDR; for an egg a companion laid, tDR is the parent's BirthTime (XwC), so it
+    /// carries the parent's name. Confirmed 2026-11-15 on Slot 8, all three exact in
+    /// game: egg 12 (CAT, tDR = companion 2's XwC 1790793453) "Beary-Beary's Genetic
+    /// Material", egg 13 (TREX, tDR = companion 11's XwC 1790952999) "Orangipti's",
+    /// and egg 8 (LAND_JELLYFISH, tDR 0) "Iihila's".</summary>
+    public static List<(int Slot, EggCreature Egg)> ReadEggs(CreatureNameService? names = null)
     {
-        var eggs = new List<EggCreature>();
+        var eggs = new List<(int Slot, EggCreature Egg)>();
         if (SaveSessionManager.GetValue(NmsCompanionPaths.EggArrayPath) is not JArray array) return eggs;
         for (int i = 0; i < array.Count; i++)
         {
             string xid = (array[i]?["XID"]?.Value<string>() ?? "").TrimStart('^');
             if (xid.Length == 0 || array[i]?["JAy"] is not JArray traits || traits.Count < 3) continue;
             string name = array[i]?["fH8"]?.Value<string>() ?? "";
-            eggs.Add(new EggCreature(string.IsNullOrWhiteSpace(name) ? $"Companion egg {eggs.Count + 1}" : name, xid,
-                array[i]?["unY"]?.Value<float>() ?? 1f, traits.Take(3).Select(t => t.Value<float>()).ToArray()));
+            if (string.IsNullOrWhiteSpace(name))
+                name = names?.CompanionName(xid, NmsSpaceStationPaths.ParsePackedAddress(array[i]?["tDR"]) ?? 0) ?? "";
+            eggs.Add((i, new EggCreature(string.IsNullOrWhiteSpace(name) ? $"Companion egg {eggs.Count + 1}" : name, xid,
+                array[i]?["unY"]?.Value<float>() ?? 1f, traits.Take(3).Select(t => t.Value<float>()).ToArray())));
         }
         return eggs;
+    }
+
+    /// <summary>What an egg's creature looks like now, for the 3D preview: species (XID,
+    /// with its "^"), body parts (osl) and look seeds (CreatureModelService.CompanionLookSeeds).
+    /// An egg record has the same fields as a companion (NmsCompanionPaths.EggArrayPath).
+    /// Null for an empty slot.</summary>
+    public static (string Species, List<string> Parts, ulong Seed, ulong ColourSeed, ulong SpeciesSeed, ulong GenusSeed)? EggLook(int slot)
+    {
+        if (SaveSessionManager.GetValue(NmsCompanionPaths.EggArrayPath) is not JArray array
+            || slot < 0 || slot >= array.Count || array[slot] is not JObject egg) return null;
+        string species = egg["XID"]?.Value<string>() ?? "";
+        if (species.TrimStart('^').Length == 0) return null;
+        var parts = (egg["osl"] as JArray)?.Select(p => p?.Value<string>() ?? "").Where(p => p.Length > 0).ToList() ?? [];
+        var (seed, colourSeed) = CreatureModelService.CompanionLookSeeds(egg);
+        // m9o / JrL: the species and genus seeds behind the Battle Abilities; hatching keeps them (issue #71).
+        return (species, parts, seed, colourSeed,
+            NmsSpaceStationPaths.ParsePackedAddress(egg["m9o"]) ?? 0, NmsSpaceStationPaths.ParsePackedAddress(egg["JrL"]) ?? 0);
+    }
+
+    /// <summary>Where the player carries each egg: egg slot to the inventory holding
+    /// its item ("Exosuit", a starship's name, "Freighter", an exocraft, a storage
+    /// container). The item ^EGGn is egg slot n-1 (NmsCompanionPaths.EggArrayPath).
+    /// An egg slot with no item in these inventories is left out.</summary>
+    public static async Task<Dictionary<int, string>> EggPlacesAsync()
+    {
+        var places = new Dictionary<int, string>();
+        void Scan(JToken? container, string place)
+        {
+            if (container?[":No"] is not JArray items) return;
+            foreach (var item in items)
+            {
+                string id = (item?["b2n"]?.Value<string>() ?? "").TrimStart('^');
+                if (id.StartsWith("EGG", StringComparison.OrdinalIgnoreCase)
+                    && int.TryParse(id.AsSpan(3), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int n)
+                    && n >= 1) places.TryAdd(n - 1, place);
+            }
+        }
+
+        Scan(SaveSessionManager.GetValue(NmsInventoryContainer.ExosuitCargoPath), "Exosuit");
+        if (SaveSessionManager.GetValue(NmsInventoryContainer.ShipArrayPath) is JArray ships)
+            for (int i = 0; i < ships.Count; i++)
+                if (ships[i]?[";l5"]?[":No"] is JArray { Count: > 0 } cargo
+                    && cargo.Any(c => (c?["b2n"]?.Value<string>() ?? "").StartsWith("^EGG", StringComparison.OrdinalIgnoreCase)))
+                    Scan(ships[i]?[";l5"], await StarshipService.DisplayNameAsync(i));
+        Scan(SaveSessionManager.GetValue(NmsInventoryContainer.FreighterCargoPath), "Freighter");
+        if (SaveSessionManager.GetValue(NmsInventoryContainer.ExocraftArrayPath) is JArray vehicles)
+            for (int i = 0; i < vehicles.Count; i++)
+                Scan(vehicles[i]?[";l5"], Enum.IsDefined((ExocraftType)i) ? ExocraftCapacity.DisplayName((ExocraftType)i) : "Exocraft");
+        foreach (var container in BaseStorageService.DiscoverContainers())
+            Scan(SaveSessionManager.GetValue(NmsInventoryContainer.BaseStorageContainerPath(container.Key)), container.Name);
+        return places;
     }
 
     /// <summary>"^PLANTCAT" -> "Plantcat" - just enough formatting to be readable; not
@@ -98,35 +158,7 @@ public static class CompanionService
     /// swap built this way.</summary>
     public static JArray BuildDefaultDescriptorArray(List<CreatureDescriptorNode> tree, string newRootOptionId, JArray currentOsl)
     {
-        var childrenByParent = tree
-            .Where(n => n.ParentOptionId != null)
-            .GroupBy(n => n.ParentOptionId!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-
-        var result = new List<string>();
-
-        void Visit(string optionId)
-        {
-            result.Add("^" + optionId);
-
-            if (!childrenByParent.TryGetValue(optionId, out var children)) return;
-
-            var categoriesInOrder = children
-                .GroupBy(n => n.Category)
-                .OrderBy(g => g.Min(n => n.SortOrder));
-
-            foreach (var categoryGroup in categoriesInOrder)
-            {
-                var defaultChoice = categoryGroup
-                    .OrderBy(n => n.OptionId.EndsWith("XRARE", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
-                    .ThenBy(n => n.SortOrder)
-                    .First();
-                Visit(defaultChoice.OptionId);
-            }
-        }
-
-        Visit(newRootOptionId);
-
+        var result = DefaultSubtree(tree, newRootOptionId);
         var byOptionId = new HashSet<string>(tree.Select(n => n.OptionId), StringComparer.OrdinalIgnoreCase);
         foreach (var entry in currentOsl)
         {
@@ -138,22 +170,57 @@ public static class CompanionService
         return new JArray(result.Cast<object>());
     }
 
-    /// <summary>Turns a raw descriptor slot code like "_HTAZEARS_" into
-    /// "Htazears" - title-cased for readability. Rig slot names are the
-    /// game's own internal shorthand (not always a recognizable English
-    /// word), so this is cosmetic cleanup only, not a translation - see
-    /// HumanizeDescriptorOption below for the same caveat on option
-    /// values.</summary>
-    public static string HumanizeDescriptorCategory(string category)
+    /// <summary>An option and, depth-first, one default pick per slot below it (BuildDefaultDescriptorArray's
+    /// rule: a non-rare option first, then the game's own order), as "^"-prefixed osl entries.</summary>
+    private static List<string> DefaultSubtree(List<CreatureDescriptorNode> tree, string optionId)
     {
-        string trimmed = category.Trim('_');
-        if (trimmed.Length == 0) return category;
-        return char.ToUpperInvariant(trimmed[0]) + trimmed[1..].ToLowerInvariant();
+        var childrenByParent = tree
+            .Where(n => n.ParentOptionId != null)
+            .GroupBy(n => n.ParentOptionId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+        var result = new List<string>();
+        void Visit(string id)
+        {
+            result.Add("^" + id);
+            if (!childrenByParent.TryGetValue(id, out var children)) return;
+            foreach (var categoryGroup in children.GroupBy(n => n.Category).OrderBy(g => g.Min(n => n.SortOrder)))
+                Visit(categoryGroup
+                    .OrderBy(n => n.OptionId.EndsWith("XRARE", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+                    .ThenBy(n => n.SortOrder)
+                    .First().OptionId);
+        }
+        Visit(optionId);
+        return result;
+    }
+
+    /// <summary>Swaps the part at <paramref name="index"/> for <paramref name="newOptionId"/> together with its extras:
+    /// the entries right after it that hang off any option of the same slot (osl is depth-first, so they follow it)
+    /// are replaced by the new option's default extras. A plain swap kept the old part's extras: switching Slot 8's
+    /// Gerbilil from the Turtle to the Grunt head left the Turtle head's extras, which the game ignored (2026-11-15:
+    /// Grunt head, no ears, in game) while the Grunt head's own extras could not be picked.</summary>
+    public static JArray SwapPart(List<CreatureDescriptorNode> tree, JArray current, int index, string newOptionId)
+    {
+        var byOption = tree.GroupBy(n => n.OptionId, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var entries = current.Select(v => v?.Value<string>() ?? "").ToList();
+        if (index < 0 || index >= entries.Count || !byOption.TryGetValue(entries[index].TrimStart('^'), out var slot)) return current;
+
+        // Under the slot: some ancestor is an option of the slot (same group, same parent).
+        bool UnderSlot(string entry)
+        {
+            if (!byOption.TryGetValue(entry.TrimStart('^'), out var node)) return false;
+            for (int guard = 0; node.ParentOptionId is { } parentId && byOption.TryGetValue(parentId, out var parent) && guard < 32; guard++, node = parent)
+                if (parent.Category == slot.Category && parent.ParentOptionId == slot.ParentOptionId) return true;
+            return false;
+        }
+        int end = index + 1;
+        while (end < entries.Count && UnderSlot(entries[end])) end++;
+        var result = entries.Take(index).Concat(DefaultSubtree(tree, newOptionId)).Concat(entries.Skip(end));
+        return new JArray(result.Cast<object>());
     }
 
     /// <summary>Turns a raw descriptor option code like "_HEAD_TURTLE" into
     /// "Turtle" for the dropdown label - strips the category's own prefix
-    /// (already shown as the row label via HumanizeDescriptorCategory),
+    /// (the row label names the slot: Helpers.Fauna.BodyPartLabels),
     /// splits what's left on underscores, and capitalizes each piece. The
     /// game ships no separate display-name data for these at all -
     /// TkResourceDescriptorData's own "Name" field turned out to just be a

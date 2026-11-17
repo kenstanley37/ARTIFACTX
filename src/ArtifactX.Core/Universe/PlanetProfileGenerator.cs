@@ -28,7 +28,8 @@ public sealed record PlanetProfileTables(
     ObjectTables? Objects = null,
     Dictionary<string, string>? HintNames = null,
     float[]? ScrapYardDensity = null,
-    CreatureTables? Creatures = null);
+    CreatureTables? Creatures = null,
+    Dictionary<string, string>? Descriptors = null);
 
 /// <summary>A weather type's storm odds (GcWeatherProperties LowStormsChance, HighStormsChance).</summary>
 public sealed record StormChance(float Low, float High);
@@ -50,15 +51,25 @@ public sealed record SentinelTables(
 /// <param name="ScrapWorld">Scrapyard planet (Salvageable Scrap on the scanner; no bones there).</param>
 /// <param name="Hints">Scanner hints (ResourceHint ids, e.g. PLANT_DUST, UI_BONES_HINT), in placing order.</param>
 /// <param name="Water">Has a sea (and so underwater objects).</param>
+/// <param name="Descriptor">The procedural planet descriptor adjective (e.g. "Tropical", "Paradise", "Verdant", "Glacial").</param>
+/// <param name="Harvest">Items its placed objects give - wild plants, clams, storm crystals... (empty before catalog format 93).</param>
 public sealed record PlanetProfile(string Common, string Uncommon, string Rare, int WeatherType, bool Extreme, int Storms,
-    int Flora, int Fauna, int[] Sentinels, string[] Hints, bool ScrapWorld = false, bool Water = false, int? FaunaCount = null);
+    int Flora, int Fauna, int[] Sentinels, string[] Hints, bool ScrapWorld = false, bool Water = false, int? FaunaCount = null,
+    PredictedCreature[]? PredictedCreatures = null, string Descriptor = "", PlanetHarvest[]? Harvest = null);
+
+/// <summary>The cheap part of a <see cref="PlanetProfile"/>: resources, weather, life, sentinels and descriptor, with
+/// no terrain, placed objects or creatures (<see cref="PlanetProfileGenerator.Basics"/>), for searching thousands of
+/// planets at once (the Planet Finder).</summary>
+public sealed record PlanetBasics(string Common, string Uncommon, string Rare, int WeatherType, bool Extreme, int Storms,
+    int Flora, int Fauna, int[] Sentinels, bool ScrapWorld, string Descriptor);
 
 /// <summary>
 /// A planet's resources, weather, life and sentinels from its seed - a port of NMS.exe's
 /// planet-data routine (build 180836, 0x1416a7880, read 2026-10-22): the planet seed starts
 /// a random state that gives 26 child seeds (two draws, joined and mixed, like body seeds);
 /// the life step (0x1416956c0: flora, fauna, sentinels) restarts from child 0, the weather
-/// step (0x141696760) from child 12 and the resource step (0x141696dc0) from child 19.
+/// step (0x141696760) from child 12, the resource step (0x141696dc0) from child 19 and the
+/// descriptor step (0x1416ce4a0: planet type adjective) restarts from child 21 (NMS.exe build 184271, 2026-11-08).
 /// Checked against the game's own code run in an emulator (808 planets: sentinels 807,
 /// weather type 807, resources 803, the rest the emulator's own gaps) and against a real
 /// save's screen-reader records (extreme weather right on all but 5 of ~800). Terrain (child 4)
@@ -102,7 +113,7 @@ public static partial class PlanetProfileGenerator
     }
 
     /// <summary>The 26 child seeds each planet step restarts from.</summary>
-    private static ulong[] ChildSeeds(ulong planetSeed)
+    public static ulong[] ChildSeeds(ulong planetSeed)
     {
         var rng = Rng.Start(planetSeed);
         var seeds = new ulong[26];
@@ -113,6 +124,7 @@ public static partial class PlanetProfileGenerator
         }
         return seeds;
     }
+
 
     /// <param name="planetIndex">The body's 0-based index in its system (save planet index - 1).</param>
     /// <param name="body">The body's type from PlanetGenerator (biome, the game's subtype - not the
@@ -127,6 +139,46 @@ public static partial class PlanetProfileGenerator
     {
         int biome = body.Biome, subType = body.SubType, planetClass = body.Class;
         var seeds = ChildSeeds(planetSeed);
+        var b = Basics(seeds, planetIndex, body, star, galaxyType, inGasGiantSystem, t);
+        var (flora, fauna, sentinels, scrap) = (b.Flora, b.Fauna, b.Sentinels, b.ScrapWorld);
+        var (weather, extreme, storms) = (b.WeatherType, b.Extreme, b.Storms);
+        var (common, uncommon) = (b.Common, b.Uncommon);
+
+        string[] hints = Array.Empty<string>();
+        PlanetHarvest[] harvest = Array.Empty<PlanetHarvest>();
+        bool water = false;
+        float sea = 0f;
+        bool caves = false;
+        if (t.Objects is { } objects && BiomeFile(objects, biome, subType) is { } file)
+        {
+            var terrain = Terrain(Rng.Start(seeds[4]), file, objects.Terrain, body, star);
+            sea = terrain.Sea;
+            caves = terrain.Caves;
+            water = sea > 0f;
+            var planet = new PlanetFacts(biome, subType, planetClass, sentinels.Length > 2 ? sentinels[2] : 1,
+                ExtremeLooking(biome, subType, weather, extreme), scrap, terrain.Sea, terrain.Caves, objects.Terrain.SeaStandard);
+            var placed = PlacedObjects(Rng.Start(seeds[7]), file, objects, planet);
+            hints = placed.Hints;
+            harvest = Harvest(placed.Placed, objects);
+        }
+        var faunaResult = t.Creatures is not null && fauna > 0
+            ? GenerateFauna(planetSeed, biome, subType, planetClass, star, fauna, sea, caves, emptySystem, abandonedSystem, t.Creatures)
+            : default;
+        int? faunaCount = t.Creatures is not null ? (fauna <= 0 ? 0 : faunaResult.Count) : null;
+        return new PlanetProfile(common, uncommon, b.Rare, weather, extreme, storms, flora, fauna, sentinels,
+            hints, scrap, water, faunaCount, faunaResult.Creatures, b.Descriptor, harvest);
+    }
+
+    /// <summary>The planet's resources, weather, life, sentinels and descriptor alone: the same steps and seeds as
+    /// <see cref="Generate"/>, without terrain, placed objects or creatures.</summary>
+    public static PlanetBasics Basics(ulong planetSeed, int planetIndex, PlanetType body, int star,
+        int galaxyType, bool inGasGiantSystem, PlanetProfileTables t) =>
+        Basics(ChildSeeds(planetSeed), planetIndex, body, star, galaxyType, inGasGiantSystem, t);
+
+    private static PlanetBasics Basics(ulong[] seeds, int planetIndex, PlanetType body, int star,
+        int galaxyType, bool inGasGiantSystem, PlanetProfileTables t)
+    {
+        int biome = body.Biome, subType = body.SubType, planetClass = body.Class;
         var (flora, fauna, sentinels, scrap) = Life(Rng.Start(seeds[0]), planetIndex, biome, subType, planetClass, star, galaxyType, t);
         bool corrupted = sentinels[Math.Clamp(t.Sentinels.CheckDifficulty, 0, 3)] == 3;
         var (weather, extreme, storms) = Weather(Rng.Start(seeds[12]), biome, subType, planetClass, star, galaxyType, inGasGiantSystem, corrupted, t);
@@ -143,26 +195,8 @@ public static partial class PlanetProfileGenerator
                 ? (0.15f > f ? t.MiningBiome[Swamp] : 0.33f > f ? t.MiningBiome[16] : 0.66f > f ? t.MiningBiome[0] : t.MiningBiome[Swamp])
                 : t.MiningBiome[Math.Clamp(biome, 0, t.MiningBiome.Length - 1)];
         string common = extreme ? t.MiningStarExtreme[star] : t.MiningStar[star];
-
-        string[] hints = Array.Empty<string>();
-        bool water = false;
-        float sea = 0f;
-        bool caves = false;
-        if (t.Objects is { } objects && BiomeFile(objects, biome, subType) is { } file)
-        {
-            var terrain = Terrain(Rng.Start(seeds[4]), file, objects.Terrain, body, star);
-            sea = terrain.Sea;
-            caves = terrain.Caves;
-            water = sea > 0f;
-            var planet = new PlanetFacts(biome, subType, planetClass, sentinels.Length > 2 ? sentinels[2] : 1,
-                ExtremeLooking(biome, subType, weather, extreme), scrap, terrain.Sea, terrain.Caves, objects.Terrain.SeaStandard);
-            hints = PlacedHints(Rng.Start(seeds[7]), file, objects, planet);
-        }
-        int? faunaCount = t.Creatures is not null
-            ? (fauna <= 0 ? 0 : GenerateFaunaCount(planetSeed, biome, subType, planetClass, star, fauna, sea, caves, emptySystem, abandonedSystem, t.Creatures))
-            : null;
-        return new PlanetProfile(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels,
-            hints, scrap, water, faunaCount);
+        string descriptor = GenerateDescriptor(seeds[21], biome, subType, extreme, storms, sentinels, t);
+        return new PlanetBasics(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels, scrap, descriptor);
     }
 
     private const int Infested = 0x18;

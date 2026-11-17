@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
@@ -18,10 +18,10 @@ public partial class SaveFolderSelectViewModel : ObservableObject
     public ObservableCollection<SaveFolderCandidate> Candidates { get; } = new();
 
     [ObservableProperty]
-    private bool isBusy;
+    public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
-    private string? statusMessage;
+    public partial string? StatusMessage { get; set; }
 
     // Survives across page navigations even though a brand-new ViewModel is
     // constructed on every visit (Frame.Navigate, no NavigationCacheMode

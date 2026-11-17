@@ -1,4 +1,4 @@
-﻿using ArtifactX.Core.Collections;
+using ArtifactX.Core.Collections;
 using System.Collections.ObjectModel;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Universe;
@@ -20,11 +20,11 @@ using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>A line of the SYSTEM DATA box: gold when the game showed it (system notes, read off
-/// the screen or typed in), grey for the generator's answer where nothing was recorded.</summary>
-public sealed record SystemDataRow(string Label, string Value, bool Recorded)
+/// <summary>A line of the SYSTEM DATA box, in gold whether the game showed it (system notes) or the generator worked it
+/// out: the generator matches the game (owner, 2026-11-14: a recorded-only gold read as "not known yet").</summary>
+public sealed record SystemDataRow(string Label, string Value)
 {
-    public Brush ValueBrush => ThemeResources.Brush(Recorded ? "ThemeWarningBrush" : "ThemeTextDimBrush");
+    public Brush ValueBrush => ThemeResources.Brush("ThemeWarningBrush");
 }
 
 /// <summary>A planet name read off the game screen that ArtifactX doesn't know (usually one
@@ -97,6 +97,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial int CurrentPlanet { get; private set; }
     [ObservableProperty] public partial string Heading { get; private set; } = "";
     [ObservableProperty] public partial string Sub { get; private set; } = "";
+    /// <summary>The pinned summary bar's second line: the region and galaxy, then where you are in the system
+    /// ("You're on planet Gakiraw Yonez"), without the planet type Sub also carries.</summary>
+    [ObservableProperty] public partial string SummaryPlace { get; private set; } = "";
     /// <summary>The region's system total from the game's own generator, and how many of them you've visited.</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasRegionSystems))] public partial string RegionSystems { get; private set; } = "";
     public bool HasRegionSystems => RegionSystems.Length > 0;
@@ -104,7 +107,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial string Station { get; private set; } = "";
     [ObservableProperty] public partial string SystemCode { get; private set; } = "";
     [ObservableProperty] public partial bool IsLoading { get; private set; }
-    [ObservableProperty] public partial IReadOnlyList<KnownPlanet> Bodies { get; private set; } = [];
+    /// <summary>Every body the generator gives the system, for the map when the save hasn't placed them (no positions:
+    /// the station and you are left off).</summary>
+    [ObservableProperty] public partial IReadOnlyList<SystemMapBody> OrbitBodies { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SystemDataRow> SystemData { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<UnmatchedBodyViewModel> Unmatched { get; private set; } = [];
     public ObservableCollection<PlanetTileViewModel> Tiles { get; } = new();
@@ -119,6 +124,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     /// <summary>Where you are on the map while in space; null on a planet (that body is outlined) or in a station.</summary>
     [ObservableProperty] public partial SystemMapMarker? MapPlayer { get; private set; }
+
+    /// <summary>The star's colour for the map: the one you recorded, else the generator's.</summary>
+    [ObservableProperty] public partial string MapStarColour { get; private set; } = "";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CaptureLabel), nameof(CanCapture))]
@@ -152,7 +160,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     /// <summary>Square for the orbit drawing, about 3:2 for the game's picture; smaller with "Show less".</summary>
     public double FrameHeight => IsCompact ? 150 : 360;
-    public double FrameWidth => HasMap || HasPicture ? FrameHeight * 1.5 : FrameHeight;
+    public double FrameWidth => FrameHeight * 1.5;
     public Thickness BodyPadding => IsCompact ? new Thickness(20, 12, 20, 14) : new Thickness(20, 16, 20, 20);
 
     partial void OnStationChanged(string value) => OnPropertyChanged(nameof(HasStation));
@@ -191,6 +199,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
                 var descriptors = await CatalogService.GetSystemDescriptorsAsync();
                 SystemNotesService.SetDescriptors(descriptors);
                 Notes.FillChoices(descriptors);
+                await CatalogService.GetSystemWordsByKeyAsync();
                 _descriptorsLoaded = true;
             }
             Show(await LiveSaveWatcher.GetLatestAsync(), live: false);
@@ -263,8 +272,17 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             SystemPicture = null;
             return;
         }
-        // Read off the UI thread, but retain the existing image when the bytes did not change.
-        byte[]? bytes = await Task.Run(() => ScreenCaptureLogService.SystemPicture(system) is string path && File.Exists(path) ? File.ReadAllBytes(path) : null);
+        // Read off the UI thread, but retain the existing image when the bytes did not change. A picture being
+        // replaced right now can't be read: keep what's shown, SystemPictureSaved brings the new one.
+        byte[]? bytes;
+        try
+        {
+            bytes = await Task.Run(() => ScreenCaptureLogService.ReadSystemPicture(system));
+        }
+        catch (IOException)
+        {
+            return;
+        }
         if (SystemAddress != system || version != _pictureVersion) return;
         if (bytes is null)
         {
@@ -321,6 +339,20 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         }).ToList();
     }
 
+    /// <summary>The map's bodies from the system generator alone (names, which moon is whose), for a system the save
+    /// hasn't placed: positions unknown (NaN), the discovered planet where the save has one.</summary>
+    private List<SystemMapBody> OrbitBodiesOf(ulong system, List<KnownPlanet> planets)
+    {
+        int[] hosts = UniverseInfo.Bodies(system).Hosts;
+        return Enumerable.Range(1, hosts.Length).Select(index =>
+        {
+            int host = hosts[index - 1];
+            return new SystemMapBody(index, UniverseInfo.PlanetName(system, index), double.NaN, double.NaN, double.NaN,
+                host, host > 0 ? UniverseInfo.PlanetName(system, host) : "", index == CurrentPlanet,
+                planets.FirstOrDefault(p => p.PlanetIndex == index));
+        }).ToList();
+    }
+
     private SystemMapMarker? PlayerMarker()
     {
         if (CurrentPlanet != 0 || MapBodies.Count == 0 || NmsPlanetCoordinates.PlayerInSystem(_snapshot.Spawn) is not { } at) return null;
@@ -341,8 +373,8 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         if (SystemAddress is not ulong system)
         {
             Heading = "Unknown location";
-            Sub = Facts = Station = SystemCode = "";
-            Bodies = [];
+            Sub = Facts = Station = SystemCode = SummaryPlace = "";
+            OrbitBodies = [];
             MapBodies = [];
             MapStation = null;
             MapPlayer = null;
@@ -373,16 +405,38 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         string bodies = moons > 0
             ? $"{planets.Count - moons} planet{(planets.Count - moons == 1 ? "" : "s")} · {moons} moon{(moons == 1 ? "" : "s")}"
             : $"{planets.Count} known planet{(planets.Count == 1 ? "" : "s")}";
-        string where = CurrentPlanet == 0 ? "you're in space"
-            : BodyKindsService.IsMoon(system, CurrentPlanet) ? "you're on a moon"
-            : $"you're on planet {CurrentPlanet}";
+        string where;
+        if (CurrentPlanet == 0)
+        {
+            where = "you're in space";
+        }
+        else
+        {
+            var curPlanet = planets.FirstOrDefault(p => p.PlanetIndex == CurrentPlanet);
+            string curName = UniverseInfo.PlanetName(system, CurrentPlanet);
+            bool isMoon = BodyKindsService.IsMoon(system, CurrentPlanet);
+            string bodyKind = isMoon ? "moon" : "planet";
+            var curDesc = PlanetTypesService.Descriptor(system, CurrentPlanet);
+            string typeInfo = curPlanet is not null
+                ? curPlanet.Classification(curDesc, isMoon: isMoon)
+                : curDesc is { Length: > 0 } cd ? (isMoon ? $"{cd} Moon" : $"{cd} Planet") : "";
+
+            where = typeInfo.Length > 0
+                ? $"you're on {bodyKind} {curName} · {typeInfo}"
+                : $"you're on {bodyKind} {curName}";
+        }
         string galaxyText = $"{UniverseInfo.Region(system)} · {NmsGalaxyNames.ForNumber(galaxy) ?? "Galaxy"} ({galaxy})";
+        string you = CurrentPlanet == 0 ? "You're in space"
+            : $"You're on {(BodyKindsService.IsMoon(system, CurrentPlanet) ? "moon" : "planet")} {UniverseInfo.PlanetName(system, CurrentPlanet)}";
+        SummaryPlace = $"{galaxyText}  ·  {you}";
         Sub = (planets.Count == 0 ? $"{galaxyText} · no planets discovered here yet" : $"{galaxyText} · {bodies} · {where}")
             + $" · about {NmsPlanets.DistanceToCoreLightYears(system):N0} ly from the galaxy core";
         SystemCode = S.PortalAddress(system, 0);
         _ = UpdateRegionSystemsAsync(system);
-        if (!Bodies.SequenceEqual(planets)) Bodies = planets;
+        var orbitBodies = OrbitBodiesOf(system, planets);
+        if (!OrbitBodies.SequenceEqual(orbitBodies)) OrbitBodies = orbitBodies;
         var mapBodies = MapBodiesOf(system, planets);
+        MapStarColour = note?.StarColour is { Length: > 0 } recordedStar ? recordedStar : facts.StarLabel;
         if (!MapBodies.SequenceEqual(mapBodies)) MapBodies = mapBodies;
         var player = PlayerMarker();
         if (player != MapPlayer) MapPlayer = player;
@@ -404,9 +458,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
         var known = planets.Select(p => p.PlanetIndex).ToHashSet();
         var allBodies = planets.Concat(PlanetTypesService.Undiscovered(system, known)).OrderBy(p => p.PlanetIndex).ToList();
-        int? savedBody = CabinetPoolService.SavedLoadBody(system, _snapshot?.EquipmentSaveInputs);
-        _ = MultiTools.LoadAsync(system, facts, station.Length > 0 ? station : "the space station",
-            allBodies.Select(p => (p.PlanetIndex, UniverseInfo.PlanetName(system, p.PlanetIndex))).ToList(), savedBody);
 
         var tiles = allBodies.Select(p =>
         {
@@ -419,7 +470,14 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             (current, next) => current.HasSamePresentation(next));
         foreach (var tile in Tiles) _ = tile.LoadPortalAsync();
         UpdateTiles();
-        foreach (var tile in Tiles) _ = tile.LoadNotableAsync();
+        _ = Task.Run(async () =>
+        {
+            var tileList = Tiles.OrderByDescending(t => t.IsHere).ToList();
+            foreach (var tile in tileList)
+            {
+                await tile.LoadNotableAsync();
+            }
+        });
         _ = RefreshPictureAsync();
     }
 
@@ -511,7 +569,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         var f = UniverseInfo.For(system);
         var rows = new List<SystemDataRow>();
         void Row(string label, string? recorded, string estimate) =>
-            rows.Add(new(label, !string.IsNullOrEmpty(recorded) ? recorded : estimate, !string.IsNullOrEmpty(recorded)));
+            rows.Add(new(label, !string.IsNullOrEmpty(recorded) ? recorded : estimate));
         int galaxy = S.GalaxyNumber(system);
         Row("Galaxy", NmsGalaxyNames.ForNumber(galaxy) is { } g ? $"{g} Galaxy" : $"Galaxy {galaxy}", "");
         string Bodies(int planets, int moons) => $"{planets} Planet{(planets == 1 ? "" : "s")} // {moons} Moon{(moons == 1 ? "" : "s")}";
@@ -522,8 +580,13 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         bool uncharted = note?.Race == "None (uncharted)";
         string? economy = note?.Economy is { Length: > 0 } e ? (note.Wealth is { Length: > 0 } w ? $"{e} // {w}" : e)
             : uncharted ? "- Data Unavailable -" : null;
-        Row("Economy", economy, f.Uncharted ? "None" : $"{f.EconomyLabel} // {f.WealthLabel}");
-        Row("Conflict level", note?.Conflict is { Length: > 0 } c ? c : uncharted ? "- Data Unavailable -" : null, f.Uncharted ? "None" : f.ConflictLabel);
+        // A pirate system's game lines: "Prospecting // Black Market", "Pirate Controlled" (Inzadga-Rigpr, 2026-11-14).
+        // Not recorded yet: the word the game picks (SystemWords), else the level until the catalog words load.
+        var words = UniverseInfo.GameWords(system);
+        Row("Economy", economy, f.Uncharted ? "None"
+            : $"{words.Economy ?? f.EconomyLabel} // {(f.Pirate ? "Black Market" : words.Wealth ?? f.WealthLabel)}");
+        Row("Conflict level", note?.Conflict is { Length: > 0 } c ? c : uncharted ? "- Data Unavailable -" : null,
+            f.Uncharted ? "None" : f.Pirate ? "Pirate Controlled" : words.Conflict ?? f.ConflictLabel);
         string defaultStation = $"{UniverseInfo.SystemName(system)} Station";
         if (f.Uncharted || uncharted)
             Row("Space Station", uncharted ? "None (uncharted)" : null, "None (uncharted)");
@@ -546,9 +609,10 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         var open = UnmatchedBodiesService.UnaccountedBodies(system);
         var bodies = (open.Count > 0 ? open : Enumerable.Range(1, UniverseInfo.For(system).PlanetCount + UniverseInfo.For(system).MoonCount).ToList()).Select(b =>
         {
-            string kind = BodyKindsService.IsMoon(system, b) ? "Moon" : "Planet";
+            bool isMoon = BodyKindsService.IsMoon(system, b);
+            string kind = isMoon ? "Moon" : "Planet";
             var planet = planets.FirstOrDefault(p => p.PlanetIndex == b);
-            string type = planet is not null ? $" · {planet.Classification(PlanetDetailsService.Get(system, b)?.Descriptor)}" : "";
+            string type = planet is not null ? $" · {planet.Classification(PlanetTypesService.Descriptor(system, b), isMoon: isMoon)}" : "";
             return new ChoiceItem($"{kind} {b} · {UniverseInfo.PlanetName(system, b)}{type}", b.ToString(CultureInfo.InvariantCulture));
         }).ToList();
         return UnmatchedBodiesService.For(system).Select(h => new UnmatchedBodyViewModel(h, bodies)).ToList();

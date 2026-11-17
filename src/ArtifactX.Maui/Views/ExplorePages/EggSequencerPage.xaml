@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="ArtifactX.Maui.Views.ExplorePages.EggSequencerPage"
+    Shell.NavBarIsVisible="False"
+    Background="{DynamicResource ThemePageBackdropBrush}">
+
+    <VerticalStackLayout Padding="20,24" Spacing="14">
+        <Label
+            Text="Egg Sequencer"
+            Style="{StaticResource ThemePageTitleStyle}" />
+        <Label
+            Text="Pick your companion and what you'll put in the sequencer to see what the egg changes."
+            Style="{StaticResource ThemeDimTextStyle}" />
+    </VerticalStackLayout>
+</ContentPage>

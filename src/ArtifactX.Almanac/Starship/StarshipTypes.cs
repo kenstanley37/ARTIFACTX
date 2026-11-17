@@ -94,6 +94,9 @@ public static class StarshipTypes
         new StarshipTypeInfo("Shuttle", "MODELS/COMMON/SPACECRAFT/SHUTTLE/SHUTTLE_PROC.SCENE.MBIN"),
         new StarshipTypeInfo("Solar", "MODELS/COMMON/SPACECRAFT/SAILSHIP/SAILSHIP_PROC.SCENE.MBIN"),
         new StarshipTypeInfo("Sentinel Interceptor", "MODELS/COMMON/SPACECRAFT/SENTINELSHIP/SENTINELSHIP_PROC.SCENE.MBIN"),
+        // Ordinary (grown) Living Ships - confirmed on Slot 8's unnamed Living Ship 2026-11-14
+        // ("Yulin KV4" in game), which showed "(Current - not in known list)" before.
+        new StarshipTypeInfo("Living Ship", "MODELS/COMMON/SPACECRAFT/S-CLASS/BIOPARTS/BIOSHIP_PROC.SCENE.MBIN"),
         // Player-built Corvettes use the BIGGS model ("Biggs" is the game's internal
         // name for Corvettes) - confirmed on all 3 Corvettes in a real save
         // 2026-10-10. The earlier CORVETTE/CORVETTE.SCENE.MBIN guess does exist in

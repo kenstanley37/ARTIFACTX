@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,14 +12,14 @@ public sealed partial class SaveSlotGroup : ObservableObject
     public required string SourceDisplayName { get; init; }
 
     [ObservableProperty]
-    private bool isActive;
+    public partial bool IsActive { get; set; }
 
     /// <summary>True on the slot of its platform folder that was written most
     /// recently - usually the one the game is playing. Set by
     /// SaveFolderSelectViewModel.MarkLatest from live file times, since the
     /// indexed SaveFileEntry.LastModified is a one-time snapshot.</summary>
     [ObservableProperty]
-    private bool isLatest;
+    public partial bool IsLatest { get; set; }
 
     /// <summary>Live last-write time of this slot's newest file.</summary>
     public System.DateTime LastWriteUtc => Files.Max(f => File.Exists(f.FullPath) ? File.GetLastWriteTimeUtc(f.FullPath) : System.DateTime.MinValue);

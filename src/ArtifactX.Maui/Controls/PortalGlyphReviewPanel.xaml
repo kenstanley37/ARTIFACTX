@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
+             xmlns:models="clr-namespace:ArtifactX.Maui.Models"
+             xmlns:art="clr-namespace:ArtifactX.Core.Theming;assembly=ArtifactX.Core"
+             xmlns:helpers="clr-namespace:ArtifactX.Maui.Helpers.PortalGlyphs"
+             x:Class="ArtifactX.Maui.Controls.PortalGlyphReviewPanel"
+             x:DataType="vm:PortalScannerViewModel">
+    <ContentView.Resources>
+        <helpers:PortalGlyphGeometryConverter x:Key="GlyphGeometryConverter" />
+    </ContentView.Resources>
+    <Border Style="{StaticResource ThemeCardStyle}" Padding="16">
+        <VerticalStackLayout Spacing="12">
+            <Label Text="Review glyphs" Style="{StaticResource ThemeCardTitleStyle}" />
+            <Label Text="Check all 12 positions against your screen. A ? marks a less certain reading. Tap a position, then its glyph below to correct it."
+                   Style="{StaticResource ThemeBodyTextStyle}" />
+            <FlexLayout BindableLayout.ItemsSource="{Binding Slots}" Wrap="Wrap" JustifyContent="Start">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="models:PortalReviewSlot">
+                        <Border Margin="2" FlexLayout.Basis="15%" FlexLayout.Grow="1" HeightRequest="66" Style="{StaticResource ThemeCardAltStyle}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                    <Setter Property="Stroke" Value="{DynamicResource ThemeAccentBrush}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Grid>
+                                <Button Padding="0"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:PortalScannerViewModel}}, Path=SelectSlotCommand}"
+                                        CommandParameter="{Binding .}" SemanticProperties.Description="{Binding AccessibleName}"
+                                        BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                                <VerticalStackLayout Padding="4" Spacing="2" InputTransparent="True">
+                                <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}" Fill="{DynamicResource ThemeTextBrush}"
+                                      Aspect="Uniform" WidthRequest="32" HeightRequest="32" HorizontalOptions="Center" InputTransparent="True" />
+                                <Label Text="{Binding Label}" FontSize="14" HorizontalTextAlignment="Center" TextColor="{DynamicResource ThemeAccentColor}" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsKeypadOpen}">
+                <Label Text="{Binding SelectedPosition, StringFormat='Editing position {0}'}" Style="{StaticResource ThemeBodyTextStyle}" VerticalOptions="Center" />
+                <Button Grid.Column="1" Text="Done correcting" Command="{Binding CloseKeypadCommand}"
+                        BackgroundColor="{DynamicResource ThemePanelAltColor}" TextColor="{DynamicResource ThemeTextColor}" />
+            </Grid>
+            <FlexLayout BindableLayout.ItemsSource="{Binding Keys}" Wrap="Wrap" JustifyContent="Start" IsVisible="{Binding IsKeypadOpen}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="art:PortalGlyphVector">
+                        <Border Style="{StaticResource ThemeCardAltStyle}" Margin="3" FlexLayout.Basis="21%" FlexLayout.Grow="1" HeightRequest="76">
+                            <Grid>
+                                <Button Padding="0"
+                                        SemanticProperties.Description="{Binding Name, StringFormat='Enter glyph {0} at the selected position'}"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:PortalScannerViewModel}}, Path=TapGlyphCommand}"
+                                        CommandParameter="{Binding .}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                                <VerticalStackLayout Padding="6" Spacing="4" InputTransparent="True">
+                                <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}" Fill="{DynamicResource ThemeTextBrush}" Aspect="Uniform" WidthRequest="40" HeightRequest="40" HorizontalOptions="Center" />
+                                <Label Text="{Binding Name}" FontSize="12" HorizontalTextAlignment="Center" TextColor="{DynamicResource ThemeTextColor}" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+            <Entry Text="{Binding ReviewInput}" MaxLength="12" TextColor="{DynamicResource ThemeTextColor}"
+                   SemanticProperties.Description="Edit the 12-glyph scan candidate" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <Button Text="Use address" Command="{Binding AcceptReviewCommand}"
+                        BackgroundColor="{DynamicResource ThemeAccentColor}" TextColor="{DynamicResource ThemeOnAccentColor}" />
+                <Button Grid.Column="1" Text="Discard" Command="{Binding DiscardReviewCommand}"
+                        BackgroundColor="{DynamicResource ThemePanelAltColor}" TextColor="{DynamicResource ThemeTextColor}" />
+            </Grid>
+        </VerticalStackLayout>
+    </Border>
+</ContentView>

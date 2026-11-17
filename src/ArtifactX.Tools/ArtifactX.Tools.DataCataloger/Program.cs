@@ -10,6 +10,19 @@ using libMBIN;
 string workingFolder = Path.Combine(AppContext.BaseDirectory, "Working");
 Directory.CreateDirectory(workingFolder);
 
+if (args.Length > 0 && args[0].Equals("export-portal-model", StringComparison.OrdinalIgnoreCase))
+{
+    try
+    {
+        if (args.Length != 3)
+            throw new ArgumentException("Usage: DataCataloger export-portal-model <catalog.sqlite> <output.json>");
+        PortalGlyphModelExportService.Export(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
+        Console.WriteLine("Exported build-stamped numerical portal recognition model (no images).");
+    }
+    catch (Exception error) { Console.Error.WriteLine(error.Message); Environment.ExitCode = 1; }
+    return;
+}
+
 // Research definitions only: no building placement or stock is inferred.
 if (args.Length > 0 && args[0].Equals("planet-shop-survey", StringComparison.OrdinalIgnoreCase))
 {

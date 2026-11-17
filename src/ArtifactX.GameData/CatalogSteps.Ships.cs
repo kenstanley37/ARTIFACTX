@@ -21,6 +21,15 @@ public static partial class CatalogSteps
     /// [{"t":type,"o":[{"id","n":name,"s":[scene paths],"c":[[groups]...]}]}].
     /// Multi-tools too since 2026-10-15 (UsageCategory "MultiTool"): the seed
     /// picks a tool's kind the same way - Alien, Starter... (MultiToolKinds).
+    /// Creatures too since catalog format 87 (UsageCategory "Creature", every descriptor under
+    /// MODELS/PLANETS/CREATURES/ outside animation folders): in this form - nested groups apart from
+    /// referenced scenes - ShipParts can pick a creature's parts as the game does (issue #15).
+    /// Since format 90 also the descriptor of every scene the creature filename table names outside that folder
+    /// (Filename and ExtraFilename): the floral cat (PLANTCAT, MODELS/PLANETS/BIOMES/FLORAL/MEDIUMCREATURE) and the
+    /// robots under MODELS/COMMON/ROBOTS - without it the app drew PLANTCAT as a blob (owner, W. Gentaylatica, 2026-11-13).
+    /// Since format 104 also the people under MODELS/COMMON/PLAYER/PLAYERCHARACTER/ (UsageCategory "Character"): a freighter
+    /// captain is NPCGEK / NPCVYKEEN / NPCKORVAX / NPCROBOT.SCENE.MBIN (the save's crew race) and its crew seed picks the
+    /// head accessories, eyes, crests and helmets in the same kind of tree (#25 freighter captain preview).
     /// </summary>
     public static void AddShipDescriptors(string catalogPath, string pcbanksPath)
     {
@@ -43,25 +52,29 @@ public static partial class CatalogSteps
                 }).ToList() ?? new List<object>(),
             }).ToList() ?? new List<object>();
 
-        var reader = new PakReaderService();
-        var extraction = new ExtractionService();
         var rows = new List<CatalogItem>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
+        var creatureDescriptors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (DecodeMbin(pcbanksPath, CreatureFilenameTableFile) is libMBIN.NMS.GameComponents.GcCreatureFilenameTable creatureFiles)
+            foreach (var f in creatureFiles.Table ?? new())
+                foreach (string? scene in new[] { f.Filename?.Value, f.ExtraFilename?.Value })
+                    if (!string.IsNullOrEmpty(scene) && scene.EndsWith(".SCENE.MBIN", StringComparison.OrdinalIgnoreCase))
+                        creatureDescriptors.Add(scene[..^".SCENE.MBIN".Length] + ".DESCRIPTOR.MBIN");
+        foreach (var (pakPath, header, entries) in GetPakEntries(pcbanksPath))
         {
-            Models.PakHeader header;
-            IReadOnlyList<Models.PakEntry> entries;
-            try { header = reader.ReadHeader(pak.FullPath); entries = reader.Read(pak.FullPath); }
-            catch { continue; }
             foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
                          && (e.FileName.StartsWith("MODELS/COMMON/SPACECRAFT/", StringComparison.OrdinalIgnoreCase)
-                             || e.FileName.StartsWith("MODELS/COMMON/WEAPONS/MULTITOOL/", StringComparison.OrdinalIgnoreCase))
-                         && e.FileName.EndsWith(".DESCRIPTOR.MBIN", StringComparison.OrdinalIgnoreCase)))
+                             || e.FileName.StartsWith("MODELS/COMMON/WEAPONS/MULTITOOL/", StringComparison.OrdinalIgnoreCase)
+                             || e.FileName.StartsWith("MODELS/COMMON/PLAYER/PLAYERCHARACTER/", StringComparison.OrdinalIgnoreCase)
+                             || (e.FileName.StartsWith("MODELS/PLANETS/CREATURES/", StringComparison.OrdinalIgnoreCase)
+                                 && !System.Text.RegularExpressions.Regex.IsMatch(e.FileName, "/ANIM(S|ATION)?/", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
+                         && e.FileName.EndsWith(".DESCRIPTOR.MBIN", StringComparison.OrdinalIgnoreCase)
+                         || creatureDescriptors.Contains(e.FileName ?? "")))
             {
                 if (!seen.Add(entry.FileName)) continue;
                 try
                 {
-                    var bytes = extraction.ExtractEntryBytes(pak.FullPath, entry, header);
+                    var bytes = SharedExtraction.ExtractEntryBytes(pakPath, entry, header);
                     if (bytes is null || bytes.Length == 0) continue;
                     var mbin = new MBINFile(new MemoryStream(bytes));
                     mbin.Load();
@@ -71,18 +84,66 @@ public static partial class CatalogSteps
                     {
                         GameId = "DESC:" + path,
                         NameEnglish = path,
-                        UsageCategory = path.Contains("/weapons/") ? "MultiTool" : "Spacecraft",
+                        UsageCategory = path.Contains("/weapons/") ? "MultiTool"
+                            : path.Contains("/playercharacter/") ? "Character"
+                            : path.Contains("/creatures/") || creatureDescriptors.Contains(entry.FileName) ? "Creature" : "Spacecraft",
                         DescriptionEnglish = JsonSerializer.Serialize(Groups(list)),
                     });
                 }
                 catch (Exception ex) { ConsoleStyle.Warning($"{entry.FileName}: {ex.Message}"); }
             }
         }
-        ConsoleStyle.Header($"Found {rows.Count} starship and multi-tool part trees.");
+        ConsoleStyle.Header($"Found {rows.Count} starship, multi-tool, creature and character part trees.");
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "ShipDescriptors", "TkModelDescriptorList", "models/common/spacecraft/*.descriptor.mbin", rows);
         ConsoleStyle.Success($"Wrote {rows.Count} starship part trees to {catalogPath}.");
+    }
+
+    /// <summary>
+    /// The creature rigs' part filters (catalog format 92): each &lt;scene&gt;.FILTER.MBIN under MODELS/
+    /// (TkResourceFilterList) - named entries (PREDATOR, HERBIVORE, the anomalous rig's FLOAT / ROLL / CRYSTAL) listing
+    /// parts a creature with that filter can't have (CreatureTables.ExcludedParts; NMS.exe 184271 FUN_142ddea90 turns
+    /// the scene path into the filter path). Category "CreatureFilters": GameId "FILTER:" + lower-case filter path,
+    /// NameEnglish = the path, DescriptionEnglish = JSON [{"n":name,"p":[part ids]}] in file order.
+    /// </summary>
+    public static void AddCreatureFilters(string catalogPath, string pcbanksPath)
+    {
+        if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
+        var rows = new List<CatalogItem>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (pakPath, header, entries) in GetPakEntries(pcbanksPath))
+            foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
+                         && e.FileName.StartsWith("MODELS/", StringComparison.OrdinalIgnoreCase)
+                         && e.FileName.EndsWith(".FILTER.MBIN", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!seen.Add(entry.FileName)) continue;
+                try
+                {
+                    var bytes = SharedExtraction.ExtractEntryBytes(pakPath, entry, header);
+                    if (bytes is null || bytes.Length == 0) continue;
+                    var mbin = new MBINFile(new MemoryStream(bytes));
+                    mbin.Load();
+                    if (mbin.GetData() is not libMBIN.NMS.Toolkit.TkResourceFilterList list) continue;
+                    string path = entry.FileName.ToLowerInvariant();
+                    var filters = (list.Filters ?? new()).Select(f => new Dictionary<string, object>
+                    {
+                        ["n"] = f.FilterName?.Value ?? "",
+                        ["p"] = (f.FilteredResources ?? new()).Select(r => r?.Value ?? "").Where(r => r.Length > 0).ToList(),
+                    }).ToList();
+                    rows.Add(new CatalogItem
+                    {
+                        GameId = "FILTER:" + path,
+                        NameEnglish = path,
+                        UsageCategory = "Creature",
+                        DescriptionEnglish = JsonSerializer.Serialize(filters),
+                    });
+                }
+                catch (Exception ex) { ConsoleStyle.Warning($"{entry.FileName}: {ex.Message}"); }
+            }
+        using var db = new CatalogDbContext(catalogPath);
+        Replace(db, "CreatureFilters", "TkResourceFilterList", "models/**/*.filter.mbin", rows);
+        ConsoleStyle.Success($"Wrote {rows.Count} creature part filters to {catalogPath}.");
     }
 }
 
@@ -101,27 +162,8 @@ public static partial class CatalogSteps
     public static void AddPartGroups(string catalogPath, string pcbanksPath)
     {
         if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
-        var reader = new PakReaderService();
-        var extraction = new ExtractionService();
         const string file = "METADATA/GAMESTATE/PLAYERDATA/CHARACTERCUSTOMISATIONDESCRIPTORGROUPSDATA.MBIN";
-        libMBIN.NMS.GameComponents.GcCustomisationDescriptorGroups? table = null;
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            Models.PakHeader header;
-            IReadOnlyList<Models.PakEntry> entries;
-            try { header = reader.ReadHeader(pak.FullPath); entries = reader.Read(pak.FullPath); }
-            catch { continue; }
-            var entry = entries.FirstOrDefault(e => string.Equals(e.FileName, file, StringComparison.OrdinalIgnoreCase));
-            if (entry is null) continue;
-            try
-            {
-                var mbin = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(pak.FullPath, entry, header)!));
-                mbin.Load();
-                table = mbin.GetData() as libMBIN.NMS.GameComponents.GcCustomisationDescriptorGroups;
-            }
-            catch (Exception ex) { ConsoleStyle.Warning($"Couldn't read the part groups: {ex.Message}"); }
-            break;
-        }
+        var table = DecodeMbin(pcbanksPath, file) as libMBIN.NMS.GameComponents.GcCustomisationDescriptorGroups;
         var rows = new List<CatalogItem>();
         foreach (var set in table?.DescriptorGroupSets ?? new())
             foreach (var g in set.DescriptorGroups ?? new())
@@ -158,26 +200,7 @@ public static partial class CatalogSteps
     {
         if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
         const string file = "METADATA/SIMULATION/SOLARSYSTEM/COLOURS/BASECOLOURPALETTES.MBIN";
-        var reader = new PakReaderService();
-        var extraction = new ExtractionService();
-        libMBIN.NMS.GameComponents.GcPaletteList? list = null;
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            Models.PakHeader header;
-            IReadOnlyList<Models.PakEntry> entries;
-            try { header = reader.ReadHeader(pak.FullPath); entries = reader.Read(pak.FullPath); }
-            catch { continue; }
-            var entry = entries.FirstOrDefault(e => string.Equals(e.FileName, file, StringComparison.OrdinalIgnoreCase));
-            if (entry is null) continue;
-            try
-            {
-                var mbin = new MBINFile(new MemoryStream(extraction.ExtractEntryBytes(pak.FullPath, entry, header)!));
-                mbin.Load();
-                list = mbin.GetData() as libMBIN.NMS.GameComponents.GcPaletteList;
-            }
-            catch (Exception ex) { ConsoleStyle.Warning($"Couldn't read the colour palettes: {ex.Message}"); }
-            break;
-        }
+        var list = DecodeMbin(pcbanksPath, file) as libMBIN.NMS.GameComponents.GcPaletteList;
         var rows = new List<CatalogItem>();
         for (int i = 0; i < (list?.Palettes?.Length ?? 0); i++)
         {
@@ -194,6 +217,62 @@ public static partial class CatalogSteps
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "Palettes", "GcPaletteData", file.ToLowerInvariant(), rows);
         ConsoleStyle.Success($"Wrote {rows.Count} colour palettes to {catalogPath}.");
+        AddBiomePalettes(catalogPath, pcbanksPath);
+    }
+
+    /// <summary>
+    /// Each biome file's own colour palettes (catalog format 91): GcBiomeData.ColourPaletteFile, a GcPaletteList like
+    /// the base one (biomes/lush/lushcolourpalettes.mbin...; many files point at the base palettes). A planet's colour
+    /// table - what its creatures are painted from - is the palette generator over its biome file's palettes.
+    /// Category "BiomePalettes": GameId "BIOMEPALETTEFILES" = JSON string[biome][sub-type] of lower-case palette paths
+    /// ("" where none), indexed like biomefilenames.mbin's options (PlanetProfileGenerator's biome files); GameId
+    /// "BIOMEPALETTE:" + path = JSON [{"n": NumColours, "c": [[r,g,b] x 64]}] for the file's 66 palettes.
+    /// </summary>
+    private static void AddBiomePalettes(string catalogPath, string pcbanksPath)
+    {
+        const string listFile = "METADATA/SIMULATION/SOLARSYSTEM/BIOMES/BIOMEFILENAMES.MBIN";
+        if (DecodeMbin(pcbanksPath, listFile) is not libMBIN.NMS.GameComponents.GcBiomeFileList files)
+        {
+            ConsoleStyle.Warning("Biome file list not found - biome colour palettes left out.");
+            return;
+        }
+        static string Mbin(string path) => System.Text.RegularExpressions.Regex.Replace(path, @"\.MXML$", ".MBIN",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase).ToUpperInvariant();
+        var biomeData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var map = new string[files.BiomeFiles.Length][];
+        for (int b = 0; b < map.Length; b++)
+        {
+            var options = files.BiomeFiles[b].FileOptions ?? new();
+            map[b] = new string[options.Count == 0 ? 0 : options.Max(o => (int)o.SubType.BiomeSubType) + 1];
+            Array.Fill(map[b], "");
+            foreach (var o in options)
+            {
+                string path = Mbin(o.Filename?.Value ?? "");
+                if (!biomeData.TryGetValue(path, out string? palette))
+                    biomeData[path] = palette = DecodeMbin(pcbanksPath, path) is libMBIN.NMS.GameComponents.GcBiomeData data
+                        ? Mbin(data.ColourPaletteFile?.Value ?? "").ToLowerInvariant() : "";
+                map[b][(int)o.SubType.BiomeSubType] = palette;
+            }
+        }
+        var rows = new List<CatalogItem>
+        {
+            new() { GameId = "BIOMEPALETTEFILES", NameEnglish = "BiomePaletteFiles", DescriptionEnglish = JsonSerializer.Serialize(map) },
+        };
+        foreach (string path in map.SelectMany(m => m).Where(p => p.Length > 0).Distinct())
+            if (DecodeMbin(pcbanksPath, path.ToUpperInvariant()) is libMBIN.NMS.GameComponents.GcPaletteList list)
+                rows.Add(new CatalogItem
+                {
+                    GameId = "BIOMEPALETTE:" + path,
+                    NameEnglish = path,
+                    DescriptionEnglish = JsonSerializer.Serialize(list.Palettes.Select(p => new
+                    {
+                        n = p.NumColours.ToString(),
+                        c = p.Colours.Select(c => new[] { c.R, c.G, c.B }),
+                    })),
+                });
+        using var db = new CatalogDbContext(catalogPath);
+        Replace(db, "BiomePalettes", "GcPaletteList", "metadata/simulation/solarsystem/biomes/*colourpalettes.mbin", rows);
+        ConsoleStyle.Success($"Wrote {rows.Count - 1} biome colour palette files to {catalogPath}.");
     }
 }
 
@@ -217,27 +296,8 @@ public static partial class CatalogSteps
     public static void AddShipLooks(string catalogPath, string pcbanksPath)
     {
         if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            try { index.Add(pak.FullPath, reader.ReadHeader(pak.FullPath), reader.Read(pak.FullPath)); }
-            catch { /* unreadable PAK - skip */ }
-        }
-        var extraction = new ExtractionService();
-        NMSTemplate? Decode(string path)
-        {
-            if (!index.TryFind(path.ToUpperInvariant(), out var pakPath, out var entry, out var header)) return null;
-            try
-            {
-                var bytes = extraction.ExtractEntryBytes(pakPath, entry, header);
-                if (bytes is null) return null;
-                var mbin = new MBINFile(new MemoryStream(bytes));
-                mbin.Load();
-                return mbin.GetData();
-            }
-            catch { return null; }
-        }
+        var index = GetIndex(pcbanksPath);
+        NMSTemplate? Decode(string path) => DecodeMbin(pcbanksPath, path.ToUpperInvariant());
 
         // Scenes: every procedural ship root, then everything they reference.
         var scenes = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);

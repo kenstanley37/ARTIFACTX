@@ -72,7 +72,7 @@ public sealed partial class AllianceViewModel : ObservableObject
             string.Join(" · ", parts.Select(p => (p.Label, Count: Stat(p.Id))).Where(p => p.Count > 0).Select(p => $"{p.Count:N0} {p.Label}"));
 
         Stats =
-        [
+        (AllianceStatViewModel[])[
             new("Systems Discovered", ArtifactX.WinUI3.Resources.NavIconGeometries.Planets, Stat("^DISC_SYSTEMS"),
                 Parts(("rare", "^DISC_RARE_SYS"), ("abandoned", "^DISC_ABAND"), ("pirate", "^PIRATE_SYSTEMS")),
                 "Warp to systems nobody has named yet - Near Core and Planet Finder list the ones within your hyperdrive range."),

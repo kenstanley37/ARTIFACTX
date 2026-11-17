@@ -115,19 +115,19 @@ public sealed partial class PlanetShopsViewModel : ObservableObject
         ShopRangeKey = "PlanetDetailsShopRange",
         ShopCountKey = "PlanetDetailsShopCount";
 
-    public IReadOnlyList<string> VisitedChoices { get; } = ["All shops", "Unvisited only", "Visited only"];
+    public IReadOnlyList<string> VisitedChoices { get; } = (string[])["All shops", "Unvisited only", "Visited only"];
 
     [ObservableProperty]
     public partial int VisitedChoice { get; set; } = Remembered(ShopVisitedKey, 2, 0);
 
-    public IReadOnlyList<string> RangeChoices { get; } = ["Any distance", "Within 10 km", "Within 25 km", "Within 50 km", "Within 100 km"];
+    public IReadOnlyList<string> RangeChoices { get; } = (string[])["Any distance", "Within 10 km", "Within 25 km", "Within 50 km", "Within 100 km"];
     private static readonly double[] RangeDistances = [double.MaxValue, 10.0, 25.0, 50.0, 100.0];
 
     [ObservableProperty]
     public partial int RangeChoice { get; set; } = Remembered(ShopRangeKey, RangeDistances.Length - 1, 0);
     private double MaxRangeKm => RangeDistances[Math.Clamp(RangeChoice, 0, RangeDistances.Length - 1)];
 
-    public IReadOnlyList<string> ShopCountChoices { get; } = ["10", "25", "50", "100", "All"];
+    public IReadOnlyList<string> ShopCountChoices { get; } = (string[])["10", "25", "50", "100", "All"];
     private static readonly int[] ShopCounts = [10, 25, 50, 100, int.MaxValue];
 
     [ObservableProperty]
@@ -205,7 +205,11 @@ public sealed partial class PlanetShopsViewModel : ObservableObject
             var tools = pool.Select(t => new SystemMultiToolItemViewModel(t)).ToArray();
             Tools = tools;
             var dispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-            foreach (var tool in tools) _ = tool.ResolveKindAsync(dispatcher);
+            _ = Task.Run(async () =>
+            {
+                await MultiToolKinds.EnsureTreesAsync();
+                foreach (var tool in tools) _ = tool.ResolveKindAsync(dispatcher);
+            });
         }
 
         await LoadFilteredShopsAsync();

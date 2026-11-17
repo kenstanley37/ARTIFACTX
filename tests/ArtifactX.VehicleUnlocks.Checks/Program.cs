@@ -9,7 +9,7 @@ static void Require(bool ok, string message) { if (!ok) throw new Exception(mess
 static TitleUnlockRule Rule(string title, float target) => new(title, title, "", "", "COUNTER", target, 0,
     "", "", "", "None", 0, "", false, "", [], []);
 SaveSessionManager.Root = JObject.Parse("{'vLc':{'6f=':{'24<':['^SAVED'],'gUR':[{':rc':'^GLOBAL_STATS','gUR':[{'b2n':'^COUNTER','>MX':{'>vs':10}},{'b2n':'^OTHER','>MX':{'>vs':2}}]}]}}}");
-var editor = VehicleUnlockEditor.Current;
+var editor = RewardUnlockEditor.Current;
 await editor.LoadAsync();
 long Counter() => SaveSessionManager.GetValue(NmsPlayerStatsPaths.GroupStatsArrayPath(0))![0]![">MX"]![">vs"]!.Value<long>();
 editor.Set("NEW1", [Rule("TITLE1", 100)], true);

@@ -3,12 +3,36 @@
     x:Class="ArtifactX.Maui.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:ArtifactX.Maui"
-    Title="ArtifactX.Maui">
+    xmlns:explore="clr-namespace:ArtifactX.Maui.Views.ExplorePages"
+    xmlns:reference="clr-namespace:ArtifactX.Maui.Views.ReferencePages"
+    Title="ArtifactX"
+    Shell.FlyoutBehavior="Disabled"
+    Shell.BackgroundColor="{DynamicResource ThemeChromeColor}"
+    Shell.TabBarBackgroundColor="{DynamicResource ThemeChromeColor}"
+    Shell.TabBarTitleColor="{DynamicResource ThemeAccentColor}"
+    Shell.TabBarForegroundColor="{DynamicResource ThemeAccentColor}"
+    Shell.TabBarUnselectedColor="{DynamicResource ThemeTextDimColor}">
 
-    <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+    <TabBar>
+        <ShellContent
+            Title="Home"
+            Route="home"
+            ContentTemplate="{DataTemplate explore:HomePage}" />
+
+        <ShellContent
+            Title="Systems"
+            Route="systems"
+            ContentTemplate="{DataTemplate explore:PortalGlyphsPage}" />
+
+        <ShellContent
+            Title="Recipes"
+            Route="recipes"
+            ContentTemplate="{DataTemplate reference:RecipesPage}" />
+
+        <ShellContent
+            Title="Eggs"
+            Route="eggs"
+            ContentTemplate="{DataTemplate explore:EggSequencerPage}" />
+    </TabBar>
 
 </Shell>

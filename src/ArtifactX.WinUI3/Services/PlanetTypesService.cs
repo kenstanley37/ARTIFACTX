@@ -24,12 +24,22 @@ public static class PlanetTypesService
     private static Task? _loading;
     private static readonly ConcurrentDictionary<ulong, PlanetType[]> Cache = new();
     private static readonly ConcurrentDictionary<ulong, PlanetProfile?[]> Profiles = new();
+    private static readonly ConcurrentDictionary<ulong, PlanetBasics?[]> BasicsCache = new();
 
     /// <summary>Raised (any thread) once the tables are loaded.</summary>
     public static event Action? Loaded;
 
     public static bool IsReady => _tables is not null;
+
+    /// <summary>The planet-type and profile tables, for searches that generate many systems without caching them
+    /// (Creature Finder's nearby search); null until loaded.</summary>
+    public static BiomeTables? BiomeTables => _tables;
+    public static PlanetProfileTables? ProfileTables => _profileTables;
     public static InventoryGenerationTables? InventoryTables => _inventoryTables;
+
+    /// <summary>The creature tables, with the gender, activity and rarity words a predicted creature's traits read
+    /// (catalog format 80; null before the planet tables load).</summary>
+    public static CreatureTables? CreatureTables => _profileTables?.Creatures;
 
     /// <summary>Loads the tables once they exist. Tried again while they're missing, and
     /// again after a game data rebuild - the app asked before a rebuild had finished, kept
@@ -42,7 +52,7 @@ public static class PlanetTypesService
             GameDataService.BuildFinished += error =>
             {
                 _tables = null; _profileTables = null; _inventoryTables = null; _loading = null;
-                Cache.Clear(); Profiles.Clear();
+                Cache.Clear(); Profiles.Clear(); BasicsCache.Clear();
                 _ = EnsureLoadedAsync();
             };
         }
@@ -59,6 +69,7 @@ public static class PlanetTypesService
         _inventoryTables = await CatalogService.GetInventoryGenerationTablesAsync();
         Cache.Clear();
         Profiles.Clear();
+        BasicsCache.Clear();
         Loaded?.Invoke();
     }
 
@@ -83,31 +94,34 @@ public static class PlanetTypesService
     {
         if (_profileTables is not { } tables) return null;
         system = S.ToSystemAddress(system);
-        var all = Profiles.GetOrAdd(system, a =>
-        {
-            var types = For(a);
-            var (portal, galaxy) = Portal(a);
-            var profiles = new PlanetProfile?[types.Length];
-            try
-            {
-                var attributes = SystemGenerator.Attributes(portal, galaxy);
-                var seeds = SystemGenerator.Bodies(portal, galaxy).PlanetSeeds;
-                for (int i = 0; i < types.Length && i < seeds.Length; i++)
-                    profiles[i] = PlanetProfileGenerator.Generate(seeds[i], i, types[i],
-                        (int)attributes.Star, PlanetGenerator.GalaxyType(galaxy), attributes.GasGiantPlanet, tables,
-                        attributes.Uncharted, attributes.Abandoned);
-            }
-            catch { /* leave the rest unknown */ }
-            return profiles;
-        });
+        if (_tables is not { } biomes) return null;
+        var all = Profiles.GetOrAdd(system, a => SystemProfiles.Generate(a, biomes, tables));
         int index = planetIndex - 1;
         return index >= 0 && index < all.Length ? all[index] : null;
+    }
+
+    /// <summary>Each body's weather, life, sentinels, resources and descriptor (index 0 = planet 1) without the full
+    /// profile's objects and creatures (SystemProfiles.Basics): cheap enough for every planet the Planet Finder lists.
+    /// Empty until the tables are loaded.</summary>
+    public static PlanetBasics?[] Basics(ulong system)
+    {
+        if (_tables is not { } biomes || _profileTables is not { } tables) return [];
+        return BasicsCache.GetOrAdd(S.ToSystemAddress(system), a => SystemProfiles.Basics(a, biomes, tables));
     }
 
     /// <summary>The game's English text for a scanner hint that isn't an item
     /// ("UI_BUGS_HINT" - "Vile Brood Detected"), or null.</summary>
     public static string? HintName(string id) =>
         _profileTables?.HintNames is { } names && names.TryGetValue(id, out var name) ? name : null;
+
+    /// <summary>The body's specific procedural descriptor (e.g. "Tropical", "Paradise", "Glacial"),
+    /// falling back to recorded OCR descriptor if present.</summary>
+    public static string? Descriptor(ulong system, int planetIndex)
+    {
+        if (Profile(system, planetIndex) is { Descriptor: { Length: > 0 } desc })
+            return desc;
+        return PlanetDetailsService.Get(system, planetIndex)?.Descriptor;
+    }
 
     /// <summary>Whether the given planet (1-based index) has Corrupted Sentinels (Dissonant).</summary>
     public static bool HasCorruptedSentinels(ulong system, int planetIndex)
@@ -117,7 +131,8 @@ public static class PlanetTypesService
         var details = PlanetDetailsService.Get(system, planetIndex);
         return details?.Sentinels?.Contains("Corrupt", StringComparison.OrdinalIgnoreCase) == true
             || details?.Sentinels?.Contains("Dissonan", StringComparison.OrdinalIgnoreCase) == true
-            || details?.Descriptor?.Contains("Dissonan", StringComparison.OrdinalIgnoreCase) == true;
+            || details?.Descriptor?.Contains("Dissonan", StringComparison.OrdinalIgnoreCase) == true
+            || Profile(system, planetIndex)?.Descriptor.Contains("Dissonan", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     /// <summary>Whether any planet or moon in the system has Corrupted Sentinels (Dissonant).</summary>
@@ -135,18 +150,36 @@ public static class PlanetTypesService
     private static (ulong Portal, int Galaxy) Portal(ulong system) =>
         ((((system >> 40) & 0xFFF) << 32) | (system & 0xFFFFFFFF), (int)((system >> 32) & 0xFF));
 
+    /// <summary>The body at a packed planet address (planet number in bits 52-55, from 1), with its predicted type
+    /// and rings: what a Catalog Planet Record tile draws (2026-11-11). Null until the tables are loaded, or for a
+    /// body the system doesn't have.</summary>
+    public static KnownPlanet? Planet(ulong planetAddress)
+    {
+        int index = (int)((planetAddress >> 52) & 0xF);
+        if (index < 1 || For(planetAddress) is not { Length: > 0 } types || index > types.Length) return null;
+        ulong systemAddress = S.ToSystemAddress(planetAddress);
+        var (portal, galaxy) = Portal(systemAddress);
+        bool hasRings = !SystemGenerator.Bodies(portal, galaxy).IsMoon(index) && PlanetRings.HasRings(portal, galaxy, index);
+        return new KnownPlanet(planetAddress, S.GalaxyNumber(systemAddress), index, types[index - 1].Biome, hasRings, "", false, 0);
+    }
+
     /// <summary>The bodies in <paramref name="system"/> the save doesn't have, as planets
-    /// with their predicted type.</summary>
+    /// with their predicted type and ring status.</summary>
     public static IEnumerable<KnownPlanet> Undiscovered(ulong system, ICollection<int> known)
     {
         var types = For(system);
         ulong systemAddress = S.ToSystemAddress(system);
+        var (portal, galaxy) = Portal(systemAddress);
+        var bodies = SystemGenerator.Bodies(portal, galaxy);
         for (int i = 0; i < types.Length; i++)
         {
             int index = i + 1;
             if (known.Contains(index)) continue;
+            bool isMoon = bodies.IsMoon(index);
+            bool hasRings = !isMoon && PlanetRings.HasRings(portal, galaxy, index);
+
             yield return new KnownPlanet(systemAddress | ((ulong)index << 52), S.GalaxyNumber(systemAddress), index,
-                types[i].Biome, false, "", false, 0) { Predicted = true };
+                types[i].Biome, hasRings, "", false, 0) { Predicted = true };
         }
     }
 }

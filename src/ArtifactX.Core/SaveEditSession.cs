@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -224,7 +224,7 @@ public sealed class SaveEditSession
             if (lastIdx == lastArr.Count)
                 lastArr.Add(value ?? JValue.CreateNull());
             else
-                lastArr[lastIdx] = value;
+                lastArr[lastIdx] = value ?? JValue.CreateNull();
         }
         else
             ((JObject)current)[lastSegment] = value;

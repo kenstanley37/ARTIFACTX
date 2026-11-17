@@ -23,7 +23,7 @@ public sealed partial class BaseItemCacheControl : UserControl
         // Same stack sizes as a base storage container (Casing 135/200 in game).
         CacheGrid.ProductStorageMultiplier = 10;
 
-        _ = new CargoStorageFeed(this, () => [_editor.Path], Load);
+        _ = new CargoStorageFeed(this, () => (string[][])[_editor.Path], Load);
     }
 
     private async void Load()

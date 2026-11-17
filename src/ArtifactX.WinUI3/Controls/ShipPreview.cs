@@ -1,4 +1,4 @@
-﻿using ArtifactX.GameData;
+using ArtifactX.GameData;
 using ArtifactX.WinUI3.Services;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
@@ -22,10 +23,10 @@ namespace ArtifactX.WinUI3.Controls;
 /// </summary>
 public sealed class ShipPreview : UserControl
 {
-    private readonly Image _image = new() { Stretch = Microsoft.UI.Xaml.Media.Stretch.None };
+    private readonly Image _image = new() { Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform };
     private readonly TextBlock _hint = new()
     {
-        Text = "Drag to turn", FontSize = 11, Opacity = 0.6, Margin = new Thickness(8, 6, 8, 6),
+        Text = "Drag to turn, Ctrl+scroll to zoom, right-drag to move", FontSize = 11, Opacity = 0.6, Margin = new Thickness(8, 6, 8, 6),
         HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
     };
     private ShipMesh? _mesh;
@@ -41,7 +42,11 @@ public sealed class ShipPreview : UserControl
     /// <summary>Added to the opening turn for models whose front isn't +Z: freighters point
     /// their bow along -Z (capital freighter z -3,210..+459, a fighter's -3..+8), so they
     /// open with a half turn (2026-10-22).</summary>
-    public float StartYawOffset { get; set; }
+    public double StartYawOffset { get; set; }
+
+    /// <summary>Added to the opening tilt: ships open seen from above; a person opens nearly level so the face shows
+    /// (owner, 2026-11-15: the captain "is looking down a bit so it's hard to see his face").</summary>
+    public double StartPitchOffset { get; set; }
     private readonly TextBlock _status = new()
     {
         FontSize = 13, Opacity = 0.7, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
@@ -49,7 +54,27 @@ public sealed class ShipPreview : UserControl
         Margin = new Thickness(16), Visibility = Visibility.Collapsed,
     };
     private bool _hologram;
+    private bool _silhouette;
     private Windows.Foundation.Point? _drag;
+    private bool _panning;
+    // Zoom (1 = the whole model fits) and pan (screen offset in units of the shorter side), 2026-11-15: a corvette's
+    // landing gear couldn't be made out in a 420 x 260 preview (owner).
+    private float _zoom = 1, _panX, _panY;
+    private const float MaxZoom = 24;
+    private readonly Button _expand = new()
+    {
+        Content = new FontIcon { Glyph = "\uE740", FontSize = 14 }, Padding = new Thickness(8), Margin = new Thickness(6),
+        HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed,
+    };
+
+    /// <summary>A small preview on a page: shows the "View larger" button, and zooms only with Ctrl+scroll so the
+    /// page still scrolls under the mouse. Off in the large view, where plain scrolling zooms.</summary>
+    public bool AllowExpand
+    {
+        get => _allowExpand;
+        set { _allowExpand = value; _hint.Text = value ? "Drag to turn, Ctrl+scroll to zoom, right-drag to move" : "Drag to turn, scroll to zoom, right-drag to move"; }
+    }
+    private bool _allowExpand = true;
     private int _drawing, _pending;
 
     public int PixelWidth { get; set; } = 420;
@@ -65,10 +90,26 @@ public sealed class ShipPreview : UserControl
         grid.Children.Add(_image);
         grid.Children.Add(_status);
         grid.Children.Add(_hint);
+        grid.Children.Add(_expand);
         Content = grid;
-        PointerPressed += (_, e) => { _drag = e.GetCurrentPoint(this).Position; CapturePointer(e.Pointer); };
-        PointerReleased += (_, e) => { _drag = null; ReleasePointerCapture(e.Pointer); };
+        IsTabStop = true;
+        UseSystemFocusVisuals = true;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(this, "3D preview. Arrow keys turn it, plus and minus zoom, 0 resets the view.");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_expand, "View larger");
+        ToolTipService.SetToolTip(_expand, "View larger");
+        _expand.Click += async (_, _) => await ModelViewerDialog.ShowAsync(this);
+        PointerPressed += (_, e) =>
+        {
+            var point = e.GetCurrentPoint(this);
+            _panning = point.Properties.IsRightButtonPressed;
+            _drag = point.Position;
+            CapturePointer(e.Pointer);
+            Focus(FocusState.Pointer);
+        };
+        PointerReleased += (_, e) => { _drag = null; _panning = false; ReleasePointerCapture(e.Pointer); };
         PointerMoved += OnPointerMoved;
+        PointerWheelChanged += OnPointerWheelChanged;
+        KeyDown += OnKeyDown;
         ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
         SizeChanged += (_, e) =>
         {
@@ -87,18 +128,26 @@ public sealed class ShipPreview : UserControl
         _image.Source = null;
         _status.Text = text;
         _status.Visibility = Visibility.Visible;
+        _hint.Visibility = Visibility.Collapsed;
+        _expand.Visibility = Visibility.Collapsed;
+        ProtectedCursor = null;
     }
 
     /// <summary>Shows a model; <paramref name="colourOf"/> gives each material's RGB,
     /// <paramref name="textureOf"/> (optional) a painted texture that wins over it.
     /// <paramref name="hologram"/> draws it as a scanner hologram instead - for a ship
     /// whose real colours can't be shown, so its shape doesn't pass for a grey paint job.</summary>
-    public void Show(ShipMesh? mesh, Func<string, uint> colourOf, Func<string, ModelTexture?>? textureOf = null, bool hologram = false)
+    public void Show(ShipMesh? mesh, Func<string, uint> colourOf, Func<string, ModelTexture?>? textureOf = null, bool hologram = false, bool silhouette = false)
     {
         _status.Visibility = Visibility.Collapsed;
+        _hint.Visibility = mesh is null ? Visibility.Collapsed : Visibility.Visible;
+        ProtectedCursor = mesh is null ? null : InputSystemCursor.Create(InputSystemCursorShape.SizeAll);
         _hologram = hologram;
+        _silhouette = silhouette;
         _mesh = mesh;
-        _yaw = StartYaw + StartYawOffset; _pitch = StartPitch; // each ship opens on its front
+        _yaw = StartYaw + (float)StartYawOffset; _pitch = StartPitch + (float)StartPitchOffset; // each ship opens on its front
+        _zoom = 1; _panX = _panY = 0;
+        _expand.Visibility = AllowExpand && mesh is not null ? Visibility.Visible : Visibility.Collapsed;
         if (mesh is null) { _image.Source = null; return; }
         var colours = new uint[mesh.Materials.Length];
         var cache = new Dictionary<string, uint>();
@@ -132,20 +181,93 @@ public sealed class ShipPreview : UserControl
     public Task<byte[]?> SnapshotAsync(int width, int height)
     {
         if (_mesh is null) return Task.FromResult<byte[]?>(null);
-        var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre; bool holo = _hologram;
-        float yaw = StartYaw + StartYawOffset;
-        return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, yaw, StartPitch, width, height, holo));
+        var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre;
+        bool holo = _hologram; bool sil = _silhouette;
+        float yaw = StartYaw + (float)StartYawOffset;
+        return Task.Run(() => (byte[]?)Render(mesh, colours, textures, centre, yaw, StartPitch + (float)StartPitchOffset, width, height, holo, sil));
     }
 
     private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
     {
         if (_drag is not { } from || _mesh is null) return;
         var to = e.GetCurrentPoint(this).Position;
-        // The model follows the mouse, like turning a real object (the first
-        // version turned it the opposite way - "feels backwards", 2026-10-15).
-        _yaw -= (float)(to.X - from.X) * 0.01f;
-        _pitch = Math.Clamp(_pitch - (float)(to.Y - from.Y) * 0.01f, -1.4f, 1.4f);
+        if (_panning)
+        {
+            float unit = MathF.Max(1, MathF.Min((float)ActualWidth, (float)ActualHeight));
+            _panX += (float)(to.X - from.X) / unit;
+            _panY += (float)(to.Y - from.Y) / unit;
+        }
+        else
+        {
+            // The model follows the mouse, like turning a real object (the first
+            // version turned it the opposite way - "feels backwards", 2026-10-15).
+            _yaw -= (float)(to.X - from.X) * 0.01f;
+            _pitch = Math.Clamp(_pitch - (float)(to.Y - from.Y) * 0.01f, -1.4f, 1.4f);
+        }
         _drag = to;
+        Redraw();
+    }
+
+    /// <summary>Zooms toward the point under the mouse, so what you point at stays put.</summary>
+    private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        if (_mesh is null) return;
+        if (_allowExpand && (e.KeyModifiers & Windows.System.VirtualKeyModifiers.Control) == 0) return; // let the page scroll
+        var point = e.GetCurrentPoint(this);
+        float unit = MathF.Max(1, MathF.Min((float)ActualWidth, (float)ActualHeight));
+        float rx = (float)(point.Position.X - ActualWidth / 2) / unit, ry = (float)(point.Position.Y - ActualHeight / 2) / unit;
+        ZoomBy(MathF.Pow(1.15f, point.Properties.MouseWheelDelta / 120f), rx, ry);
+        e.Handled = true;
+    }
+
+    private void ZoomBy(float factor, float towardX = 0, float towardY = 0)
+    {
+        float next = Math.Clamp(_zoom * factor, 1f, MaxZoom);
+        float k = next / _zoom;
+        _panX = towardX - (towardX - _panX) * k;
+        _panY = towardY - (towardY - _panY) * k;
+        if (next <= 1f) _panX = _panY = 0;
+        _zoom = next;
+        Redraw();
+    }
+
+    /// <summary>Keyboard: arrows turn, plus / minus zoom, 0 or Home resets.</summary>
+    private void OnKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (_mesh is null) return;
+        switch (e.Key)
+        {
+            case Windows.System.VirtualKey.Left: _yaw += 0.15f; Redraw(); break;
+            case Windows.System.VirtualKey.Right: _yaw -= 0.15f; Redraw(); break;
+            case Windows.System.VirtualKey.Up: _pitch = Math.Clamp(_pitch + 0.15f, -1.4f, 1.4f); Redraw(); break;
+            case Windows.System.VirtualKey.Down: _pitch = Math.Clamp(_pitch - 0.15f, -1.4f, 1.4f); Redraw(); break;
+            case Windows.System.VirtualKey.Add or (Windows.System.VirtualKey)187: ZoomBy(1.25f); break;
+            case Windows.System.VirtualKey.Subtract or (Windows.System.VirtualKey)189: ZoomBy(0.8f); break;
+            case Windows.System.VirtualKey.Number0 or Windows.System.VirtualKey.NumberPad0 or Windows.System.VirtualKey.Home: ResetView(); break;
+            default: return;
+        }
+        e.Handled = true;
+    }
+
+    /// <summary>Back to the opening angle, whole model in view.</summary>
+    public void ResetView()
+    {
+        _yaw = StartYaw + (float)StartYawOffset; _pitch = StartPitch + (float)StartPitchOffset;
+        _zoom = 1; _panX = _panY = 0;
+        Redraw();
+    }
+
+    /// <summary>Shows the model another preview shows, at its current angle (the large view).</summary>
+    public void ShowFrom(ShipPreview source)
+    {
+        _status.Visibility = Visibility.Collapsed;
+        _hint.Visibility = source._mesh is null ? Visibility.Collapsed : Visibility.Visible;
+        _expand.Visibility = Visibility.Collapsed;
+        _mesh = source._mesh; _triColours = source._triColours; _triTextures = source._triTextures; _centre = source._centre;
+        _hologram = source._hologram; _silhouette = source._silhouette;
+        StartYawOffset = source.StartYawOffset;
+        StartPitchOffset = source.StartPitchOffset;
+        _yaw = source._yaw; _pitch = source._pitch; _zoom = 1; _panX = _panY = 0;
         Redraw();
     }
 
@@ -155,8 +277,9 @@ public sealed class ShipPreview : UserControl
         if (_mesh is null) return;
         if (Interlocked.Exchange(ref _drawing, 1) == 1) { _pending = 1; return; }
         var mesh = _mesh; var colours = _triColours; var textures = _triTextures; var centre = _centre;
-        float yaw = _yaw, pitch = _pitch; int w = PixelWidth, h = PixelHeight; bool holo = _hologram;
-        Task.Run(() => Render(mesh, colours, textures, centre, yaw, pitch, w, h, holo)).ContinueWith(t =>
+        float yaw = _yaw, pitch = _pitch, zoom = _zoom, panX = _panX, panY = _panY; int w = PixelWidth, h = PixelHeight;
+        bool holo = _hologram; bool sil = _silhouette;
+        Task.Run(() => Render(mesh, colours, textures, centre, yaw, pitch, w, h, holo, sil, zoom, panX, panY)).ContinueWith(t =>
             DispatcherQueue.TryEnqueue(() =>
             {
                 if (t.Result is { } pixels && ReferenceEquals(mesh, _mesh))
@@ -170,8 +293,32 @@ public sealed class ShipPreview : UserControl
             }));
     }
 
+    /// <summary>Sky light and sun strength for painted surfaces (linear light): a surface facing away gets Ambient,
+    /// one facing the sun Ambient + Key.</summary>
+    private const float Ambient = 0.9f, Key = 1.4f;
+
+    /// <summary>sRGB byte to linear light.</summary>
+    private static readonly float[] ToLinear = Enumerable.Range(0, 256).Select(i =>
+    {
+        float c = i / 255f;
+        return c <= 0.04045f ? c / 12.92f : MathF.Pow((c + 0.055f) / 1.055f, 2.4f);
+    }).ToArray();
+
+    /// <summary>Linear light (1 = white) to an sRGB byte through a lookup of 4096 steps; a soft shoulder above 0.8
+    /// keeps strongly lit pale paint from clipping to flat white.</summary>
+    private static readonly byte[] SrgbTable = Enumerable.Range(0, 4096).Select(i =>
+    {
+        float x = i / 4095f * 2f; // 0..2 linear
+        float y = x <= 0.8f ? x : 0.8f + 0.2f * (1f - MathF.Exp(-(x - 0.8f) / 0.2f));
+        float s = y <= 0.0031308f ? y * 12.92f : 1.055f * MathF.Pow(y, 1f / 2.4f) - 0.055f;
+        return (byte)Math.Clamp((int)MathF.Round(s * 255f), 0, 255);
+    }).ToArray();
+
+    private static byte ToSrgb(float linear) => SrgbTable[Math.Clamp((int)(linear * (4095f / 2f)), 0, 4095)];
+
     /// <summary>Rotate, fit to the frame, z-buffer, light from above-front.</summary>
-    private static byte[] Render(ShipMesh mesh, uint[] colours, ModelTexture?[] textures, Vector3 centre, float yaw, float pitch, int w, int h, bool hologram = false)
+    private static byte[] Render(ShipMesh mesh, uint[] colours, ModelTexture?[] textures, Vector3 centre, float yaw, float pitch, int w, int h,
+        bool hologram = false, bool silhouette = false, float zoom = 1, float panX = 0, float panY = 0)
     {
         var rot = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateRotationX(pitch);
         var p = new Vector3[mesh.Corners.Length];
@@ -187,8 +334,10 @@ public sealed class ShipPreview : UserControl
             minY = MathF.Min(minY, p[i].Y); maxY = MathF.Max(maxY, p[i].Y);
         }
         // Fit what is on screen (not the 3D diagonal), with a margin.
-        float scale = 0.9f * MathF.Min(w / MathF.Max(1e-3f, maxX - minX), h / MathF.Max(1e-3f, maxY - minY));
-        float cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        float scale = zoom * 0.9f * MathF.Min(w / MathF.Max(1e-3f, maxX - minX), h / MathF.Max(1e-3f, maxY - minY));
+        float unit = MathF.Min(w, h);
+        // Panning moves the model on screen: shift the model's centre the other way, in model units.
+        float cx = (minX + maxX) / 2 - panX * unit / scale, cy = (minY + maxY) / 2 + panY * unit / scale;
         var zbuf = new float[w * h];
         Array.Fill(zbuf, float.MaxValue);
         var px = new uint[w * h];
@@ -201,7 +350,12 @@ public sealed class ShipPreview : UserControl
             var n = Vector3.Cross(b - a, c - a);
             float len = n.Length();
             if (len < 1e-12f) continue;
-            float lit = 0.38f + 0.62f * MathF.Abs(Vector3.Dot(n / len, light));
+            float facing = MathF.Abs(Vector3.Dot(n / len, light));
+            // Painted surfaces are lit in linear light (Lit): sky light plus a sun stronger than 1, as the game's
+            // palette colours are dark albedo that its lighting and exposure lift (owner, 2026-11-13: "the colors are
+            // all very dark" - the old 0.38-1.0 multiply on sRGB never got brighter than the paint itself).
+            float sun = Ambient + Key * facing;
+            float lit = 0.38f + 0.62f * facing;
             uint col = colours[t];
             if (hologram)
             {
@@ -212,8 +366,19 @@ public sealed class ShipPreview : UserControl
                 float level = 0.55f + 0.45f * (((col >> 16) & 0xFF) + ((col >> 8) & 0xFF) + (col & 0xFF)) / 765f;
                 col = (uint)(70 * level) << 16 | (uint)(200 * level) << 8 | (uint)(235 * level);
             }
-            uint argb = Shade(col, lit);
-            var tex = hologram ? null : t < textures.Length ? textures[t] : null;
+            else if (silhouette)
+            {
+                // A mystery silhouette: dark slate base with soft rim-lighting edge highlights
+                float edge = 1 - MathF.Abs(n.Z / len);
+                float rim = MathF.Pow(edge, 2.5f);
+                byte cr = (byte)Math.Clamp((int)(26 + 65 * rim), 0, 255);
+                byte cg = (byte)Math.Clamp((int)(28 + 70 * rim), 0, 255);
+                byte cb = (byte)Math.Clamp((int)(38 + 90 * rim), 0, 255);
+                col = (uint)cr << 16 | (uint)cg << 8 | (uint)cb;
+                lit = 0.45f + 0.55f * rim;
+            }
+            uint argb = hologram || silhouette ? Shade(col, lit) : Lit(col, sun);
+            var tex = (hologram || silhouette) ? null : t < textures.Length ? textures[t] : null;
             Vector2 ta = default, tb = default, tc = default, da = default, db = default, dc = default;
             if (tex is not null) { ta = mesh.Uvs[3 * t]; tb = mesh.Uvs[3 * t + 1]; tc = mesh.Uvs[3 * t + 2]; }
             var decal = tex?.Decal is { } dt && mesh.Uvs2.Length == mesh.Corners.Length ? dt : null;
@@ -261,11 +426,15 @@ public sealed class ShipPreview : UserControl
                                 }
                             }
                             zbuf[i] = MathF.Min(z, zbuf[i]);
-                            px[i] = Shade(texel, lit);
+                            px[i] = Lit(texel, sun);
                         }
                     }
                 }
         }
+        static uint Lit(uint c, float sun) => 0xFF000000u
+            | (uint)ToSrgb(ToLinear[(c >> 16) & 0xFF] * sun) << 16
+            | (uint)ToSrgb(ToLinear[(c >> 8) & 0xFF] * sun) << 8
+            | (uint)ToSrgb(ToLinear[c & 0xFF] * sun);
         static uint Shade(uint c, float lit) => 0xFF000000u
             | (uint)MathF.Min(255, ((c >> 16) & 0xFF) * lit) << 16
             | (uint)MathF.Min(255, ((c >> 8) & 0xFF) * lit) << 8

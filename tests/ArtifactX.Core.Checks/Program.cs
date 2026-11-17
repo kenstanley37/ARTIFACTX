@@ -10,11 +10,16 @@ try
 {
     if (args is ["--portal-travel"]) { PortalTravelChecks.Check(); return; }
     if (args is ["--food-display"]) { FoodIngestorDisplayChecks.Check(); return; }
+    PortalSystemReadoutChecks.Check();
+    DockedStationNameChecks.Check();
+    PlanetHarvestChecks.Check();
+    ThemingAndGlyphsChecks.Check();
     IndustrialCleanupChecks.Check();
     VehicleUnlockEditChecks.Check();
     RecipePlannerChecks.Check();
     CargoSuppliesChecks.Check();
     BaseExtractionChecks.Check();
+    EggSequencerChecks.Check();
     if (args.Length == 2 && args[0] == "--hotspot-near-vectors")
     { BaseExtractionChecks.PolesNative(args[1], neighborhood: true); return; }
     if (args.Length == 2 && args[0] == "--hotspot-pole-vectors")
@@ -56,8 +61,29 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
     }
     StarshipDisplayStatChecks.CheckInputs();
     StarshipDisplayEvaluationChecks.CheckModelGuards();
+    StarshipDisplayEvaluationChecks.CheckOwnedShipClasses();
+    StarshipDisplayEvaluationChecks.CheckFreighterPanel();
+    StarshipDisplayEvaluationChecks.CheckAdjacencySwitch();
+    StarshipDisplayEvaluationChecks.CheckFreighterModuleRolls();
+    ShipNameChecks.CheckLivingShipName();
+    ShipNameChecks.CheckSentinelShipNames();
     StarshipTechnologyDamageChecks.CheckInputs();
     PlanetShopCabinetChecks.Check();
+    PlanetRingChecks.Check();
+    PlanetDescriptorChecks.Check();
+    SystemWordChecks.Check();
+    PlanetSurfaceChecks.Check();
+    PlanetRegionChecks.Check();
+    SpeciesNameChecks.FaunaSeeds();
+    SpeciesNameChecks.FaunaSizeClass();
+    PlanetFaunaPairingChecks.Check();
+    CreatureInfoChecks.Check();
+    CreatureFormChecks.Check();
+    CreatureTextureChecks.Check();
+    TextureRecolourChecks.Check();
+    PetBattlerClassChecks.Check();
+    InventoryStackLimitChecks.Check();
+    NotesPlanetMatcherChecks.Check();
     var rows = new ObservableCollection<Row> { new(1, "A", 10), new(2, "B", 20) };
     var first = rows[0];
     var second = rows[1];
@@ -165,6 +191,30 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
             $"Region {g}:{rx:X}/{ry:X}/{rz:X} has {regionCount.Ordinary} systems, expected {expected}");
     }
     Console.WriteLine("PASS: region system counts match the game for 12 regions (live, spiral, gap edge, random galaxies).");
+    Require(NmsGalaxyInfo.AllGalaxies.Count == 256, "Must have exactly 256 galaxies");
+    Require(NmsGalaxyInfo.AllGalaxies.Count(g => g.Classification == GalaxyClassification.Lush) == 25, "Must have 25 Lush galaxies");
+    Require(NmsGalaxyInfo.AllGalaxies.Count(g => g.Classification == GalaxyClassification.Harsh) == 26, "Must have 26 Harsh galaxies");
+    Require(NmsGalaxyInfo.AllGalaxies.Count(g => g.Classification == GalaxyClassification.Empty) == 26, "Must have 26 Empty galaxies");
+    Require(NmsGalaxyInfo.AllGalaxies.Count(g => g.Classification == GalaxyClassification.Normal) == 179, "Must have 179 Normal galaxies");
+    Require(NmsGalaxyInfo.Get(1)?.Classification == GalaxyClassification.Normal, "Euclid must be Normal");
+    Require(NmsGalaxyInfo.Get(3)?.Classification == GalaxyClassification.Harsh, "Calypso must be Harsh");
+    Require(NmsGalaxyInfo.Get(7)?.Classification == GalaxyClassification.Empty, "Budullangr must be Empty");
+    Require(NmsGalaxyInfo.Get(10)?.Classification == GalaxyClassification.Lush, "Eissentam must be Lush");
+    Require(NmsGalaxyInfo.Get(256)?.Classification == GalaxyClassification.Normal, "Odyalutai must be Normal");
+    Require(NmsGalaxyInfo.DistanceToCoreLightYears is > 3200 and < 5000, "Galaxy transfer region must be outside the goal gap and within 5,000 ly");
+    for (int g = 0; g < 256; g++)
+    {
+        int systems = RegionStarGeneration.Count(NmsGalaxyInfo.GatewayRegionAddress(g), galaxySettings).Ordinary;
+        Require(NmsGalaxyInfo.FindGatewaySystemAddress(g, systems) is ulong destination
+            && (int)((destination >> 40) & 0xFFF) is int system && system >= 1 && system <= systems
+            && SystemGenerator.Attributes(ulong.Parse(NmsSpaceStationPaths.PortalAddress(destination, 0), System.Globalization.NumberStyles.HexNumber), g)
+                is { Uncharted: false, Abandoned: false, Pirate: false },
+            $"Galaxy {g + 1} has no existing station system for a transfer");
+    }
+    Require(NmsGalaxyInfo.FindGatewaySystemAddress(0, 531) is ulong euclid && ((euclid >> 40) & 0xFFF) == 12,
+        "Euclid's transfer destination must be system 12 (1-11 are Uncharted or Abandoned)");
+    Require(NmsGalaxyInfo.FindGatewaySystemAddress(0, 11) is null, "A region with no station system must not return a destination");
+    Console.WriteLine("PASS: galaxy definitions, classifications, and a real station system for a transfer in all 256 galaxies.");
     Console.WriteLine("PASS: quality 4/5 high-grade rolls need the chance; SeaTrash rolls do not; only Main establishes the standard roll.");
     Console.WriteLine("PASS: unrelated food accepted; all 11 displayed-stat targets and unknown inputs guarded; saved food identity preserved.");
     Console.WriteLine("PASS: unchanged snapshots, in-place stats, reorder, model replacement, duplicate rejection, and 1000 mixed updates; zero resets.");

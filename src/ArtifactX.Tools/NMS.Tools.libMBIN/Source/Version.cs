@@ -1,4 +1,4 @@
-﻿namespace libMBIN {
+namespace libMBIN {
 
     /// <summary>Version Utilities</summary>
     public static class Version {
@@ -25,7 +25,7 @@
         //      the Prerelease version should be reset to 1
         // When the Release version is incremented:
         //      the Prerelease version should be reset to 0
-        internal const string VERSION_STRING = "7.10.0.1";
+        internal const string VERSION_STRING = "7.10.0.2";
 
         /// <summary>Shorthand for AssemblyVersion.Major</summary>
         public static int Major      => AssemblyVersion.Major;

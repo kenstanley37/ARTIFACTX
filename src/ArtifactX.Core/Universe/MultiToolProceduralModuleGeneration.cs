@@ -3,8 +3,14 @@ using System.Globalization;
 namespace ArtifactX.Core.Universe;
 
 public sealed record ProceduralModuleStat(int Stat, float Minimum, float Maximum, int Curve, bool AlwaysChoose);
+/// <param name="FreighterTemplate">The module's template technology is in the Freighter category (6). The module
+/// generator (0x140EE20D0, build 184271) names those from "%s_%d" without stepping the stat stream first, so their
+/// rolls start two draws earlier than other modules': checked 2026-11-14 on three UP_FRHYP4 modules of Slot 8's
+/// freighter, whose in-game tooltips (256 / 276 / 309 ly supercharged) equal these rolls, stat order included.
+/// Corvette modules (IsBiggsProcTech, CV_*) start two draws earlier as well (catalog format 102): with it Slot 8's
+/// corvette gives the game's Shield 394.9 and Hyperdrive 1344.0 exactly (2026-11-15).</param>
 public sealed record ProceduralModuleDefinition(string Id, int Quality, int MinimumStats, int MaximumStats,
-    int CountCurve, ProceduralModuleStat[] Stats);
+    int CountCurve, ProceduralModuleStat[] Stats, bool FreighterTemplate = false);
 public sealed record GeneratedModuleStat(int Stat, float Value, int Level);
 
 /// <summary>
@@ -57,7 +63,7 @@ public static class MultiToolProceduralModuleGeneration
         mixed ^= mixed >> 15;
         uint carry = ((mixed >> 16) | (mixed << 16)) ^ mixed;
         var rng = new UniverseRandom(((ulong)carry << 32) | (mixed == 0 ? 1u : mixed));
-        rng.NextWord(); rng.NextWord(); // Independent name seed pair.
+        if (!definition.FreighterTemplate) { rng.NextWord(); rng.NextWord(); } // Independent name seed pair.
         bool highGrade = highGradeRoll && rng.Next(100) < illegalHighGradeChance!.Value;
         float Draw(int curve) => Weight((float)(rng.NextWord() * 2.3283064370807974e-10), weightingCurves[curve]);
         float countDraw = Draw(definition.CountCurve);

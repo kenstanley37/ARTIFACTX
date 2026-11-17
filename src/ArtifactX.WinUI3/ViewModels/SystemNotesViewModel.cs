@@ -89,7 +89,7 @@ public sealed partial class SystemNotesViewModel : ObservableObject
         Wealth.Refill(NotRecorded, Words("Wealth"));
         Conflict.Refill(NotRecorded, Words("Conflict"));
         Race.Refill(NotRecorded, Plain(SystemNotesService.Races));
-        Moons.Refill(NotRecorded, Plain(["0", "1", "2", "3"]));
+        Moons.Refill(NotRecorded, Plain((string[])["0", "1", "2", "3"]));
         _loading = false;
     }
 

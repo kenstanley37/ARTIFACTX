@@ -124,6 +124,21 @@ namespace ArtifactX.Core.NmsModels;
 ///    Independence for one, Helpfulness/Aggression/Devotion for another)
 ///    corresponds to which array index isn't determinable from the save
 ///    alone, so these are exposed generically (Trait 1/2/3), not by name.
+///    UPDATE 2026-11-15: the index order IS known - Helpfulness/Playfulness,
+///    Aggression/Gentleness, Independence/Devotion, the sign picking the word
+///    (EggSequencer, NMS.exe 0x1407875f4; EggCatalystRowViewModel keys). Slot 8
+///    eggs showed it in game: CAT JAy[1] -0.81 "gentle", TREX +0.78 "aggressive";
+///    the Neural Calibrator moved exactly the predicted index (issue #71).
+///  - Found by Slot 8 save diffs 2026-11-15 (egg sequencing and hatching, #71):
+///    eK9 = re-sequenced: set true by any catalyst (the egg's "re-sequenced"
+///    note). uAX = [true, item hash] after a Dye Injector change
+///    (EggSequencer.DyeColourSeed). tDR: on an egg a companion laid it holds the
+///    parent's XwC, and the egg's game name is CreatureNames on (XID, tDR) -
+///    exact for all three unnamed eggs, tDR 0 included; on a freshly hatched
+///    companion tDR = @Hb = XwC = the hatch time. Hatching keeps XID, osl, WTp,
+///    uAX, m9o, JrL, 5L6, unY and jtr; sets WQX true (on the companion and on
+///    the emptied egg slot); sets 6fX to WTp; changes xDJ (0.8 -> 0.7) and
+///    nudges JAy slightly (0.20 -> 0.22, 0.80 -> 0.88).
 ///  - IEo (2 floats) = Moods - not exposed, no clear single-value mapping
 ///    to the one-word "Current Mood" display (e.g. "Lively").
 ///  - a2U (Genes Improved) is NOT a simple stored display number - real
@@ -145,7 +160,7 @@ namespace ArtifactX.Core.NmsModels;
 ///    change, a second pet's untouched badges/E&lt;S not matching, grinding
 ///    mutation points not moving badges, a WTp/6fX reroll not moving them)
 ///    concluded E&lt;S was unrelated. That conclusion was INCOMPLETE, not
-///    wrong: every one of those test pets had isp (see UnknownBoolFPath,
+///    wrong: every one of those test pets had isp (see ClassLetterOverrideActivePath,
 ///    now ClassLetterOverrideActivePath below) false, which is the default
 ///    on every wild-tamed pet sampled - and isp=false is exactly the state
 ///    where E&lt;S is dormant/ignored (always observed as S/S/S, a placeholder
@@ -160,6 +175,11 @@ namespace ArtifactX.Core.NmsModels;
 ///    Health/Combat order - statIndex 0 is Health and statIndex 1 is
 ///    Agility (swapped relative to ujr), while statIndex 2 (Combat) does
 ///    match. See ClassLetterPath below for the corrected mapping.
+///    LIMIT (owner, 2026-11-15, from earlier builds): the override is display
+///    only - letters set to S showed S on the companion's screen, but once the
+///    pet was picked in the Holo-Arena it fought with its seed (m9o/JrL)
+///    grades. The app therefore no longer edits the letters; it rolls the
+///    seeds instead (Find S / S / S, confirmed in game).
 ///  - m9o AND JrL (hex strings, RollSeedPrimaryPath/RollSeedSecondaryPath
 ///    below) are BOTH CONFIRMED co-inputs driving the Battle Abilities
 ///    badges (Combat Effectiveness/Agility/Health grades) AND the in-game
@@ -180,7 +200,7 @@ namespace ArtifactX.Core.NmsModels;
 ///    via different fields (m9o/JrL) than the one originally guessed (E&lt;S).
 ///    No PAK/MBIN table search ever needed to be right about this - it was
 ///    in the save the whole time. 5L6 (also a raw hex string, see
-///    UnknownHexCPath below, the remaining member of the same
+///    UniverseAddressPath below, the remaining member of the same
 ///    originally-grouped trio) was tested the same way and is CONFIRMED NOT
 ///    a co-input - regenerated in isolation with m9o/JrL both held fixed,
 ///    name and all three badges stayed exactly the same. Its own purpose
@@ -212,8 +232,11 @@ public static class NmsCompanionPaths
     /// is "Mecha-Mouse" (XID ROBO_RODENT, JAy [0.8, -0.5, 0.2]), the robot egg the
     /// owner sequenced; every Neural Calibrator word the game showed for it fits those
     /// values (Sac Venom: Gentleness Decreasing, Dioxite: Helpfulness Increasing,
-    /// Silver: Independence Decreasing). An empty slot has XID "^". Which slot an
-    /// inventory egg (^EGG13, no seed) belongs to is not stored on the item.</summary>
+    /// Silver: Independence Decreasing). An empty slot has XID "^". An inventory
+    /// egg's item id is its slot: ^EGGn is slot n-1 (items EGG1..EGG18). Confirmed
+    /// 2026-11-14 on Slot 8: 14 filled slots and exactly EGG1..EGG14 held; EGG13 and
+    /// EGG14 in the Exosuit showed slot 12's and slot 13's names (Beary-Beary,
+    /// Orangipti) and trait words (gentle, aggressive) in game.</summary>
     public static readonly string[] EggArrayPath = { "vLc", "6f=", "uKZ" };
 
     public static string[] CompanionPath(int companionIndex) =>
@@ -221,6 +244,13 @@ public static class NmsCompanionPaths
 
     public static string[] NamePath(int companionIndex) => CompanionPath(companionIndex).Append("fH8").ToArray();
     public static string[] TrustPath(int companionIndex) => CompanionPath(companionIndex).Append("xDJ").ToArray();
+
+    /// <summary>Scale (unY): the companion's size, a multiplier on its species' model. Kept as stored - a laid egg
+    /// copies its parent's and hatching keeps it (Slot 8, 2026-11-15); the game produces values within the species'
+    /// range (wild spawn, Egg Sequencer), though stored ones can sit outside it (Land Jellyfish egg 1.1, maximum 1.0).
+    /// Confirmed in game 2026-11-15: Slot 8's Bihi-Bihi (TRICERATOPS, range 0.4-12) set from 1.52 to 12 showed a
+    /// giant, the player smaller than its foot, with no problem loading or summoning. Issue #72.</summary>
+    public static string[] ScalePath(int companionIndex) => CompanionPath(companionIndex).Append("unY").ToArray();
     public static string[] NativeClimatePath(int companionIndex) => CompanionPath(companionIndex).Append("8jm").Append("8jm").ToArray();
     public static string[] SpeciesArchetypePath(int companionIndex) => CompanionPath(companionIndex).Append("XID").ToArray();
 
@@ -282,7 +312,7 @@ public static class NmsCompanionPaths
     /// RollSeedPrimaryPath/m9o held fixed and verified unchanged directly
     /// against the decrypted save afterward) to ALSO independently drive the
     /// same Battle Abilities badges and fancy species name as
-    /// RollSeedPrimaryPath. 5L6 (still UnknownHexCPath below, untested in
+    /// RollSeedPrimaryPath. 5L6 (UniverseAddressPath below, untested in
     /// isolation) is the remaining member of the same originally-grouped
     /// "unknown hex" trio and a strong candidate to be a third co-input to
     /// the same roll.</summary>
@@ -398,42 +428,36 @@ public static class NmsCompanionPaths
     // 5L6="0x303D00FB0F5921", Q6I=false, IaE=true, "?&lt;V"=false, eK9=false,
     // WQX=true, isp=false.
 
-    /// <summary>CONFIRMED NOT a Battle Ability roll co-input (2026-07-28,
-    /// real isolated test with RollSeedPrimaryPath/RollSeedSecondaryPath
-    /// both held fixed - regenerating this field alone produced no change to
-    /// the badges or species name). Purpose otherwise unknown.</summary>
-    public static string[] UnknownHexCPath(int companionIndex) => CompanionPath(companionIndex).Append("5L6").ToArray();
+    // NAMES (2026-11-15): NMS.exe 185034 lists GcPetData's field names in declaration order (strings at
+    // 0x35a59c0, after "cGcPetData": CreatureSecondarySeed, SpeciesSeed, GenusSeed, CustomSpeciesName,
+    // AllowUnmodifiedReroll, HasFur, BirthTime, LastEggTime, LastTrustIncreaseTime, LastTrustDecreaseTime,
+    // EggModified, HasBeenSummoned, SenderData, PetBattlerUseCoreStatClassOverrides...; names shared with other
+    // structures, such as Predator, Biome and CreatureType, are stored once elsewhere). The save writes its keys in
+    // that same order (1p= m9o JrL HhX Q6I 5L6 IaE uAX 6fX ?<V 8jm HbY XwC tDR KY5 @Hb eK9 WQX fH8 xDJ ttq ... isp),
+    // and every field already known lines up (BirthTime XwC, LastEggTime tDR, SenderData ttq, the override isp),
+    // which names the rest below. Slot 8's 21 companions fit them: Predator on predators only, HasFur on the furry
+    // ones (eggs copy it), HasBeenSummoned off on the reward pets never summoned, EggModified set by the sequencer.
+    // Toggling them in July changed nothing on the pet screen; what each changes in play is untested.
 
-    /// <summary>Toggled true (real test, 2026-07-28) with no observable
-    /// effect anywhere on the in-game pet screen - Battle Abilities badges,
-    /// species name, Traits, Weight/Height, Holo-Arena Victories, and
-    /// Genetic Profile all stayed identical. Doesn't rule out an effect
-    /// outside what's visible there (e.g. something server-side, or a UI
-    /// panel this app hasn't cross-referenced). Purpose otherwise
-    /// unknown.</summary>
-    public static string[] UnknownBoolAPath(int companionIndex) => CompanionPath(companionIndex).Append("Q6I").ToArray();
+    /// <summary>UA (5L6): the universe address the creature came from (values are packed galactic addresses).
+    /// CONFIRMED NOT a Battle Ability roll co-input (2026-07-28, isolated test with the roll seeds fixed).</summary>
+    public static string[] UniverseAddressPath(int companionIndex) => CompanionPath(companionIndex).Append("5L6").ToArray();
 
-    /// <summary>Toggled (real test, 2026-07-28) with no observable effect
-    /// anywhere on the in-game pet screen - same fields checked as
-    /// UnknownBoolAPath, all stayed identical. Purpose otherwise
-    /// unknown.</summary>
-    public static string[] UnknownBoolBPath(int companionIndex) => CompanionPath(companionIndex).Append("IaE").ToArray();
-    /// <summary>Toggled (real test, 2026-07-28) with no observable effect
-    /// anywhere on the in-game pet screen - same fields checked as
-    /// UnknownBoolAPath, all stayed identical. Purpose otherwise
-    /// unknown.</summary>
-    public static string[] UnknownBoolCPath(int companionIndex) => CompanionPath(companionIndex).Append("?<V").ToArray();
-    /// <summary>Toggled (real test, 2026-07-28) with no observable effect
-    /// anywhere on the in-game pet screen - same fields checked as
-    /// UnknownBoolAPath, all stayed identical. Purpose otherwise
-    /// unknown.</summary>
-    public static string[] UnknownBoolDPath(int companionIndex) => CompanionPath(companionIndex).Append("eK9").ToArray();
-    /// <summary>Toggled true->false (real test, 2026-07-28 - this one
-    /// started true on every sampled pet, unlike the others) with no
-    /// observable effect anywhere on the in-game pet screen - same fields
-    /// checked as UnknownBoolAPath, all stayed identical. Purpose otherwise
-    /// unknown.</summary>
-    public static string[] UnknownBoolEPath(int companionIndex) => CompanionPath(companionIndex).Append("WQX").ToArray();
+    /// <summary>Predator (Q6I): on for the predator species (HbY Predator / PlayerPredator), copied to their eggs.</summary>
+    public static string[] PredatorPath(int companionIndex) => CompanionPath(companionIndex).Append("Q6I").ToArray();
+
+    /// <summary>AllowUnmodifiedReroll (IaE): an Egg Sequencer permission; off on the special expedition eggs.</summary>
+    public static string[] AllowUnmodifiedRerollPath(int companionIndex) => CompanionPath(companionIndex).Append("IaE").ToArray();
+
+    /// <summary>HasFur (?&lt;V): the creature has fur (Winginnia, Beary-Beary, the T-Rexes); eggs copy it from the parent.</summary>
+    public static string[] HasFurPath(int companionIndex) => CompanionPath(companionIndex).Append("?<V").ToArray();
+
+    /// <summary>EggModified (eK9): set on an egg by any Egg Sequencer catalyst (its "re-sequenced" note).</summary>
+    public static string[] EggModifiedPath(int companionIndex) => CompanionPath(companionIndex).Append("eK9").ToArray();
+
+    /// <summary>HasBeenSummoned (WQX): on once the companion has been summoned (and when an egg hatches); off on reward
+    /// pets never summoned.</summary>
+    public static string[] HasBeenSummonedPath(int companionIndex) => CompanionPath(companionIndex).Append("WQX").ToArray();
 
     /// <summary>CONFIRMED (2026-07-28, real testing) to be a mode switch for
     /// the Battle Abilities badges: false (the default on every wild-tamed

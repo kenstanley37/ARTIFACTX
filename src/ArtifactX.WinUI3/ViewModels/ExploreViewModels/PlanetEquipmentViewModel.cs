@@ -52,6 +52,8 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         NoLocatedSites = value.Count == 0;
     }
 
+    public PlanetHotspotsViewModel Hotspots { get; } = new();
+
     /// <summary>The planet's exact centre (markers are in system space), or null when it can't be generated.</summary>
     private (double X, double Y, double Z)? _centre;
 
@@ -71,14 +73,14 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
 
     /// <summary>How many matches to list (index into <see cref="ShipCounts"/>); 10 by default, remembered. "All" is
     /// every wreck of the planet (about 2,000 on a Large planet).</summary>
-    public IReadOnlyList<string> ShipCountChoices { get; } = ["5", "10", "25", "50", "100", "250", "500", "All"];
+    public IReadOnlyList<string> ShipCountChoices { get; } = (string[])["5", "10", "25", "50", "100", "250", "500", "All"];
     private static readonly int[] ShipCounts = [5, 10, 25, 50, 100, 250, 500, int.MaxValue];
     [ObservableProperty]
     public partial int ShipCountChoice { get; set; } = Remembered(ShipCountKey, ShipCounts.Length - 1, 1);
     private int ShownShips => ShipCounts[System.Math.Clamp(ShipCountChoice, 0, ShipCounts.Length - 1)];
 
     /// <summary>The class filter's choices, in the order of the buttons (index 0 = any class).</summary>
-    public IReadOnlyList<string> ShipClassChoices { get; } = ["Any class", "S-class", "A-class", "B-class", "C-class"];
+    public IReadOnlyList<string> ShipClassChoices { get; } = (string[])["Any class", "S-class", "A-class", "B-class", "C-class"];
 
     /// <summary>The class filter: 0 = any, 1 = S (the default) .. 4 = C; remembered across sessions.</summary>
     [ObservableProperty]
@@ -169,7 +171,14 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         RefreshMarkers();
         _planet = planet;
         _snapshot = snapshot;
-        await ReloadAsync(planet, snapshot);
+
+        bool here = S.ReadSystemAddress(snapshot.Universe) == planet.SystemAddress
+            && snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() == planet.PlanetIndex && snapshot.Coordinates is not null;
+        (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
+        if (from is not null)
+        {
+            _ = Hotspots.LoadAsync(planet.Address, from.Value.Lat, from.Value.Lon, here, _portal?.Latitude, _portal?.Longitude);
+        }
     }
 
     /// <summary>Added to the crashed-ship summary in a system with no race, where only the planet's fixed underwater
@@ -227,6 +236,7 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
     {
         foreach (var ship in CrashedShips) ship.Refresh();
         Shops.RefreshMarkers();
+        Hotspots.RefreshMarkers();
         HasPortal = _portal is not null;
         if (_portal is not { } portal) return;
         PortalCoordinates = portal.Coordinates;
@@ -276,6 +286,13 @@ public sealed partial class PlanetEquipmentViewModel : ObservableObject
         if (_planet?.Address == planet.Address && !ReferenceEquals(_snapshot, snapshot))
         {
             _ = LoadCrashedShipsAsync(planet, snapshot);
+            bool here = S.ReadSystemAddress(snapshot.Universe) == planet.SystemAddress
+                && snapshot.Universe?["oZw"]?["jsv"]?.Value<int>() == planet.PlanetIndex && snapshot.Coordinates is not null;
+            (double Lat, double Lon)? from = here ? snapshot.Coordinates : _portal is { } p ? (p.Latitude, p.Longitude) : null;
+            if (from is not null)
+            {
+                _ = Hotspots.LoadAsync(planet.Address, from.Value.Lat, from.Value.Lon, here, _portal?.Latitude, _portal?.Longitude);
+            }
             RefreshMarkers();
         }
     }

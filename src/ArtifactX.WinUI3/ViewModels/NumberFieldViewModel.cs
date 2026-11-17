@@ -24,6 +24,13 @@ public sealed partial class NumberFieldViewModel : ObservableObject
 
     [ObservableProperty] public partial double Value { get; set; }
 
+    /// <summary>A short read-only line under the box (a starship's in-game total: "In game 222.8"); empty hides it.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNote))]
+    public partial string Note { get; set; } = "";
+
+    public bool HasNote => Note.Length > 0;
+
     /// <summary>Shows a value read from the save, without counting it as an edit.</summary>
     public void Load(double value)
     {

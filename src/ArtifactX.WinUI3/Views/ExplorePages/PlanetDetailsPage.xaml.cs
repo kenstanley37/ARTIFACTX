@@ -1,5 +1,6 @@
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Controls;
+using ArtifactX.WinUI3.Helpers.Layout;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 using Microsoft.UI.Xaml;
@@ -43,45 +44,39 @@ public sealed partial class PlanetDetailsPage : Page
 
     private async void Previous_Click(object sender, RoutedEventArgs e) => await ViewModel.GoPreviousAsync();
     private async void Next_Click(object sender, RoutedEventArgs e) => await ViewModel.GoNextAsync();
+    // The pinned bar's summary shows once the header card has scrolled away.
+    private void Scroller_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => UpdateSummary();
+    private void HeaderCard_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateSummary();
+    private void UpdateSummary() => Summary.IsShown = PinnedHeader.IsScrolledAway(Scroller, HeaderCard);
+
     private void ToggleEditor_Click(object sender, RoutedEventArgs e) => ViewModel.ToggleEditor();
     private void CollapseFish_Click(object sender, RoutedEventArgs e) => ViewModel.SetFishCollapsed(true);
     private void ExpandFish_Click(object sender, RoutedEventArgs e) => ViewModel.SetFishCollapsed(false);
-
-    private async void CaptureCreature_Click(object sender, RoutedEventArgs e) => await CaptureAsync(null, CaptureCreatureBtn);
-
-    private async void Creature_CaptureRequested(object? sender, CreatureCardRequest request) =>
-        await CaptureAsync(request.Creature.Name, request.Anchor);
-
-    private async System.Threading.Tasks.Task CaptureAsync(string? creatureName, FrameworkElement anchor)
-    {
-        if (!ViewModel.CanCapture) return;
-        CaptureResult result;
-        try
-        {
-            result = await ViewModel.CaptureAsync(creatureName);
-        }
-        catch (Exception ex)
-        {
-            result = new CaptureResult(false, ex.Message);
-        }
-        CaptureFlyoutIcon.Glyph = result.Success ? "" : "";
-        CaptureFlyoutIcon.Foreground = ThemeResources.Brush(result.Success ? "ThemeAccentBrush" : "ThemeWarningBrush");
-        CaptureFlyoutTitle.Text = !result.Success ? "Couldn't read the screen" : result.ReadInfo is not null ? "Creatures read" : "Picture taken";
-        CaptureFlyoutDetails.Text = result.Message;
-        CaptureFlyout.ShowAt(anchor.IsLoaded ? anchor : CaptureCreatureBtn);
-    }
 
     private async void Creature_DeleteRequested(object? sender, CreatureCardRequest request)
     {
         var dialog = new ContentDialog
         {
             Title = $"Remove {request.Creature.Name}?",
-            Content = "This removes the creature, and its picture, from what ArtifactX recorded about this planet. The game isn't changed - reading the fauna list again brings it back.",
+            Content = "This removes the creature from what ArtifactX shows for this planet. The game isn't changed.",
             PrimaryButtonText = "Remove",
             CloseButtonText = "Keep it",
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = XamlRoot,
         };
         if (await dialog.ShowAsync() == ContentDialogResult.Primary) ViewModel.DeleteCreature(request.Creature);
+    }
+
+    private async void Creature_Preview3DRequested(object? sender, CreatureCardRequest request) =>
+        await CreaturePreviewControl.ShowCardAsync(XamlRoot, request.Creature);
+
+    private void PlanetEquipment_CrashedShipsRequested(object? sender, EventArgs e)
+    {
+        Frame.Navigate(typeof(CrashedShipsPage), ViewModel.Planet?.Address);
+    }
+
+    private void PlanetEquipment_CabinetMultiToolsRequested(object? sender, EventArgs e)
+    {
+        Frame.Navigate(typeof(CabinetMultiToolsPage), ViewModel.Planet?.Address);
     }
 }

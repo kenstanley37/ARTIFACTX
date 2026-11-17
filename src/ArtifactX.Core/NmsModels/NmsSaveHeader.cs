@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 
 namespace ArtifactX.Core.NmsModels;
 
@@ -24,7 +24,7 @@ namespace ArtifactX.Core.NmsModels;
 public class NmsSaveHeader
 {
     [JsonProperty("Pk4")]
-    public string SaveName { get; set; }
+    public string? SaveName { get; set; }
 
     [JsonProperty("Lg8")]
     public int SaveVersion { get; set; }
@@ -39,7 +39,7 @@ public class NmsSaveHeader
     public bool HasExpeditionHistory { get; set; }
 
     [JsonProperty("j3Y")]
-    public NmsPlayerHazardState HazardState { get; set; }
+    public NmsPlayerHazardState? HazardState { get; set; }
 
     // Full parent chain included, matching NmsPlayerStateData's own path
     // constants - a page can reference this directly with no need to know

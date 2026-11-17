@@ -7,8 +7,9 @@ public sealed record TerrainNoiseLayer(UberNoiseSettings Noise, int DebugNoiseTy
     int VoxelType, int WaterFade, float Width, bool Active, bool Subtract);
 
 /// <summary>The parts of a planet's TkVoxelGeneratorData the terrain height reads: its 8 noise layers, base seed,
-/// base level without a sea and sea level.</summary>
-public sealed record PlanetTerrainData(TerrainNoiseLayer[] Layers, ulong BaseSeed, float NoSeaBaseLevel, float SeaLevel);
+/// base level without a sea, sea level and the WaterFade distance (0 in catalogs before format 76).</summary>
+public sealed record PlanetTerrainData(TerrainNoiseLayer[] Layers, ulong BaseSeed, float NoSeaBaseLevel, float SeaLevel,
+    float WaterFadeInDistance = 0f);
 
 /// <summary>
 /// A planet's terrain, from its seed and the terrain settings - a port of NMS.exe build 183791
@@ -32,6 +33,10 @@ public static class PlanetTerrain
     private const float QuantiseMul = 1024f, QuantiseStep = 0.0009765625f;
     private const int RegionOctaves = 3;                    // global 0x145097F6C
     private const float RingDefault = 64f, SlopeScale = 0.015625f;
+    private const int CombinedLayers = 4;                   // the density pass combines layers 0-4 (0x1412B1D60)
+    private const int GroundLod = 0;                        // the LOD the ground is built at near the player
+    private const float LayerCeiling = 128f;                // 0x144BF61D8: a layer's reach above its reference
+    private const float SmoothFactor = 0.25f;               // 0x144BF4F70: smooth-union factor
     private static readonly float RingStep = TerrainNoise.Bits(0x3F490FDB);   // pi/4
 
     /// <summary>fBm value range by octave count (0x144AFAD00): min, max for 1, 2, 3 octaves.</summary>
@@ -65,7 +70,7 @@ public static class PlanetTerrain
         }
         if (!(sea > 0f)) layers[4] = layers[4] with { Active = false };
         if (moon) layers[6] = layers[6] with { Active = false };
-        return new PlanetTerrainData(layers, planetSeed, setting.NoSeaBaseLevel, sea);
+        return new PlanetTerrainData(layers, planetSeed, setting.NoSeaBaseLevel, sea, setting.WaterFadeInDistance);
     }
 
     /// <summary>The layer builder 0x1416C4F60: the voxel pick, then the fields drawn in the game's order.</summary>
@@ -145,6 +150,81 @@ public static class PlanetTerrain
         float b = TerrainNoise.Max(h6, 0f);
         if (l[7].Active) b = h7 / l[7].Height * b + h7;
         return b;
+    }
+
+    /// <summary>
+    /// The ground the game builds at a planet-relative point, metres above the planet radius: <see cref="BaseHeight"/>
+    /// plus the noise layers as the voxel density pass combines them (<see cref="CombineLayers"/>). Unlike
+    /// <see cref="Height"/> (0x14128AA20, which takes the larger of NoSeaBaseLevel and each of layers 0-3), this is the
+    /// surface a player stands on and a Save Beacon is built on. Caves, terrain Features and GridLayers are not included:
+    /// in the emulated Far pass they changed nothing on open ground (caves carve local holes), 2026-11-10.
+    /// Checked 2026-11-10 (build 185034): the owner's game-built beacon on Arkans (505200FF67B291) at 281.2 m, this gives
+    /// 281.24 m where <see cref="Height"/> gives 267.7 m.
+    /// </summary>
+    public static float SurfaceHeight(PlanetTerrainData t, float x, float y, float z, float radius)
+    {
+        float inv = 1f / MathF.Sqrt(x * x + y * y + z * z);
+        float qx = x * inv * radius, qy = y * inv * radius, qz = z * inv * radius;
+        uint hash = BaseHash(t.BaseSeed);
+        var l = t.Layers;
+        Span<float> columns = stackalloc float[CombinedLayers + 1];
+        for (int i = 0; i <= CombinedLayers; i++)
+            columns[i] = l[i].Active && l[i].MaximumLOD >= GroundLod ? LayerValue(l[i], qx, qy, qz, Seed(l[i], i, hash)) : 0f;
+        float b = BaseHeight(t, x, y, z, radius);
+        return b + CombineLayers(l, columns, b, t.NoSeaBaseLevel, t.SeaLevel, t.WaterFadeInDistance, GroundLod);
+    }
+
+    /// <summary>
+    /// The height above the base of the surface the voxel density pass (0x1412B1D60, build 184271; 0x1412B2100 on 185034)
+    /// builds from the noise layers' columns: NoSeaBaseLevel plus layer 0, then each active layer 1-4 within its
+    /// MaximumLOD through 0x1412B05D0. A layer stands on the reference its Offset names (Zero; Base = NoSeaBaseLevel +
+    /// layer 0; All = the surface so far; SeaLevel), plus HeightOffset; its column is scaled by min(Height, 128 - that
+    /// reference) / Height and the WaterFade ramp; it then raises the surface (union, smoothed over SmoothRadius) or,
+    /// with Subtract, cuts it down. <paramref name="columns"/> holds layers 0-4's values at the point,
+    /// <paramref name="baseHeight"/> the <see cref="BaseHeight"/> there.
+    /// Checked 2026-11-10 against the game's own Far pass in an emulator (static/remap.py + emu_far.py, caves removed):
+    /// 144 nodes within 9 mm (the voxel quantisation) for the planet's real layers and with each Offset type, Subtract,
+    /// SmoothRadius, HeightOffset, both WaterFade modes, layer 0 off and an extra All layer patched in.
+    /// </summary>
+    public static float CombineLayers(TerrainNoiseLayer[] layers, ReadOnlySpan<float> columns, float baseHeight,
+        float noSeaBaseLevel, float seaLevel, float waterFadeInDistance, int lod)
+    {
+        float baseSurface = noSeaBaseLevel + columns[0];
+        float s = baseSurface;
+        for (int i = 1; i <= CombinedLayers; i++)
+        {
+            var layer = layers[i];
+            if (!layer.Active || lod > layer.MaximumLOD) continue;
+            float fade = 1f;
+            if (waterFadeInDistance > 0f && layer.WaterFade is 1 or 2)
+            {
+                float ramp = layer.WaterFade == 2
+                    ? ((seaLevel - 1f) - (s + baseHeight)) / waterFadeInDistance
+                    : ((s + baseHeight) - (seaLevel - 1f)) / waterFadeInDistance;
+                fade = TerrainNoise.Min(TerrainNoise.Max(ramp, 0f), 1f);
+            }
+            float reference = layer.Offset switch { 1 => baseSurface, 2 => s, 3 => seaLevel, _ => 0f } + layer.HeightOffset;
+            float invHeight = layer.Height == 0f ? 0f : 1f / layer.Height;
+            float height = TerrainNoise.Max(layer.Height, 0f);
+            float value = columns[i];
+            if (!layer.Subtract)
+            {
+                float candidate = TerrainNoise.Min(height, LayerCeiling - reference) * invHeight * fade * value + reference;
+                float raised = TerrainNoise.Max(s, candidate);
+                if (layer.SmoothRadius != 0f)
+                {
+                    float k = TerrainNoise.Max(layer.SmoothRadius - MathF.Abs(s - candidate), 0f);
+                    raised += k * k * SmoothFactor / layer.SmoothRadius;
+                }
+                s = raised;
+            }
+            else
+            {
+                float candidate = reference - TerrainNoise.Min(reference, height) * invHeight * fade * value;
+                s = TerrainNoise.Min(s, candidate);
+            }
+        }
+        return s;
     }
 
     /// <summary>The site flatness test 0x14128C350 (non-settlement path): the largest height difference between the

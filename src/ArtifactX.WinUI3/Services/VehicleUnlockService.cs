@@ -35,7 +35,7 @@ internal sealed class VehicleUnlockService
             && Read<TitleUnlockRule>("TITLEUNLOCKS") is { } titles ? new VehicleUnlockCatalog(options, titles) : null;
     });
 
-    public Task<VehicleUnlockAccount?> ReadAccountAsync(string? path) => Task.Run(async () =>
+    public Task<RewardUnlockAccount?> ReadAccountAsync(string? path) => Task.Run(async () =>
     {
         if (path is null) return null;
         // Read the file afresh, not the account editor's potentially staged session.
@@ -47,8 +47,8 @@ internal sealed class VehicleUnlockService
         HashSet<string> Read(params string[] fields) => fields.SelectMany(f => account[f] as JArray ?? [])
             .Select(t => CatalogService.NormalizeId(t.Value<string>() ?? "")).Where(s => s.Length > 0)
             .ToHashSet(StringComparer.Ordinal);
-        return new VehicleUnlockAccount(Read("B1h", "fyX", "d4U"), Read("Bgb"));
+        return new RewardUnlockAccount(Read("B1h", "fyX", "d4U"), Read("Bgb"));
     });
 }
 
-internal sealed record VehicleUnlockAccount(HashSet<string> Rewards, HashSet<string> Titles);
+internal sealed record RewardUnlockAccount(HashSet<string> Rewards, HashSet<string> Titles);

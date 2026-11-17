@@ -87,6 +87,62 @@ public static class UniverseInfo
             a.Economy, a.Wealth, a.Conflict, a.Race, a.Uncharted, a.Abandoned, a.Pirate, bodies.PlanetCount, bodies.MoonCount);
     });
 
+    /// <summary>The words the game itself shows for a system's economy, wealth and conflict
+    /// ("Prospecting", "Struggling", "Testy"; SystemWords), or nulls when it shows none
+    /// (uncharted, abandoned) or the catalog words aren't loaded yet
+    /// (CatalogService.GetSystemWordsByKeyAsync). A pirate system's wealth and conflict stay null:
+    /// the game uses its own single words there ("Black Market", "Pirate Controlled").</summary>
+    public static (string? Economy, string? Wealth, string? Conflict) GameWords(ulong address)
+    {
+        if (CatalogService.LoadedSystemWordsByKey is not { } words) return (null, null, null);
+        var (code, galaxy) = Generator(SystemKey(address));
+        var attributes = SystemGenerator.Attributes(code, galaxy);
+        if (SystemWords.Keys(code, galaxy, attributes) is not { } keys) return (null, null, null);
+        string? Word(string key) => words.TryGetValue(key, out var w) ? w : null;
+        return attributes.Pirate ? (Word(keys.Economy), null, null) : (Word(keys.Economy), Word(keys.Wealth), Word(keys.Conflict));
+    }
+
+    /// <summary>
+    /// False when the game can't show this word for this system, so a reading that says it belongs to
+    /// another system. <paramref name="group"/> is "Economy", "Wealth", "Conflict" or "Race". True when it
+    /// can't be told: an empty value, catalog words not loaded yet, Autophage.
+    /// <para>Grounds (2026-11-14, user.db): the generator's levels and SystemWords' pick match every system
+    /// read from the save, while 45 of ~190 screen captures held another system's words - their word
+    /// numbers, which depend only on the address, matched 8 of 43 (chance is 1 in 8) against 145 of 150 for
+    /// the rest. Abandoned systems still show their race (save: Vy'keen on an abandoned system) and
+    /// "Abandoned (no economy)".</para>
+    /// </summary>
+    public static bool GameCouldShow(ulong address, string group, string value)
+    {
+        // "Star" is a colour ("Yellow"). The generator's colour matched every one from the save or typed (52/52) and,
+        // where a captured star class disagreed, the system's captured planet types still matched the generator
+        // (their odds depend on the star): those classes were read off another star's card (2026-11-14, 28 of 213).
+        if (group == "Star") return value.Length == 0 || value == For(address).StarLabel;
+        if (value.Length == 0 || value == "Autophage" || CatalogService.LoadedSystemWordsByKey is not { } words) return true;
+        var (code, galaxy) = Generator(SystemKey(address));
+        var a = SystemGenerator.Attributes(code, galaxy);
+        if (group == "Race")
+            return value == For(address).RaceLabel || (a.Abandoned && value == a.Race switch
+            {
+                SystemRace.Gek => "Gek",
+                SystemRace.Korvax => "Korvax",
+                SystemRace.Vykeen => "Vy'keen",
+                _ => "",
+            });
+        if (a.Abandoned && group == "Economy" && value.StartsWith("Abandoned", StringComparison.OrdinalIgnoreCase)) return true;
+        // A word the catalog doesn't know can't be checked.
+        if (!words.Values.Contains(value) && value is not ("Black Market" or "Pirate Controlled")) return true;
+        if (SystemWords.Keys(code, galaxy, a) is not { } keys) return false;
+        string Word(string key) => words.TryGetValue(key, out var w) ? w : "";
+        return group switch
+        {
+            "Economy" => value == Word(keys.Economy) || value == Word(keys.PlainEconomy),
+            "Wealth" => a.Pirate ? value == "Black Market" : value == Word(keys.Wealth),
+            "Conflict" => a.Pirate ? value == "Pirate Controlled" : value == Word(keys.Conflict),
+            _ => true,
+        };
+    }
+
     private static readonly ConcurrentDictionary<ulong, ArtifactX.Core.Universe.SystemBodies> BodiesCache = new();
 
     /// <summary>The generator's bodies for the system an address is in (which are moons, and of what).</summary>
@@ -137,23 +193,27 @@ public static class UniverseInfo
         return planetIndex >= 1 && planetIndex <= names.Length ? names[planetIndex - 1] : $"Planet {planetIndex}";
     }
 
-    /// <summary>Wealth label: the player's note if they took one, else generated.</summary>
+    /// <summary>Wealth label: the player's note if they took one, else generated. A pirate system's is the game's
+    /// own "Black Market" (Yomonos XIII: "Minerals // Black Market", in game 2026-11-14).</summary>
     public static string Wealth(ulong address) =>
-        SystemNotesService.Get(SystemKey(address))?.Wealth is { Length: > 0 } w ? SystemNotesService.CategoryOf("Wealth", w) : For(address).WealthLabel;
+        SystemNotesService.Get(SystemKey(address))?.Wealth is { Length: > 0 } w ? SystemNotesService.CategoryOf("Wealth", w)
+        : For(address) is { Pirate: true } ? "Black Market" : For(address).WealthLabel;
 
     public static string Economy(ulong address) =>
         SystemNotesService.Get(SystemKey(address))?.Economy is { Length: > 0 } e ? SystemNotesService.CategoryOf("Economy", e) : For(address).EconomyLabel;
 
+    /// <summary>Conflict label: the note, else generated; a pirate system's is "Pirate Controlled", as the game says.</summary>
     public static string Conflict(ulong address) =>
-        SystemNotesService.Get(SystemKey(address))?.Conflict is { Length: > 0 } c ? SystemNotesService.CategoryOf("Conflict", c) : For(address).ConflictLabel;
+        SystemNotesService.Get(SystemKey(address))?.Conflict is { Length: > 0 } c ? SystemNotesService.CategoryOf("Conflict", c)
+        : For(address) is { Pirate: true } ? "Pirate Controlled" : For(address).ConflictLabel;
 
-    /// <summary>Stars of wealth (1-3, 0 when none), note first.</summary>
+    /// <summary>Stars of wealth (1-3, 0 when none or a pirate system's black market), note first.</summary>
     public static int WealthStars(ulong address)
     {
         var note = SystemNotesService.Get(SystemKey(address));
         if (note?.Wealth is { Length: > 0 } w) return SystemNotesService.CategoryOf("Wealth", w).Count(ch => ch == '★');
         var facts = For(address);
-        return facts.Uncharted ? 0 : facts.Wealth;
+        return facts.Uncharted || facts.Pirate ? 0 : facts.Wealth;
     }
 
     /// <summary>One short line for cards, wealth first since that's what people scan
@@ -163,17 +223,23 @@ public static class UniverseInfo
         var f = For(address);
         if (f.Uncharted) return $"Uncharted (no station) \u00B7 {f.StarLabel} star";
         int stars = WealthStars(address);
+        string conflict = Conflict(address);
+        bool pirateConflict = IsPirateWord(conflict);
         var parts = new System.Collections.Generic.List<string>
         {
-            stars > 0 ? new string('\u2605', stars) : "\u2606",
+            stars > 0 ? new string('\u2605', stars) : Wealth(address) is "Black Market" ? "Black Market" : "\u2606",
             Economy(address),
             f.Abandoned ? "Abandoned" : RaceLabel(address),
-            $"{Conflict(address)} conflict",
+            pirateConflict ? conflict : $"{conflict} conflict",
             $"{(SystemNotesService.Get(SystemKey(address))?.StarColour is { Length: > 0 } c ? c : f.StarLabel)} star",
         };
-        if (f.Pirate) parts.Add("Pirate");
+        if (f.Pirate && !pirateConflict) parts.Add("Pirate");
         return string.Join(" \u00B7 ", parts);
     }
+
+    /// <summary>Pirate systems' own conflict word ("Pirate Controlled") reads as-is, never "... conflict".</summary>
+    private static bool IsPirateWord(string conflict) =>
+        conflict.Contains("Pirate", System.StringComparison.OrdinalIgnoreCase);
 
     public static string RaceLabel(ulong address) =>
         SystemNotesService.Get(SystemKey(address))?.Race is { Length: > 0 } r ? r : For(address).RaceLabel;
@@ -185,7 +251,7 @@ public static class UniverseInfo
         if (f.Uncharted) return $"{f.StarLabel} star · Uncharted - no race, economy or station";
         // Pirate systems' own words read as-is ("Black Market", "Pirate Controlled"), not "... wealth/conflict".
         string wealth = Wealth(address), conflict = Conflict(address);
-        bool pirateConflict = conflict.Contains("Pirate", System.StringComparison.OrdinalIgnoreCase);
+        bool pirateConflict = IsPirateWord(conflict);
         var parts = new System.Collections.Generic.List<string> { $"{f.StarLabel} star", f.RaceLabel, Economy(address),
             wealth == "Black Market" ? wealth : $"{wealth} wealth", pirateConflict ? conflict : $"{conflict} conflict" };
         if (f.Pirate && !pirateConflict) parts.Add("Pirate-controlled");

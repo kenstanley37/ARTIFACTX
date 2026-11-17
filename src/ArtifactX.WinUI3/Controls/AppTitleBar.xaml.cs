@@ -22,9 +22,16 @@ public sealed partial class AppTitleBar : UserControl
     // only the former should play the switch-flash animation.
     private string? _lastActiveLabel;
 
+    // The title bar's dispatcher, kept from the start: the static events below (live save snapshots, game state)
+    // can fire while the window closes, when the control's DispatcherQueue property already reads null - a save
+    // landing as the app closed threw NullReferenceException (owner, 2026-11-15). TryEnqueue on the kept queue
+    // just returns false once it has shut down.
+    private readonly Microsoft.UI.Dispatching.DispatcherQueue _ui;
+
     public AppTitleBar()
     {
         InitializeComponent();
+        _ui = DispatcherQueue;
         SaveSessionManager.ActiveSessionChanged += OnSessionOrEditsChanged;
         SaveSessionManager.PendingEditsChanged += OnSessionOrEditsChanged;
         SaveSessionManager.ExternalChangeDetected += OnExternalChangeDetected;
@@ -32,9 +39,9 @@ public sealed partial class AppTitleBar : UserControl
 
         VersionTxt.Text = $"v{AppVersionService.DisplayVersion}";
         RefreshGameLabel();
-        GameDataService.StateChanged += (_, _) => DispatcherQueue.TryEnqueue(RefreshGameLabel);
+        GameDataService.StateChanged += (_, _) => _ui.TryEnqueue(RefreshGameLabel);
         // The game's own cap arrives after start-up; redraw the parts counter against it.
-        ConstructionLimitService.Changed += () => DispatcherQueue.TryEnqueue(Refresh);
+        ConstructionLimitService.Changed += () => _ui.TryEnqueue(Refresh);
         // No Unloaded/unsub here - AppTitleBar is created once for the
         // lifetime of MainWindow, never re-created via Frame navigation like
         // a Page, so this is safe the same way the subscriptions above are.
@@ -43,12 +50,12 @@ public sealed partial class AppTitleBar : UserControl
         ThemeBtnTxt.Text = $"Theme: {ThemeService.Current.DisplayName}";
         FishCatchRecorder.ActiveChanged += RefreshRecording;
         RefreshRecording();
-        ScreenCaptureLogService.RecordingChanged += () => DispatcherQueue.TryEnqueue(RefreshScreenRecording);
+        ScreenCaptureLogService.RecordingChanged += () => _ui.TryEnqueue(RefreshScreenRecording);
         RefreshScreenRecording();
 
         // Parts placed follow the game's saves live, like the Bases page (2026-10-18).
         FishCatchRecorder.SnapshotSeen += snapshot =>
-            DispatcherQueue.TryEnqueue(() =>
+            _ui.TryEnqueue(() =>
             {
                 if (!SaveSessionManager.IsSaveLoaded) return;
                 ShowParts(snapshot.Bases, snapshot.LooseObjects);
@@ -108,7 +115,7 @@ public sealed partial class AppTitleBar : UserControl
     private void RefreshGameLabel()
     {
         var game = GameDataService.Game;
-        string tested = $"{TestedGameRelease.Name} {TestedGameRelease.Version}";
+        string tested = TestedGameRelease.Label;
         NmsCompatTxt.Text = game is null ? "NMS: not found" : TestedGameRelease.Compare(game) switch
         {
             0 => $"NMS {tested} · {game.BuildLabel}",
@@ -152,7 +159,7 @@ public sealed partial class AppTitleBar : UserControl
     }
 
     private void OnUpdateCheckChanged(object? sender, EventArgs e) =>
-        DispatcherQueue.TryEnqueue(RefreshUpdateBadge);
+        _ui.TryEnqueue(RefreshUpdateBadge);
 
     private void RefreshUpdateBadge()
     {
@@ -240,7 +247,7 @@ public sealed partial class AppTitleBar : UserControl
 
                 await UpdateCheckService.DownloadAndRestartAsync(msg =>
                 {
-                    DispatcherQueue.TryEnqueue(() =>
+                    _ui.TryEnqueue(() =>
                     {
                         statusTxt.Text = msg;
                         progress.Value = UpdateCheckService.DownloadProgress;
@@ -259,12 +266,12 @@ public sealed partial class AppTitleBar : UserControl
     private void OnSessionOrEditsChanged(object? sender, EventArgs e)
     {
         if (_isSaving) return;
-        DispatcherQueue.TryEnqueue(Refresh);
+        _ui.TryEnqueue(Refresh);
     }
 
     private void OnGameRunningStateChanged(object? sender, bool isRunning)
     {
-        DispatcherQueue.TryEnqueue(() =>
+        _ui.TryEnqueue(() =>
         {
             Refresh();
             if (!isRunning)
@@ -274,7 +281,7 @@ public sealed partial class AppTitleBar : UserControl
 
     private void OnExternalChangeDetected(object? sender, EventArgs e)
     {
-        DispatcherQueue.TryEnqueue(async () =>
+        _ui.TryEnqueue(async () =>
         {
             // Say what Reload costs: a player who applied a ship design while the game ran
             // reloaded, lost the design and took it for a missing Save button (2026-10-16).

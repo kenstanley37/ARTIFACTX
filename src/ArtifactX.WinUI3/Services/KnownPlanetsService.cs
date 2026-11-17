@@ -183,6 +183,15 @@ public sealed class LiveSaveWatcher : IDisposable
     {
         if (LatestSnapshot is not null) return LatestSnapshot;
 
+        // When a save session is already loaded in memory, use it immediately rather than
+        // re-reading, decrypting, and parsing the 11MB encrypted save file from disk.
+        if (SaveSessionManager.IsSaveLoaded)
+        {
+            var sessionSnapshot = FromSession();
+            LatestSnapshot = sessionSnapshot;
+            return sessionSnapshot;
+        }
+
         if (SaveSessionManager.ActiveSlot is { } slot)
         {
             string newest = slot.Files.Select(f => f.FullPath).Where(File.Exists)

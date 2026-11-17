@@ -117,7 +117,18 @@ public static class CreatureListService
             cmd.Parameters.AddWithValue("$p", planet);
             cmd.Parameters.AddWithValue("$k", key);
             cmd.Parameters.AddWithValue("$now", now);
-            cmd.ExecuteNonQuery();
+            int rows = cmd.ExecuteNonQuery();
+            if (rows == 0)
+            {
+                using var ins = connection.CreateCommand();
+                ins.CommandText = "INSERT INTO planet_creatures (system_address, planet_index, name_key, name, rarity, habitat, activity, gender, size, picture, seen_at, deleted, updated_at) VALUES ($s, $p, $k, $name, '', '', '', '', '', 0, $now, 1, $now)";
+                ins.Parameters.AddWithValue("$s", Hex(system));
+                ins.Parameters.AddWithValue("$p", planet);
+                ins.Parameters.AddWithValue("$k", key);
+                ins.Parameters.AddWithValue("$name", name);
+                ins.Parameters.AddWithValue("$now", now);
+                ins.ExecuteNonQuery();
+            }
         }
         catch (Exception ex)
         {
@@ -139,6 +150,17 @@ public static class CreatureListService
 
         Changed?.Invoke(system, planet);
         return removed;
+    }
+
+    /// <summary>Checks whether a creature has been marked deleted by the player.</summary>
+    public static bool IsDeleted(ulong system, int planet, string name)
+    {
+        string fullKey = $"{Hex(system)}|{planet}|{NameKey(name)}";
+        lock (Lock)
+        {
+            _ = All; // ensure DeletedKeys loaded
+            return DeletedKeys.Contains(fullKey);
+        }
     }
 
     /// <summary>Whether a recorded creature on the planet lives underwater.</summary>
@@ -453,21 +475,19 @@ public static class CreatureListService
     }
 
     /// <summary>"planet Waterworld" in the notes, matched to a planet of a system the player was recently in.</summary>
+    /// <summary>The recent planet the notes name (Core NotesPlanetMatcher: "planet X" first, then the bare name with
+    /// its capitals), or null when none or several do.</summary>
     private static (ulong, int)? PlanetIn(string text)
     {
-        string norm = Regex.Replace(text, @"\s+", " ");
-        var found = new List<(ulong, int)>();
+        var candidates = new List<((ulong, int) Key, string Name)>();
         foreach (ulong system in PlanetPageReader.Recent())
         {
             var f = UniverseInfo.For(system);
             for (int b = 1; b <= f.PlanetCount + f.MoonCount; b++)
                 foreach (var name in new[] { UniverseInfo.PlanetName(system, b), UniverseInfo.GeneratedPlanetName(system, b) }.Distinct())
-                    // The name alone: the model can cover the words before it ("Di" | "lanet Waterworld", 2026-10-18).
-                    if (name.Length > 3 && Regex.IsMatch(norm, $@"(?<![\p{{L}}]){Regex.Escape(name)}(?![\p{{L}}])", RegexOptions.IgnoreCase))
-                        found.Add((system, b));
+                    candidates.Add(((system, b), name));
         }
-        found = found.Distinct().ToList();
-        return found.Count == 1 ? found[0] : null;
+        return ArtifactX.Core.Capture.NotesPlanetMatcher.Find(text, candidates);
     }
 
     private static Dictionary<string, Dictionary<string, Creature>> All

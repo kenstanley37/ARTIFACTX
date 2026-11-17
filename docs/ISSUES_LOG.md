@@ -17,7 +17,7 @@ The following items from the notes are already fully addressed in the codebase o
 | **#27** | *Show user.db database size in UI.* | **Completed**: Added database size calculation (including WAL breakdown), schema version, full file path, and an "Open data folder" button directly to the ArtifactX Data card on `SettingsPage` on branch `feature/user-db-size-display`. |
 | **#22** | *Inventory sorting: sort by category/type then by name.* | **Completed**: Enhanced `InventoryGridViewModel.SortItems` with category taxonomy (Technology, Raw Materials/Substances, Crafted Components, Curiosities & Artifacts, Consumables/Navigation, Cooking & Edibles, Trade Goods, Construction Parts) and secondary A-Z alphabetical sorting on branch `feature/inventory-category-sorting`. |
 | **#26** | *Manual "Capture Screenshot Now" button for OCR reader.* | **Completed**: Added contextual manual capture buttons to `SystemViewFrame` and `CURRENT SYSTEM` header on `PlanetsPage`, and inline on creature cards + fauna header on `PlanetDetailsPage`. Contextual buttons serve as true manual overrides that bypass OCR detection heuristics to unconditionally crop and save system and creature pictures with offline fallback and immediate card refresh on branch `feature/manual-capture-button`. |
-| **#28** | *Dual planet classification display (Biome Group + Specific Descriptor).* | **Completed**: Added Schema Migration 20 to `user.db` adding `descriptor` column to `planet_details`. Integrated descriptor extraction from Discoveries pop-ups (`BodyKindsService`), flight cards, visor scans, and full planet pages (`PlanetPageReader`), with clean fallback to broad biome group (`NmsPlanets.BiomeGroup` / `FormatClassification`, e.g. *Crimson Planet (Red / Exotic)* or *Paradise Planet (Lush)*), manual descriptor viewing & editing in `PlanetDetailsPage`, and dual classification display across `PlanetsPage`, `PlanetDetailsPage`, `BasesPage`, `FindsPage`, and `FishingPage` on branch `feature/dual-planet-classification`. |
+| **#28** | *Dual planet classification display (Biome Group + Specific Descriptor).* | **Completed**: Originally added Schema Migration 20 (`planet_details.descriptor`) on `feature/dual-planet-classification`; upgraded 2026-11-08 on `feat/planet-type-descriptor` ([Issue #59](https://github.com/kenstanley37/ARTIFACTX/issues/59)) to procedurally generate exact planet type descriptors (`PlanetProfileGenerator.Descriptor.cs`, catalog format 74) directly from the planet seed using `NMS.exe`'s algorithm (`0x14168eb00`), displaying `"Tropical Moon (Lush)"`, `"Pillared Planet (Exotic) · rings"`, `"Desolate Planet (Barren)"`, etc., across the entire app without requiring screen capture. |
 | **#21** | *Collapsible categorized bases page (Freighter, Planets, Stations, Settlements, Placed Equipment), galactic regions, and BaseDetailsPage drill-down.* | **Completed**: Grouped `BasesPage.xaml` into 5 collapsible categories: 1) Freighter Base (pinned at top), 2) Planetary Bases, 3) Claimed Space Stations & Outposts, 4) Settlements, and 5) Placed Equipment (No Base) to track standalone refiners, save points, and beacons counting toward the 21,000 construction cap. Resolved page transition lag with instant visual navigation and background `Task.Run` processing. Added galactic region names to location telemetry (`UniverseInfo.LocationWithRegion`). Decoupled itemized building parts into `BaseDetailsPage.xaml` with comprehensive icons and styled fallback glyph badges for all station and base components on branch `feature/collapsible-bases`. |
 
 ---
@@ -141,8 +141,10 @@ These items directly extend existing open GitHub issues:
 - **Status**: Implemented in Settings (`4618392`): size including the WAL file, schema version and location, with an open-folder button. Already on `development`.
 
 ### Feature 12: Dual Planet Classification Display (Biome Group + Specific Descriptor) [Resolved]
+- **GitHub**: [Issue #59](https://github.com/kenstanley37/ARTIFACTX/issues/59)
 - **Note #28**
-- **Description**: Display both the broad biome group and the specific planetary descriptor on planet pages (e.g. *"Crimson Planet (Red / Exotic)"*).
+- **Description**: Display both the broad biome group and the specific planetary descriptor on planet pages (e.g. *"Tropical Moon (Lush)"*, *"Crimson Planet (Exotic)"*).
+- **Status**: Completed and verified in game by owner, 2026-11-08 (`feat/planet-type-descriptor`, merged `da862c4`). Replaced screen-reader dependence with procedural descriptor generation from `NMS.exe` (`0x14168eb00`, `PlanetProfileGenerator.Descriptor.cs`, catalog format 74). See Feature 76.
 
 ### Feature 13: Mission Target Tracking: Industrial Cleanup
 - **Note #30**
@@ -190,6 +192,7 @@ These items directly extend existing open GitHub issues:
 - Allow editing pilot and ship information through the real saved fields or procedural inputs. Research generated values so edits produce the intended in-game effect.
 - Reuse the Starships page's actual 3D ship preview capability.
 - Design around the four squadron slots, using the game's compact 2-by-2 ship selection layout and selected pilot/ship details area. Show empty slots clearly.
+- **Status / Follow-up (2026-11-07)**: 3D interactive ship preview card and procedural starship name generation implemented for all 4 squadron pilots (`d1e0281`). Open item noted by owner: procedural seed colors for standard starships are not yet fully mapped (rendered in the cyan hologram style when not painted at a station fabricator). Tracked for procedural palette texture mapping.
 
 ### Feature 19: Storage Hangar
 
@@ -377,7 +380,8 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Request**: Display the selected companion's actual creature name and a rotatable 3D preview representing that creature.
 - **Implementation**: Reuse the existing preview pipeline where compatible; investigate creature model, descriptor, seed, scale and colour inputs. Distinguish the creature/species name from the player's pet nickname. Do not invent names or substitute a generic model as an exact preview.
 - **Companion name solved 2026-11-04**: a companion never renamed shows the game's own name ("Witchilly", "Ana-Ana") in the picker and as the Name box's placeholder; seed from XID + BirthTime, 4/4 on Slot 8 and 560/560 against NMS.exe's routine run in an emulator (Core `CreatureNames`, `feature/species-names`).
-- **Species name solved 2026-11-04**: the Companions page shows the game's species name ("Z. Wingeebus") from m9o/JrL, or the player's own when set; 4/4 against the owner's Genetic Profile screens (Core `SpeciesNames`, `feature/species-names`). The 3D preview remains open.
+- **Species name solved 2026-11-04**: the Companions page shows the game's species name ("Z. Wingeebus") from m9o/JrL, or the player's own when set; 4/4 against the owner's Genetic Profile screens (Core `SpeciesNames`, `feature/species-names`).
+- **3D preview solved 2026-11-08** (`feature/creature-companion-3d-models`, merged `17d93dc` + `fb90169`): Companions page and Planet Details creature cards now render interactive 3D creature models from the game install using the creature's archetype and active body descriptors, oriented in a front three-quarter view facing the player. Undiscovered planetary fauna render as procedural 3D mystery silhouettes with rim lighting and transition to full 3D models on discovery (including live save updates across both `8P3` and `S48` discovery arrays).
 - **Acceptance**: Compare names and appearance with the same companion in game; retain preview rotation while unrelated fields change and avoid rebuilding the model on every keystroke. Track unresolved model types explicitly.
 
 ### Feature 43: Egg Sequencer Helper
@@ -518,10 +522,14 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Direction**: build a per-item "how to get it" source from extracted game data: expedition rewards (catalog format 60), Twitch rewards, the Quicksilver and Anomaly shop and construction-terminal unlock trees (GcUnlockableTrees), platform rewards and recipes. Show it beside each item on the unlock pages. Unknown sources stay marked unknown.
 
 ### Feature 60: Travel to Any Galaxy
-- **Source**: Owner, 2026-11-03 (future feature).
-- **Request**: Let the player move a save to any of the game's 256 galaxies, arriving somewhere safe such as a space station.
-- **Known so far**: ArtifactX already reads the galaxy as part of the save's current universe address (Finds and Near the Core show "Budullangr (7)" from it) and lists all 256 galaxies by name in the Finds form.
-- **Needs before building**: a controlled Slot 8 diff of a real galaxy change in game (for example via the Atlas or a portal) to see every field it touches - the current address, the player's position and state, and anything the game keeps per galaxy - and an in-game check that an edited save loads at the chosen station. Never write while the game is running; stage the change like other edits.
+- **Source**: Owner, 2026-11-03 and 2026-11-07: "I would like a page for galaxy transfer. Allow the user to choose any galaxy 0 through 256 I think and place them in a system near the core (doesn't have to extermely close) in a spacestation."
+- **Status 2026-11-07**: Built on branch `feature/galaxy-transfer`. Live updates verified: listens to `FishCatchRecorder.SnapshotSeen`, `SaveSessionManager.ActiveSessionChanged`, and `PendingEditsChanged` to quietly move the "HERE" badge and update current location in-place without page reloads or list scrolling when the player travels in-game or reloads saves.
+- **Implementation**:
+  - `src/ArtifactX.Core/NmsModels/NmsGalaxyInfo.cs`: Full 256 galaxy database with names from `NmsGalaxyNames`, classification mathematical sequence (25 Lush, 26 Harsh, 26 Empty, 179 Normal), and gateway core destination coordinates (`X: 7, Y: -8, Z: -9`, system index `407`, ~5,571 LY from the galactic core, portal glyphs `1197777F8808`).
+  - `src/ArtifactX.WinUI3/Services/GalaxyTransferService.cs`: Stages edits to `CurrentUniverseAddressPath` (`yhJ`), `LocationDescriptionPath` (`n:R`), spawn state `SpawnStatePath` (`vLc.rnc` with `jk4: "InStation"`, docking walkway player position `mEH`, landing pad starship position `tnP`), and registers the station teleport endpoint in `nlG` via `SpaceStationService.EnsureStationMarkerStaged`. Reads live game snapshot (`LiveSaveWatcher.LatestSnapshot`) so "You are here" follows game progress.
+  - `src/ArtifactX.WinUI3/ViewModels/ExploreViewModels/GalaxyTransferViewModel.cs`: Search/filter by name or number (1..256), classification filter buttons (All, Lush, Harsh, Empty, Normal), current galaxy telemetry, staging status, and `UpdateCurrentGalaxy` for quiet in-place badge moves.
+  - `src/ArtifactX.WinUI3/Views/ExplorePages/GalaxyTransferPage.xaml`: Two-column layout with galaxy browser, detailed destination card, core proximity facts, copy portal glyphs, and confirmation dialog before staging. Subscribes to live snapshot feed.
+  - Added "Galaxy Transfer" to the Explore section in `MainWindow.xaml`.
 
 ### Bug 61: Cooking Recipes Shows Different Nutrient Ingestor Buffs From the Game
 - **Source**: Owner, 2026-11-03, Slot 8 screenshots.
@@ -550,3 +558,200 @@ Source: `ARTIFACTX_MAUI-10-26-2026.odt`, incorporated 2026-10-27. These are back
 - **Status 2026-11-04**: solved and built on `feature/egg-sequencer-helper`. The seed is Hash128to64(item hash, ResourceSeed); confirmed on Slot 1 frigate 24, whose ForcedTraitsSeed only FOOD_P_ALL1/2/3 reproduce, and whose first three traits the reroll gives exactly. The Frigates page shows a Feed Vessel list for organic frigates (Core `OrganicFrigateFeeding`).
 - **Confirmed in game 2026-11-04**: the owner fed Rutyulin DH8 (Slot 8) the app's top Trade food, Lumpen Doughnut; the game gave exactly the five predicted traits (Mesmerising Voice, Market Foresight, Peaceful Negotiator, Fleet Mascot, Stoic Endurance) and the predicted stats (Combat 27 to 11, Industrial 14 to 8, Trade 9 to 32, Exploration unchanged). Merged to development.
 - **Open**: which items the game's feed menu offers (the list uses cooking ingredients, unconfirmed). Add 1 to Exosuit on each food: owner-tested and merged 2026-11-04 (3280019).
+
+---
+
+## 2026-11-07 planetary exploration additions
+
+### Feature 65: Planetary Hotspot Locator (Power, Mineral, Gas) on Planet Details
+- **Source**: Owner request, 2026-11-07, with in-game Analysis Mode screenshot on planet Edelangm (`media_1794071304101_ca431196.jpg`) showing an Electromagnetic Power Hotspot at `+2.57, -109.31`.
+- **Status 2026-11-08**: Built on `feature/planet-hotspots`. Verified against owner's live screenshot (100% exact match: Power B-class, 64u away at `+2.56, -109.32`).
+- **Goal**: Help players find deep-level resource hotspots on planets directly from the Planet Details page without having to wander blindly with the Survey Device.
+- **Details & Implementation**:
+  - Evaluates the planet's procedural extraction algorithms (`HotspotNeighborhood.Around` and adjacent rings from native 0x1412F4AC0) around the player's visor coordinates when on the planet, or around the planet's portal when viewing from elsewhere.
+  - Categorizes into Electromagnetic Power, Deep-Level Minerals, and Atmospheric Gases with S/A/B/C classes, yield %, strength per second, and Survey Device detection range.
+  - Interactive cards display distance, coordinates with quick copy button, and "Add marker to save" / "Undo" actions that stage active scan markers into the save (`vLc.6f=.A1f`).
+  - Filter bar supports 1-click filtering: All, ⚡ Power, ⛏ Mineral, ☁ Gas, and ★ S-Class.
+
+### Feature 66: Claimable Planetary Settlement Locator on Planet Details
+- **Source**: Owner request, 2026-11-07.
+- **Goal**: Help players discover claimable (unowned / Overseer-less) planetary settlements on planets across inhabited systems.
+- **Details**:
+  - Planetary settlements (Frontiers update) spawn across inhabited systems on non-dead planets. Players frequently want to find settlements on specific paradise or home worlds without waiting on settlement map RNG.
+  - Display on the Planet Details page: settlement name, dominant race, production class/stats, coordinates, distance from player/portal, and whether an Overseer is already assigned or if the settlement is open to claim.
+  - Provide an "Add marker" action to guide the player directly to the settlement site.
+
+### Feature 67: Space Station Design Copy & Templates (User-Placed Objects)
+- **Source**: Owner request, 2026-11-07: "Spacestation copy feature like we have on starships and freighters etc. We will only be copying the user placed objects and not the station because we can't copy that. But we should be able to copy the design."
+- **Goal**: Allow players directing multiple space stations to copy custom interior designs (furniture, rooms, decor, lights, terminals) between stations, save them to the `user.db` template library, and share design files with other players, matching the copy/template workflows already available on Starships and Freighters.
+- **Details**:
+  - **Physical Station Isolation**: The station exterior, docking structure, system identity, and core connectors are fixed and generated by the game. We only copy the player's custom placed objects from `@ZJ`, never the physical station structure.
+  - **Default Furniture Filtering**: Every claimed station starts with 137 default objects (core, bridge connectors, sofas, paragon). ArtifactX uses `NmsSpaceStationPaths.MatchDefaultFurniture` to isolate the default fixtures so they are preserved and never duplicated or misaligned.
+  - **Copy to Another Station**: A direct station-to-station copy action on `SpaceStationsPage` under the selected station details, letting the player pick any other station they direct in the active save and copy the custom design over.
+  - **Station Design Templates**: Support `SourceKind = "SpaceStation"` in `NmsLoadoutTemplate` and `user.db`. Save a custom design as a named template, apply saved templates to newly claimed stations, and export/import `.json` design files via `TemplateSharingService`.
+  - **UI**: Added to `StationDetailsPanel` under a dedicated "Station Design & Templates" card with custom parts count, "Copy to Another Station...", "Save Design as Template", and "Apply Design Template".
+
+### Feature 68: 3D Model Preview in Starship Template Preview Dialog
+- **Source**: Owner request, 2026-11-07, with screenshot `media_1794072002566_c2783150.jpg` of the `AwesomeVette` Full Build template preview dialog: "The preview of our starships show nothing but the tech and stats. We need to be able to give a 3d preview of the ship as well. Just another thing to add to the list"
+- **Status 2026-11-07**: Built on branch `feature/template-ship-3d-preview`.
+- **Implementation**:
+  - `TemplatePreview.xaml` / `TemplatePreviewViewModel.cs` updated to a dynamic side-by-side layout:
+    - Full Build Starships and Freighters (where `Scope == "FullBuild"` and `TypeScenePath` is present) expand dialog max width to 1,000px, rendering an interactive `ModelPreviewPanel` (Width 380px, Height 260px) in the left column with drag-to-orbit rotation.
+    - Right column houses the template facts, base stats bonuses, scrollable tech grid, and compatibility notes.
+    - Non-model or Tech Stack templates gracefully collapse the model column and remain at standard 620px width.
+  - Enhanced `ModelPreviewPanel.xaml.cs` to support:
+    - Fabricated ships with custom paint, styles, and options via `BuiltLook`.
+    - Fixed-look ships (Golden Vector, Starborn Runner, Boundary Herald, etc.) with authentic game textures via `FixedLookAsync`.
+    - Sentinel Interceptors with seed-derived palette painting.
+    - Conventional and freighter models with hologram scan fallback.
+  - Added `ShipPartsService.BuiltLookFromCustomisation` to parse saved paint, parts, and styles directly from `template.Customisation`.
+
+### Feature 69: Modular 3D Assembly & Rendering for Player Corvettes & Base Parts
+- **Source**: Owner feedback, 2026-11-07, with screenshot `media_1794073956925_637aa2d4.jpg` of `AwesomeVette`: "I don't think we have corvettes showing correctly yet... we want to be able to show the corvettes sooner or later because people will want to share them with each other either through json export or the api that we will design later on."
+- **Goal**: Render complete player-built Corvettes (`BIGGS`) and base-building structures in 3D by assembling modular parts (`InteriorObjects` / `PlayerShipBase` / `@ZJ`) placed in 3D local coordinates, enabling visual inspection, template sharing, and crowd-source design exports.
+- **Details**:
+  - **Chassis vs Modular Construction**: In No Man's Sky, conventional starships use procedural descriptor scenes (`FIGHTER_PROC`, `SENTINELSHIP`). Corvettes, however, use only a bare landing frame chassis (`MODELS/COMMON/SPACESHIPS/BIGGS/BIGGS.SCENE.MBIN`), while the actual ship body is composed of dozens to hundreds of custom base modules (cockpits, habs, wings, engines, landing gear, hull panels) stored in `PlayerShipBase` / `InteriorObjects`.
+  - **Template & Save Data**: Templates and export files already capture these parts as `NmsLoadoutBaseObject` entries:
+    - `ObjectId`: part identifier (e.g. `^BIGGS_COCKPIT_A`, `^BIGGS_WING_B`, `^BIGGS_HAB_C`).
+    - `Position`: $[x, y, z]$ translation coordinates in local ship space.
+    - `Up`: $[x, y, z]$ local up normal vector.
+    - `At`: $[x, y, z]$ local forward facing vector.
+  - **Target 3D Composite Pipeline**:
+    1. Resolve each `ObjectId` to its building part scene path from the catalog / geometry tables.
+    2. Build/cache the geometry for each unique part type.
+    3. Calculate the $4\times4$ transform matrix ($Position$, $Up$, $At$, and orthonormal cross product).
+    4. Transform each part's vertex buffers into local model space and merge them into a single composite mesh for `ShipPreview`.
+  - **Immediate Interim State**: `ModelPreviewPanel` detects `ShipBaseService.IsCorvetteModel` and displays the chassis as a clean hologram with note: *"Corvette base chassis. Custom modular parts (cockpit, wings, thrusters) are placed in game — full modular 3D assembly in development."*
+
+### Feature 70: Seed Generation History (Undo & Redo) in SeedBox
+- **Source**: Owner request, 2026-11-07: "when a user is clicking generate to change the way the ship looks there is no back button. So unless he copies the seed he has lost it possibly forever... We need a forward button as well but it needs to be smart. It should become disabled when it gets to the end of the list and the back button should be disabled when it reaches the start of the list."
+- **Status 2026-11-07**: Solved and built on branch `feature/seed-undo-corvette-preview`.
+- **Implementation**:
+  - Maintained an in-memory session history list (`_history`, capped at 30 entries) and tracking index (`_historyIndex`) in the shared [`SeedBox`](file:///d:/Code-Projects/ARTIFACTX/src/ArtifactX.WinUI3/Controls/SeedBox.xaml) control.
+  - Added Back (Undo `&#xE7A7;`) and Forward (Redo `&#xE7A6;`) buttons directly between the seed TextBox and the Generate button.
+  - Smart boundary disabling:
+    - Back button disables at the beginning of history (`_historyIndex <= 0`).
+    - Forward button disables at the newest roll (`_historyIndex >= _history.Count - 1`).
+    - Clicking Generate from the middle of history truncates forward history and branches cleanly into the new roll.
+  - History is preserved during the active edit session on that ship/equipment, and resets cleanly when switching equipment or loading another save.
+  - App-wide: protects seed rolls across Starships, Freighters, Squadron Pilots, Frigates, Exocraft, and Companions.
+
+### Issue 71: Sentinel Interceptor Seed Colors Mismatch (In-Game vs 3D Preview)
+- **Source**: Owner comparison screenshots, 2026-11-07: ArtifactX preview (`media_1794075254036_4e7a5803.jpg`) vs in-game photo mode on landing pad (`media_1794075281636_f9aac39e.jpg`).
+- **Status 2026-11-07**: Solved on branch `fix/sentinel-interceptor-colors`.
+- **Problem**:
+  - In-game, `DudeWing` (`0x18CCABE432DC2725`) is bright coral red with black wings and white striping.
+  - In ArtifactX's 3D preview, `DudeWing` displayed with a dark purple/slate-blue hull and black trim.
+- **Root Cause**:
+  - In `ShipModels.Paint.cs` (and `ShipLook.cs`), layer texture options were filtered with `(int)t.TextureGameplayUse == 0` (and `o.Use != 0`), assuming anything non-zero was a special requested name.
+  - In NMS, `TkProceduralTexture.TextureGameplayUseEnum` defines:
+    - `0 = IgnoreName`: Always eligible for procedural generation.
+    - `1 = MatchName`: Only used if specifically requested (e.g. `POLICE` style decals).
+    - `2 = DoNotMatchName`: Standard procedural options (used whenever a special name is NOT requested).
+  - In `TEXTURES/COMMON/ROBOTS/SENTINELPROC.TEXTURE.MBIN`, the `OVERLAY` layer's 4 procedural textures (including `Texture 4`, which uses `Palette: Paint, Alt: Alternative1` — the bright red hull coat `#FB6B56` / `#CE5D50`) are marked `DoNotMatchName` (2).
+  - Filtering by `== 0` caused `options` to be completely empty for `OVERLAY`, silently dropping the entire hull overlay layer from every Sentinel ship and leaving only the slate-blue undercoat.
+- **Fix**:
+  - Updated `ShipModels.Paint.cs` to filter out only `MatchName` (`t.TextureGameplayUse != TkProceduralTexture.TextureGameplayUseEnum.MatchName`).
+  - Updated `ShipLook.cs` to ignore only `o.Use == 1` (`MatchName`).
+  - Verified with game files: `DudeWing` now paints with its bright red hull `#CE5D50`, white accent decals `#F3EBE5`, and dark chassis `#121111` exactly matching in-game appearance.
+
+### Feature 72: Track Visited Galaxies, Bases and Space Stations in Galaxy Transfer
+- **Source**: Owner request, 2026-11-07: "It would be nice to know if we have a base or spacestation in each galaxy. That would help us to know which galaxy we haven't been to yet. But you can add that to the issue list."
+- **Status**: Completed and verified in game by owner, 2026-11-08 (merged into `development`).
+- **Implementation**:
+  - `src/ArtifactX.Core/NmsModels/GalaxyPresence.cs`: Domain model tracking `IsCurrent`, `IsVisited`, `BaseCount`, `StationCount`, `SettlementCount`, list of base names and station names, and presence summary.
+  - `src/ArtifactX.WinUI3/Services/GalaxyTransferService.cs`: Added `GetGalaxyPresence(snapshot)` scanning `F?0` (player bases/settlements/claimed stations), `nlG` (teleport network space stations), `fDu` (system discoveries), and `user.db` finds across all 256 galaxies.
+  - `src/ArtifactX.WinUI3/ViewModels/ExploreViewModels/GalaxyRowViewModel.cs`: Enhanced with `Presence`, `IsVisited`, `IsUnvisited`, `BaseCount`, `StationCount`, and badge texts (`X ⌂`, `Y ✦`, `UNVISITED`).
+  - `src/ArtifactX.WinUI3/ViewModels/ExploreViewModels/GalaxyTransferViewModel.cs`: Added dual-dimension filtering (Presence: All, Unvisited, Visited, Bases, Stations; and Biomes: All, Lush, Harsh, Empty, Normal) with live counts.
+  - `src/ArtifactX.WinUI3/Views/ExplorePages/GalaxyTransferPage.xaml`:
+    - List row shows `[HERE]`, `[X ⌂]`, `[Y ✦]`, and `[UNVISITED]` badges.
+    - Right details panel features a dedicated "YOUR PRESENCE IN THIS GALAXY" card with status badge, base names, and space stations.
+    - Gateway station details now include authentic glyph icons (`<controls:GlyphStrip>`) alongside the portal address copy button.
+    - Uncoupled layout to provide independent, isolated scrolling for both the galaxy browser list and the details panel.
+
+### Bug 73: Planetary Rings Misdetected (Discovery Flags Bit 16 is Extreme Hazard, and Solar Layout Picks One Ringed Planet per System)
+- **Source**: Owner comparison screenshots, 2026-11-07 and 2026-11-08:
+  - System **Thwellus** (`media_1794112478514_424f9488.jpg` vs `media_1794112540536_7f7effec.jpg`): Planet 3 (Keci) has rings in game; Planet 1 (Voybrierfi Magao) does not.
+  - System **Apolok-Sats** (`0xB016F9FF9007`, `media_1794174292316_16b56799.jpg` vs `media_1794174300388_dcc314e2.jpg`): Only Planet 1 (Seburydes) has rings in game; the `0.3f` per-planet roll wrongly showed 3 planets with rings (Iolcuse, Toletcohwo Anzak, Hawayn XI).
+  - System **Upusichrot** (`0x0EA0205003FFA`, `media_1794180690369_5cfe95b6.jpg` vs `media_1794180695996_d264a130.jpg`): Only Planet 2 (Edmo IX) has rings in game.
+- **Investigation & Root Cause**:
+  1. **Discovery Flag Bit 16**: `NmsPlanets.ReadAll` originally read `HasRings = ((flags >> 16) & 1) == 1` from discovery key `8P3.bEr[1]`. Cross-save audit of all 2,069 planet discovery records in Slot 1 proved bit 16 (`0x10000`) occurs exclusively on standard hazard biomes (Lush, Toxic, Scorched, Radioactive, Frozen) and represents **Extreme Weather / Extreme Hazard**, NOT planetary rings.
+  2. **Solar System Layout Stream (`0x141683f50` in `NMS.exe`)**: Planetary rings (`GcPlanetGenerationInputData.HasRings` at `+0x4D` / slot `+0x21CD`) are NOT rolled independently per planet against `PlanetRingProbability = 0.3f` (`0x3e99999a` has zero xrefs in `NMS.exe`). Instead, the solar system layout function (`0x141683f50`, seeded by `SolarLayoutGeneration.RandomFor(address)` at `[rcx + 0x510]`) picks **at most one ringed primary planet per system** through the following exact RNG draw sequence:
+     - `0x141683fff`: 1 `rng.NextWord()` draw for the solar system's initial orbit angle.
+     - `0x141684460`, `0x1416845b7`, `0x14168474a`: 3 `rng.NextWord()` draws per non-moon primary planet (`increment`, `elevation`, `spacing`).
+     - `0x141684820`: 1 `rng.NextWord()` draw per primary host planet that has moons (`MoonDirections`).
+     - `0x141684941`: 1 `rng.Next((uint)primaryPlanets.Count)` draw to select the single ringed primary planet (`primaryPlanets[ringIdx].HasRings = true` at `0x14168499e`).
+     - `0x141684dcb`: If `Star == StarColour.Purple` (`[rbx + 0x2550] == 4`) and `PrimePlanetCount > 0`, 1 additional `rng.Next((uint)allPlanets.Count)` draw across all non-moon planets (prime body placement at `0x1416849f0`..`0x141684d79` operates on register copies and does not write back to `[r13 + 0x510]`).
+- **Resolution**:
+  - Implemented `PlanetRings.RingedBody` and `PlanetRings.BodyHasRings` in `src/ArtifactX.Core/Universe/PlanetRings.cs` reproducing the exact `0x141683f50` solar layout RNG sequence.
+  - Updated `NmsPlanets.ReadAll`, `PlanetTypesService.Undiscovered`, `CurrentSystemViewModel`, and `PlanetDetailsViewModel` to determine `HasRings` from `PlanetRings`.
+  - Added regression checks in `tests/ArtifactX.Core.Checks/PlanetRingChecks.cs` verifying **Apolok-Sats** (`0xB016F9FF9007` -> body `1`, Seburydes) and **Upusichrot** (`0x0EA0205003FFA` -> body `2`, Edmo IX).
+- **Status**: Completed and verified in game by owner (2026-11-08, merged in `da862c4`).
+
+### Feature 74: Hotspot Cluster & Combo Finder (Base Computer Site Optimizer)
+- **Source**: Owner request, 2026-11-08: "we will want a search feature for the hotspots later but I'm not in a hurry for it. Players like me love power hotspots very close to the portal. Also, a combo search which may take more math, for example, I went around until I found 3 hotspots within 300u of each other. I then found a good place to put a base computer that was within range of all of them"
+- **Status**: Completed and verified in game by owner (2026-11-08) on `feature/hotspot-combo-search` and `fix/hotspot-save-beacon` (merged `970d4e0` and `d432771`).
+- **Implementation**:
+  1. **Hotspot Search & Sort Toolbar**: Added resource name search text filter and 4-way sorting (Distance from You, Closest to Portal, Class S->C, and Resource Name A-Z) in `PlanetHotspotsPanel.xaml` and `PlanetHotspotsViewModel.cs`.
+  2. **Multi-Hotspot Cluster Triangulation**: Implemented `PlanetHotspotCluster.Find` in `ArtifactX.Core` using exact 3D minimum enclosing circle math for pairs and triplets of hotspots. Detects all viable clusters within single Base Computer reach (<= 375u radius, sites spanning <= 650u).
+  3. **Combo Categorization & Ranking**: Classifies clusters into Trifecta (⚡ Power + ⛏ Mineral + ☁ Gas - the holy grail), Power + Mineral, Power + Gas, Dual Mineral, and Dual Power, ranking Trifectas and highest-class sites first.
+  4. **Optimal Base Computer Coordinate Calculation**: Calculates the exact surface coordinates (Latitude/Longitude) for dropping the Base Computer to minimize maximum reach distance to all extraction sites.
+  5. **Physical Save Beacon Staging**: Added "Place Save Beacon at site" and "Remove" actions on cluster and hotspot cards, staging a physical in-game Save Beacon (`^BUILDBEACON`) directly at the optimal Base Computer or hotspot location.
+
+### Bug 75: Planetary Hotspot Save Beacons, Terrain Elevation, Gas ID Mapping, and Card Pinning
+- **Source**: Owner in-game testing on planet **Abridg Kita** (`Apolok-Sats`, Tropical Moon / Lush) at `+35.15, +34.15`, 2026-11-08 (`media_1794167194051_c5a8c656.jpg`, `media_1794167205975_9392187c.jpg`, `media_1794167212141_8ea4ce7d.jpg`, `media_1794168101366_5f993556.jpg`).
+- **Status**: Completed and verified in game by owner (2026-11-08, merged in `d432771`).
+- **Issues Resolved**:
+  1. **Physical Save Beacons (`^BUILDBEACON`) & Removal**: Scan event markers (`vLc.6f=.A1f`) on open terrain without a building are ignored by No Man's Sky. Replaced with physical Save Beacons (`^BUILDBEACON`) placed in `vLc.6f=.@ZJ` (`PersistentPlayerBases` loose objects), which create a permanent star HUD icon visible across the system and a physical beacon on the ground, with a "Remove" button on the card to delete placed beacons.
+  2. **Procedural Terrain Elevation (`PlanetTerrain.Height`)**: Evaluated `PlanetTerrain.Height` at the target unit-sphere direction (without sea-level water clamping on base-site surface coordinates, with a `+1.5m` surface offset) so placed Save Beacons sit cleanly on the ground instead of spawning underground or high above the player's head.
+  3. **Atmospheric Gas ID Mapping (`GAS1`/`GAS2`/`GAS3`)**: On Lush and Toxic worlds, the app previously displayed **Sulphurine** (`GAS1`) instead of **Nitrogen** (`GAS3`). Corrected `PlanetHotspots.cs` gas mapping to match `NMS.exe`: `GAS1` (Sulphurine) on Scorched/Barren/Radioactive, `GAS2` (Radon) on Frozen, and `GAS3` (Nitrogen) on Lush/Toxic. Verified in game on Abridg Kita (`+35.15, +34.15`): Supply Depots confirmed **Activated Copper** (`1,397/hr`) + **Nitrogen** (`1,402/hr`) + **Electromagnetic Power**.
+  4. **Card Pinning & Anti-Shuffle While Walking**: Added a `Pin` / `Pinned` toggle button on every hotspot and combo card (`PlanetHotspotsViewModel.cs`, `PlanetHotspotsPanel.xaml`) that locks pinned cards to the top of the list with a gold highlight border, and suppressed automatic distance re-sorting on small movements (`< 50u`) during live save reloads.
+  5. **Consistent Card Footer Alignment & View Mode Preservation**: Fixed two-way `RadioButton` binding resetting `IsComboMode` on save reloads, and structured hotspot and combo cards with a 4-row `Grid` (`Auto, *, Auto, Auto`) so the "Base Computer placed here..." summary box and action buttons always stay aligned at the bottom of every card.
+
+### Feature 76: Procedural Planet Type Descriptors & Dual Biome Classification
+- **GitHub**: [Issue #59](https://github.com/kenstanley37/ARTIFACTX/issues/59)
+- **Source**: Owner request, 2026-11-08 (`media_1794168390582_d69b0f0e.jpg`): "Let's see if we can get the planet type 'Tropical Moon' as well as Lush etc. It would be nice for the user to see both... I don't want the screen reader to determine this. I want us to know this through the procedural generation."
+- **Status**: Completed and verified in game by owner (2026-11-08) on `feat/planet-type-descriptor` (merged `da862c4`).
+- **Implementation**:
+  - Disassembled `0x14168eb00` (`GetPlanetTypeString`) in `NMS.exe` and ported the exact procedural planet descriptor selection to `src/ArtifactX.Core/Universe/PlanetProfileGenerator.Descriptor.cs`.
+  - Extended `CatalogSteps.Planets.cs` (catalog format 74) to extract all localized planet descriptor word lists (`PLANET_DESC_*`, `WEIRD_PLANET_*`, `WATERWORLD_*`, `GASGIANT_*`, etc.) from the player's installed game files into `nms_catalog.sqlite`.
+  - Exposed `PlanetProfile.PlanetTypeDescriptor` and formatted dual labels via `NmsPlanets.FormatClassification` (e.g. `"Tropical Moon (Lush)"`, `"Freezing Planet (Frozen) · rings"`, `"Pillared Planet (Exotic) · rings"`, `"Desolate Planet (Barren)"`, `"Volcanic Planet"`, omitting redundant suffixes when descriptor and biome match).
+  - Wired procedural descriptors across `CurrentSystemViewModel`, `PlanetDetailsViewModel`, `PlayerLocationText` (title bar location), `SystemMap`, `BaseListBuilder`, `FindsPage`, `FishingPage`, and `PlanetFinder` without relying on screen capture.
+
+### Feature 77: Dedicated Crashed Ships & Cabinet Multi-Tools Pages and Compact Planet Details POI Cards
+- **Source**: Owner feedback, 2026-11-08 (`feature/exploration-crashed-ships-multitools` merged `1c124cc`, and `f664ce1`).
+- **Status**: Completed and merged to `development` (2026-11-08).
+- **Implementation**:
+  - Added dedicated **Crashed Ships** and **Cabinet Multi-Tools** pages under **Explore** in `MainWindow.xaml`, moving heavy spatial scans, filters, 3D model previews, and coordinate marker actions into dedicated views.
+  - Converted the Portal, Crashed Ships, and Cabinet Multi-Tools summary sections on `PlanetDetailsPage.xaml` from full-width stacked rows into compact 370px side-by-side summary cards with quick navigation links, saving over 200px of vertical height.
+
+
+
+
+
+
+
+
+
+## 2026-11-11 storage stack limits
+
+### Bug 78: Base Storage Caps Metal Plating at 20, the Game Allows 40
+- **Source**: Owner, 2026-11-11, Steam Slot 8 screenshots (ArtifactX Cargo > Base Storage, container 9; in game, the same container on the freighter's storage tabs).
+- **Evidence**: Metal Plating added to Base Storage in ArtifactX shows 20/20 and stacks no higher. In game the same slots read 20/40, so a storage container holds 40 Metal Plating per slot.
+- **Suspect**: the app takes one maximum per item from the catalog (`Items.MaxStackSize`, read by `CatalogService.TryGetStackInfo`) whatever inventory the item is in, while the game's limit also depends on the inventory kind (storage containers, freighter, Exosuit cargo and so on use different stack limits). Find the game's per-inventory rule (stack-limit tables in the reality data / the container's inventory class) before changing it, and check other products and substances in several inventories, not just Metal Plating.
+- **Scope**: Owner, 2026-11-11: likely not just Metal Plating; many items may get the wrong limit in some inventories. Treat it as a deeper investigation of stack limits across all inventory kinds, planned for later.
+- **Status**: Fixed 2026-11-12 on `fix/stack-limits` (not yet confirmed in game). Cause: each inventory names a stack group (save `WA4.rri`: Personal, Ship, Freighter, Chest, BaseCapsule...) and the save's difficulty settings pick a stack-limit option (`vLc.6f=.LyC.:fe.kZ5.?SS`: High/Normal/Low); the game's DIFFICULTYCONFIG gives, per option and group, a product size (times each product's StackMultiplier) and a substance size. The app used one fixed multiplier per page (10 for Base Storage, where Chest is 20 on High) and 9999 for every substance (Normal/Low are lower: Exosuit 500 on Normal). Now catalog format 86 carries the tables and the grids use the inventory's own group. Checked against every product and substance slot in the owner's seven saves: 1,545/1,545 MaxAmounts match (all saves are on High; Normal/Low come from the game's table, not yet seen in a save). Owner 2026-11-12: Metal Plating confirmed in the app (new stacks and Max All Qty 40/40); merged to development. Other items and the Normal/Low settings get confirmed as they come up in play.
+
+### Bug 79: A Creature List Filed Under the Wrong Planet (a Planet Named "Heat")
+- **Source**: Found 2026-11-12 while checking habitat predictions (fauna-check): the seven creatures recorded for "Heat" (system 200005C6DC00C planet 2, captured 2026-11-10, build 184271) appear on no planet of that system. The saves' discovery records (fauna-check WHERE) put all seven on Munat 18/U9 (system 17B2AFBFFA004 planet 1), which the generator predicts exactly.
+- **Cause**: the fauna-list capture finds the planet from the selected creature's notes. It accepted any recent planet name as a whole word, ignoring case, so "Heat" matched "thriving despite the heat" while "Munat 18/U9" was misread; with one match, the whole list was filed under Heat.
+- **Fix**: `fix/capture-planet-from-notes`: Core `NotesPlanetMatcher` takes the game's phrase "planet X" first (first letters possibly hidden), and a bare name only with its capitals. Core check added.
+- **Data**: the seven rows already recorded under Heat stay as they are (no hand repair); the player can delete them on Heat's page. The same check found the other capture misfits were duplicated rows from misread names (e.g. "G. Nightyusium" and "G. NightyusiUnh"), not prediction errors.
+- **Status**: Fixed in code, not yet seen in a capture.
+
+### Bug 80: Save Needs a Second Click
+- **Source**: Owner, 2026-11-12, Slot 8.
+- **Evidence**: After staging edits, the first click on the title bar's Save makes the app glitch for a moment and nothing is saved; a second click saves. "It's like it's not fully ready" - once the button is visible it should work on the first click.
+- **Suspect** (not investigated): the Save button appears (pending changes) before it can act - for example the first click only moves focus or commits a pending edit (a NumberBox/TextBox LostFocus staging its value re-renders the bar), or the button is re-created when the pending count updates, so the click lands on a control that is being replaced. Check what runs between pointer down and the Click handler on the first press, and whether the game-running check or the backup step returns early the first time.
+- **Status**: Logged, not fixed.
+

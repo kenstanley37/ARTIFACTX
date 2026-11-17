@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Markup;
+using ArtifactX.WinUI3.Helpers.Text;
 
 namespace ArtifactX.WinUI3.Controls;
 
@@ -81,6 +82,10 @@ public sealed partial class FoldingCard : UserControl
     /// <summary>Where open/closed is remembered (the profile's settings), e.g. "StarshipsDetailsCollapsed".</summary>
     public string SettingKey { get; set; } = "";
 
+    /// <summary>Draws the card's outline around the band and body together, so the band sits inside the card
+    /// like a plain card's (the body then needs no card of its own). Folded, the card shrinks to its band.</summary>
+    public bool Framed { get; set; }
+
     private bool IsFolded => SettingKey.Length > 0
         ? SettingsStore.Get(SettingsStore.Scope.Profile, SettingKey) == "1" : !IsExpanded;
 
@@ -108,6 +113,11 @@ public sealed partial class FoldingCard : UserControl
             _restoringExpansion = false;
         }
         BodyPresenter.Visibility = folded ? Visibility.Collapsed : Visibility.Visible;
+        if (Framed)
+        {
+            Frame.Style = (Style)Application.Current.Resources["ThemeCardStyle"];
+            Frame.VerticalAlignment = folded ? VerticalAlignment.Top : VerticalAlignment.Stretch;
+        }
         string action = folded ? "Show" : "Hide";
         ToggleBtn.Content = action;
         ToolTipService.SetToolTip(ToggleBtn, folded ? "Show the details" : "Hide the details");
@@ -115,6 +125,6 @@ public sealed partial class FoldingCard : UserControl
         SummaryTxt.Text = Summary;
         ToolTipService.SetToolTip(SummaryTxt, Summary);
         HeaderContentPresenter.Content = HeaderContent;
-        HeaderTxt.Text = folded && FoldedName.Length > 0 ? $"{Title} - {FoldedName.ToUpperInvariant()}" : Title;
+        HeaderTxt.Text = folded && FoldedName.Length > 0 ? $"{Title} - {HeadingText.Upper(FoldedName)}" : Title;
     }
 }

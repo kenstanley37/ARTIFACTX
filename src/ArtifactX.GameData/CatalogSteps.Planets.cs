@@ -104,11 +104,20 @@ public static partial class CatalogSteps
                 Decode(BiomeArchiveFile) is GcBiomeFileList archive ? Options(archive) : null);
             rows.Add(new CatalogItem { GameId = "BIOMETABLES", NameEnglish = "BiomeTables", DescriptionEnglish = JsonSerializer.Serialize(tables) });
 
-            var details = ProfileTables(files, biomes, Decode);
-            if (details?.Objects is { } objects)
+            var details = ProfileTables(files, biomes, Decode, GetMergedEnglishLookup(pcbanksPath));
+            if (details is not null)
             {
-                var keys = objects.Groups.SelectMany(g => g.Files).Select(f => f.Hint).Where(h => h.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                details = details with { HintNames = EnglishTexts(index, extraction, keys) };
+                var descTexts = EnglishTexts(index, extraction, DescriptorKeys);
+                var descriptors = descTexts.ToDictionary(
+                    kv => kv.Key,
+                    kv => kv.Value.Replace(" %PLANETCLASS%", "").Replace("%PLANETCLASS%", "").Trim(),
+                    StringComparer.OrdinalIgnoreCase);
+                details = details with { Descriptors = descriptors };
+                if (details.Objects is { } objects)
+                {
+                    var keys = objects.Groups.SelectMany(g => g.Files).Select(f => f.Hint).Where(h => h.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    details = details with { HintNames = EnglishTexts(index, extraction, keys) };
+                }
             }
             if (details is null) ConsoleStyle.Warning("Planet detail tables not found - planet resources and weather left out.");
             else rows.Add(new CatalogItem { GameId = "PLANETPROFILE", NameEnglish = "PlanetProfileTables", DescriptionEnglish = JsonSerializer.Serialize(details) });
@@ -148,7 +157,8 @@ public static partial class CatalogSteps
     }
 
     private static ObjectList Objects(GcExternalObjectListOptions o) => new(o.Name?.Value ?? "", o.Order, o.Probability,
-        (int)o.TileType.TileType, o.Options?.Count ?? 0, o.ResourceHint?.Value ?? "");
+        (int)o.TileType.TileType, o.Options?.Count ?? 0, o.ResourceHint?.Value ?? "",
+        (o.Options ?? new()).Select(f => (f?.Value ?? "").Replace('\\', '/').ToUpperInvariant()).ToArray());
 
     private static ObjectGroup Group(GcExternalObjectFileList g)
     {
@@ -178,7 +188,8 @@ public static partial class CatalogSteps
             e.Min.Caves.Length > 0 && e.Min.Caves[0].Mouth.Active,
             e.Min.NoiseLayers.Select(NoiseLayer).ToArray(),
             e.Max.NoiseLayers.Select(NoiseLayer).ToArray(),
-            e.Min.NoSeaBaseLevel)).ToArray();
+            e.Min.NoSeaBaseLevel,
+            e.Min.WaterFadeInDistance)).ToArray();
         return new TerrainTables(settings, terrain.TerrainPrimeIndexStart, terrain.TerrainPurpleSystemIndexStart,
             terrain.DebugLockTerrainSettingsIndex, terrain.SeaLevelMoon, terrain.SeaLevelGasGiant, terrain.SeaLevelWaterWorld,
             terrain.SeaLevelHigh, terrain.SeaLevelStandard, terrain.PurpleSystemMaxHighWaterChance, terrain.ForcePurpleSystemHighWater);
@@ -227,7 +238,8 @@ public static partial class CatalogSteps
             MeasuredModelRadius.ContainsKey(c) ? ModelRadius(table, c, decode) : 0)).ToArray();
     }
 
-    private static PlanetProfileTables? ProfileTables(GcBiomeFileList files, GcBiomeListPerStarType biomes, Func<string, NMSTemplate?> decode)
+    private static PlanetProfileTables? ProfileTables(GcBiomeFileList files, GcBiomeListPerStarType biomes, Func<string, NMSTemplate?> decode,
+        IReadOnlyDictionary<string, string> english)
     {
         if (decode("GCTERRAINGLOBALS.GLOBAL.MBIN") is not GcTerrainGlobals terrain
             || decode("GCSOLARGENERATIONGLOBALS.GLOBAL.MBIN") is not GcSolarGenerationGlobals solar
@@ -277,17 +289,87 @@ public static partial class CatalogSteps
                 gameplay.NonAggressiveLushSurvivalProbabability, gameplay.ViciousSentinelProbability,
                 gameplay.CorruptSentinelProbability, (int)solar.CorruptSentinelBuildingCheckDifficulty.CombatTimerDifficultyOption),
             Terrain(terrain, decode) is { } terrainTables
-                ? new ObjectTables(objects, (files.CommonExternalObjectLists ?? new()).Select(Objects).ToArray(),
-                    (files.OptionalExternalObjectLists ?? new()).Select(Group).ToArray(), terrainTables)
+                ? ObjectTablesWithHarvest(new ObjectTables(objects, (files.CommonExternalObjectLists ?? new()).Select(Objects).ToArray(),
+                    (files.OptionalExternalObjectLists ?? new()).Select(Group).ToArray(), terrainTables), decode)
                 : null,
             ScrapYardDensity: decode(BuildingTableFile) is GcBuildingDefinitionTable buildings
                 && (int)GcBuildingClassification.BuildingClassEnum.ScrapYard < buildings.BuildingPlacement.Length
                 ? buildings.BuildingPlacement[(int)GcBuildingClassification.BuildingClassEnum.ScrapYard].Density.ToArray()
                 : null,
-            Creatures: Creatures(creatures, decode));
+            Creatures: Creatures(creatures, decode, english));
     }
 
-    private static CreatureTables? Creatures(GcCreatureGenerationData cgen, Func<string, NMSTemplate?> decode)
+    /// <summary>What each kind of creature produces when fed (the analysis visor's "Produces"): GcCreatureGlobals
+    /// HarvestingProducts by creature id, matched against the creature's own id when it spawns (NMS.exe 184271
+    /// 0x1412345f0 stores the index; 0x1412431d0 gives FOOD_V_MILK, Wild Milk, to kinds not listed). Checked on the
+    /// owner's 2026-11-11 scans: SIXLEGCAT Leopard-Fruit, FLOATSPIDER Crab 'Apple', TWOLEGANTELOPE Wild Milk.</summary>
+    private static Dictionary<string, string>? Produce(GcCreatureGlobals? cg)
+    {
+        if (cg?.HarvestingProducts is null) return null;
+        var produce = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in cg.HarvestingProducts)
+            if (!string.IsNullOrEmpty(p.CreatureType?.Value) && !string.IsNullOrEmpty(p.Item?.Value))
+                produce.TryAdd(p.CreatureType.Value, p.Item.Value);
+        return produce;
+    }
+
+    /// <summary>The pet-battle tables the analysis visor's "Trait Potential" panel reads (GcGameTableGlobals): the class
+    /// weights per core stat, the element per biome, the element words and the panel's labels (catalog format 82).</summary>
+    private static PetBattleTables? PetBattle(Func<string, NMSTemplate?> decode, IReadOnlyDictionary<string, string> english)
+    {
+        if (decode("GCGAMETABLEGLOBALS.MBIN") is not GcGameTableGlobals gt) return null;
+        string Word(string? key) => !string.IsNullOrEmpty(key) && english.TryGetValue(key, out var w) ? w : "";
+        return new PetBattleTables(
+            (gt.CoreStatClassRollTable ?? []).Select(r => (r.Roll ?? []).ToArray()).ToArray(),
+            (gt.PetBiomeAffinities ?? []).Select(a => (int)a.PetBattlerAffinity).ToArray(),
+            (gt.PetAffinityLocLower ?? []).Select(k => Word(k?.Value)).ToArray(),
+            // GcPetBattlerCoreStat order (MaxHealth, Speed, CombatPotential), then the panel's heading.
+            [Word("UI_PB_STAT_HEADER_HEALTH"), Word("UI_PB_STAT_HEADER_SPEED"), Word("UI_PB_STAT_HEADER_BUDGET"), Word("UI_PB_BINOC_HEADER_WILD")]);
+    }
+
+    /// <summary>Each produced item's name as the analysis visor writes it (the product's NameLower, "Leopard-Fruit").</summary>
+    private static Dictionary<string, string>? ProduceNames(GcCreatureGlobals? cg, Func<string, NMSTemplate?> decode,
+        IReadOnlyDictionary<string, string> english)
+    {
+        if (cg?.HarvestingProducts is null
+            || decode("METADATA/REALITY/TABLES/NMS_REALITY_GCPRODUCTTABLE.MBIN") is not GcProductTable products) return null;
+        var wanted = cg.HarvestingProducts.Select(p => p.Item?.Value ?? "").Append("FOOD_V_MILK")
+            .Where(id => id.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in products.Table ?? [])
+            if (p.ID?.Value is { Length: > 0 } id && wanted.Contains(id)
+                && english.TryGetValue(p.NameLower?.Value ?? "", out var name) && name.Length > 0)
+                names.TryAdd(id, name);
+        return names;
+    }
+
+    /// <summary>The Id of the creature component (GcCreatureComponentData) in a creature's scene, through the scene's
+    /// ATTACHMENT entities, nodes in order: the creature's own id when the scene has a component for it (the weird
+    /// creatures share scenes with one component each), else the first. Some scenes carry another kind's data only
+    /// (the CRAB and HERMITCRAB scenes say SPIDER); a discovery's species seed is made from this Id (NMS.exe 184271
+    /// 0x14123e740 reads it from the live creature's component data +0x40). Checked against the owner's saves.</summary>
+    private static string? CreatureComponentId(string scenePath, string ownId, Func<string, NMSTemplate?> decode)
+    {
+        var found = new List<string>();
+        if (decode(scenePath.Replace('\\', '/').ToUpperInvariant()) is not libMBIN.NMS.Toolkit.TkSceneNodeData root) return null;
+        var pending = new Queue<libMBIN.NMS.Toolkit.TkSceneNodeData>();
+        pending.Enqueue(root);
+        while (pending.Count > 0)
+        {
+            var node = pending.Dequeue();
+            foreach (var attr in node.Attributes ?? new())
+                if (attr.Name?.Value == "ATTACHMENT" && !string.IsNullOrEmpty(attr.Value?.Value)
+                    && decode(attr.Value.Value.Replace('\\', '/').ToUpperInvariant()) is libMBIN.NMS.Toolkit.TkAttachmentData entity)
+                    foreach (var component in entity.Components ?? new())
+                        if (component.Template is GcCreatureComponentData creature && !string.IsNullOrEmpty(creature.Id?.Value))
+                            found.Add(creature.Id.Value);
+            foreach (var child in node.Children ?? new())
+                pending.Enqueue(child);
+        }
+        return found.FirstOrDefault(id => string.Equals(id, ownId, StringComparison.OrdinalIgnoreCase)) ?? found.FirstOrDefault();
+    }
+
+    private static CreatureTables? Creatures(GcCreatureGenerationData cgen, Func<string, NMSTemplate?> decode, IReadOnlyDictionary<string, string> english)
     {
         if (decode(CreatureArchetypesFile) is not GcCreatureGenerationArchetypes carch
             || decode(CreatureDataTableFile) is not GcCreatureDataTable cdt
@@ -308,11 +390,20 @@ public static partial class CatalogSteps
             cgen.HerdCreaturePenalty);
 
         var validIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sceneIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var scenes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var modelScenes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (cfnt.Table is not null)
         {
             foreach (var f in cfnt.Table)
                 if (!string.IsNullOrEmpty(f.ID?.Value))
+                {
                     validIds.Add(f.ID.Value);
+                    if (!string.IsNullOrEmpty(f.Filename?.Value)) scenes.TryAdd(f.ID.Value, f.Filename.Value);
+                    if (!string.IsNullOrEmpty(f.ExtraFilename?.Value)) modelScenes.TryAdd(f.ID.Value, f.ExtraFilename.Value);
+                    if (!string.IsNullOrEmpty(f.Filename?.Value) && CreatureComponentId(f.Filename.Value, f.ID.Value, decode) is string sceneId)
+                        sceneIds[f.ID.Value] = sceneId;
+                }
         }
 
         var creatures = new List<CreatureEntry>();
@@ -322,7 +413,8 @@ public static partial class CatalogSteps
             {
                 string id = c.Id?.Value ?? "";
                 if (!validIds.Contains(id)) continue;
-                var tags = (c.Tags ?? new()).Select(t => t.Tag?.Value ?? "").Where(t => t.Length > 0).ToArray();
+                var tagRows = (c.Tags ?? new()).Where(t => !string.IsNullOrEmpty(t.Tag?.Value)).ToArray();
+                var tags = tagRows.Select(t => t.Tag.Value).ToArray();
                 creatures.Add(new CreatureEntry(
                     id,
                     (int)c.ForceType.CreatureType,
@@ -331,7 +423,16 @@ public static partial class CatalogSteps
                     (int)c.HerbivoreProbabilityModifier.CreatureRoleFrequencyModifier,
                     (int)c.PredatorProbabilityModifier.CreatureRoleFrequencyModifier,
                     (int)c.Rarity.CreatureRarity,
-                    tags));
+                    tags,
+                    (int)c.RealType.CreatureType,
+                    c.MinScale,
+                    c.MaxScale,
+                    tagRows.Select(t => (int)t.RarityOverride.CreatureRarity).ToArray(),
+                    sceneIds.GetValueOrDefault(id, ""),
+                    scenes.GetValueOrDefault(id, ""),
+                    (int)c.PetBattlerForcedAffinity.PetBattlerAffinity,
+                    c.CanBeUsedInPetBattler,
+                    modelScenes.GetValueOrDefault(id, "")));
             }
         }
 
@@ -343,7 +444,7 @@ public static partial class CatalogSteps
                 (w.Water ?? new()).Select(e => new CreatureWeightedEntry(e.Archetype?.Value ?? "", e.Weight)).ToArray());
 
         static CreatureOptWeightedList MapOptList(GcCreatureGenerationOptionalWeightedList opt) =>
-            new(opt.Probability, MapDomainLists(opt.Archetypes));
+            new(opt.Probability, MapDomainLists(opt.Archetypes), opt.OverrideAllDomains);
 
         var subBiomes = (cgen.SubBiomeSpecific ?? Array.Empty<GcCreatureGenerationOptionalWeightedList>()).Select(MapOptList).ToArray();
         var biomes = (cgen.BiomeSpecific ?? Array.Empty<GcCreatureGenerationOptionalWeightedList>()).Select(MapOptList).ToArray();
@@ -405,12 +506,63 @@ public static partial class CatalogSteps
                     (int)r.Density.Density,
                     (int)r.ForceType.CreatureType,
                     r.ProbabilityOfBeingEnabled,
-                    (int)r.Role.CreatureRole)).ToArray();
+                    (int)r.Role.CreatureRole,
+                    (int)r.MinSize.CreatureSizeClass,
+                    (int)r.MaxSize.CreatureSizeClass,
+                    (int)r.ActiveTime.CreatureActiveTime,
+                    (int)rdt.TileType.TileType,
+                    r.Filter?.Value ?? "")).ToArray();
                 ecosystemTables[path] = roles;
             }
         }
 
-        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables);
+        var cg = decode("GCCREATUREGLOBALS.MBIN") as GcCreatureGlobals;
+        var sizes = cg is null ? null
+            : new CreatureSizeGlobals(cg.CreatureMedMinSize, cg.CreatureLargeMinSize, cg.CreatureHugeMinSize, cg.MaxCreatureSize);
+        // Behaviour and diet text: GcCreatureGlobals names a key prefix per role (Temperments) and per diet (Diets,
+        // WaterDiets); a creature's info picks PREFIX<n> among the keys that exist (NMS.exe 0x1416cdfb0). Diet
+        // text may hold %BIOME_PLANT% / %BIOME_MEAT%, filled from DietVeg / DietMeat by biome.
+        string[] Numbered(string prefix)
+        {
+            var words = new List<string>();
+            if (!string.IsNullOrEmpty(prefix))
+                for (int n = 1; english.TryGetValue(prefix + n, out var w); n++) words.Add(w);
+            return words.ToArray();
+        }
+        string Word(string key) => !string.IsNullOrEmpty(key) && english.TryGetValue(key, out var w) ? w : "";
+        CreatureTextWords? text = cg is null ? null : new CreatureTextWords(
+            (cg.Temperments ?? []).Select(p => Numbered(p?.Value ?? "")).ToArray(),
+            (cg.Diets ?? []).Select(p => Numbered(p?.Value ?? "")).ToArray(),
+            (cg.WaterDiets ?? []).Select(p => Numbered(p?.Value ?? "")).ToArray(),
+            (cg.DietVeg ?? []).Select(k => Word(k?.Value ?? "")).ToArray(),
+            (cg.DietMeat ?? []).Select(k => Word(k?.Value ?? "")).ToArray(),
+            Numbered("UI_CREATURE_NOTE_"),
+            Numbered("UI_CREA_ROBOT_BEHAVE_"), Numbered("UI_CREA_ROBOT_DIET_"), Numbered("UI_CREA_ROBOT_NOTE_"),
+            Numbered("AGE"));
+        // The gender words a creature's info draws from (NMS.exe 0x1416cfcc0 picks "SEX" + n, n from 1 up to the
+        // last key that exists: 16 in build 185034, Male to None).
+        var genders = new List<string>();
+        for (int n = 1; english.TryGetValue($"SEX{n}", out var word); n++) genders.Add(word);
+        // Robots' gender words ("UI_ROBOT_GENDER_" + n: 9 in build 185034, Electronic to Non-Euclidean).
+        var robotGenders = new List<string>();
+        for (int n = 1; english.TryGetValue($"UI_ROBOT_GENDER_{n}", out var word); n++) robotGenders.Add(word);
+        // The words for a role's ActiveTime, in GcCreatureActiveTime order (OnlyDay ... OnlyNight).
+        string[] activityKeys = ["UI_CRE_ACTIVE_DAY", "UI_CRE_ACTIVE_MOSTLY_DAY", "UI_CRE_ACTIVE_ANYTIME", "UI_CRE_ACTIVE_MOSTLY_NIGHT", "UI_CRE_ACTIVE_NIGHT"];
+        var activities = activityKeys.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
+        // The discovery list's rarity words, in GcRarity order (Common, Uncommon, Rare).
+        var rarities = new[] { "COMMON", "UNCOMMON", "RARE" }.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
+        // The hemisphere words, in GcCreatureHemiSphere order after Any (Northern, Southern): "Found in the North".
+        var hemispheres = new[] { "UI_CRE_HEMISPHERE_NORTH", "UI_CRE_HEMISPHERE_SOUTH" }.Select(k => english.TryGetValue(k, out var w) ? w : "").ToArray();
+        // The habitat words in GcTerrainTileType order, as 0x14077b2e0 lists them (no text for Liquid / Substance: "").
+        var terrains = Enum.GetNames<GcTerrainTileType.TileTypeEnum>()
+            .Select(n => english.TryGetValue("UI_CRE_TERRAIN_" + (n switch { "Base" => "BASE", "Underwater" => "WATER", _ => n.ToUpperInvariant() }), out var w) ? w : "")
+            .ToArray();
+        return new CreatureTables(globals, creatures.ToArray(), archetypeLists, domainArchetypes, ecosystemTables, sizes,
+            genders.Count > 0 ? genders.ToArray() : null, activities.All(w => w.Length > 0) ? activities : null,
+            rarities.All(w => w.Length > 0) ? rarities : null, robotGenders.Count > 0 ? robotGenders.ToArray() : null, text,
+            Produce(cg), ProduceNames(cg, decode, english), PetBattle(decode, english),
+            hemispheres.All(w => w.Length > 0) ? hemispheres : null, terrains.Any(w => w.Length > 0) ? terrains : null,
+            Enum.GetNames<GcBiomeSubType.BiomeSubTypeEnum>());
     }
 
     private static InventoryGenerationTables? InventoryTables(Func<string, NMSTemplate?> decode)
@@ -613,4 +765,49 @@ public static partial class CatalogSteps
             shipClasses, shipLayouts, shipCostData, shipModelRules,
             aiShipGlobals?.CrashedShipBrokenSlotChance, aiShipGlobals?.CrashedShipMinNonBrokenSlots, technologyOverrides);
     }
+
+    private static readonly HashSet<string> DescriptorKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "UI_PARADISE_PLANET",
+        "LUSH1", "LUSH2", "LUSH3", "LUSH4", "LUSH5", "LUSH6", "LUSH7", "LUSH8", "LUSH9", "LUSH10",
+        "TOXIC1", "TOXIC2", "TOXIC3", "TOXIC4", "TOXIC5", "TOXIC6", "TOXIC7", "TOXIC8", "TOXIC9", "TOXIC10",
+        "SCORCHED1", "SCORCHED2", "SCORCHED3", "SCORCHED4", "SCORCHED5", "SCORCHED6", "SCORCHED7", "SCORCHED8", "SCORCHED9", "SCORCHED10",
+        "IRRADIATED1", "IRRADIATED2", "IRRADIATED3", "IRRADIATED4", "IRRADIATED5", "IRRADIATED6", "IRRADIATED7", "IRRADIATED8", "IRRADIATED9", "IRRADIATED10",
+        "FROZEN1", "FROZEN2", "FROZEN3", "FROZEN4", "FROZEN5", "FROZEN6", "FROZEN7", "FROZEN8", "FROZEN9", "FROZEN10",
+        "BARREN1", "BARREN2", "BARREN3", "BARREN4", "BARREN5", "BARREN6", "BARREN7", "BARREN8", "BARREN9", "BARREN10",
+        "DEAD1", "DEAD2", "DEAD3", "DEAD4", "DEAD5", "DEAD6", "DEAD7", "DEAD8", "DEAD9", "DEAD10",
+        "GLITCHBIOME1", "GLITCHBIOME2", "GLITCHBIOME3", "GLITCHBIOME4", "GLITCHBIOME5", "GLITCHBIOME6", "GLITCHBIOME7", "GLITCHBIOME8", "GLITCHBIOME9", "GLITCHBIOME10", "GLITCHBIOME11", "GLITCHBIOME12",
+        "REDBIOME1", "REDBIOME2", "REDBIOME3", "REDBIOME4", "REDBIOME5", "REDBIOME6", "REDBIOME7", "REDBIOME8", "REDBIOME9", "REDBIOME10",
+        "GREENBIOME1", "GREENBIOME2", "GREENBIOME3", "GREENBIOME4", "GREENBIOME5", "GREENBIOME6", "GREENBIOME7", "GREENBIOME8", "GREENBIOME9", "GREENBIOME10",
+        "BLUEBIOME1", "BLUEBIOME2", "BLUEBIOME3", "BLUEBIOME4", "BLUEBIOME5", "BLUEBIOME6", "BLUEBIOME7", "BLUEBIOME8", "BLUEBIOME9", "BLUEBIOME10",
+        "SWAMPBIOME1", "SWAMPBIOME2", "SWAMPBIOME3", "SWAMPBIOME4", "SWAMPBIOME5", "SWAMPBIOME6", "SWAMPBIOME7", "SWAMPBIOME8", "SWAMPBIOME9", "SWAMPBIOME10", "SWAMPBIOME11", "SWAMPBIOME12", "SWAMPBIOME13", "SWAMPBIOME14",
+        "LAVABIOME1", "LAVABIOME2", "LAVABIOME3", "LAVABIOME4", "LAVABIOME5", "LAVABIOME6", "LAVABIOME7", "LAVABIOME8", "LAVABIOME9", "LAVABIOME10", "LAVABIOME11", "LAVABIOME12", "LAVABIOME13", "LAVABIOME14",
+        "WATERWORLD1", "WATERWORLD2", "WATERWORLD3", "WATERWORLD4", "WATERWORLD5", "WATERWORLD6", "WATERWORLD7", "WATERWORLD8",
+        "GASGIANT1",
+        "MSTRUCTBIOME1", "MSTRUCTBIOME2", "MSTRUCTBIOME3",
+        "BEAMSBIOME1", "BEAMSBIOME2", "BEAMSBIOME3",
+        "HEXAGONBIOME1", "HEXAGONBIOME2", "HEXAGONBIOME3",
+        "FRACTCUBEBIOME1", "FRACTCUBEBIOME2", "FRACTCUBEBIOME3",
+        "BUBBLEBIOME1", "BUBBLEBIOME2", "BUBBLEBIOME3",
+        "SHARDSBIOME1", "SHARDSBIOME2", "SHARDSBIOME3",
+        "CONTOURBIOME1", "CONTOURBIOME2", "CONTOURBIOME3",
+        "IRRISHELLSBIOME1", "IRRISHELLSBIOME2", "IRRISHELLSBIOME3",
+        "BONESPIREBIOME1", "BONESPIREBIOME2", "BONESPIREBIOME3",
+        "WIRECELLSBIOME1", "WIRECELLSBIOME2", "WIRECELLSBIOME3",
+        "HYDROGARDENBIOME1", "HYDROGARDENBIOME2", "HYDROGARDENBIOME3",
+        "INFESTEDLUSH1", "INFESTEDLUSH2", "INFESTEDLUSH3", "INFESTEDLUSH4",
+        "INFESTEDTOX1", "INFESTEDTOX2", "INFESTEDTOX3",
+        "INFESTEDHOT1", "INFESTEDHOT2", "INFESTEDHOT3", "INFESTEDHOT4",
+        "INFESTEDRAD1", "INFESTEDRAD2", "INFESTEDRAD3",
+        "INFESTEDCOLD1", "INFESTEDCOLD2", "INFESTEDCOLD3",
+        "INFESTEDDUST1", "INFESTEDDUST2", "INFESTEDDUST3", "INFESTEDDUST4",
+        "INFESTED1",
+        "RUINEDLUSH1", "RUINEDLUSH2", "RUINEDLUSH3", "RUINEDLUSH4",
+        "RUINEDTOX1", "RUINEDTOX2", "RUINEDTOX3",
+        "RUINEDHOT1", "RUINEDHOT2", "RUINEDHOT3", "RUINEDHOT4",
+        "RUINEDRAD1", "RUINEDRAD2", "RUINEDRAD3",
+        "RUINEDCOLD1", "RUINEDCOLD2", "RUINEDCOLD3",
+        "RUINEDDUST1", "RUINEDDUST2", "RUINEDDUST3", "RUINEDDUST4",
+        "RUINED1"
+    };
 }

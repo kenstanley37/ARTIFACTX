@@ -41,5 +41,23 @@ internal static class EggSequencerChecks
                 throw new InvalidOperationException($"{c.Id}: grows {effect.Grows}, expected {c.Up}.");
         }
         Console.WriteLine($"PASS: {cases.Length} Egg Sequencer results.");
+
+        // Save diffs, Slot 8 2026-11-15: Abyssal Stew x1 (full dose, grows) in the Growth Hormone.
+        (string Species, float Before, float After)[] sizes = [("LAND_JELLYFISH", 1.1f, 1.0f), ("ROBO_RODENT", 1.0f, 1.5f)];
+        foreach (var (species, before, after) in sizes)
+        {
+            float got = EggSequencer.ScaleAfter(rules.Species[species], before, grows: true, dose: 1, rules);
+            if (Math.Abs(got - after) > 1e-5f) throw new InvalidOperationException($"{species} {before} -> {got}, the game gave {after}.");
+        }
+        Console.WriteLine($"PASS: {sizes.Length} Growth Hormone sizes.");
+    }
+
+    /// <summary>Needs no game data: the Dye Injector's colour seed is the item hash (Slot 8
+    /// save diff 2026-11-15, Geodesite on a CAT and a TREX egg).</summary>
+    public static void Check()
+    {
+        ulong seed = EggSequencer.DyeColourSeed("^ALLOY7");
+        if (seed != 0x95CF21B2ED2ADD7C) throw new InvalidOperationException($"Geodesite dye seed {seed:X}, the game wrote 95CF21B2ED2ADD7C.");
+        Console.WriteLine("PASS: Dye Injector colour seed.");
     }
 }

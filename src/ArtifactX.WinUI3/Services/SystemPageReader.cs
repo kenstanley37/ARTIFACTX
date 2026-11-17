@@ -47,6 +47,7 @@ public static class SystemPageReader
         if (!popup && !card) return null;
 
         _words ??= await CatalogService.GetSystemDescriptorsAsync();
+        await CatalogService.GetSystemWordsByKeyAsync();
         var read = new SystemNote();
         string? name;
         if (popup)
@@ -123,9 +124,45 @@ public static class SystemPageReader
 
     private static readonly List<(string Name, SystemNote Read, DateTime At)> Pending = new();
 
+    /// <summary>
+    /// Clears economy, wealth, conflict, race and star colour values that screen capture wrote but the game can't show
+    /// for that system (UniverseInfo.GameCouldShow), so the generator's answer shows again. Values the player
+    /// typed or the save gave are kept. Does nothing without the catalog's words. Returns how many systems changed.
+    /// </summary>
+    public static int DropMisfiledReadings(IReadOnlyDictionary<string, string> words)
+    {
+        if (words.Count == 0) return 0;
+        var captured = SystemNotesService.CapturedFields();
+        int changed = 0;
+        foreach (var (address, note) in SystemNotesService.AllWithAddress)
+        {
+            bool Bad(string field, string group, string value) =>
+                value.Length > 0 && captured.Contains((address, field)) && !UniverseInfo.GameCouldShow(address, group, value);
+            bool economy = Bad("economy", "Economy", note.Economy), wealth = Bad("wealth", "Wealth", note.Wealth);
+            bool conflict = Bad("conflict", "Conflict", note.Conflict), race = Bad("race", "Race", note.Race);
+            bool star = (captured.Contains((address, "star_colour")) || captured.Contains((address, "star_class")))
+                && note.StarColour.Length > 0 && !UniverseInfo.GameCouldShow(address, "Star", note.StarColour);
+            if (!(economy || wealth || conflict || race || star)) continue;
+            if (economy) note.Economy = "";
+            if (wealth) note.Wealth = "";
+            if (conflict) note.Conflict = "";
+            if (race) note.Race = "";
+            if (star) note.StarClass = note.StarColour = "";
+            SystemNotesService.Save(address, note, source: "captured");
+            changed++;
+        }
+        return changed;
+    }
+
     /// <summary>A new save snapshot: applies held readings that now match a system.</summary>
     public static void Start()
     {
+        // Words an older version filed from another system's screen.
+        _ = Task.Run(async () =>
+        {
+            try { DropMisfiledReadings(await CatalogService.GetSystemWordsByKeyAsync()); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SystemPageReader] Misfiled reading check failed: {ex.Message}"); }
+        });
         FishCatchRecorder.SnapshotSeen += _ =>
         {
             List<(string Name, SystemNote Read, DateTime At)> held;
@@ -154,8 +191,25 @@ public static class SystemPageReader
         return result;
     }
 
+    /// <summary>The fields of a reading the game can't show for this system (UniverseInfo.GameCouldShow):
+    /// any one means the screen was another system's.</summary>
+    private static List<string> Misfits(ulong system, string economy, string wealth, string conflict, string race) =>
+        new[] { ("Economy", economy), ("Wealth", wealth), ("Conflict", conflict), ("Race", race) }
+            .Where(f => !UniverseInfo.GameCouldShow(system, f.Item1, f.Item2)).Select(f => $"{f.Item1} {f.Item2}").ToList();
+
     private static string Apply(ulong system, string name, SystemNote read)
     {
+        // The whole reading goes: the screen it came from was another system's (2026-11-14: 45 of ~190
+        // captures had been filed this way; see UniverseInfo.GameCouldShow).
+        if (Misfits(system, read.Economy, read.Wealth, read.Conflict, read.Race) is { Count: > 0 } misfits)
+            return $"system page {name}: {string.Join(", ", misfits)} can't be this system's - skipped";
+        // A star line ("G2f // Water") of another colour is another star's: it alone goes, with its water and dissonance.
+        if (read.StarClass.Length > 0 && SystemNotesService.ColourForClass(read.StarClass) is { } readColour
+            && !UniverseInfo.GameCouldShow(system, "Star", readColour))
+        {
+            read.StarClass = "";
+            read.Water = read.Dissonant = false;
+        }
         var note = SystemNotesService.Get(system) ?? new SystemNote();
         bool changed = false;
         void Set(string value, Func<string> get, Action<string> set)
@@ -360,6 +414,9 @@ public static class SystemPageReader
         _words ??= await CatalogService.GetSystemDescriptorsAsync();
         var parts = text.Split("//", StringSplitOptions.TrimEntries);
         string economy = Word("Economy", parts[0]), wealth = parts.Length > 1 ? Word("Wealth", parts[^1]) : "";
+        // The save can still say the last system just after a warp: another system's banner is skipped.
+        await CatalogService.GetSystemWordsByKeyAsync();
+        if (Misfits(system, economy, wealth, "", "").Count > 0) return null;
         var note = SystemNotesService.Get(system) ?? new SystemNote();
         bool changed = false;
         if (economy.Length > 0 && note.Economy != economy) { note.Economy = economy; changed = true; }

@@ -36,8 +36,8 @@ public sealed partial class CompanionPartRowViewModel : ObservableObject
     }
 
     /// <summary>A row for an entry that matches no catalog option: shown, not editable.</summary>
-    public static CompanionPartRowViewModel ReadOnly(int index, string raw) =>
-        new(index, $"osl[{index}]", Array.Empty<CompanionPartOption>(), -1, false, _ => { }) { RawValue = raw };
+    public static CompanionPartRowViewModel ReadOnly(int index, string label, string raw) =>
+        new(index, label, Array.Empty<CompanionPartOption>(), -1, false, _ => { }) { RawValue = raw };
 
     public int Index { get; }
     public string Label { get; }

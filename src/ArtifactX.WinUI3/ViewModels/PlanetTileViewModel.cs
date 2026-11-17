@@ -37,14 +37,15 @@ public sealed partial class PlanetTileViewModel : ObservableObject
         // "Originally Irskya XIX" (2026-10-18): guides and other players may still use the game's original name.
         OriginalName = string.Equals(Name, generated, StringComparison.OrdinalIgnoreCase) ? "" : $"Originally {generated}";
         var details = PlanetDetailsService.Get(planet.SystemAddress, planet.PlanetIndex);
-        TypeText = planet.Classification(details?.Descriptor, ringSuffix: " · rings");
+        var desc = PlanetTypesService.Descriptor(planet.SystemAddress, planet.PlanetIndex);
+        TypeText = planet.Classification(desc, ringSuffix: " · rings", isMoon: isMoon);
         BasesLabel = baseNames.Count == 1 ? "Your base" : "Your bases";
         Bases = string.Join(", ", baseNames);
         FoundBy = planet.Predicted ? "Not discovered yet" : planet.DiscoveredHere ? "You" : planet.Discoverer;
         Fish = fish;
         if (PlanetTypesService.Profile(planet.SystemAddress, planet.PlanetIndex) is { } profile)
         {
-            Weather = PlanetText.Weather(profile);
+            Weather = PlanetText.Weather(profile, planet.SystemAddress, planet.PlanetIndex);
             Sentinels = PlanetText.Sentinels(profile);
             Flora = details?.Flora is { Length: > 0 } fl ? fl : PlanetText.Flora(profile);
             Fauna = details?.Fauna is { Length: > 0 } fa ? fa : PlanetText.Fauna(profile);
@@ -133,19 +134,30 @@ public sealed partial class PlanetTileViewModel : ObservableObject
             found = await CrashedShipService.SearchAsync(Planet.Address, _ => true, at.Latitude, at.Longitude, 1);
             if (found is null) return;
         }
-        NotableShip = found!.Nearest.Count > 0
+        var notable = found!.Nearest.Count > 0
             ? new CrashedShipRowViewModel(found.Nearest[0], 1, IsHere, fromYou ? "away" : "from the portal")
             : null;
         string ships = shipClass < 0 ? "crashed ship" : $"{"CBAS"[shipClass]}-class crashed ship";
         string best = shipClass is >= 0 and < 3 ? ", the best class here" : "";
-        NotableSummary = found.Total switch
+        string summary = found.Total switch
         {
             0 => "No crashed ships on this planet.",
             1 when found.Uncharted => $"This planet's only {ships}, underwater.",
             1 => $"The only {ships} on this planet{best}.",
             _ => $"The nearest of {found.Total:N0} {ships}s on this planet{best}.",
         };
-        HasNotable = true;
+
+        void Apply()
+        {
+            NotableShip = notable;
+            NotableSummary = summary;
+            HasNotable = true;
+        }
+
+        if (App.MainWindowInstance?.DispatcherQueue is { } dq && !dq.HasThreadAccess)
+            dq.TryEnqueue(Apply);
+        else
+            Apply();
     }
 
     [ObservableProperty] public partial string Discovered { get; private set; } = "";

@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using ArtifactX.GameData.Services;
@@ -61,8 +61,13 @@ public sealed partial class ShipModels
         }
     }
 
-    private NMSTemplate? Decode(string path) => _files.GetOrAdd(path.Replace('\\', '/').ToUpperInvariant(), p =>
+    internal NMSTemplate? Decode(string path) => _files.GetOrAdd(path.Replace('\\', '/').ToUpperInvariant(), Load);
+
+    /// <summary>Reads and decodes a game file without keeping it - geometry and stream files are large and only
+    /// needed until their meshes are copied out (Geometry keeps those).</summary>
+    private NMSTemplate? Load(string path)
     {
+        string p = path.Replace('\\', '/').ToUpperInvariant();
         if (!_index.TryFind(p, out var pak, out var entry, out var header)) return null;
         try
         {
@@ -73,14 +78,17 @@ public sealed partial class ShipModels
             return mbin.GetData();
         }
         catch { return null; }
-    });
+    }
 
     /// <summary>The model for a ship type's scene. <paramref name="optionIds"/>
     /// are every part id the type can have, <paramref name="chosen"/> the ones
-    /// the seed picked (both compared exactly, as ShipLook does).</summary>
-    public ShipMesh? Build(string scenePath, ISet<string> optionIds, ISet<string> chosen)
+    /// the seed picked (both compared exactly, as ShipLook does). <paramref name="lod"/>: the detail
+    /// level drawn - a mesh group without it uses its least detailed one (corvettes use 2: hundreds of
+    /// pieces at LOD0 are millions of triangles). <paramref name="hiddenNodes"/>: meshes left out by name.</summary>
+    public ShipMesh? Build(string scenePath, ISet<string> optionIds, ISet<string> chosen, int lod = 0, ISet<string>? hiddenNodes = null)
     {
         if (Decode(scenePath) is not TkSceneNodeData root) return null;
+        var lodTop = lod == 0 ? null : LodGroups(root);
         var trunc = optionIds.Where(o => o.Length >= 15).OrderByDescending(o => o.Length).ToList();
         string Canon(string up)
         {
@@ -113,13 +121,16 @@ public sealed partial class ShipModels
         void Walk(TkSceneNodeData node, string geometry, Matrix4x4 world, int depth)
         {
             string name = node.Name?.Value ?? "", type = node.Type?.Value ?? "";
-            if (!Keep(name) || depth > 12) return;
+            if (!Keep(name) || depth > 12 || hiddenNodes?.Contains(name) == true) return;
             world = Local(node.Transform) * world;
             string? Attr(string key) => node.Attributes?.FirstOrDefault(a => a.Name?.Value == key)?.Value?.Value;
             if (type == "MESH")
             {
-                var lod = LodName.Match(name);
-                if ((Attr("LODLEVEL") ?? "0") != "0" || (lod.Success && lod.Groups[1].Value != "0")) return;
+                var lodMatch = LodName.Match(name);
+                string level = Attr("LODLEVEL") ?? (lodMatch.Success ? lodMatch.Groups[1].Value : "0");
+                string wanted = lodTop is null ? "0"
+                    : Math.Min(lod, lodTop.GetValueOrDefault(Lod.Replace(name, ""))).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (level != wanted) return;
                 string material = (Attr("MATERIAL") ?? "").Replace('\\', '/');
                 if (ulong.TryParse(Attr("HASH"), out ulong hash) && !Effects.IsMatch(geometry.ToUpperInvariant())
                     && !Hidden.IsMatch(Path.GetFileName(material).ToUpperInvariant())
@@ -154,6 +165,68 @@ public sealed partial class ShipModels
         }
         Walk(root, GeometryOf(root), Matrix4x4.Identity, 0);
         return corners.Count == 0 ? null : new ShipMesh(corners.ToArray(), materials.ToArray()) { Uvs = uvs.ToArray(), Uvs2 = uvs2.ToArray() };
+    }
+
+    /// <summary>The highest LOD level of each mesh group (name without "LODn") in a scene.</summary>
+    private static Dictionary<string, int> LodGroups(TkSceneNodeData root)
+    {
+        var top = new Dictionary<string, int>(StringComparer.Ordinal);
+        void Walk(TkSceneNodeData n)
+        {
+            string name = n.Name?.Value ?? "";
+            string? level = n.Attributes?.FirstOrDefault(a => a.Name?.Value == "LODLEVEL")?.Value?.Value;
+            if (level is null && LodName.Match(name) is { Success: true } m) level = m.Groups[1].Value;
+            if (int.TryParse(level, out int l)) top[Lod.Replace(name, "")] = Math.Max(top.GetValueOrDefault(Lod.Replace(name, "")), l);
+            foreach (var c in n.Children ?? new()) Walk(c);
+        }
+        Walk(root);
+        return top;
+    }
+
+    /// <summary>One model from scenes placed in a shared space - a corvette's pieces (CorvetteAssembly).
+    /// Each scene is built once and copied to every place it's used; a mirroring placement keeps the
+    /// triangles facing out. A piece with a palette names its materials "material#palette" ("material#palette#finish"
+    /// for a finish other than the first). The geometry files
+    /// it reads are let go afterwards.</summary>
+    public ShipMesh? BuildPlaced(IEnumerable<CorvettePiece> pieces, int lod = 0, ISet<string>? hiddenNodes = null)
+    {
+        var none = new HashSet<string>(StringComparer.Ordinal);
+        var built = new Dictionary<string, ShipMesh?>(StringComparer.OrdinalIgnoreCase);
+        var geometryBefore = new HashSet<string>(_geometry.Keys, StringComparer.OrdinalIgnoreCase);
+        // One name per material and palette, not one string per triangle (321,000 on Slot 8's corvette).
+        var names = new Dictionary<(string, int, int), string>();
+        string Named(string material, int palette, int finish) => names.TryGetValue((material, palette, finish), out var n) ? n
+            : names[(material, palette, finish)] = material + "#" + palette.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + (finish > 0 ? "#" + finish.ToString(System.Globalization.CultureInfo.InvariantCulture) : "");
+        var corners = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var uvs2 = new List<Vector2>();
+        var materials = new List<string>();
+        foreach (var piece in pieces)
+        {
+            if (!built.TryGetValue(piece.Scene, out var mesh)) built[piece.Scene] = mesh = Build(piece.Scene, none, none, lod, hiddenNodes);
+            if (mesh is null) continue;
+            bool mirrored = piece.World.GetDeterminant() < 0;
+            for (int i = 0; i + 2 < mesh.Corners.Length; i += 3)
+            {
+                int a = i, b = mirrored ? i + 2 : i + 1, c = mirrored ? i + 1 : i + 2;
+                corners.Add(Vector3.Transform(mesh.Corners[a], piece.World));
+                corners.Add(Vector3.Transform(mesh.Corners[b], piece.World));
+                corners.Add(Vector3.Transform(mesh.Corners[c], piece.World));
+                if (mesh.Uvs.Length == mesh.Corners.Length) { uvs.Add(mesh.Uvs[a]); uvs.Add(mesh.Uvs[b]); uvs.Add(mesh.Uvs[c]); }
+                if (mesh.Uvs2.Length == mesh.Corners.Length) { uvs2.Add(mesh.Uvs2[a]); uvs2.Add(mesh.Uvs2[b]); uvs2.Add(mesh.Uvs2[c]); }
+                materials.Add(piece.Palette >= 0 ? Named(mesh.Materials[i / 3], piece.Palette, piece.Finish) : mesh.Materials[i / 3]);
+            }
+        }
+        // The geometry files read for this model hold every mesh and detail level (a corvette's interiors too):
+        // ~190 MB for Slot 8's corvette, kept for nothing once its triangles are copied out (2026-11-15).
+        foreach (string file in _geometry.Keys.Where(k => !geometryBefore.Contains(k)).ToList()) _geometry.TryRemove(file, out _);
+        if (corners.Count == 0) return null;
+        return new ShipMesh(corners.ToArray(), materials.ToArray())
+        {
+            Uvs = uvs.Count == corners.Count ? uvs.ToArray() : Array.Empty<Vector2>(),
+            Uvs2 = uvs2.Count == corners.Count ? uvs2.ToArray() : Array.Empty<Vector2>(),
+        };
     }
 
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _weaponTags = new(StringComparer.OrdinalIgnoreCase);
@@ -211,8 +284,8 @@ public sealed partial class ShipModels
     private Dictionary<ulong, (Vector3[] P, Vector4[] T, uint[] I)> Geometry(string geometry) => _geometry.GetOrAdd(geometry, g =>
     {
         var result = new Dictionary<ulong, (Vector3[], Vector4[], uint[])>();
-        if (Decode(g + ".PC") is not TkGeometryData gd
-            || Decode(Regex.Replace(g, @"\.GEOMETRY\.MBIN$", ".GEOMETRY.DATA.MBIN", RegexOptions.IgnoreCase) + ".PC") is not TkGeometryStreamData sd)
+        if (Load(g + ".PC") is not TkGeometryData gd
+            || Load(Regex.Replace(g, @"\.GEOMETRY\.MBIN$", ".GEOMETRY.DATA.MBIN", RegexOptions.IgnoreCase) + ".PC") is not TkGeometryStreamData sd)
             return result;
         int stride = gd.PositionVertexLayout.Stride;
         int at = gd.PositionVertexLayout.VertexElements?.FirstOrDefault(v => v.SemanticID == 0)?.Offset ?? 0;

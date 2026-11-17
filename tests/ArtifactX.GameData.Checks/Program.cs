@@ -97,6 +97,300 @@ if (args.Length == 1 && args[0] == "--planet-shop-survey-check")
 }
 
 
+if (args.Length == 2 && args[0] == "--palettes-step")
+{
+    // Runs the palette catalog step (base + biome palettes) on the given catalog - use a copy, it is written.
+    var game = GameInstall.Find() ?? throw new InvalidOperationException("No game install found.");
+    CatalogSteps.AddPalettes(Path.GetFullPath(args[1]), game.PcbanksPath);
+    return;
+}
+
+if (args.Length >= 2 && args[0] == "--mbin-dump")
+{
+    // Research probe: --mbin-dump <path substring> [n]: lists matching game files; with n, dumps the n-th as JSON
+    // (fields only, 6 levels deep) - to read game tables without the catalog.
+    var game = GameInstall.Find() ?? throw new InvalidOperationException("No game install found.");
+    var reader = new ArtifactX.GameData.Services.PakReaderService();
+    var hits = new List<(string Pak, ArtifactX.GameData.Models.PakHeader Header, ArtifactX.GameData.Models.PakEntry Entry)>();
+    foreach (var pak in new ArtifactX.GameData.Services.PakDiscoveryService().Discover(game.PcbanksPath))
+    {
+        if (string.IsNullOrEmpty(pak.FullPath)) continue;
+        try
+        {
+            var header = reader.ReadHeader(pak.FullPath);
+            foreach (var e in reader.Read(pak.FullPath))
+                if (e.FileName?.Contains(args[1], StringComparison.OrdinalIgnoreCase) == true) hits.Add((pak.FullPath, header, e));
+        }
+        catch { }
+    }
+    for (int i = 0; i < hits.Count && i < 400; i++) Console.WriteLine($"{i}: {hits[i].Entry.FileName}");
+    if (args.Length > 2 && int.TryParse(args[2], out int n) && n < hits.Count)
+    {
+        var bytes = new ArtifactX.GameData.Services.PakExtractionService().ExtractEntryBytes(hits[n].Pak, hits[n].Entry, hits[n].Header)!;
+        using var mbin = new MBINFile(new MemoryStream(bytes));
+        mbin.Load();
+        Console.WriteLine("type " + mbin.GetData()?.GetType().FullName);
+        Console.WriteLine(JsonSerializer.Serialize((object?)mbin.GetData(), new JsonSerializerOptions
+        {
+            IncludeFields = true, WriteIndented = true, MaxDepth = 64,
+            ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
+        }));
+    }
+    return;
+}
+
+if (args.Length >= 4 && args[0] == "--creature-layer-probe")
+{
+    // Issue #15 probe: --creature-layer-probe <material path> <seed hex> [seed hex ...]: the pattern layers each seed
+    // picks on one material (BASE, overlays such as stripes) - which seed the game uses for a creature's patterns.
+    var models = new ShipModels(GameInstall.Find() ?? throw new InvalidOperationException("No game install found."));
+    foreach (string sd in args.Skip(2))
+        Console.WriteLine($"{sd}: {string.Join(" | ", models.PickedLayerNames(args[1], Convert.ToUInt64(sd.Replace("0x", ""), 16)))}");
+    return;
+}
+
+if (args.Length == 2 && args[0] == "--creature-form-vectors")
+{
+    // Issue #15: --creature-form-vectors <catalog>. Both forms of the five Jinnie II species, as the running game's spawn
+    // table held them (GcCreatureSpawnData FemaleResource / Resource AltId, read-only memory read, 2026-11-14).
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.GetFullPath(args[1])};Mode=ReadOnly");
+    connection.Open();
+    var trees = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    using (var q = connection.CreateCommand())
+    {
+        q.CommandText = "SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='ShipDescriptors'";
+        using var r = q.ExecuteReader();
+        while (r.Read()) trees[r.GetString(0)] = r.GetString(1);
+    }
+    IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>? Load(string p) => trees.TryGetValue(p, out var j) ? ArtifactX.Core.Procedural.ShipParts.ParseTree(j) : null;
+    // Excluded: the creature's rig filter entry (CreatureTables.ExcludedParts) - the predator strider's is
+    // strider.filter.mbin PREDATOR = _HEAD_FISH. Its two lists are the running game's chosen-part lists (the 32-byte name
+    // runs the selector builds, read-only memory read, 2026-11-13), on a planet whose antelope, two-legged antelope,
+    // bird and flying lizard lists all came out exactly with no filter.
+    (string Scene, ulong Seed, string Female, string Male, string[] Excluded)[] species =
+    [
+        ("models/planets/creatures/catrig/cat.scene.mbin", 0x06B32B38D154FAB8,
+            "_BODY_CAT _SHAPE_1 _HEAD_CAT _HCACC_B _CATTOP_1 _HCTOPB_D _CHEARS2_C4 _TAIL_WOLF _MESH_CAT _BCA_14",
+            "_BODY_CAT _SHAPE_1 _HEAD_CAT _HCACC_B _CATTOP_1 _HCTOPB_NULL _CHEARS2_C4 _TAIL_HOG _THA_X2 _MESH_LIZ _BLBACK_2", []),
+        ("models/planets/creatures/catrig/sixlegcat.scene.mbin", 0xBA8B615B845A31AC,
+            "_HEAD_WOLF _HWACC_B _HWMIDDLE_A _HWNOSE_B _HWEARS_A _BODY_SIXLEGCAT _B6CA_CRAGS _TAIL_HOG _THA_X2",
+            "_HEAD_WOLF _HWACC_A _HWTOP_D _BODY_SIXLEGCAT _B6CA_NULL _TAIL_HOG _THA_X1", []),
+        ("models/planets/creatures/rodentrig/rodent.scene.mbin", 0x14B467941315CE0D,
+            "_HEAD_TAZ _HTAZEARS_2 _HTAZACC_2 _BODY_SLOTH _SBACK_6 _TAIL_RODENT",
+            "_HEAD_TAZ _HTAZEARS_2 _HTAZACC_3 _BODY_SLOTH _SBACK_5 _TAIL_RODENT", []),
+        ("models/planets/creatures/triceratopsrig/triceratops.scene.mbin", 0xF38F273A1168581A,
+            "_HEAD_TURTLE _TTLEHNECK_0 _TTLEEAR_0 _TTLEHACC_0 _BODY_TAPIR _DECOR_4 _TAIL_RHINO",
+            "_HEAD_TURTLE _TTLEHNECK_0 _TTLEEAR_0 _TTLEHACC_3 _BODY_TAPIR _DECOR_0 _TAIL_RHINO", []),
+        ("models/planets/biomes/floral/mediumcreature/floralcat.scene.mbin", 0x386A1BC70766DF20,
+            "_BODY_PLANT _SHAPE_XRARE _HEAD_PLANT1 _MESH_PLANT",
+            "_BODY_PLANT _SHAPE_XRARE _HEAD_PLANT4 _MESH_PLANT", []),
+        ("models/planets/creatures/striderrig/strider.scene.mbin", 0x8C510BE47B88D477,
+            "_HEAD_FLATHEAD _FHACC_1 _BODY_BUG _BBACC_4XRARE _BBARM_1 _TAIL_5",
+            "_HEAD_FLATHEAD _FHACC_1 _BODY_BUG _BBACC_1XRARE _BBARM_NONE _TAIL_5", ["_HEAD_FISH"]),
+    ];
+    static HashSet<string> Set(IEnumerable<string> ids) => ids.Select(i => i.ToUpperInvariant()).ToHashSet();
+    int failed = 0;
+    foreach (var (scene, seed, female, male, excluded) in species)
+    {
+        var f = ArtifactX.Core.Procedural.ShipParts.Generate(scene, seed, Load, excluded: excluded).Select(p => p.Id);
+        var m = ArtifactX.Core.Procedural.ShipParts.GenerateMale(scene, seed, Load, excluded: excluded).Select(p => p.Id);
+        bool ok = Set(f).SetEquals(Set(female.Split(' '))) && Set(m).SetEquals(Set(male.Split(' ')));
+        if (!ok) failed++;
+        Console.WriteLine($"{(ok ? "PASS" : "FAIL")}: {Path.GetFileName(scene)} female [{string.Join(" ", f)}] male [{string.Join(" ", m)}]");
+    }
+    if (failed > 0) throw new InvalidOperationException($"{failed} creature form vector(s) failed");
+    return;
+}
+
+if (args.Length >= 4 && args[0] == "--creature-colour-probe")
+{
+    // Issue #15 probe: --creature-colour-probe <catalog> <scene path> <role seed hex> [colour seed hex]
+    // The creature's seed-picked parts, then each big material's average painted colour with the palette table from the
+    // seed itself (starship rule) and from its first child seed (multi-tool rule), to compare with a live screenshot.
+    string catalog = Path.GetFullPath(args[1]);
+    string scene = args[2].ToLowerInvariant();
+    ulong seed = Convert.ToUInt64(args[3].Replace("0x", ""), 16);
+    ulong colourSeed = args.Length > 4 ? Convert.ToUInt64(args[4].Replace("0x", ""), 16) : seed;
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={catalog};Mode=ReadOnly");
+    connection.Open();
+    var trees = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    var palettes = new SortedDictionary<int, ArtifactX.Core.Procedural.ColourPalette>();
+    using (var q = connection.CreateCommand())
+    {
+        q.CommandText = "SELECT c.TemplateType, i.NameEnglish, i.UsageCategory, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType IN ('ShipDescriptors','Palettes')";
+        using var r = q.ExecuteReader();
+        while (r.Read())
+            if (r.GetString(0) == "Palettes")
+                palettes[int.Parse(r.GetString(1))] = new(JsonSerializer.Deserialize<float[][]>(r.GetString(3))!, r.GetString(2));
+            else trees[r.GetString(1)] = r.GetString(3);
+    }
+    IReadOnlyList<ArtifactX.Core.Procedural.PartGroup>? Load(string p) => trees.TryGetValue(p, out var j) ? ArtifactX.Core.Procedural.ShipParts.ParseTree(j) : null;
+    var all = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    void Walk(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups)
+    {
+        foreach (var g in groups) foreach (var o in g.Options) { all.Add(o.Id); foreach (var c in o.Children) Walk(c); }
+    }
+    Walk(Load(ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene)) ?? []);
+    var chosen = ArtifactX.Core.Procedural.ShipParts.Generate(scene, seed, Load).Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    Console.WriteLine("parts: " + string.Join(" ", chosen));
+    var models = new ShipModels(GameInstall.Find() ?? throw new InvalidOperationException("No game install found."));
+    var mesh = models.Build(scene, all, chosen) ?? throw new InvalidOperationException("no mesh");
+    static ulong Child(ulong s)
+    {
+        ulong lo = s & 0xFFFFFFFF, hi = s >> 32;
+        ulong s0 = lo == 0 ? 1 : lo, s1 = (((lo << 16) | (lo >> 16)) & 0xFFFFFFFF) ^ hi ^ lo;
+        ulong Next() { ulong t = s0 * 0x5A76F899UL + s1; s0 = t & 0xFFFFFFFF; s1 = t >> 32; return s0; }
+        ulong a = Next();
+        ulong v = (Next() << 32) | a;
+        v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL;
+        v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL;
+        return v ^ (v >> 33);
+    }
+    static string Hex(float[] c) => $"#{(int)(c[0] * 255):X2}{(int)(c[1] * 255):X2}{(int)(c[2] * 255):X2}";
+    foreach (var (rule, tableSeed) in new[] { ("raw", colourSeed), ("child", Child(colourSeed)) })
+    {
+        var table = ArtifactX.Core.Procedural.ShipLook.PaletteTable(tableSeed, palettes.Values.ToList());
+        Func<string, string, float[]?> colour = (p, a) =>
+        {
+            int pi = ShipModels.PaletteIndex(p), ai = ShipModels.SlotIndex(a);
+            return pi < 0 || pi >= table.Length || table[pi] is null || ai is < 0 or > 5 ? null : table[pi][Math.Min(ai, 3)];
+        };
+        Console.WriteLine($"== {rule} {tableSeed:X16}");
+        foreach (string p in new[] { "Fur", "Scale", "Underbelly", "Rock", "Feather", "Grass", "Leaf", "Plant", "SailShip_Sails" })
+        {
+            int pi = ShipModels.PaletteIndex(p);
+            Console.WriteLine($"   {p,-11} {string.Join(" ", table[pi].Select(Hex))}");
+        }
+        foreach (var m in mesh.Materials.GroupBy(x => x).OrderByDescending(g => g.Count()).Take(8))
+        {
+            var used = new SortedSet<string>();
+            var t = models.Painted(m.Key, (p, a) => { var c = colour(p, a); used.Add($"{p}/{a}={(c is null ? "-" : Hex(c))}"); return c; }, 64, Environment.GetEnvironmentVariable("CHILDLAYERS") == "1" ? Child(seed) : seed,
+                layerGain: float.TryParse(Environment.GetEnvironmentVariable("GAIN"), System.Globalization.CultureInfo.InvariantCulture, out float lg) ? lg : null);
+            string avg = "none";
+            if (t is not null)
+            {
+                double r = 0, g = 0, b = 0, n = 0;
+                foreach (uint px in t.Pixels) { double a = (px >> 24) / 255.0; r += ((px >> 16) & 255) * a; g += ((px >> 8) & 255) * a; b += (px & 255) * a; n += a; }
+                avg = n > 0 ? $"#{(int)(r / n):X2}{(int)(g / n):X2}{(int)(b / n):X2}" : "clear";
+            }
+            Console.WriteLine($"   {m.Count(),6} {Path.GetFileName(m.Key),-40} {avg}  {string.Join(" ", used)}");
+        }
+    }
+    return;
+}
+
+if (args.Length >= 4 && args[0] == "--creature-part-probe")
+{
+    // Issue #15 probe: --creature-part-probe <catalog> <scene path> <chosen ids comma list> [extra id ...]
+    // Builds the creature with the chosen parts, then with each extra id added, and prints where the added triangles
+    // are (bounding box, materials), to tell what a part is (horns on the head, a plate round the neck...).
+    string catalog = Path.GetFullPath(args[1]);
+    string scene = args[2].ToLowerInvariant();
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={catalog};Mode=ReadOnly");
+    connection.Open();
+    using var query = connection.CreateCommand();
+    query.CommandText = "SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id=i.CategoryId WHERE c.TemplateType='ShipDescriptors' AND i.NameEnglish=$p";
+    query.Parameters.AddWithValue("$p", ArtifactX.Core.Procedural.ShipParts.DescriptorFor(scene));
+    var tree = ArtifactX.Core.Procedural.ShipParts.ParseTree((string)query.ExecuteScalar()!);
+    var all = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    void Walk(IReadOnlyList<ArtifactX.Core.Procedural.PartGroup> groups)
+    {
+        foreach (var g in groups) foreach (var o in g.Options) { all.Add(o.Id); foreach (var c in o.Children) Walk(c); }
+    }
+    Walk(tree);
+    var game = GameInstall.Find() ?? throw new InvalidOperationException("No game install found.");
+    var models = new ShipModels(game);
+    static string Box(IEnumerable<System.Numerics.Vector3> pts)
+    {
+        var list = pts.ToList();
+        if (list.Count == 0) return "none";
+        var min = list.Aggregate(System.Numerics.Vector3.Min); var max = list.Aggregate(System.Numerics.Vector3.Max);
+        return $"x {min.X:F2}..{max.X:F2} y {min.Y:F2}..{max.Y:F2} z {min.Z:F2}..{max.Z:F2}";
+    }
+    // "*" chooses every option: everything the scene can draw.
+    var chosen = args[3] == "*" ? new HashSet<string>(all, StringComparer.OrdinalIgnoreCase)
+        : args[3].Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    var baseMesh = models.Build(scene, all, chosen) ?? throw new InvalidOperationException("no mesh");
+    Console.WriteLine($"base: {baseMesh.Corners.Length / 3} triangles, {Box(baseMesh.Corners)}");
+    foreach (var m in baseMesh.Materials.GroupBy(x => x).OrderByDescending(g => g.Count()))
+    {
+        // Which palette colours the material's texture layers ask for (every layer, first option).
+        var asked = new SortedSet<string>();
+        bool painted = models.Painted(m.Key, (p, a) => { asked.Add($"{p}/{a}"); return [1f, 1f, 1f]; }, 16) is not null;
+        Console.WriteLine($"   {m.Count(),6} {Path.GetFileName(m.Key)}  {(painted ? asked.Count == 0 ? "fixed texture" : string.Join(" ", asked) : "no texture")}");
+    }
+    foreach (string id in chosen.ToList().Concat(args.Skip(4)))
+    {
+        bool removing = chosen.Contains(id);
+        var set = new HashSet<string>(chosen, StringComparer.OrdinalIgnoreCase);
+        if (removing) set.Remove(id); else set.Add(id);
+        var mesh = models.Build(scene, all, set);
+        if (mesh is null) { Console.WriteLine($"{id}: no mesh"); continue; }
+        // The part's own triangles: those in one mesh and not the other (by corner position).
+        var bigger = removing ? baseMesh : mesh; var smaller = removing ? mesh : baseMesh;
+        var have = new HashSet<System.Numerics.Vector3>(smaller.Corners);
+        var own = new List<System.Numerics.Vector3>(); var mats = new Dictionary<string, int>();
+        for (int i = 0; i + 2 < bigger.Corners.Length; i += 3)
+            if (!have.Contains(bigger.Corners[i]) || !have.Contains(bigger.Corners[i + 1]) || !have.Contains(bigger.Corners[i + 2]))
+            {
+                own.Add(bigger.Corners[i]); own.Add(bigger.Corners[i + 1]); own.Add(bigger.Corners[i + 2]);
+                string mat = Path.GetFileName(bigger.Materials[i / 3 < bigger.Materials.Length ? i / 3 : 0]);
+                mats[mat] = mats.GetValueOrDefault(mat) + 1;
+            }
+        Console.WriteLine($"{(removing ? "has" : "add")} {id,-18} {own.Count / 3,6} triangles  {Box(own)}  {string.Join(", ", mats.Select(k => $"{k.Key} {k.Value}"))}");
+    }
+    return;
+}
+
+if (args.Length == 2 && args[0] == "--multitool-kind-check")
+{
+    // Issue #60: the Multi-Tool Finder's kinds (Core MultiToolKindClassifier: catalog scene SizeTags) against the app's
+    // Current System kinds (MultiToolKinds: weapon tags read from the game's model files) for 3,000 pool seeds.
+    string catalog = Path.GetFullPath(args[1]);
+    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={catalog};Mode=ReadOnly");
+    connection.Open();
+    string Row(string id)
+    {
+        using var query = connection.CreateCommand();
+        query.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId=$id";
+        query.Parameters.AddWithValue("$id", id);
+        return (string)query.ExecuteScalar()!;
+    }
+    var modelTables = JsonSerializer.Deserialize<ArtifactX.Core.Universe.MultiToolModelTables>(Row("MULTITOOLMODEL"))!;
+    var inventory = JsonSerializer.Deserialize<ArtifactX.Core.Universe.InventoryGenerationTables>(Row("INVENTORYGENERATION"))!;
+    var classifier = new ArtifactX.Core.Universe.MultiToolKindClassifier(modelTables);
+    var game = GameInstall.Find() ?? throw new InvalidOperationException("No game install found.");
+    var tags = new ShipModels(game).WeaponTags(ArtifactX.Core.Universe.SystemMultiToolGenerator.MainModel);
+    var tree = ArtifactX.Core.Procedural.ShipParts.ParseTree(modelTables.DescriptorJson);
+    string descriptor = ArtifactX.Core.Procedural.ShipParts.DescriptorFor(modelTables.ModelPath);
+    var rng = new Random(60);
+    int same = 0, differ = 0;
+    var counts = new Dictionary<string, int>();
+    for (int n = 0; n < 3000; n++)
+    {
+        ulong address = ((ulong)rng.Next() << 32 | (uint)rng.Next()) & 0xFF_FFFF_FFFF_FFFFUL;
+        foreach (var tool in ArtifactX.Core.Universe.SystemMultiToolGenerator.GeneratePool(address,
+                     ArtifactX.Core.Universe.MultiToolPoolSource.SpaceStation, "Space Station", definitions: inventory.MultiToolPools)
+                 .Where(t => t.PoolType == "Standard").Take(1))
+        {
+            string core = classifier.KindOf(tool);
+            var picked = ArtifactX.Core.Procedural.ShipParts.Generate(modelTables.ModelPath, tool.Seed,
+                    p => string.Equals(p, descriptor, StringComparison.OrdinalIgnoreCase) ? tree : null)
+                .Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            string app = picked.Contains("_MULTITOOL_ALIENXRARE") ? "Alien" : picked.Contains("_MULTITOOL_STARTXRARE") ? "Starter"
+                : picked.Contains("_MULTITOOL_PRISTINEXRARE") ? "Experimental" : !picked.Contains("_MULTITOOL_NORMAL") ? "?"
+                : picked.Any(p => tags.TryGetValue(p, out var t) && t is "WEAPON_LARGE" or "WEAPON_MEDIUM") ? "Rifle" : "Pistol";
+            counts[core] = counts.GetValueOrDefault(core) + 1;
+            if (core == app) same++;
+            else { differ++; if (differ <= 10) Console.WriteLine($"  differ: seed {tool.Seed:X16} finder {core} app {app}"); }
+        }
+    }
+    Console.WriteLine($"kinds: {string.Join(", ", counts.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {k.Value}"))}");
+    if (differ > 0) throw new InvalidOperationException($"{differ} of {same + differ} kinds differ from the app's.");
+    Console.WriteLine($"PASS: Multi-Tool Finder kinds match the app's for {same} seeds.");
+    return;
+}
+
 if (args.Length == 3 && args[0] == "--industrial-cleanup-catalog-check")
 {
     string output = Path.GetFullPath(args[2]);
@@ -165,6 +459,12 @@ if (args.Length is 3 or 4 && args[0] == "--extraction-site-check")
 if (args.Length == 4 && args[0] == "--building-layout-check")
 {
     BuildingLayoutChecks.Live(args[1], args[2], args[3]);
+    return;
+}
+
+if (args.Length == 2 && args[0] == "--gas-giant-layout-check")
+{
+    GasGiantLayoutChecks.Run(args[1]);
     return;
 }
 

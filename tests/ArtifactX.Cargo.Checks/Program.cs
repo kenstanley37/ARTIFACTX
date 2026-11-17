@@ -31,27 +31,21 @@ try
         ["1o9"] = amount, ["F9q"] = max, ["3ZH"] = new JObject { [">Qh"] = x, ["XJ>"] = 0 },
         ["b76"] = true, ["eVk"] = 0, ["extra"] = "preserve"
     };
-    var stacks = new JArray(Stack(0, 80), Stack(1, 80), Stack(2, 20));
+    var R = ArtifactX.Core.Inventory.InventoryDuplicateRemover.Remove;
+    var stacks = new JArray(Stack(0, 50), Stack(1, 80), Stack(2, 20), Stack(3, 30, id: "^OTHER"));
     var original = stacks.DeepClone();
-    var merged = ArtifactX.Core.Inventory.InventoryStackMerger.Merge(stacks, out int freed)!;
-    Check(freed == 1 && merged.Count == 2, "Partial stacks free only the slots they no longer need");
-    Check(merged[0]["1o9"]!.Value<int>() == 100 && merged[1]["1o9"]!.Value<int>() == 80,
-        "Overflow remains in an additional stack without losing quantities");
-    Check(JToken.DeepEquals(stacks, original) && merged.All(x => x["extra"]!.Value<string>() == "preserve"),
-        "Merging preserves source data and unknown item metadata");
-    Check(ArtifactX.Core.Inventory.InventoryStackMerger.Merge(merged, out _) is null, "An already packed inventory is unchanged");
-    var noFreeSlot = ArtifactX.Core.Inventory.InventoryStackMerger.Merge(new JArray(Stack(0, 60), Stack(1, 60)), out freed);
-    Check(noFreeSlot is not null && freed == 0 && noFreeSlot[0]["1o9"]!.Value<int>() == 100,
-        "Repacking reports a change even when no whole slot is freed");
-    var different = Stack(1, 20); different["extra"] = "different";
-    Check(ArtifactX.Core.Inventory.InventoryStackMerger.Merge(new JArray(Stack(0, 20), different), out _) is null,
-        "Different saved properties prevent merging");
-    Check(ArtifactX.Core.Inventory.InventoryStackMerger.Merge(new JArray(Stack(0, 1, 1), Stack(1, 1, 1)), out _) is null,
-        "Non-stackable items are not deleted as duplicates");
-    Check(ArtifactX.Core.Inventory.InventoryStackMerger.Merge(new JArray(Stack(0, 20, 100, "Technology"), Stack(1, 20, 100, "Technology")), out _) is null,
-        "Technology is excluded from cargo merging");
-    Check(ArtifactX.Core.Inventory.InventoryStackMerger.Merge(new JArray(Stack(0, 20), Stack(1, 20, 200)), out _) is null,
-        "Different maximum stack sizes stay separate");
+    var kept = R(stacks, out int removed, out long removedItems)!;
+    Check(removed == 2 && removedItems == 70 && kept.Count == 2, "Duplicates of an item are removed, one stack kept");
+    Check(kept.Any(x => x["b2n"]!.Value<string>() == "^TEST" && x["1o9"]!.Value<int>() == 80) && kept.Any(x => x["b2n"]!.Value<string>() == "^OTHER"),
+        "The fullest stack is the one kept and other items stay");
+    Check(JToken.DeepEquals(stacks, original) && kept.All(x => x["extra"]!.Value<string>() == "preserve"),
+        "Removing leaves the source array and kept items' data untouched");
+    Check(R(kept, out _, out _) is null, "An inventory without duplicates is unchanged");
+    var tie = R(new JArray(Stack(2, 50), Stack(0, 50)), out _, out _)!;
+    Check(tie.Count == 1 && tie[0]["3ZH"]![">Qh"]!.Value<int>() == 0, "On a tie the first stack in reading order is kept");
+    Check(R(new JArray(Stack(0, 1, 1), Stack(1, 1, 1)), out _, out _) is null, "One-per-slot items are never removed");
+    Check(R(new JArray(Stack(0, 20, 100, "Technology"), Stack(1, 20, 100, "Technology")), out _, out _) is null,
+        "Technology is never removed");
     var player = new JObject();
     for (int i = 0; i < 13; i++) player[$"container{i}"] = Container($"Container {i:D2}", i + 1);
     var root = new JObject { ["vLc"] = new JObject { ["6f="] = player } };
@@ -104,12 +98,15 @@ try
     var mergePath = NmsInventoryContainer.BaseStorageContainerPath(first.Key).Append(":No").ToArray();
     SaveSessionManager.StageEdit(stacks, mergePath);
     await firstEditor.RefreshAsync();
-    Check(firstEditor.Inventory.TryMergeDuplicates(out freed) && freed == 1, "Inventory action stages the merged whole array");
-    Check(((JArray)SaveSessionManager.GetValue(mergePath)!).Sum(x => x["1o9"]!.Value<int>()) == 180,
-        "Staged merge preserves the combined quantity");
+    Check(firstEditor.Inventory.TryRemoveDuplicates(out int stacksGone, out long itemsGone) && stacksGone == 2 && itemsGone == 70,
+        "Inventory action stages the whole array without the duplicate stacks");
+    Check(((JArray)SaveSessionManager.GetValue(mergePath)!).Sum(x => x["1o9"]!.Value<int>()) == 110,
+        "Staged removal keeps the fullest stack and other items");
+    Check(InventoryGridViewModel.RemoveDuplicatesResult(true, 2, 70) == "Removed 2 duplicate stacks (70 items)."
+        && InventoryGridViewModel.RemoveDuplicatesResult(false, 0, 0) == "No duplicate stacks.", "Result line reads plainly");
     firstEditor.Revert();
     await firstEditor.RefreshAsync();
-    Check(firstEditor.Inventory.Cells[0].Amount == 1, "Reset restores the pre-merge inventory");
+    Check(firstEditor.Inventory.Cells[0].Amount == 1, "Reset restores the inventory from before Remove Duplicates");
 
     CatalogService.WarmGate = new();
     SaveSessionManager.Session.Root["vLc"]!["6f="]![first.Key]![":No"]![0]!["1o9"] = 77;

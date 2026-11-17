@@ -1,17 +1,21 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using ArtifactX.Maui.Services;
+using ArtifactX.Maui.Views.AppPages;
 
-namespace ArtifactX.Maui
+namespace ArtifactX.Maui;
+
+public partial class App : Application
 {
-    public partial class App : Application
+    public App()
     {
-        public App()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
+        ThemeService.ApplySaved();
+    }
 
-        protected override Window CreateWindow(IActivationState? activationState)
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        return new Window(new LoadingPage())
         {
-            return new Window(new AppShell());
-        }
+            Title = "ArtifactX",
+        };
     }
 }

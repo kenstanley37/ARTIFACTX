@@ -44,6 +44,21 @@ namespace ArtifactX.Core.NmsModels;
 public static class NmsSpaceStationPaths
 {
     public static readonly string[] LocationDescriptionPath = { "vLc", "6f=", "n:R" };
+
+    /// <summary>
+    /// The station the player is docked at, from the player state (rnc.jk4) and the location line (6f=.n:R):
+    /// "Aboard &lt;station&gt;" while the state is "InStation" (the Space Anomaly is "InNexus", freighters
+    /// "AboardFleet"). The name is the game's own, "The" included: Slot 8, 2026-11-17, the line "Aboard The
+    /// Nudbered VIII Sphere" matched the game's Claim Station screen title "The Nudbered VIII Sphere".
+    /// Null anywhere else.
+    /// </summary>
+    public static string? DockedStationName(string state, string? location)
+    {
+        const string prefix = "Aboard ";
+        if (state != "InStation" || location is null || !location.StartsWith(prefix, StringComparison.Ordinal)) return null;
+        string name = location[prefix.Length..].Trim();
+        return name.Length > 0 ? name : null;
+    }
     public static readonly string[] CurrentUniverseAddressPath = { "vLc", "6f=", "yhJ" };
     public static readonly string[] StatGroupsPath = { "vLc", "6f=", "gUR" };
     public static readonly string[] MarkersPath = { "vLc", "6f=", "nlG" };
@@ -211,6 +226,52 @@ public static class NmsSpaceStationPaths
             z: coords["uXE"]?.Value<int>() ?? 0,
             systemIndex: coords["vby"]?.Value<int>() ?? 0);
     }
+
+    /// <summary>Unpacks a 64-bit packed system address into a yhJ universe address object
+    /// ({ Iis, oZw: { dZj, IyE, uXE, vby, jsv } }), using 12-bit signed galactic X/Z coordinates
+    /// and 8-bit signed Y coordinates, matching the game's exact save layout.</summary>
+    public static JObject CreateUniverseAddress(ulong systemAddress)
+    {
+        int rawX = (int)(systemAddress & 0xFFF);
+        int rawZ = (int)((systemAddress >> 12) & 0xFFF);
+        int rawY = (int)((systemAddress >> 24) & 0xFF);
+        int galaxy = (int)((systemAddress >> 32) & 0xFF);
+        int systemIndex = (int)((systemAddress >> 40) & 0xFFF);
+
+        int x = rawX >= 2048 ? rawX - 4096 : rawX;
+        int z = rawZ >= 2048 ? rawZ - 4096 : rawZ;
+        int y = rawY >= 128 ? rawY - 256 : rawY;
+
+        return new JObject
+        {
+            ["Iis"] = galaxy,
+            ["oZw"] = new JObject
+            {
+                ["dZj"] = x,
+                ["IyE"] = y,
+                ["uXE"] = z,
+                ["vby"] = systemIndex,
+                ["jsv"] = 0
+            }
+        };
+    }
+
+    /// <summary>Creates a Spacestation teleport endpoint (GcTeleportEndpoint in nlG)
+    /// carrying the player's 4-word alliance ownership stamp (6H2.8?J) so the
+    /// station appears under Alliance Stations in the teleporter terminal.</summary>
+    public static JObject CreateStationMarker(ulong systemAddress, string stationName, JArray stamp) =>
+        new JObject
+        {
+            ["yhJ"] = CreateUniverseAddress(systemAddress),
+            ["wMC"] = new JArray { 0.0, 0.0, 0.0 },
+            ["gk4"] = new JArray { 1.0, 0.0, 0.0 },
+            ["iAF"] = StationMarkerType,
+            ["NKm"] = stationName,
+            ["a>;"] = false,
+            ["tww"] = false,
+            ["HQj"] = false,
+            ["6H2"] = new JObject { ["8?J"] = (JArray)stamp.DeepClone() }
+        };
 
     /// <summary>Parses a packed address field. The game writes values above
     /// 2^53 as "0x..." hex strings (common in ^PLANET_STATS) and smaller ones

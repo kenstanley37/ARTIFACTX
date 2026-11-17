@@ -4,6 +4,7 @@
     <File Path="docs/CONTRIBUTING.md" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/ArtifactX.PortalScanning/ArtifactX.PortalScanning.csproj" />
     <Project Path="src/ArtifactX.Almanac/ArtifactX.Almanac.csproj" Id="68d99de1-f1fd-4a68-981f-378ce661b134" />
     <Project Path="src/ArtifactX.Core/ArtifactX.Core.csproj" />
     <Project Path="src/ArtifactX.GameData/ArtifactX.GameData.csproj" />
@@ -26,5 +27,14 @@
     <Project Path="src/ArtifactX.Tools/ArtifactX.Tools.DataCataloger/ArtifactX.Tools.DataCataloger.csproj" Id="68f90931-a070-48aa-b4a0-c6db1a447b0a" />
     <Project Path="src/ArtifactX.Tools/ArtifactX.Tools.SaveInspector/ArtifactX.Tools.SaveInspector.csproj" Id="f11f227a-29ea-4d61-9908-1601f2d48c2b" />
     <Project Path="src/ArtifactX.Tools/NMS.Tools.libMBIN/NMS.Tools.libMBIN.csproj" Id="fdb6b12e-3db6-4809-a673-4906fadd64bb" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ArtifactX.PortalScanning.Checks/ArtifactX.PortalScanning.Checks.csproj" />
+    <Project Path="tests/ArtifactX.Cargo.Checks/ArtifactX.Cargo.Checks.csproj" />
+    <Project Path="tests/ArtifactX.Core.Checks/ArtifactX.Core.Checks.csproj" />
+    <Project Path="tests/ArtifactX.GameData.Checks/ArtifactX.GameData.Checks.csproj" />
+    <Project Path="tests/ArtifactX.RecipeRequirements.Checks/ArtifactX.RecipeRequirements.Checks.csproj" />
+    <Project Path="tests/ArtifactX.StationCards.Checks/ArtifactX.StationCards.Checks.csproj" />
+    <Project Path="tests/ArtifactX.VehicleUnlocks.Checks/ArtifactX.VehicleUnlocks.Checks.csproj" />
   </Folder>
 </Solution>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ArtifactX.WinUI3.Views.ExplorePages.CabinetMultiToolsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:ArtifactX.WinUI3.Controls"
+    xmlns:explore="using:ArtifactX.WinUI3.ViewModels.ExploreViewModels"
+    xmlns:ctcontrols="using:CommunityToolkit.WinUI.Controls"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Padding="28,26,28,40" Spacing="22">
+
+            <!-- Title & Live status -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{x:Bind ViewModel.SystemHeading, Mode=OneWay}" Style="{StaticResource ThemePageTitleStyle}"/>
+                    <TextBlock Text="{x:Bind ViewModel.SystemLocation, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Guide hint -->
+            <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+                    Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE946;" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                    <StackPanel Grid.Column="1" Spacing="4">
+                        <TextBlock Text="HOW CABINET POOLS WORK" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"
+                                   Text="Every standard weapon cabinet in a system - the space station's and planet minor settlement shops alike - draws from the multi-tool pool of the body where your game was last loaded. Save and reload where the multi-tool you want is located."/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Space Station Cabinet Tools -->
+            <controls:StationMultiToolsPanel ViewModel="{x:Bind ViewModel.StationTools}"/>
+
+            <!-- System Reload Pools Overview -->
+            <controls:SystemMultiToolsPanel MultiTools="{x:Bind ViewModel.MultiTools}"/>
+
+            <!-- Planet Minor Settlement Cabinet Shops -->
+            <controls:FoldingCard Title="PLANETARY SHOPS &amp; CABINET LOCATIONS" SettingKey="CabinetMultiToolsPlanetShopsCollapsed">
+                <Border Style="{StaticResource ThemeCardStyle}">
+                    <StackPanel Padding="18,14,18,16" Spacing="14">
+                        <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                            <TextBlock Text="Select Planet:" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" VerticalAlignment="Center"/>
+                            <ComboBox MinWidth="240" ItemsSource="{x:Bind ViewModel.PlanetChoices, Mode=OneWay}"
+                                      SelectedItem="{x:Bind ViewModel.SelectedPlanet, Mode=TwoWay}"
+                                      AutomationProperties.Name="Planet to view multi-tool shops on"/>
+                        </StackPanel>
+
+                        <Border Height="1" Background="{ThemeResource ThemeLineBrush}" Margin="0,4"/>
+
+                        <controls:PlanetShopsPanel Shops="{x:Bind ViewModel.Shops}"/>
+                    </StackPanel>
+                </Border>
+            </controls:FoldingCard>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>
+

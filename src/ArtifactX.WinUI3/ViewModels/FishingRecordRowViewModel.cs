@@ -18,8 +18,8 @@ public partial class FishingRecordRowViewModel : ObservableObject
     public bool IsFlotsam { get; init; }
 
     [ObservableProperty]
-    private bool isCaught;
+    public partial bool IsCaught { get; set; }
 
     [ObservableProperty]
-    private BitmapImage? icon;
+    public partial BitmapImage? Icon { get; set; }
 }

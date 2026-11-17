@@ -1,4 +1,4 @@
-﻿using ArtifactX.Core.Procedural;
+using ArtifactX.Core.Procedural;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,9 +29,6 @@ public static class MultiToolKinds
 {
     public const string MainModel = "MODELS/COMMON/WEAPONS/MULTITOOL/MULTITOOL.SCENE.MBIN";
 
-    private static Dictionary<string, string>? _trees;
-    private static DateTime? _stamp;
-    private static readonly Dictionary<string, IReadOnlyList<PartGroup>> Cache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The game's own type names (BASESTATS_*_L strings) for the other
     /// models, matched by model file - Atlas = Atlantid, Royal = Exotic, Robot =
@@ -79,69 +76,22 @@ public static class MultiToolKinds
         return "Standard";
     }
 
-    private static Dictionary<string, IReadOnlyList<string>>? _words;
-    private static DateTime? _wordsStamp;
-
     /// <summary>The name the game gives a tool nobody renamed ("Pillar of
     /// Ooruz-IX", "Dozhgor-κ") - MultiToolNames, with the word lists from the
     /// catalog. Null until the game data has them (format 11).</summary>
     public static async Task<string?> GameNameAsync(ulong seed, string scenePath)
     {
-        var words = await NameWordsAsync();
+        var words = await CatalogService.GetProceduralNameWordsAsync();
         if (words.Count == 0) return null;
         // Staffs (WeaponStatClass Staff) have their own patterns and adjectives.
         bool staff = System.IO.Path.GetFileName(scenePath).StartsWith("STAFF", StringComparison.OrdinalIgnoreCase);
         return MultiToolNames.Generate(seed, staff, list => words.GetValueOrDefault(list));
     }
 
-    /// <summary>The name the game gives a starship nobody renamed ("Ashes of the
-    /// Suitaka") - ShipNames, words from the catalog (format 12). Null for living
-    /// ships and Sentinel ships (their own name routines, not read yet) and corvettes.</summary>
-    public static async Task<string?> ShipNameAsync(ulong seed, string scenePath)
-    {
-        string path = scenePath.ToUpperInvariant();
-        if (seed == 0 || path.Contains("/BIOPARTS/") || path.Contains("/SENTINELSHIP/") || path.Contains("/VINTAGEINTERCEPTOR.")
-            || ShipBaseService.IsCorvetteModel(scenePath))
-            return null;
-        var words = await NameWordsAsync();
-        return words.Count == 0 ? null : ShipNames.Generate(seed, list => words.GetValueOrDefault(list));
-    }
-
-    /// <summary>The game's name word lists by list name ("WEAP_NOUN", "SHIP_ADJ"...),
-    /// read again after a game-data rebuild.</summary>
-    private static async Task<Dictionary<string, IReadOnlyList<string>>> NameWordsAsync()
-    {
-        var stamp = GameDataService.Info?.BuiltAtUtc;
-        if (_words is null || _words.Count == 0 || stamp != _wordsStamp)
-        {
-            _wordsStamp = stamp;
-            var raw = await CatalogService.GetJsonCategoryAsync("MultiToolNameWords");
-            _words = raw.ToDictionary(kv => kv.Key,
-                kv => (IReadOnlyList<string>)(System.Text.Json.JsonSerializer.Deserialize<List<string>>(kv.Value) ?? new()),
-                StringComparer.OrdinalIgnoreCase);
-        }
-        return _words;
-    }
-
-    /// <summary>Reads the part trees from the catalog - again after a game-data
-    /// rebuild (the old data had no multi-tool trees).</summary>
-    public static async Task EnsureTreesAsync()
-    {
-        var stamp = GameDataService.Info?.BuiltAtUtc;
-        if (_trees is not null && _trees.Count > 0 && stamp == _stamp) return;
-        _stamp = stamp;
-        lock (Cache) Cache.Clear();
-        _trees = await CatalogService.GetShipPartTreesAsync();
-    }
+    /// <summary>Reads the part trees from the catalog (PartTreeService) - again after a game-data rebuild.</summary>
+    public static Task EnsureTreesAsync() => PartTreeService.EnsureAsync();
 
     /// <summary>A model's part tree by descriptor path, once EnsureTreesAsync has run.</summary>
-    public static IReadOnlyList<PartGroup>? Load(string path)
-    {
-        lock (Cache)
-        {
-            if (Cache.TryGetValue(path, out var tree)) return tree;
-            if (_trees is null || !_trees.TryGetValue(path, out var json)) return null;
-            return Cache[path] = ShipParts.ParseTree(json);
-        }
-    }
+    public static IReadOnlyList<PartGroup>? Load(string path) => PartTreeService.Load(path);
+
 }

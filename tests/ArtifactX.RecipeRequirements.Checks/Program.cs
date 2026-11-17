@@ -18,14 +18,12 @@ plan = RecipePlanner.Build(root, [root, child, alternative], 1,
 Require(plan.Steps.Count == 2 && plan.Gather.Single().Id == "OtherRaw", "Only the selected alternative contributes requirements");
 Require(plan.Steps[0].Alternatives.Length == 2, "Alternative recipes retained for selection");
 plan = RecipePlanner.Build(root, [root, cycle], 1, new Dictionary<string, string>());
-Require(plan.Steps.Count == 1 && plan.Notice.Length > 0, "Circular-only ingredient requires gathering");
-try
-{
-    RecipePlanner.Build(root, [root, cycle], 1, new Dictionary<string, string> { ["B"] = "cycle" });
-    throw new Exception("Selected cycle accepted");
-}
-catch (InvalidOperationException) { }
-Console.WriteLine("Recipe card plan checks passed: order, scaled shopping list, alternatives and cycles.");
+Require(plan.Steps.Count == 2 && plan.Notice.Length > 0 && plan.CircularSupplies.Count == 1, "Circular conversion expands steps and records starting supply");
+plan = RecipePlanner.Build(root, [root, cycle], 1, new Dictionary<string, string> { ["B"] = "cycle" });
+Require(plan.Steps.Count == 2 && plan.CircularSupplies.Single().Id == "a", "Selected circular conversion records back-edge starting supply");
+plan = RecipePlanner.Build(root, [root, child], 1, new Dictionary<string, string>(), suppliedItems: new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "B" });
+Require(plan.Steps.Count == 1 && plan.Gather.Single().Id == "B", "Supplied intermediate ingredient stops expansion and gathers directly");
+Console.WriteLine("Recipe card plan checks passed: order, scaled shopping list, alternatives, supplies and cycles.");
 
 using var cancelled = new CancellationTokenSource();
 cancelled.Cancel();
@@ -33,7 +31,10 @@ try { RecipePlanner.Build(root, [root, child], 1, new Dictionary<string, string>
 catch (OperationCanceledException) { }
 var shared = Recipe("shared", "Final", 1, new RequirementIngredient("B", 2), new RequirementIngredient("B", 2));
 plan = RecipePlanner.Build(shared, [shared, child], 1, new Dictionary<string, string>());
-Require(plan.Gather.Single().Amount == 10, "Shared requirements included in shopping list");
+Require(plan.Steps.Single(s => s.Recipe.Id == "child").Batches == 1 && plan.Gather.Single().Amount == 5, "Shared requirements combine before batch rounding");
+var sharedTwoBatches = Recipe("shared2", "Final", 1, new RequirementIngredient("B", 3), new RequirementIngredient("B", 3));
+plan = RecipePlanner.Build(sharedTwoBatches, [sharedTwoBatches, child], 1, new Dictionary<string, string>());
+Require(plan.Steps.Single(s => s.Recipe.Id == "child").Batches == 2 && plan.Gather.Single().Amount == 10, "Combined shared requirements scale batches");
 var large = Enumerable.Range(0, 35).Select(i => Recipe($"r{i}", $"N{i}", 1, new RequirementIngredient($"N{i+1}", 1))).ToArray();
 try { RecipePlanner.Build(large[0], large, 1, large.ToDictionary(r => r.ResultId, r => r.Id)); throw new Exception("Depth limit ignored"); }
 catch (InvalidOperationException) { }

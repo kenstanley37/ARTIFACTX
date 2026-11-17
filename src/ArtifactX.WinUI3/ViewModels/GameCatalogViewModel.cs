@@ -23,6 +23,8 @@ public sealed partial class GameCatalogViewModel : ObservableObject
 {
     private bool _staging;
     private int _iconVersion;
+    private UnlockListViewModel? _tech;
+    private List<string> _brokenTech = [];
 
     public ObservableCollection<GameCatalogSectionViewModel> Sections { get; } = new();
 
@@ -43,27 +45,47 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     [ObservableProperty] public partial bool IsLoading { get; private set; } = true;
     [ObservableProperty] public partial bool NeedsGameData { get; private set; }
     [ObservableProperty] public partial bool HasChanges { get; private set; }
+    /// <summary>The Wonders section is open: its records can be unlocked, with placeholder values.</summary>
+    [ObservableProperty] public partial bool IsWondersSelected { get; private set; }
+    /// <summary>Why some Wonders records could not be unlocked just now; empty when all were.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasWonderProblem))] public partial string WonderProblem { get; private set; } = "";
+    public bool HasWonderProblem => WonderProblem.Length > 0;
+
+    /// <summary>The Technology section is open: broken-technology placeholders are said there.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowBrokenTech))] public partial bool IsTechnologySelected { get; private set; }
+    /// <summary>How many broken-slot placeholders this save knows (the game's BrokenSlotTech flag): red entries in the
+    /// Install Technology menu that do nothing. The game's own Catalog lists none of them.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowBrokenTech), nameof(BrokenTechText))] public partial int BrokenTechCount { get; private set; }
+    public bool ShowBrokenTech => IsTechnologySelected && BrokenTechCount > 0;
+    public string BrokenTechText => BrokenTechCount == 1
+        ? "This save knows 1 broken technology placeholder. It shows red in the Install Technology menu and does nothing."
+        : $"This save knows {BrokenTechCount} broken technology placeholders. They show red in the Install Technology menu and do nothing.";
 
     public bool CanToggleAll => SelectedSection?.TracksKnown == true && Scope().Any(i => i.CanEdit);
 
     /// <summary>True while this page is staging, so its own edits don't trigger a reload.</summary>
     public bool IsStaging => _staging;
 
+    private int _loadVersion;
+
     public async Task LoadAsync()
     {
+        int version = ++_loadVersion;
         IsLoading = true;
         string? keepSection = SelectedSection?.Key;
         string? keepCategory = SelectedCategory?.Name;
         var catalogue = await CatalogueSectionsService.LoadAsync();
-        Sections.Clear();
+        if (version != _loadVersion) return;
+
         NeedsGameData = catalogue.Sections.Length == 0;
         if (!SaveSessionManager.IsSaveLoaded || NeedsGameData)
         {
+            Sections.Clear();
             IsLoading = false;
             return;
         }
 
-        var tech = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownTechPath));
+        var tech = _tech = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownTechPath));
         var products = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownProductsPath));
         var recipes = new UnlockListViewModel(UnlockListStore.ForSave(NmsGameCatalogPaths.KnownRecipesPath));
         tech.Load();
@@ -74,13 +96,25 @@ public sealed partial class GameCatalogViewModel : ObservableObject
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var fish = await WonderFishAsync(catalogue.FishOrder);
+        if (version != _loadVersion) return;
         var species = await CreatureNameService.LoadAsync();
+        if (version != _loadVersion) return;
+        await PlanetTypesService.EnsureLoadedAsync(); // Planet Records draw each planet's type
+        if (version != _loadVersion) return;
+        _brokenTech = (await CatalogService.GetAllUnlockableItemsAsync()).Where(i => i.IsBrokenSlotTech).Select(i => i.GameId).ToList();
+        if (version != _loadVersion) return;
+        UpdateBrokenTech();
+
+        var newSections = new List<GameCatalogSectionViewModel>();
         foreach (var section in catalogue.Sections)
         {
             if (section.Key == "UI_PORTAL_CAT_COLLECTION")
             {
-                Sections.Add(new GameCatalogSectionViewModel(section,
-                    section.Categories.Select(c => WonderCategory(c, catalogue, fish, species)).ToList(), null, tracksKnown: true));
+                newSections.Add(new GameCatalogSectionViewModel(section,
+                    // Personal Records are left out (2026-11-11, the owner): players pick those in game from
+                    // their own discoveries. The game leaves them out of its Wonders total too.
+                    section.Categories.Where(c => c.Type != "CustomWonders")
+                        .Select(c => WonderCategory(c, catalogue, fish, species)).ToList(), null, tracksKnown: true));
                 continue;
             }
             UnlockListViewModel? list = section.Key switch
@@ -105,8 +139,13 @@ public sealed partial class GameCatalogViewModel : ObservableObject
                     return new GameCatalogItemViewModel(id, name, true, false, true, "unlocked as a special reward");
                 return new GameCatalogItemViewModel(id, name, list.IsUnlocked(id), true, true, null);
             }).ToList())).ToList();
-            Sections.Add(new GameCatalogSectionViewModel(section, categories, list, tracksKnown: list is not null));
+            newSections.Add(new GameCatalogSectionViewModel(section, categories, list, tracksKnown: list is not null));
         }
+
+        if (version != _loadVersion) return;
+
+        Sections.Clear();
+        foreach (var s in newSections) Sections.Add(s);
 
         IsLoading = false;
         SelectedSection = Sections.FirstOrDefault(s => s.Key == keepSection) ?? Sections.FirstOrDefault(s => s.TracksKnown) ?? Sections.FirstOrDefault();
@@ -133,7 +172,7 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     private static string DisplayCase(string name) => name.Any(char.IsLower) ? name
         : System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLowerInvariant());
 
-    /// <summary>A Wonders category, read-only: the game records these as you play.</summary>
+    /// <summary>A Wonders category: the game records these as you play, and ArtifactX allows unlocking them.</summary>
     private static GameCatalogCategoryViewModel WonderCategory(Core.Unlocks.CatalogueCategory category, CatalogueSectionsService.Catalogue catalogue,
         (List<(string Id, string Name)> Items, HashSet<string> Caught) fish, CreatureNameService species)
     {
@@ -148,8 +187,9 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         }
         List<GameCatalogItemViewModel> items;
         if (category.Type == "Fish")
-            items = fish.Items.Select(f => new GameCatalogItemViewModel(f.Id, f.Name, fish.Caught.Contains(f.Id), false, true,
-                "caught in the game; edit catches on Fishing Records")).ToList();
+            items = fish.Items.Select(f => new GameCatalogItemViewModel(f.Id, f.Name, fish.Caught.Contains(f.Id), true, true, null)).ToList();
+        // Fossil Records are known from the start: CONFIRMED 2026-11-11, the owner opened Fossil Records on a
+        // brand-new save and every tile was shown (before that it rested on the Wonders totals matching).
         else if (category.Type == "ExhibitBones")
             items = category.Items.Select(id => new GameCatalogItemViewModel(id, names.GetValueOrDefault(id, "Unnamed fossil"), true, false, true,
                 "always known in the game")).ToList();
@@ -157,22 +197,28 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         {
             var records = NmsGameCatalogPaths.WonderRecordPaths.TryGetValue(category.Type, out var path)
                 ? SaveSessionManager.GetValue(path) as JArray : null;
-            var personal = category.Type == "CustomWonders" ? SaveSessionManager.GetValue(NmsGameCatalogPaths.PersonalRecordNamesPath) as JArray : null;
             items = category.Items.Select((id, i) =>
             {
-                // A Personal Record carries the name the player gave it in game.
-                string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n
-                    : personal?.ElementAtOrDefault(i)?["fH8"]?.Value<string>() is { Length: > 0 } own ? own
-                    : $"Personal Record {i + 1}";
+                string name = category.ItemNames?.GetValueOrDefault(id) is { Length: > 0 } n ? n : $"Record {i + 1}";
                 var generation = records?.ElementAtOrDefault(i)?["UqY"] as JArray;
                 var (recorded, detail, iconId) = ReadRecord(category.Type, generation);
-                if (category.Type is "TreasureWonders" or "WeirdBasePartWonders") iconId ??= SlotItem(name);
-                return new GameCatalogItemViewModel(id, name, recorded, false, true, "recorded by the game as you explore",
-                    detail: detail, iconId: iconId, species: recorded ? SpeciesOf(category.Type, generation, species) : null);
+                // Treasures and Glitches show the item recorded; the other records show the game's own picture for
+                // their category (paw, leaf, rock...), and a recorded planet its planet (2026-11-11: all were one star).
+                iconId ??= category.Type is "TreasureWonders" or "WeirdBasePartWonders" ? SlotItem(name)
+                    : Core.Unlocks.CatalogueCategory.IconIdFor(category.Key);
+                return new GameCatalogItemViewModel(id, name, recorded, true, true, null,
+                    detail: detail, iconId: iconId, species: recorded ? SpeciesOf(category.Type, generation, species) : null)
+                {
+                    Planet = recorded && category.Type == "PlanetWonders" ? RecordPlanet(generation) : null,
+                };
             }).ToList();
         }
         return new GameCatalogCategoryViewModel(category.Name, items, category.Counted);
     }
+
+    /// <summary>The planet a Planet Record points at (its UqY's first value), with its predicted type.</summary>
+    private static KnownPlanet? RecordPlanet(JArray? generation) =>
+        NmsSpaceStationPaths.ParsePackedAddress(generation?.ElementAtOrDefault(0)) is ulong address ? PlanetTypesService.Planet(address) : null;
 
     /// <summary>The name the game shows on a Fauna, Flora or Mineral record.</summary>
     private static string? SpeciesOf(string type, JArray? generation, CreatureNameService species)
@@ -220,6 +266,9 @@ public sealed partial class GameCatalogViewModel : ObservableObject
     partial void OnSelectedSectionChanged(GameCatalogSectionViewModel? value)
     {
         foreach (var section in Sections) section.IsSelected = section == value;
+        IsWondersSelected = value?.Key == "UI_PORTAL_CAT_COLLECTION";
+        IsTechnologySelected = value?.Key == "UI_PORTAL_CAT_CRAFTING";
+        WonderProblem = "";
         Categories = value?.Categories ?? [];
         SelectedCategory = Categories.FirstOrDefault(c => c.Items.Count > 0);
         ApplyFilter();
@@ -285,17 +334,51 @@ public sealed partial class GameCatalogViewModel : ObservableObject
 
     public void SetItem(GameCatalogItemViewModel item, bool known)
     {
-        if (!item.CanEdit || SelectedSection?.List is not { } list) return;
-        Stage(() => list.Set([item], known));
+        if (!item.CanEdit) return;
+        if (SelectedSection?.Key == "UI_PORTAL_CAT_COLLECTION")
+        {
+            Stage(() => WonderProblem = WonderUnlockService.Set((GameCatalogItemViewModel[])[item], known) ?? "");
+            return;
+        }
+        if (SelectedSection?.List is not { } list) return;
+        Stage(() => list.Set((IUnlockRow[])[item], known));
     }
 
     /// <summary>A mixed or empty scope learns everything; only a fully known one forgets it.</summary>
     public void ToggleAll()
     {
-        if (SelectedSection?.List is not { } list) return;
         bool learn = AllUnlocked != true;
-        Stage(() => list.Set(Scope().Where(i => i.CanEdit).ToList(), learn));
+        var editable = Scope().Where(i => i.CanEdit).ToList();
+        if (SelectedSection?.Key == "UI_PORTAL_CAT_COLLECTION")
+        {
+            Stage(() => WonderProblem = WonderUnlockService.Set(editable, learn) ?? "");
+            OnPropertyChanged(nameof(AllUnlocked));
+            return;
+        }
+        if (SelectedSection?.List is not { } list) return;
+        Stage(() => list.Set(editable, learn));
         OnPropertyChanged(nameof(AllUnlocked)); // the checkbox toggled itself; restore the real state
+    }
+
+    /// <summary>Forgets every broken-slot placeholder this save knows (moved here from the old Catalogue page,
+    /// 2026-11-11). Found on a real save that had all 36 (2026-10-10); teaching them is how a save gets red entries
+    /// it can't use. Staged like any edit.</summary>
+    public void ForgetBrokenTech()
+    {
+        if (_tech is not { } tech) return;
+        var known = _brokenTech.Where(tech.IsUnlocked).Select(id => (IUnlockRow)new BrokenTechRow(id)).ToList();
+        if (known.Count == 0) return;
+        Stage(() => tech.Set(known, false));
+        UpdateBrokenTech();
+    }
+
+    private void UpdateBrokenTech() => BrokenTechCount = _tech is { } tech ? _brokenTech.Count(tech.IsUnlocked) : 0;
+
+    /// <summary>A broken placeholder as a row for the known-technology list.</summary>
+    private sealed class BrokenTechRow(string gameId) : IUnlockRow
+    {
+        public string GameId { get; } = gameId;
+        public bool IsUnlocked { get; set; } = true;
     }
 
     private void Stage(Action stage)
@@ -308,15 +391,16 @@ public sealed partial class GameCatalogViewModel : ObservableObject
         UpdateChanges();
     }
 
-    private static readonly string[][] EditedPaths =
+    private static readonly string[][] StandardPaths =
         [NmsGameCatalogPaths.KnownTechPath, NmsGameCatalogPaths.KnownProductsPath, NmsGameCatalogPaths.KnownRecipesPath];
 
-    public void UpdateChanges() => HasChanges = EditedPaths.Any(SaveSessionManager.HasStagedEditsUnder);
+    public void UpdateChanges() => HasChanges = StandardPaths.Concat(WonderUnlockService.EditedPaths).Any(SaveSessionManager.HasStagedEditsUnder);
 
-    /// <summary>Undoes this page's staged edits (known technology, products and recipes) only.</summary>
+    /// <summary>Undoes this page's staged edits (technology, products, recipes, wonders and fishing) only.</summary>
     public async Task ResetAsync()
     {
-        foreach (var path in EditedPaths) SaveSessionManager.RevertEdit(path);
+        foreach (var path in StandardPaths) SaveSessionManager.RevertEdit(path);
+        WonderUnlockService.RevertEdits();
         await LoadAsync();
     }
 }

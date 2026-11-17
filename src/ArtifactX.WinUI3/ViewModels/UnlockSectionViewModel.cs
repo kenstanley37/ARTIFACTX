@@ -62,7 +62,7 @@ public sealed partial class UnlockSectionViewModel : ObservableObject
 
     public void SetRow(AccountItemRowViewModel row, bool unlock)
     {
-        _unlocks.Set([row], unlock);
+        _unlocks.Set((IUnlockRow[])[row], unlock);
         Refresh(reapplyFilter: false);
     }
 

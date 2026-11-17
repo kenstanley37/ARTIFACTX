@@ -41,7 +41,7 @@ public sealed partial class FoodStoreControl : UserControl
         });
     }
 
-    public IEnumerable<string[]> InventoryPaths => _editor is null ? [] : [_editor.Path];
+    public IEnumerable<string[]> InventoryPaths => _editor is null ? [] : (string[][])[_editor.Path];
 
     public bool HasLocalChanges => _editor?.HasChanges == true;
 
@@ -96,15 +96,17 @@ public sealed partial class FoodStoreControl : UserControl
 
     private void MaxAllQtyBtn_Click(object sender, RoutedEventArgs e)
     {
-        _model?.MaxAllQuantities();
+        Grid.MaxAllQuantities();
         Grid.Refresh();
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    private void MergeDuplicatesBtn_Click(object sender, RoutedEventArgs e)
+    private void RemoveDuplicatesBtn_Click(object sender, RoutedEventArgs e)
     {
-        bool changed = _model is not null && _model.TryMergeDuplicates(out _);
-        ResultTxt.Text = changed ? "Merged compatible stacks." : "No stacks to merge.";
+        int stacks = 0;
+        long items = 0;
+        bool changed = _model is not null && _model.TryRemoveDuplicates(out stacks, out items);
+        ResultTxt.Text = InventoryGridViewModel.RemoveDuplicatesResult(changed, stacks, items);
         if (!changed) return;
         Grid.Refresh();
         Changed?.Invoke(this, EventArgs.Empty);

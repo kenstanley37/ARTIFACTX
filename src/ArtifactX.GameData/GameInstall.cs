@@ -110,7 +110,7 @@ public sealed record GameInstall(string RootFolder, string PcbanksPath, string? 
             foreach (var id in games.GetSubKeyNames())
             {
                 using var game = games.OpenSubKey(id);
-                if ((game?.GetValue("gameName") as string)?.Contains("No Man", StringComparison.OrdinalIgnoreCase) == true
+                if (game is not null && (game.GetValue("gameName") as string)?.Contains("No Man", StringComparison.OrdinalIgnoreCase) == true
                     && game.GetValue("path") is string path)
                     found.Add(path);
             }

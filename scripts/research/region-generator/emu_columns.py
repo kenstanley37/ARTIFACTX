@@ -9,6 +9,7 @@ import struct, sys, json, math, os, pickle
 import pefile
 from unicorn import Uc, UC_ARCH_X86, UC_MODE_64, UC_HOOK_CODE, UC_HOOK_MEM_UNMAPPED, UcError, UC_PROT_ALL
 from unicorn import x86_const as X
+from nmsbuild import A, BUILD   # build-184271 addresses moved to the installed build
 
 EXE = os.environ.get("NMS_EXE", r"D:\SteamLibrary\steamapps\common\No Man's Sky\Binaries\NMS.exe")
 data = open(EXE, 'rb').read()
@@ -95,9 +96,9 @@ def ret_with(rax):
 # The game's frame allocator (build 184271): 0x142C91990(0) -> allocator, 0x142C92910(alloc, size, align, flag) ->
 # block, 0x142C93ED0(alloc, mark, mark) -> rewind. Served from the emulator heap.
 ALLOCATOR = alloc(0x100)
-HOOKS = {0x142C91990: lambda: ret_with(ALLOCATOR),
-         0x142C92910: lambda: ret_with(alloc(mu.reg_read(X.UC_X86_REG_RDX), max(16, min(4096, mu.reg_read(X.UC_X86_REG_R8) or 16)))),
-         0x142C93ED0: lambda: ret_with(0)}
+HOOKS = {A(0x142C91990): lambda: ret_with(ALLOCATOR),
+         A(0x142C92910): lambda: ret_with(alloc(mu.reg_read(X.UC_X86_REG_RDX), max(16, min(4096, mu.reg_read(X.UC_X86_REG_R8) or 16)))),
+         A(0x142C93ED0): lambda: ret_with(0)}
 
 
 def on_hook(mu, addr, size, _):
@@ -138,14 +139,14 @@ mu.mem_write(ys, struct.pack(f'<{n}f', *(c[1] for c in cols)))
 mu.mem_write(zs, struct.pack(f'<{n}f', *(c[2] for c in cols)))
 table = alloc(0x600, 0x40)
 desc = alloc(0x20); mu.mem_write(desc, struct.pack('<QQQ', ALLOCATOR, 0, 0))
-call(0x1412B5F70, (table, n, desc))
+call(A(0x1412B5F70), (table, n, desc))
 # the driver writes |p| per column into the table's +0x3C0 array before the pass
 rptr = struct.unpack('<Q', bytes(mu.mem_read(table + 0x3C0, 8)))[0]
 if rptr:
     mu.mem_write(rptr, struct.pack(f'<{n}f', *(math.sqrt(c[0] ** 2 + c[1] ** 2 + c[2] ** 2) for c in cols)))
 lod = int(os.environ.get('LOD', '0'))
 region = alloc(0x1000)
-call(0x14128DB30, (table, xs, ys, zs), (VOXEL, BLOCK, region, lod, 0))
+call(A(0x14128DB30), (table, xs, ys, zs), (VOXEL, BLOCK, region, lod, 0))
 pads = struct.unpack('<Q', bytes(mu.mem_read(table + 0x390, 8)))[0]
 out = [list(struct.unpack('<4f', bytes(mu.mem_read(pads + 16 * i, 16)))) for i in range(n)] if pads else []
 arrays = {}

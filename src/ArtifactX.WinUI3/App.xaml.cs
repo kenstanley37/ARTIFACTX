@@ -75,6 +75,7 @@ public partial class App : Application
         _ = SystemNotesService.EnsureDescriptorsAsync();
         // The construction limit the player's own game uses (read from NMS.exe by the catalog).
         ConstructionLimitService.Start();
+        InventoryStackLimitService.Start();
 
         // The day's automatic backup of the player's own data (Settings page).
         _ = Task.Run(() =>

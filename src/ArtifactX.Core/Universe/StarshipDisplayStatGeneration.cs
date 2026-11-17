@@ -7,6 +7,10 @@ public sealed record StarshipFlightControl(float BoostingTurnDamp, float TurnStr
 public sealed record StarshipFlightClassBonus(float BoostingTurnDampMax, float BoostingTurnDampMin,
     float TurnStrengthMax, float TurnStrengthMin);
 
+/// <summary>How a corvette's build size damps its handling: GcCameraGlobals.BuildableShipMinSizeForCamera /
+/// BuildableShipMaxSizeForCamera and GcSpaceshipGlobals.CorvetteSizeMaxTurnDamping.</summary>
+public sealed record CorvetteSizeRules(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ, float MaxTurnDamping);
+
 /// <summary>Extracted spaceship controls and class ranges, keyed by native spaceship class.</summary>
 public sealed record StarshipFlightRules(Dictionary<int, StarshipFlightControl> Controls,
     StarshipFlightClassBonus[] ClassBonuses);
@@ -83,6 +87,28 @@ public static class StarshipDisplayStatGeneration
         float pulse = (evaluatedPulseSpeed - 1f) * 50f;
         float boost = (evaluatedBoostManeuverability - 1f) * 9f;
         return Finite(((pulse + baseValue) + boost) * 10f + (ratingIndex + 1) * 5f);
+    }
+
+    /// <summary>
+    /// A corvette's Maneuverability (#73): the stats panel (NMS.exe 184271 0x1406BBFC5, helper 0x1417813C0) scales
+    /// the ordinary value by the build's size - each axis scored 0-1 between the min and max size (1 when the range
+    /// is empty), s = clamp((x + z + y) * 0.33, 0, 1), factor = s * (MaxTurnDamping - 1) + 1. The size is the
+    /// game's measured one (cGcBuildableSpaceshipComponent +0xA0: half the mesh box plus 1 m). Confirmed in game
+    /// 2026-11-15 on Slot 8's corvette: size (25.9729, 9.24935, 28.8126) read from memory and 691.879 give 454.66,
+    /// the stats screen 454.7.
+    /// </summary>
+    public static float? CorvetteManeuverability(float maneuverability, float sizeX, float sizeY, float sizeZ, CorvetteSizeRules? rules)
+    {
+        if (rules is null || !float.IsFinite(maneuverability) || !float.IsFinite(sizeX) || !float.IsFinite(sizeY)
+            || !float.IsFinite(sizeZ)) return null;
+        static float Score(float value, float min, float max)
+        {
+            float range = max - min;
+            return range > 1.5258789e-5f || range < -1.5258789e-5f ? Math.Clamp((value - min) / range, 0f, 1f) : 1f;
+        }
+        float x = Score(sizeX, rules.MinX, rules.MaxX), y = Score(sizeY, rules.MinY, rules.MaxY), z = Score(sizeZ, rules.MinZ, rules.MaxZ);
+        float s = Math.Clamp((x + z + y) * 0.33f, 0f, 1f);
+        return Finite(maneuverability * (s * (rules.MaxTurnDamping - 1f) + 1f));
     }
 
     private static float? Finite(float value) => float.IsFinite(value) ? value : null;

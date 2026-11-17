@@ -86,6 +86,18 @@ public sealed partial class InventorySlotGrid : UserControl
     /// wires up.</summary>
     public bool SupportsRepair { get; set; } = true;
 
+    /// <summary>Items drawn with another item's icon: base item id ("CV_INV2", no "^" or "#seed") to the item whose
+    /// icon the game shows for it - a corvette's upgrade modules show the part that gives them
+    /// (ShipBaseService.ModulePartsAsync). Null for none.</summary>
+    public IReadOnlyDictionary<string, string>? IconStandIns { get; set; }
+
+    private ImageSource? IconFor(string? itemId)
+    {
+        string baseId = (itemId ?? "").TrimStart('^').Split('#')[0];
+        if (IconStandIns?.GetValueOrDefault(baseId) is { } standIn && CatalogService.TryGet(standIn)?.Icon is { } icon) return icon;
+        return CatalogService.TryGet(itemId)?.Icon;
+    }
+
     /// <summary>Multiplier this container applies on top of a Product's raw catalog
     /// StackMultiplier to get its real max stack here - e.g. 10 for a standard Cargo
     /// container (confirmed: Metal Plating's StackMultiplier of 2 x 10 = the real
@@ -189,7 +201,7 @@ public sealed partial class InventorySlotGrid : UserControl
 
                 var itemImage = new Image
                 {
-                    Source = entry?.Icon,
+                    Source = IconFor(cell.ItemId),
                     Stretch = Stretch.Uniform,
                     Opacity = 0.95
                 };
@@ -215,14 +227,31 @@ public sealed partial class InventorySlotGrid : UserControl
                 };
                 content.Children.Add(nameLabel);
 
+                // The game's class letter on a rolled upgrade module (C/B/A/S/X); without it an X-class module looks
+                // like an ordinary one (user, 2026-10-27).
+                string? moduleClass = CatalogService.ModuleClassLetter(cell.ItemId);
+                // Technology: the game shows a charge percentage on tech that charges, rounded up (Pulse Engine
+                // 149/200 "75%", Life Support 100/120 "84%", Launch Thruster 200/200 "100%"), and no number on the
+                // rest (owner's corvette screenshot, 2026-11-15). Cargo keeps its stack sizes.
+                string amountText = cell.DisplayText;
+                string chargeNote = "";
+                if (cell.CategoryLabel == "Technology" && CatalogService.IsChargeableTech(cell.ItemId) is bool chargeable)
+                {
+                    amountText = chargeable && cell.MaxAmount > 0
+                        ? $"{Math.Ceiling(Math.Max(0, cell.Amount) * 100.0 / cell.MaxAmount):0}%" : "";
+                    if (chargeable && cell.MaxAmount > 0) chargeNote = $"\nCharge {cell.Amount} of {cell.MaxAmount}";
+                }
                 var amountLabel = new Border
                 {
                     Background = ThemeBrush("ThemeSlotLabelBackgroundBrush"),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Bottom,
+                    // A module's stored amount is a placeholder (-1/100 on starships, 1/100 on corvettes); the game
+                    // shows no number on it (owner's corvette screenshot, 2026-11-15).
+                    Visibility = moduleClass is null && amountText.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
                     Child = new TextBlock
                     {
-                        Text = cell.DisplayText,
+                        Text = amountText,
                         FontFamily = (FontFamily)Application.Current.Resources["ThemeDisplayFont"],
                         FontSize = 10,
                         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
@@ -231,9 +260,6 @@ public sealed partial class InventorySlotGrid : UserControl
                 };
                 content.Children.Add(amountLabel);
 
-                // The game marks every rolled upgrade module with its class (C/B/A/S/X);
-                // without it an X-class module looks like an ordinary one (user, 2026-10-27).
-                string? moduleClass = CatalogService.ModuleClassLetter(cell.ItemId);
                 if (moduleClass is not null)
                     content.Children.Add(new Border
                     {
@@ -263,11 +289,11 @@ public sealed partial class InventorySlotGrid : UserControl
                     var current = CatalogService.TryGet(cell.ItemId);
                     string name = ownName ?? current?.DisplayName
                         ?? (showLoadingItems ? loading ? "Loading item" : "Item" : cell.ShortLabel);
-                    itemImage.Source = current?.Icon;
+                    itemImage.Source = IconFor(cell.ItemId);
                     ((TextBlock)nameLabel.Child).Text = name.ToUpperInvariant();
                     ToolTipService.SetToolTip(border, isDamaged
                         ? "Malfunctioning - right-click to repair"
-                        : $"{name}{classSuffix}\nRight-click for options - edit, duplicate, remove");
+                        : $"{name}{classSuffix}{chargeNote}\nRight-click for options - edit, duplicate, remove");
                 }
                 UpdateItemPresentation(showLoadingItems);
                 _catalogUpdates.Add(() => UpdateItemPresentation(false));
@@ -414,7 +440,8 @@ public sealed partial class InventorySlotGrid : UserControl
         var maxQtyItem = new MenuFlyoutItem { Text = "Max Qty" };
         maxQtyItem.Click += (_, _) =>
         {
-            ViewModel?.StageAmount(cell.X, cell.Y, cell.MaxAmount);
+            int max = FullStackOf(cell) ?? cell.MaxAmount;
+            ViewModel?.StageAmount(cell.X, cell.Y, max, max);
             Refresh();
             CellChanged?.Invoke(this, EventArgs.Empty);
         };
@@ -644,11 +671,28 @@ public sealed partial class InventorySlotGrid : UserControl
     }
 
 
-    /// <summary>A full stack of an item in this container: technology is 100
-    /// (durability, not a count), products use their stack size times this
-    /// container's multiplier, substances 9999 (see the add-item flyout).</summary>
+    /// <summary>A full stack of an item in this container: technology is 100 (durability, not a count); products
+    /// their stack size times the inventory's product size and substances the inventory's substance size, both from
+    /// the game's tables for the save's stack-limit setting and this inventory's stack group (Bug 78,
+    /// InventoryStackLimitService); without those (older game data, special containers) the page's
+    /// ProductStorageMultiplier and 9999.</summary>
     public int StackCapFor(string? categoryLabel, int? maxStackSize) =>
-        Helpers.Inventory.StackCaps.For(categoryLabel, maxStackSize, ProductStorageMultiplier);
+        InventoryStackLimitService.CapFor(categoryLabel, maxStackSize, ViewModel?.StackGroup, ProductStorageMultiplier);
+
+    /// <summary>A slot's real full stack here (products and substances, from the catalog and the game's stack
+    /// tables), or null for technology, procedural items and items the catalog doesn't know - those keep their own
+    /// MaxAmount. A slot saved by an older version can carry a smaller MaxAmount (Bug 78).</summary>
+    public int? FullStackOf(InventorySlotViewModel cell)
+    {
+        if (cell.ItemId is not { } id || id.Contains('#') || cell.CategoryLabel is not ("Product" or "Substance")) return null;
+        // Only where the game's tables cover this inventory: special containers and machine substances keep theirs.
+        if (InventoryStackLimitService.SizesFor(ViewModel?.StackGroup) is not { } sizes
+            || cell.CategoryLabel == "Substance" && sizes.Substance is null) return null;
+        return CatalogService.TryGetStackInfo(id.TrimStart('^')) is var (category, maxStack) ? StackCapFor(category, maxStack) : null;
+    }
+
+    /// <summary>Fills every stack to its real full stack (see <see cref="FullStackOf"/>).</summary>
+    public void MaxAllQuantities() => ViewModel?.MaxAllQuantities(FullStackOf);
 
     /// <summary>Unlocked slots with nothing in them.</summary>
     /// <summary>Locked slots this inventory could still unlock (within its

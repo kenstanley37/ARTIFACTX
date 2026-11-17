@@ -28,7 +28,7 @@
                     <Button Content="Save Current..." Click="SaveTechStack_Click" FontSize="11" Padding="8,3,8,3" HorizontalAlignment="Right"
                             AutomationProperties.Name="Save current tech stack"/>
                 </Grid>
-                <TextBlock Text="{x:Bind TechStackHint, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                <TextBlock Text="{x:Bind TechStackHint}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                 <TextBlock Text="No templates saved yet." Visibility="{x:Bind ViewModel.NoTechStacks, Mode=OneWay}"
                            FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
                 <ItemsControl ItemsSource="{x:Bind ViewModel.TechStacks}">
@@ -67,7 +67,7 @@
                     <Button Content="Save Current..." Click="SaveFullBuild_Click" FontSize="11" Padding="8,3,8,3" HorizontalAlignment="Right"
                             AutomationProperties.Name="Save current full build"/>
                 </Grid>
-                <TextBlock Text="{x:Bind FullBuildHint, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                <TextBlock Text="{x:Bind FullBuildHint}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                 <TextBlock Text="No full build templates saved yet." Visibility="{x:Bind ViewModel.NoFullBuilds, Mode=OneWay}"
                            FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
                 <ItemsControl ItemsSource="{x:Bind ViewModel.FullBuilds}">

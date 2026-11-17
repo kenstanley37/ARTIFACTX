@@ -45,7 +45,7 @@ public sealed partial class CorvetteCacheControl : UserControl
 
         CacheGrid.CellChanged += (_, _) => PageResetBtn.Visibility = Visibility.Visible;
 
-        _ = new CargoStorageFeed(this, () => [_editor.Path], LoadGrid);
+        _ = new CargoStorageFeed(this, () => (string[][])[_editor.Path], LoadGrid);
 
         // Every part a corvette is built from, to click into the cache - and
         // the same list limits the right-click search. Filter by the game's part
@@ -76,15 +76,17 @@ public sealed partial class CorvetteCacheControl : UserControl
 
     private void MaxAllQtyBtn_Click(object sender, RoutedEventArgs e)
     {
-        _viewModel.MaxAllQuantities();
+        CacheGrid.MaxAllQuantities();
         CacheGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Visible;
     }
 
-    private void MergeDuplicatesBtn_Click(object sender, RoutedEventArgs e)
+    private void RemoveDuplicatesBtn_Click(object sender, RoutedEventArgs e)
     {
-        bool changed = _viewModel is not null && _viewModel.TryMergeDuplicates(out _);
-        TidyResultTxt.Text = changed ? "Merged compatible stacks." : "No stacks to merge.";
+        int stacks = 0;
+        long items = 0;
+        bool changed = _viewModel is not null && _viewModel.TryRemoveDuplicates(out stacks, out items);
+        TidyResultTxt.Text = InventoryGridViewModel.RemoveDuplicatesResult(changed, stacks, items);
         if (!changed) return;
         CacheGrid.Refresh();
         PageResetBtn.Visibility = Visibility.Visible;

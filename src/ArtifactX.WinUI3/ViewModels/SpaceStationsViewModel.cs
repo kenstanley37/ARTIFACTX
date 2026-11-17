@@ -96,6 +96,9 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
 
     [ObservableProperty] public partial string OwnedHeader { get; private set; } = "";
     [ObservableProperty] public partial bool NoOwned { get; private set; }
+    [ObservableProperty] public partial int UnregisteredCount { get; private set; }
+    [ObservableProperty] public partial bool CanSync { get; private set; }
+    [ObservableProperty] public partial string SyncButtonLabel { get; private set; } = "Register in Teleport Network";
     [ObservableProperty] public partial StationDetailsViewModel? Details { get; private set; }
 
     // ------------------------------------------------------------ claims in progress
@@ -236,7 +239,13 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
     private void ShowOwnedStations(StationOverview overview)
     {
         var owned = overview.Owned;
-        OwnedHeader = owned.Count == 1 ? "1 station" : $"{owned.Count} stations";
+        int unregistered = SpaceStationService.CountUnregisteredStations();
+        UnregisteredCount = unregistered;
+        CanSync = unregistered > 0;
+        SyncButtonLabel = $"Register in Teleport Network ({unregistered})";
+        OwnedHeader = unregistered > 0
+            ? (owned.Count == 1 ? "1 station (not in teleport list)" : $"{owned.Count} stations ({unregistered} not in teleport list)")
+            : (owned.Count == 1 ? "1 station · in teleport list" : $"{owned.Count} stations · all in teleport list");
         NoOwned = owned.Count == 0;
 
         // Keep the previous pick; otherwise default to the station in the
@@ -381,6 +390,18 @@ public sealed partial class SpaceStationsViewModel : ObservableObject
         if (SpaceStationService.Claim(_overview) is string problem)
             CurrentStatus = problem;
         // A staged claim raises PendingEditsChanged, and the page reloads.
+    }
+
+    public void SyncAllToTeleportNetwork()
+    {
+        var (updated, added) = SpaceStationService.SyncClaimedStationMarkers();
+        if (updated + added > 0)
+        {
+            HasEdits = true;
+            UnregisteredCount = 0;
+            CanSync = false;
+            if (_overview is not null) ShowOwnedStations(_overview);
+        }
     }
 
     public void Reset()

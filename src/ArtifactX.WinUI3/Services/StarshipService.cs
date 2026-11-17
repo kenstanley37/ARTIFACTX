@@ -1,10 +1,12 @@
 using ArtifactX.Core.NmsModels;
+using ArtifactX.Core.Procedural;
 using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Models;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
@@ -118,4 +120,35 @@ public static class StarshipService
         "CORVETTE TECHNOLOGY" => Array.Empty<string>(),
         _ => new[] { "UP_HYP", "UP_LAUN", "UP_PULSE", "UP_SGUN", "UP_SLASR", "UP_SMINI", "UP_SSHOT", "UP_S_SHL", "UP_SBLOB" },
     };
+
+    /// <summary>A ship's name as the game shows it: the player's name (NKm), else the
+    /// game's generated name (ShipNameAsync), else "Starship N".</summary>
+    public static async Task<string> DisplayNameAsync(int shipIndex)
+    {
+        string[] ship = NmsInventoryContainer.ShipArrayPath.Append(shipIndex.ToString()).ToArray();
+        string name = SaveSessionManager.GetString(ship.Append("NKm").ToArray()) ?? "";
+        if (name.Length > 0) return name;
+        string scene = SaveSessionManager.GetValue(ship.Append("NTx").Append("93M").ToArray())?.Value<string>() ?? "";
+        return ShipBuilderService.TryParseSeed(shipIndex) is ulong seed && await ShipNameAsync(seed, scene) is { } gameName
+            ? gameName : $"Starship {shipIndex + 1}";
+    }
+
+    /// <summary>The name the game gives a starship nobody renamed ("Ashes of the
+    /// Suitaka") - ShipNames, words from the catalog (format 12). Living Ships ("Yulin KV4")
+    /// and Sentinel ships ("μ-Flameborn", catalog format 96) use their own routines. Corvettes use the ordinary
+    /// routine: Slot 8's corvette (seed 0x6ADD2A2F) is "Jiyodat RR1" in game, exactly ShipNames.Generate's result
+    /// (2026-11-15). Null for reward Living Ships (The Wraith, seed 0) and the Vintage Interceptor.</summary>
+    public static async Task<string?> ShipNameAsync(ulong seed, string scenePath)
+    {
+        string path = (scenePath ?? "").ToUpperInvariant();
+        bool living = path.Contains("/BIOPARTS/BIOSHIP_PROC."), sentinel = path.Contains("/SENTINELSHIP/");
+        if (seed == 0 || (path.Contains("/BIOPARTS/") && !living) || path.Contains("/VINTAGEINTERCEPTOR."))
+            return null;
+        var words = await CatalogService.GetProceduralNameWordsAsync();
+        if (words.Count == 0) return null;
+        IReadOnlyList<string>? List(string list) => words.GetValueOrDefault(list);
+        return living ? ShipNames.GenerateLiving(seed, List)
+            : sentinel ? ShipNames.GenerateSentinel(seed, List)
+            : ShipNames.Generate(seed, List);
+    }
 }

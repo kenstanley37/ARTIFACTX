@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 
 namespace ArtifactX.Core.NmsModels;
 
@@ -34,26 +34,26 @@ public class NmsSaveFile
 
     // Platform/build string (e.g., "Win|Final")
     [JsonProperty("8>q")]
-    public string PlatformBuild { get; set; }
+    public string? PlatformBuild { get; set; }
 
     // Save type: "Main", "Expedition", etc.
     [JsonProperty("XTp")]
-    public string SaveType { get; set; }
+    public string? SaveType { get; set; }
 
     // Save header block (<h0)
     [JsonProperty("<h0")]
-    public NmsSaveHeader Header { get; set; }
+    public NmsSaveHeader? Header { get; set; }
 
     // Universe / currency block (vLc)
     [JsonProperty("vLc")]
-    public NmsUniverseState Universe { get; set; }
+    public NmsUniverseState? Universe { get; set; }
 
     /// <summary>
     /// Convenience shim: exposes currency values at the top level
     /// even though they actually live under vLc.
     /// </summary>
     [JsonIgnore]
-    public NmsCurrencyState CurrencyData =>
+    public NmsCurrencyState? CurrencyData =>
         Universe == null
             ? null
             : new NmsCurrencyState

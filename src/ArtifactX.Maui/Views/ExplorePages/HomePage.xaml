@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:ArtifactX.Maui.Controls"
+    xmlns:models="clr-namespace:ArtifactX.Maui.Models"
+    xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
+    x:Class="ArtifactX.Maui.Views.ExplorePages.HomePage"
+    x:DataType="vm:HomeViewModel"
+    Shell.NavBarIsVisible="False"
+    Background="{DynamicResource ThemePageBackdropBrush}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,22,20,28" Spacing="18">
+
+            <!-- Top Identity Bar: [Hex-X] ARTIFACTX + Theme Switcher Pill -->
+            <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center">
+                <HorizontalStackLayout Grid.Column="0" Spacing="10" VerticalOptions="Center">
+                    <controls:AnimatedLogoView
+                        WidthRequest="26"
+                        HeightRequest="26"
+                        Progress="1.0"
+                        PrimaryColor="{DynamicResource ThemeAccentColor}"
+                        CyanGhostColor="{DynamicResource ThemeCyanColor}"
+                        SemanticProperties.Description="ArtifactX emblem" />
+                    <Label
+                        Text="ARTIFACTX"
+                        FontFamily="Exo2"
+                        FontAttributes="Bold"
+                        FontSize="16"
+                        CharacterSpacing="3.2"
+                        VerticalOptions="Center"
+                        TextColor="{DynamicResource ThemeTextColor}" />
+                </HorizontalStackLayout>
+
+                <Border
+                    Grid.Column="2"
+                    Style="{StaticResource ThemeCardAltStyle}"
+                    Padding="10,5"
+                    VerticalOptions="Center">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding ToggleThemeCommand}" />
+                    </Border.GestureRecognizers>
+                    <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                        <BoxView
+                            WidthRequest="8"
+                            HeightRequest="8"
+                            CornerRadius="4"
+                            VerticalOptions="Center"
+                            Color="{DynamicResource ThemeAccentColor}" />
+                        <Label
+                            Text="{Binding ActiveThemeLabel}"
+                            FontFamily="Exo2"
+                            FontAttributes="Bold"
+                            FontSize="11"
+                            TextColor="{DynamicResource ThemeTextDimColor}"
+                            SemanticProperties.Description="Switch between Galaxy Map and Station Core themes" />
+                    </HorizontalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- Hero Card: FIND A SYSTEM / Enter or scan portal glyphs -->
+            <Border
+                Style="{StaticResource ThemeHeroCardStyle}"
+                Padding="18,18"
+                SemanticProperties.Description="Find a system. Enter or scan portal glyphs.">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding OpenPortalGlyphsCommand}" />
+                </Border.GestureRecognizers>
+                <VerticalStackLayout Spacing="8">
+                    <Label
+                        Text="FIND A SYSTEM"
+                        Style="{StaticResource ThemeEyebrowStyle}" />
+                    <Label
+                        Text="Enter or scan portal glyphs"
+                        Style="{StaticResource ThemeCardTitleStyle}" />
+                    <Label
+                        Text="Planets, crashed ships, multi-tools and the portal spot - worked out from the address, no game files needed."
+                        Style="{StaticResource ThemeDimTextStyle}"
+                        LineHeight="1.25" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- 2-Column Helper Cards: Recipes & Egg Sequencer -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+
+                <!-- Recipes Card -->
+                <Border
+                    Grid.Column="0"
+                    Style="{StaticResource ThemeCardStyle}"
+                    Padding="16,16"
+                    SemanticProperties.Description="Open Refiner and Cooking Recipes">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding OpenRecipesCommand}" />
+                    </Border.GestureRecognizers>
+                    <VerticalStackLayout Spacing="10">
+                        <!-- Custom Vector Flask Icon -->
+                        <Path
+                            Data="M9,3 L15,3 M10,3 L10,8 L5,17 C4.4,18 5.1,19.5 6.4,19.5 L17.6,19.5 C18.9,19.5 19.6,18 19,17 L14,8 L14,3 M7.5,14.5 L16.5,14.5"
+                            Stroke="{DynamicResource ThemeCyanBrush}"
+                            StrokeThickness="1.8"
+                            StrokeLineCap="Round"
+                            StrokeLineJoin="Round"
+                            HeightRequest="24"
+                            WidthRequest="24"
+                            HorizontalOptions="Start" />
+                        <VerticalStackLayout Spacing="2">
+                            <Label
+                                Text="Recipes"
+                                FontFamily="Exo2"
+                                FontAttributes="Bold"
+                                FontSize="16"
+                                TextColor="{DynamicResource ThemeTextColor}" />
+                            <Label
+                                Text="Refiner and cooking"
+                                Style="{StaticResource ThemeDimTextStyle}" />
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Egg Sequencer Card -->
+                <Border
+                    Grid.Column="1"
+                    Style="{StaticResource ThemeCardStyle}"
+                    Padding="16,16"
+                    SemanticProperties.Description="Open Companion Egg Sequencer">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding OpenEggSequencerCommand}" />
+                    </Border.GestureRecognizers>
+                    <VerticalStackLayout Spacing="10">
+                        <!-- Custom Vector Egg Icon -->
+                        <Path
+                            Data="M12,3 C8,3 5.5,8.5 5.5,13.5 C5.5,17.8 8.4,20.5 12,20.5 C15.6,20.5 18.5,17.8 18.5,13.5 C18.5,8.5 16,3 12,3 Z"
+                            Stroke="{DynamicResource ThemeCyanBrush}"
+                            StrokeThickness="1.8"
+                            StrokeLineCap="Round"
+                            StrokeLineJoin="Round"
+                            HeightRequest="24"
+                            WidthRequest="24"
+                            HorizontalOptions="Start" />
+                        <VerticalStackLayout Spacing="2">
+                            <Label
+                                Text="Egg Sequencer"
+                                FontFamily="Exo2"
+                                FontAttributes="Bold"
+                                FontSize="16"
+                                TextColor="{DynamicResource ThemeTextColor}" />
+                            <Label
+                                Text="Companion egg results"
+                                Style="{StaticResource ThemeDimTextStyle}" />
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+            </Grid>
+
+            <!-- RECENT SYSTEMS Section -->
+            <VerticalStackLayout Spacing="10" Margin="0,6,0,0">
+                <Label
+                    Text="RECENT SYSTEMS"
+                    Style="{StaticResource ThemeSectionHeaderStyle}" />
+
+                <VerticalStackLayout
+                    BindableLayout.ItemsSource="{Binding RecentSystems}"
+                    Spacing="10">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="models:RecentSystemSummary">
+                            <Border
+                                Style="{StaticResource ThemeCardStyle}"
+                                Padding="16,14">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HomeViewModel}}, Path=OpenRecentSystemCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                                    <VerticalStackLayout Grid.Column="0" Spacing="3">
+                                        <Label
+                                            Text="{Binding Name}"
+                                            FontFamily="Exo2"
+                                            FontAttributes="Bold"
+                                            FontSize="16"
+                                            TextColor="{DynamicResource ThemeTextColor}" />
+                                        <Label
+                                            Text="{Binding Subtitle}"
+                                            Style="{StaticResource ThemeDimTextStyle}" />
+                                    </VerticalStackLayout>
+                                    <Label
+                                        Grid.Column="1"
+                                        Text="›"
+                                        FontFamily="Exo2"
+                                        FontAttributes="Bold"
+                                        FontSize="22"
+                                        VerticalOptions="Center"
+                                        TextColor="{DynamicResource ThemeTextDimColor}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -1,9 +1,9 @@
 name: Release
 
+# Releases are cut by tagging (git tag -a vX.Y.Z), never by every push to main: a merge to main
+# without a version bump must not rebuild or replace an already-published release.
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -102,17 +102,26 @@ jobs:
           
           $files = Get-ChildItem -Path $packages | Select-Object -ExpandProperty FullName
           
-          $existingTags = gh release list --limit 100 --json tagName -q ".[].tagName"
-          if ($existingTags -contains $tag) {
-              Write-Host "Release $tag already exists. Uploading updated assets..."
-              gh release upload $tag @files --clobber
-          } else {
-              Write-Host "Creating GitHub Release $tag..."
-              gh release create $tag @files `
-                  --title "ArtifactX $tag" `
-                  --target "${{ github.sha }}" `
-                  --generate-notes
+          # Published downloads are never replaced: players and the in-app updater may already have them.
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+              throw "Release $tag already exists. Bump the version and tag a new release instead of replacing published files."
           }
+          # Notes = this version's CHANGELOG.md section ("## 1.1.0 — date" up to the next "## ").
+          $lines = Get-Content CHANGELOG.md -Encoding utf8
+          $start = [array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -match "^## $([regex]::Escape($version))( |$)" })
+          if ($start -lt 0) { throw "CHANGELOG.md has no '## $version' section." }
+          $end = [array]::FindIndex($lines, $start + 1, [Predicate[string]]{ param($l) $l.StartsWith('## ') })
+          if ($end -lt 0) { $end = $lines.Count }
+          $lines[($start + 1)..($end - 1)] | Set-Content release-notes.md -Encoding utf8
+
+          # A draft: the owner tries these exact downloads, then publishes. Drafts are invisible to the in-app updater.
+          Write-Host "Creating draft GitHub Release $tag..."
+          gh release create $tag @files `
+              --title "ArtifactX $tag" `
+              --target "${{ github.sha }}" `
+              --notes-file release-notes.md `
+              --draft
 
       - name: Upload Artifacts to Workflow Run
         uses: actions/upload-artifact@v4
