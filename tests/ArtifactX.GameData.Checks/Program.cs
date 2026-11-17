@@ -462,6 +462,12 @@ if (args.Length == 4 && args[0] == "--building-layout-check")
     return;
 }
 
+if (args.Length == 2 && args[0] == "--gas-giant-layout-check")
+{
+    GasGiantLayoutChecks.Run(args[1]);
+    return;
+}
+
 if (args.Length == 3 && args[0] == "--extraction-world-check")
 {
     ExtractionCatalogChecks.World(args[1], args[2]);

@@ -44,6 +44,21 @@ namespace ArtifactX.Core.NmsModels;
 public static class NmsSpaceStationPaths
 {
     public static readonly string[] LocationDescriptionPath = { "vLc", "6f=", "n:R" };
+
+    /// <summary>
+    /// The station the player is docked at, from the player state (rnc.jk4) and the location line (6f=.n:R):
+    /// "Aboard &lt;station&gt;" while the state is "InStation" (the Space Anomaly is "InNexus", freighters
+    /// "AboardFleet"). The name is the game's own, "The" included: Slot 8, 2026-11-17, the line "Aboard The
+    /// Nudbered VIII Sphere" matched the game's Claim Station screen title "The Nudbered VIII Sphere".
+    /// Null anywhere else.
+    /// </summary>
+    public static string? DockedStationName(string state, string? location)
+    {
+        const string prefix = "Aboard ";
+        if (state != "InStation" || location is null || !location.StartsWith(prefix, StringComparison.Ordinal)) return null;
+        string name = location[prefix.Length..].Trim();
+        return name.Length > 0 ? name : null;
+    }
     public static readonly string[] CurrentUniverseAddressPath = { "vLc", "6f=", "yhJ" };
     public static readonly string[] StatGroupsPath = { "vLc", "6f=", "gUR" };
     public static readonly string[] MarkersPath = { "vLc", "6f=", "nlG" };

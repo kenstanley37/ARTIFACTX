@@ -20,10 +20,16 @@ public static class SolarLayoutGeneration
     public sealed record SystemLayout(ulong Address, int[] Sizes, Vector3[] Centers, int PrimaryCount);
 
     /// <summary>
-    /// The layout of an ordinary system from its portal code and galaxy: native sizes and moon hosts from the system
-    /// generator, then <see cref="Centers"/>. Null for gas-giant systems (no size-4 bodies in the native regression
-    /// set), forced layout modes and other unsupported inputs.
+    /// The layout of a system from its portal code and galaxy: native sizes and moon hosts from the system
+    /// generator, then <see cref="Centers"/>. Null for forced layout modes and other unsupported inputs.
     /// The centres round down to the save's <c>6f=.aHM</c> in four save systems checked 2026-10-27.
+    /// A gas-giant system (purple stars only) is body 1, size class 4 (as <see cref="PlanetGenerator"/> has it), with
+    /// every other body its moon; the generator rolls no sizes there. Checked 2026-11-17 on purple gas-giant system
+    /// 0x3F3EAFCFFB005 (galaxy 235): with moon 3's centre on the 1,000-unit grid, the save's ruin, plaque and portal
+    /// markers on that moon sat 12-37 m from the generated ground (the unsnapped centre: 450-880 m), and the generated
+    /// portal matched the portal marker. Also checked 2026-11-17 on 0x3EFDAFBFFB004 (Roquist XVIII, galaxy 219: a
+    /// giant without the GasGiantPlanet roll, so body 1 is a size-4 anomaly world, biome 10): all six floored centres
+    /// equal the save's <c>6f=.aHM</c>, and all six biomes equal the discovery records' type number.
     /// </summary>
     public static SystemLayout? ForSystem(ulong portalCode, int galaxy, SolarLayoutTables tables, bool placeMoons)
     {
@@ -31,7 +37,6 @@ public static class SolarLayoutGeneration
             || tables.GenerateForcedNumberPlanets != 0 || tables.GenerateMaximumSolarSystem)
             return null;
         var attributes = SystemGenerator.Attributes(portalCode, galaxy);
-        if (attributes.GasGiant) return null;
         var bodies = SystemGenerator.Bodies(portalCode, galaxy);
         int primary = attributes.PlanetCount;
         int count = primary + attributes.PrimePlanetCount;
@@ -43,6 +48,7 @@ public static class SolarLayoutGeneration
         {
             hosts[i] = bodies.Hosts[i] > 0 ? bodies.Hosts[i] - 1 : -1;
             if (hosts[i] >= 0) sizes[i] = 3;
+            else if (attributes.GasGiant && i == 0) sizes[i] = 4;
             else
             {
                 if (sizeIndex >= bodies.Sizes.Length) return null;
