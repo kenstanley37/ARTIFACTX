@@ -33,7 +33,8 @@ public static class PlayerLocationText
         {
             // The Anomaly is its own place; the address still names the system it sits in.
             "InNexus" => "Space Anomaly",
-            "InStation" => SystemNotesService.Get(system)?.StationName is { Length: > 0 } station ? station : $"{systemName} Station",
+            "InStation" => S.DockedStationName(state, snapshot.Summary)
+                ?? (SystemNotesService.Get(system)?.StationName is { Length: > 0 } station ? station : $"{systemName} Station"),
             "AboardFleet" => freighterName is { Length: > 0 } name ? $"Aboard {name}" : "Aboard your freighter",
             "AbandonedFreighter" => "Derelict freighter",
             "OnFootInCorvette" => "Aboard your corvette",

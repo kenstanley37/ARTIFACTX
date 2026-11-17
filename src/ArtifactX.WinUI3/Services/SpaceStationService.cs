@@ -281,26 +281,13 @@ public static class SpaceStationService
     /// while docked had neither (Hybelosso Station Major, 2026-10-10). What it
     /// does have straight away: the location line "Aboard &lt;station name&gt;"
     /// and an (empty) ^SYSTEM_STATS group for the system - callers must check
-    /// that group exists too. Only while the player state (rnc.jk4) is
-    /// "InStation": the Space Anomaly is "InNexus", freighters "AboardFleet".
-    /// The game can phrase the line with "The" ("Aboard The Nudbered VIII
-    /// Sphere", Slot 8, 2026-11-17, state InStation, no station marker yet),
-    /// while its station markers never start with it, so a leading "The" is
-    /// dropped.</summary>
+    /// that group exists too. See <see cref="S.DockedStationName"/>.</summary>
     private static bool TryStationNameFromLocation([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? stationName)
     {
-        const string prefix = "Aboard ", article = "The ";
-        stationName = null;
-        if (NmsPlanetCoordinates.State(SaveSessionManager.GetValue(NmsPlanetCoordinates.SpawnStatePath)) != "InStation") return false;
-        string location = SaveSessionManager.GetValue(S.LocationDescriptionPath)?.Value<string>() ?? string.Empty;
-        if (!location.StartsWith(prefix, StringComparison.Ordinal)) return false;
-
-        string name = location[prefix.Length..].Trim();
-        if (name.StartsWith(article, StringComparison.OrdinalIgnoreCase)) name = name[article.Length..].Trim();
-        if (name.Length == 0) return false;
-
-        stationName = name;
-        return true;
+        stationName = S.DockedStationName(
+            NmsPlanetCoordinates.State(SaveSessionManager.GetValue(NmsPlanetCoordinates.SpawnStatePath)),
+            SaveSessionManager.GetValue(S.LocationDescriptionPath)?.Value<string>());
+        return stationName is not null;
     }
 
     private static void MeetRequirements(StationOverview overview)

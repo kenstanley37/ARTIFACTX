@@ -11,6 +11,7 @@ try
     if (args is ["--portal-travel"]) { PortalTravelChecks.Check(); return; }
     if (args is ["--food-display"]) { FoodIngestorDisplayChecks.Check(); return; }
     PortalSystemReadoutChecks.Check();
+    DockedStationNameChecks.Check();
     PlanetHarvestChecks.Check();
     ThemingAndGlyphsChecks.Check();
     IndustrialCleanupChecks.Check();
