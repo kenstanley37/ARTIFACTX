@@ -4,6 +4,44 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+## 1.1.0 — 2026-11-17
+
+### Added
+- Cooking and Refiner Recipes: redesigned as a split screen. The recipe's ingredient tree fills the left at full height, top-down, with the game's item icons, each raw ingredient showing what you have against what it needs (green enough, amber some, red none); the right shows the recipe, whether you have every raw ingredient, and the step you click. A small picture of the Nutrient Processor or Refiner sits where each step's ingredients join. Drag the tree's empty background with the mouse to move around a big recipe. A Shopping list tab lists every raw ingredient. The quantity box, Back/Main buttons and breadcrumbs are gone.
+- Cooking Recipes: click a wild ingredient (Frozen Tubers, Sweetroot, Hexaberry, Hadal Core...), creature produce (Fresh Milk, Crab 'Apple', Creature Egg...), meat (Raw Steak, Scaly Meat...) or fish to see where it is found - which kinds of planet, underwater or in caves, which tamable creatures to feed or which creatures to hunt, or which planets' water a fish bites in - and the closest star systems that have it, naming the species to look for, starting with your own system, nearest first. Update your game data once to get this.
+- Cooking Recipes: ingredients you mine with the Multi-Tool (Carbon, Condensed Carbon, Salt, Kelp Sac, Marrow Bulb, Hypnotic Eye) and the Larval Core of Whispering Eggs and Flesh Rope of ground worms now show which planets they are on (infested planets named as such) and the closest systems, and a place found on many kinds of planet reads as one line. Faecium, NipNip Buds, GekNip, the "any seafood" and "any bone" ingredients and crafted items say where they come from, and creature produce mentions the Automated Feeder and Livestock Unit. Update your game data once to get this.
+- Planet Finder: an "Infested" checkbox lists the infested planets you know (where Whispering Eggs and the small ground worms are), and works with Planet type for, say, infested Lush planets.
+- Fishing and Planet Finder: the fish the game says live on "haunted homeworlds" now say Exotic or anomaly (haunted) planets, and Planet Finder's Planet type list has an "Exotic or anomaly (haunted)" choice that finds all four kinds at once.
+- Planet Details: creature 3D models now have the body parts the game gives that species (head, body, tail and the rest picked from the creature's seed), instead of the same default parts for every creature of a kind. Update your game data once to get this.
+- Planet Details: the anomalous creatures of exotic planets (floating, rolling and crystal ones) show the body that belongs to their kind of planet, crystals with the growth round their base, and the strange burrowing creatures and flocks show the animal itself. Update your game data once to get this.
+- Planet Details and Companions: creature 3D models are painted in the game's own skin patterns (fur, scales, underbelly, horns), coloured as in game - each creature's own colours drawn from its planet's colour palettes - instead of one flat colour per part. Update your game data once to get this. A companion with a colour override set shows that colour.
+- Planet Details: a creature's 3D view lets you switch between its two forms (female and male), each with the body parts the game gives it.
+- Planet Details: predator creatures no longer show parts the game never gives them (a predator strider has its flat head, not a fish head). Update your game data once to get this.
+- Planet Details: creature 3D models wear the same skin pattern as in game, one pattern across body, head and tail (a scaled strider is scaled all over instead of plain yellow).
+- Planet Details: creature skins blend their colours the way the game does, so dark skins stay dark instead of being brightened to the full palette colour, and take their colours from the same palette set the game uses.
+- Planet Details: plant creatures (the floral cat with its root body and leaf plumes) and robot creatures show their own model instead of a stand-in blob or antelope. Update your game data once to get this.
+- Multi-Tool Finder (Explore): the multi-tools space station cabinets sell in the star systems around you, visited or not, with each cabinet's class and the tool's kind (Alien, Experimental, Rifle, Pistol...). Filter by kind and class, and see where to save and reload for the cabinet to sell it.
+- Creature Finder (Explore): every creature you can adopt on the planets in your saves and the rest of their systems, ranked by its pet-battle Trait Potential, Combat Effectiveness, Agility and Health, with filters for class, element, galaxy and whether you've discovered it. Click one to open its planet and dial the portal address to go there.
+- Creature Finder: filter by size (up to Huge only), sort biggest first, and see each creature's size class and both forms' weight and height on its card. The portal address's Copy button is no longer cut off, and each card shows its galaxy as a badge, marked when it isn't the galaxy you're in.
+- Creature Finder: search the star systems around you too, even ones nobody has visited (your region, or it and the regions around it), and filter by kind of creature. Pin a creature to keep it at the top of the list, and a badge shows when you're on its planet.
+- Planet Details and the Creature Finder show when a creature lives in only one half of its planet, in the game's words ("Always Active · Found in the South"), so you know which side of the equator to search. Update your game data once to get this.
+- Planet Details: creatures that fly but come from a planet's ground creatures (large butterflies, small birds) now read "Flying" as in the game, not "Ground", and habitats use the game's own words.
+- Planet Details: creatures you haven't scanned yet also show their rarity and when they're about (for example "Predicted · Rare · Ground Fauna · Always Active"), the two forms the species comes in (each with its gender, weight and height), and its age, behaviour, diet, notes and what it produces when fed, as the analysis visor shows them ("Hasty · eats Solar Vine · Photosensitive · produces Wild Milk"), plus a panel with its pet-battle Trait Potential, its Combat Effectiveness, Agility and Health classes (in the game's class colours) and its element, laid out like the game's analysis visor so arena-worthy creatures stand out. Only creatures you can adopt show the battle panel, and they're listed first; creatures that can't be companions (fish, birds, burrowers and so on) come after them. Discovered creatures show their rarity and activity too, and fish, jellyfish, manta rays, moles and the stranger anomalous creatures show their own 3D model instead of a generic four-legged one. Update your game data once to get this.
+- Planet Details and Current System keep their top bar on screen while you scroll. Once the planet or system card is out of view, the bar also shows its name, type and key facts (sentinels, weather, star, economy, where you are), so you no longer have to scroll back up.
+- The Catalogue page is now part of the Catalog page: its technology is the Catalog's Technology section, which also tells you about broken technology placeholders and has a Forget broken technology button.
+- Catalog: Wonders records have pictures. Planet Records show each planet in its type's colour, with rings if it has them, and Fauna, Flora and Mineral Records show the game's own paw, leaf and crystal icons. Update your game data once to get them.
+- Ship Designer: paint styles you haven't unlocked yet (expedition rewards such as Titan Stripes) show a padlock. You can still try them on, and a new button unlocks the picked style.
+- Ship Designer: "Put these parts in my Exosuit" gives you the design's parts as items, so you can build the ship yourself at a space station. Right-click any part to add just that one.
+- Ship Designer: the Paint and My designs cards can be hidden with a button in their heading. Hide Paint to give your saved designs the whole column; the choice is remembered. Painting one of your ships always opens Paint.
+- Ship Designer: paint colours can be picked with the keyboard (Tab to a colour group, arrow keys to move, Enter to pick), and screen readers say which colour is picked.
+- Mobile camera scanning now shows moving brackets around detected portal details and a green lock before opening the system.
+- Mobile system details show the address as glyph pictures, ready to dial at a portal.
+- Mobile camera scanning now watches portal glyphs and the galaxy name together, opening system details automatically after stable readings without taking a photo.
+- Mobile portal addresses now open system details with planets, moons and possible starships, and recently opened systems appear on Home.
+- Mobile portal scanner: take or choose a photo of a glyph strip, review and correct the address, then select its galaxy to look up the system. Unreadable photos leave your entered address intact.
+- Procedural Planet Descriptors: Planet type descriptors (e.g. "Tropical Moon", "Paradise Planet", "Glacial Moon", "Ossified Planet") are now generated procedurally from the planet's seed using the game engine's exact algorithm, displaying alongside the broad biome classification ("Tropical Moon (Lush)", "Paradise Planet (Lush)") across planet cards, details headers, location summaries, system maps, and find lists without requiring visor screen capture. Searchable directly in Planet Finder.
+- Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to place a Save Beacon right at the optimal base site.
+
 ### Changed
 - Starships: a corvette now shows its Damage Potential "when flown", matching the game. Corvette weapons get no bonus from upgrades placed beside them, unlike shields and hyperdrives.
 - Multi-tools in station cabinets: Damage Potential matches the game again on the current game version (Forsaken 7.14) while No Man's Sky is running. Since that update it showed less (333.3 where the game said 400.0).
@@ -36,6 +74,13 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Starships: each base stat now shows the number the game shows under it ("In game 222.8"), which adds your installed technology, supercharged slots and adjacency. It updates as you edit tech or stats, before you save. For ships you aren't flying it reads "When flown": the game rates a parked ship against the one you're flying, so its numbers only match once you fly it. Not shown for Corvettes yet.
 - Current System: the system map is now an orrery, like the freighter's system scanner. The star sits in the middle in its own colour, planets circle it on rings in planet order, moons circle their planet, and the space station sits beside its planet. You're marked on your planet, or beside whatever you're nearest in space. It opens looking straight down: drag to turn and tilt it, scroll to zoom, and press "Top-down" (or Home) to look straight down again. Labels no longer pile on top of each other. The rings turn slowly unless Windows' animation effects are off. Systems your save hasn't placed yet (just after you warp in) get the same map, without the station and you; the old flat drawing is gone.
 - Current System: before you've captured a system, its economy, wealth and conflict now read in the game's own words ("Prospecting // Struggling", "Testy") instead of just the level ("Mining // Low ★"). The app works out the same word the game picks for each system.
+- Current System: every line of the System Data box is now gold, not just the ones read off the game screen, and pirate systems show "Black Market" and "Pirate Controlled" as the game does.
+- Planet Finder: pin a planet (the pin at the top right of its card) to keep it at the top of the list, whatever the filters and however far you warp. Pins are remembered.
+- Planet Finder: each card shows its star system in bold with a dot in the star's colour, so it's easy to spot on the galaxy map.
+- Planet Finder now also lists the undiscovered planets of the 5,000 star systems nearest you (about 24,000 planets), worked out the way the game does. Your save forgets older discoveries, so it can't map a region on its own. "Undiscovered planets" under More filters can narrow this to your region or turn it off. The list shows the nearest 500 cards; filters narrow it.
+- Planet Finder: a "Paradise" checkbox finds the planets the game itself calls Paradise Planets (lush, no storms or extreme weather, low sentinels), and a new Weather filter (no storms, storms, extreme) joins Sentinels, Flora, Fauna and Resource. These now work on every planet, not just the ones you recorded; what you recorded still wins. Each card shows the planet's weather, sentinels, life and resources.
+- Planet Finder: the search is one compact row (search, planet type, sort, rings only, infested). The other filters open under a "More filters" button, which shows how many of them are on, so none are on without you seeing it. The galaxy filter starts on the galaxy you're in, because a portal can't take you to another galaxy. Your other save slots' discoveries are always included, so that checkbox is gone. The results are now a card of their own with the count and Export CSV, and Clear filters stays on the filters card's header even when the card is folded. The planet type list and the Infested and Rings counts follow your other filters: with Infested ticked, the list offers only the planet types that come infested, and counts how many of each.
+- Planet Details POI Layout: Converted Portal, Crashed Ships, and Cabinet Multi-Tools from 100% full-width folding sections into compact responsive cards. They now render side-by-side in a responsive row, saving over 200px of vertical scrolling space while matching the 370px card format of the located sites and hotspots grids.
 
 ### Fixed
 - Galaxy Transfer: the station count shows only space stations you own (claimed), each once. It also counted every station in your teleporter, and your own station twice, so a galaxy with one claimed station showed 3. The filter now reads "Owned stations". Your freighter and corvette no longer count as bases in whatever galaxy you're in, and the badges say "3 bases", "1 station", "Here" in larger text instead of small symbols.
@@ -49,114 +94,32 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Screen capture no longer saves a planet's details onto a different planet in the same system (seen just after landing or flying past).
 - Pirate systems read the way the game shows them everywhere, "Black Market" and "Pirate Controlled", even before you capture them (cards used to say "★★ · Medium conflict · Pirate", or "Pirate Controlled conflict").
 - After a portal trip or warp, the planet you arrived on could be given the name of the planet you left. It now keeps its own name, and planets already misnamed this way get their names back when the app starts.
-
 - Planets the game calls "Paradise Planet" are now named that way in the app too; it used to give them another lush word (like "Verdant").
-
 - Cooking Recipes no longer offer Creature Pellets made from Scented Herbs, Enzyme Fluid or Fermented Fruit: the game retired those baits (it turns any you still hold into Creature Pellets), so they can't be found. Update your game data once to get this.
 - 3D models (creatures, ships, multi-tools, freighters) are lit more like the game: brighter and less murky, with highlights that no longer wash out.
 - Screen capture no longer files a planet's creature list under another planet whose name is an ordinary word (a planet called "Heat" took a list whose notes said "despite the heat").
 - Items you add get the game's real stack size for the inventory they go in: Metal Plating now stacks to 40 in base storage containers (it stopped at 20), freighter and base storage sizes are right, and on Normal or Low inventory stack limits substances stop where the game stops them instead of 9999; Max Qty and Max All Qty also raise stacks an older version saved too small. Update your game data once to get this.
-
-### Added
-
-- Cooking and Refiner Recipes: redesigned as a split screen. The recipe's ingredient tree fills the left at full height, top-down, with the game's item icons, each raw ingredient showing what you have against what it needs (green enough, amber some, red none); the right shows the recipe, whether you have every raw ingredient, and the step you click. A small picture of the Nutrient Processor or Refiner sits where each step's ingredients join. Drag the tree's empty background with the mouse to move around a big recipe. A Shopping list tab lists every raw ingredient. The quantity box, Back/Main buttons and breadcrumbs are gone.
-- Cooking Recipes: click a wild ingredient (Frozen Tubers, Sweetroot, Hexaberry, Hadal Core...), creature produce (Fresh Milk, Crab 'Apple', Creature Egg...), meat (Raw Steak, Scaly Meat...) or fish to see where it is found - which kinds of planet, underwater or in caves, which tamable creatures to feed or which creatures to hunt, or which planets' water a fish bites in - and the closest star systems that have it, naming the species to look for, starting with your own system, nearest first. Update your game data once to get this.
-- Cooking Recipes: ingredients you mine with the Multi-Tool (Carbon, Condensed Carbon, Salt, Kelp Sac, Marrow Bulb, Hypnotic Eye) and the Larval Core of Whispering Eggs and Flesh Rope of ground worms now show which planets they are on (infested planets named as such) and the closest systems, and a place found on many kinds of planet reads as one line. Faecium, NipNip Buds, GekNip, the "any seafood" and "any bone" ingredients and crafted items say where they come from, and creature produce mentions the Automated Feeder and Livestock Unit. Update your game data once to get this.
-- Planet Finder: an "Infested" checkbox lists the infested planets you know (where Whispering Eggs and the small ground worms are), and works with Planet type for, say, infested Lush planets.
-- Fishing and Planet Finder: the fish the game says live on "haunted homeworlds" now say Exotic or anomaly (haunted) planets, and Planet Finder's Planet type list has an "Exotic or anomaly (haunted)" choice that finds all four kinds at once.
-- Planet Details: creature 3D models now have the body parts the game gives that species (head, body, tail and the rest picked from the creature's seed), instead of the same default parts for every creature of a kind. Update your game data once to get this.
-- Planet Details: the anomalous creatures of exotic planets (floating, rolling and crystal ones) show the body that belongs to their kind of planet, crystals with the growth round their base, and the strange burrowing creatures and flocks show the animal itself. Update your game data once to get this.
-- Planet Details and Companions: creature 3D models are painted in the game's own skin patterns (fur, scales, underbelly, horns), coloured as in game - each creature's own colours drawn from its planet's colour palettes - instead of one flat colour per part. Update your game data once to get this. A companion with a colour override set shows that colour.
-- Planet Details: a creature's 3D view lets you switch between its two forms (female and male), each with the body parts the game gives it.
-- Planet Details: predator creatures no longer show parts the game never gives them (a predator strider has its flat head, not a fish head). Update your game data once to get this.
-- Planet Details: creature 3D models wear the same skin pattern as in game, one pattern across body, head and tail (a scaled strider is scaled all over instead of plain yellow).
-- Planet Details: creature skins blend their colours the way the game does, so dark skins stay dark instead of being brightened to the full palette colour, and take their colours from the same palette set the game uses.
-- Planet Details: plant creatures (the floral cat with its root body and leaf plumes) and robot creatures show their own model instead of a stand-in blob or antelope. Update your game data once to get this.
-- Multi-Tool Finder (Explore): the multi-tools space station cabinets sell in the star systems around you, visited or not, with each cabinet's class and the tool's kind (Alien, Experimental, Rifle, Pistol...). Filter by kind and class, and see where to save and reload for the cabinet to sell it.
-- Creature Finder (Explore): every creature you can adopt on the planets in your saves and the rest of their systems, ranked by its pet-battle Trait Potential, Combat Effectiveness, Agility and Health, with filters for class, element, galaxy and whether you've discovered it. Click one to open its planet and dial the portal address to go there.
-- Creature Finder: filter by size (up to Huge only), sort biggest first, and see each creature's size class and both forms' weight and height on its card. The portal address's Copy button is no longer cut off, and each card shows its galaxy as a badge, marked when it isn't the galaxy you're in.
-- Creature Finder: search the star systems around you too, even ones nobody has visited (your region, or it and the regions around it), and filter by kind of creature. Pin a creature to keep it at the top of the list, and a badge shows when you're on its planet.
-- Planet Details and the Creature Finder show when a creature lives in only one half of its planet, in the game's words ("Always Active · Found in the South"), so you know which side of the equator to search. Update your game data once to get this.
-- Planet Details: creatures that fly but come from a planet's ground creatures (large butterflies, small birds) now read "Flying" as in the game, not "Ground", and habitats use the game's own words.
-- Planet Details: creatures you haven't scanned yet also show their rarity and when they're about (for example "Predicted · Rare · Ground Fauna · Always Active"), the two forms the species comes in (each with its gender, weight and height), and its age, behaviour, diet, notes and what it produces when fed, as the analysis visor shows them ("Hasty · eats Solar Vine · Photosensitive · produces Wild Milk"), plus a panel with its pet-battle Trait Potential, its Combat Effectiveness, Agility and Health classes (in the game's class colours) and its element, laid out like the game's analysis visor so arena-worthy creatures stand out. Only creatures you can adopt show the battle panel, and they're listed first; creatures that can't be companions (fish, birds, burrowers and so on) come after them. Discovered creatures show their rarity and activity too, and fish, jellyfish, manta rays, moles and the stranger anomalous creatures show their own 3D model instead of a generic four-legged one. Update your game data once to get this.
-
-- Planet Details and Current System keep their top bar on screen while you scroll. Once the planet or system card is out of view, the bar also shows its name, type and key facts (sentinels, weather, star, economy, where you are), so you no longer have to scroll back up.
-
-- The Catalogue page is now part of the Catalog page: its technology is the Catalog's Technology section, which also tells you about broken technology placeholders and has a Forget broken technology button.
-
-- Catalog: Wonders records have pictures. Planet Records show each planet in its type's colour, with rings if it has them, and Fauna, Flora and Mineral Records show the game's own paw, leaf and crystal icons. Update your game data once to get them.
-
-- Ship Designer: paint styles you haven't unlocked yet (expedition rewards such as Titan Stripes) show a padlock. You can still try them on, and a new button unlocks the picked style.
-
-- Ship Designer: "Put these parts in my Exosuit" gives you the design's parts as items, so you can build the ship yourself at a space station. Right-click any part to add just that one.
-
-- Ship Designer: the Paint and My designs cards can be hidden with a button in their heading. Hide Paint to give your saved designs the whole column; the choice is remembered. Painting one of your ships always opens Paint.
-
-- Ship Designer: paint colours can be picked with the keyboard (Tab to a colour group, arrow keys to move, Enter to pick), and screen readers say which colour is picked.
-
-- Mobile camera scanning now shows moving brackets around detected portal details and a green lock before opening the system.
-
-- Mobile system details show the address as glyph pictures, ready to dial at a portal.
-
-- Mobile camera scanning now watches portal glyphs and the galaxy name together, opening system details automatically after stable readings without taking a photo.
-
-- Mobile portal addresses now open system details with planets, moons and possible starships, and recently opened systems appear on Home.
-
-- Mobile portal scanner: take or choose a photo of a glyph strip, review and correct the address, then select its galaxy to look up the system. Unreadable photos leave your entered address intact.
-
-- Procedural Planet Descriptors: Planet type descriptors (e.g. "Tropical Moon", "Paradise Planet", "Glacial Moon", "Ossified Planet") are now generated procedurally from the planet's seed using the game engine's exact algorithm, displaying alongside the broad biome classification ("Tropical Moon (Lush)", "Paradise Planet (Lush)") across planet cards, details headers, location summaries, system maps, and find lists without requiring visor screen capture. Searchable directly in Planet Finder.
-- Planetary Hotspot Clusters & Base Site Optimizer: Planet Details can now locate multi-hotspot clusters (Power + Mineral, Power + Gas, and 3-way Trifectas) reachable from a single base. Calculates the mathematically optimal Base Computer coordinates to bring all extraction sites within simultaneous range, with search, sorting (nearest to you, closest to portal, class, name), and one-click actions to place a Save Beacon right at the optimal base site.
-
-### Changed
-- Current System: every line of the System Data box is now gold, not just the ones read off the game screen, and pirate systems show "Black Market" and "Pirate Controlled" as the game does.
-- Planet Finder: pin a planet (the pin at the top right of its card) to keep it at the top of the list, whatever the filters and however far you warp. Pins are remembered.
-- Planet Finder: each card shows its star system in bold with a dot in the star's colour, so it's easy to spot on the galaxy map.
-
-- Planet Finder now also lists the undiscovered planets of the 5,000 star systems nearest you (about 24,000 planets), worked out the way the game does. Your save forgets older discoveries, so it can't map a region on its own. "Undiscovered planets" under More filters can narrow this to your region or turn it off. The list shows the nearest 500 cards; filters narrow it.
-- Planet Finder: a "Paradise" checkbox finds the planets the game itself calls Paradise Planets (lush, no storms or extreme weather, low sentinels), and a new Weather filter (no storms, storms, extreme) joins Sentinels, Flora, Fauna and Resource. These now work on every planet, not just the ones you recorded; what you recorded still wins. Each card shows the planet's weather, sentinels, life and resources.
-- Planet Finder: the search is one compact row (search, planet type, sort, rings only, infested). The other filters open under a "More filters" button, which shows how many of them are on, so none are on without you seeing it. The galaxy filter starts on the galaxy you're in, because a portal can't take you to another galaxy. Your other save slots' discoveries are always included, so that checkbox is gone. The results are now a card of their own with the count and Export CSV, and Clear filters stays on the filters card's header even when the card is folded. The planet type list and the Infested and Rings counts follow your other filters: with Infested ticked, the list offers only the planet types that come infested, and counts how many of each.
-- Planet Details POI Layout: Converted Portal, Crashed Ships, and Cabinet Multi-Tools from 100% full-width folding sections into compact responsive cards. They now render side-by-side in a responsive row, saving over 200px of vertical scrolling space while matching the 370px card format of the located sites and hotspots grids.
-
-### Fixed
-
 - Game text now uses US English, as the game shows it to US players ("Vectorized", not "Vectorised"). Update your game data once to get it.
-
 - Current System no longer stops with a "file in use" error when a system picture is read while screen recording is saving a new one.
-
 - Planet Details no longer goes blank after your game data is rebuilt, the theme changes or you switch to the save the game is using: the page reopens on the same planet.
-
 - Galaxy Transfer: the galaxy list opens at the galaxy you're in and stays where you scrolled it while the game saves. Filters no longer jump the list back to the top, and a galaxy's base and station badges update as soon as the game saves.
-
 - Planet fauna totals are now right on waterworlds too: they were often a few creatures short, and missed the flying creatures some waterworlds have.
-
 - Planet Details: creatures you haven't scanned yet show the species name the game will give them (marked "Predicted"), and are the right kinds more often (a Triceratops where it used to say Antelope). Each creature you have discovered now shows with its own model and habitat. Update your game data once to get this.
-
 - Save Beacons placed from Planet Details are now real beacons standing on the ground. Before, the game showed only their waypoint.
-
 - Planet Details: the Portal, Crashed Ships and Multi-Tools card labels and descriptions are easier to read.
-
 - Works with No Man's Sky Forsaken 7.14: game data is rebuilt once, and planet buildings and cabinet multi-tools are placed with the right spacing again.
-
 - Mobile live scans now keep matching readings on slower phones and restart the camera after returning to the app.
-
 - Mobile live scans now usually open the system within a few seconds: line up the glyphs in the on-screen box. Scans no longer restart when one symbol is briefly unclear over bright scenery or the phone wobbles.
-
 - Mobile glyph keys and review now use clearer, bolder glyph pictures with their common names.
-
 - Mobile glyph review now draws the glyph symbols correctly, keeps the address in two rows, and opens correction keys when you select a position.
-
 - Mobile camera scans handle blue-tinted monitor photos and screen pixel patterns more reliably, and reject more obscured or ambiguous strips before showing an address for review.
-
 - Planetary Rings: Fixed planetary ring detection so only the single planet chosen by the game's solar system layout shows rings, matching in-game Discoveries instead of marking multiple planets per system.
 - Planetary Hotspots & Base Beacons: Resolved Save Beacon elevation calculations by evaluating procedural terrain elevation (`PlanetTerrain.Height`) so placed beacons sit cleanly above the planetary surface (~3m clearance) rather than spawning underground inside procedural bedrock. Added full "Remove" support directly on hotspot and cluster cards to delete and clean up beacons ArtifactX placed; Save Beacons you built yourself nearby are never replaced or removed.
 - Planetary Hotspots & Base Sites: Replaced scan event markers with physical in-game Save Beacons (`^BUILDBEACON`) placed directly at the optimal Base Computer and hotspot coordinates. In No Man's Sky, scan events on open terrain are ignored by the game engine, while placed Save Beacons render directly in the world and produce a permanent star HUD waypoint visible across the system.
 - Planetary Hotspots Selection: Fixed radio buttons resetting and hiding all hotspot/cluster cards whenever a game save or landing occurred, preserving your active view mode and filter choices across save reloads.
 - Galaxy Exploration & Presence Tracking: Galaxy Transfer now scans your bases, settlements, teleport network space stations, and system discoveries across all 256 galaxies. View base counts, space stations, and unvisited status badges on each galaxy, with 1-click filter tabs to isolate unvisited galaxies, visited galaxies, or those with active bases and space stations.
-
 - Planetary Hotspot Locator: Planet Details now predicts and lists all deep-level resource hotspots (Electromagnetic Power, Minerals, and Gases) in your vicinity using the game's procedural algorithms. View S/A/B/C classes, resource types, extraction yields, Survey Device range, visor coordinates, and distance from your position (or portal), with one-click actions to stage navigation markers into your save.
-
 - Galaxy Transfer: A dedicated Galaxy Transfer page under Explore lets you warp your save to any of the 256 galaxies in No Man's Sky. You arrive inside the space station of a star system about 3,700 light-years from the galactic core. Each galaxy gets a system that really exists and has an ordinary station, never one without a station, and its glyphs are shown so you can return. The station is added to your Teleport Network.
-
 - Planet Fauna 3D Models & Silhouettes: Planet Details now displays 3D models for all planetary creatures before and after scanning. Undiscovered native species predictively generate from the planet's seed and display as sleek 3D mystery silhouettes with rim lighting, transitioning to full anatomical 3D models once discovered in game.
 - Creature 3D Camera: Creature and companion 3D model previews now face towards the player by default with a front three-quarter view, rather than facing away.
 - 3D Creature & Companion Models: Companions page now features an interactive 3D model preview rendered directly from your game install with your pet's active body parts and archetype; planet creature cards now feature a 3D anatomy viewer to inspect planetary fauna and examine 3D rigs.
@@ -173,9 +136,6 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Official GitHub Pages project website showcasing features, 3D previews, safety architecture, and release download links.
 - In-app automatic updater powered by Velopack: when an update is available on GitHub Releases, players can update and restart directly from the title bar or Settings page without having to manually download installers. Player data and databases in %AppData%\ArtifactX remain completely untouched.
 - GitHub Actions automated release pipeline and continuous integration workflows.
-
-### Fixed
-
 - Current System & Planets: Fixed planetary ring detection so planets with rings (and those without) match the game's actual generation across discovered and undiscovered worlds, replacing an earlier heuristic that mistook extreme weather flags for rings.
 - Galaxy Transfer: Current location and the "HERE" badge in the galaxy browser now quietly follow your in-game movements and save changes in real time without refreshing or scrolling the list.
 - Planet Details: Eliminated UI freezes and delays when opening planet details by loading creature 3D models immediately and removing redundant background crash site counting.
