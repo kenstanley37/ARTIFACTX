@@ -27,7 +27,9 @@ public static class SolarLayoutGeneration
     /// every other body its moon; the generator rolls no sizes there. Checked 2026-11-17 on purple gas-giant system
     /// 0x3F3EAFCFFB005 (galaxy 235): with moon 3's centre on the 1,000-unit grid, the save's ruin, plaque and portal
     /// markers on that moon sat 12-37 m from the generated ground (the unsnapped centre: 450-880 m), and the generated
-    /// portal matched the portal marker.
+    /// portal matched the portal marker. Also checked 2026-11-17 on 0x3EFDAFBFFB004 (Roquist XVIII, galaxy 219: a
+    /// giant without the GasGiantPlanet roll, so body 1 is a size-4 anomaly world, biome 10): all six floored centres
+    /// equal the save's <c>6f=.aHM</c>, and all six biomes equal the discovery records' type number.
     /// </summary>
     public static SystemLayout? ForSystem(ulong portalCode, int galaxy, SolarLayoutTables tables, bool placeMoons)
     {
