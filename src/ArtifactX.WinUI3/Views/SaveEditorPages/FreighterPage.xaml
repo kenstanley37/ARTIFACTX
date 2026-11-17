@@ -235,15 +235,19 @@
                                     <StackPanel x:Name="PreviewGroup" Grid.Column="1" Width="420" Spacing="16" HorizontalAlignment="Right">
                                         <controls:ModelPreviewPanel x:Name="FreighterPreview" Subject="freighter" StartYawOffset="3.14159"/>
                                         <StackPanel Spacing="12">
-                                            <!-- Home Seed: also the freighter's registered home-system address, and the hull's default paint
-                                                 (#69, confirmed 2026-11-15 on Slot 8: with custom colours reset, two Home Seeds gave the
-                                                 terracotta/mint and blue-grey/pale-green patterns the preview showed). Model Seed matches a
-                                                 reference tool's field; 2 tests regenerating it showed no visible change. -->
+                                            <!-- Home Seed: the hull's default paint (#69, confirmed 2026-11-15 on Slot 8: with custom colours
+                                                 reset, two Home Seeds gave the terracotta/mint and blue-grey/pale-green patterns the preview
+                                                 showed). The game first sets it to the address of the system where the freighter was acquired
+                                                 (Slot 8's original 0x6800011476E8 is that system, which its discoveries and bases also hold).
+                                                 Nothing else depends on it: 2026-11-17, two days after rerolling it to 0x92247C2666A5D720,
+                                                 the save holds the new value only there, the freighter base's address (F?0 FreighterBase oZw)
+                                                 follows the freighter (= the current system), and summoning still worked.
+                                                 Model Seed matches a reference tool's field; 2 tests regenerating it showed no visible change. -->
                                             <StackPanel Spacing="6">
                                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                                     <TextBlock Text="HOME SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
                                                     <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"
-                                                              ToolTipService.ToolTip="Sets the hull's default paint pattern in game (the shape stays the same). The preview shows this pattern when you haven't picked your own colours in game - your own colours win, as in game. This value is also your freighter's home-system address, so change it only to copy a look you've found elsewhere."/>
+                                                              ToolTipService.ToolTip="Sets the hull's default paint pattern in game (the shape stays the same). The preview shows this pattern when you haven't picked your own colours in game - your own colours win, as in game. Changing it only changes the paint: your freighter, its base and summoning stay as they are."/>
                                                 </StackPanel>
                                                 <controls:SeedBox x:Name="HomeSeedBox" Label="Home seed" Changed="Seed_Changed"/>
                                             </StackPanel>

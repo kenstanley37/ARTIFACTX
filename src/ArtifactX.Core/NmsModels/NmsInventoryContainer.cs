@@ -219,10 +219,15 @@ public class NmsInventoryContainer
     /// digits (48-bit) rather than Model/Crew Seed's 16 (64-bit), and its
     /// decimal value was confirmed to exactly equal this same freighter's own
     /// PersistentPlayerBase GalacticAddress ("F?0" array, the entry whose
-    /// peI.DPp is "FreighterBase", field "oZw") - so this field does double
-    /// duty: it's the freighter's registered home system address AND (per 2
-    /// separate user isolated-variable in-game tests, Model/Crew Seed held
-    /// byte-identical both times) CONFIRMED to drive the hull's paint/texture
+    /// peI.DPp is "FreighterBase", field "oZw"). That match was only the
+    /// starting value: the game seeds this field with the address of the
+    /// system where the freighter was acquired, and the base's oZw follows the
+    /// freighter (2026-11-17, Slot 8: two days after a reroll to
+    /// 0x92247C2666A5D720 the new value appears nowhere else in the save, the
+    /// base's oZw is the current system, and summoning still worked - #69).
+    /// The field is the paint seed only. Per 2
+    /// separate user isolated-variable in-game tests (Model/Crew Seed held
+    /// byte-identical both times), it's CONFIRMED to drive the hull's paint/texture
     /// pattern - each regenerate produced a visibly different color scheme
     /// (tan+red, blue+red, green/black camo) with the hull's actual geometry
     /// staying identical throughout. This is the opposite pairing from what
