@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Purple systems: the space station now shows on the Current System map, and its multi-tool cabinets (and the Cabinet Multi-Tools search) work there too. Before, purple systems showed no station.
 - Space Stations: docked at a station the game calls "The ..." (like "The Nudbered VIII Sphere"), the page said no station was recorded in the system. It now shows the station and lets you claim it. The title bar shows the station's name as the game does, instead of "Nudbered VIII Station".
 - Purple systems with a gas giant: Current System and Planet Details now find the moons' portals, hotspots, coordinates, crashed ships and shops. Before, every moon of a gas giant showed none of these.
 - Freighter: a 3D preview of your freighter's captain sits with Crew race and Crew seed - their race, with the head accessories, eyes and crest the crew seed gives them, as in game - and it changes as you change either. It's a shape scan for now: the captain's colours come later. Update your game data once to get this.

@@ -28,7 +28,7 @@ static class Layout
             ulong packed = (address & ~(0xFUL << 52));
             var centres = SolarLayoutGeneration.PrimaryCenters(packed, sizes, hosts, tables.SolarLayout, true);
             var pose = StationPoseGeneration.GenerateForSystem(code, galaxy, tables.SolarLayout);
-            Console.WriteLine($"{text}: primary {count} of {bodies.Hosts.Length}, gas giant {attributes.GasGiant}; station {pose?.Position}");
+            Console.WriteLine($"{text}: primary {count} of {bodies.Hosts.Length}, gas giant {attributes.GasGiant}; station {pose?.Position} facing {pose?.Facing} seed {pose?.Seed:X16}");
             if (centres is null) { Console.WriteLine("   no centres"); continue; }
             for (int i = 0; i < centres.Length; i++)
                 Console.WriteLine($"   {i + 1}: {centres[i].X:F0}, {centres[i].Y:F0}, {centres[i].Z:F0}");

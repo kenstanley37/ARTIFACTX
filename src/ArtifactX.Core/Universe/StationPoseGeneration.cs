@@ -11,6 +11,9 @@ public sealed record StationPose(Vector3 Position, Vector3 Facing, ulong Seed);
 /// GenerateForSystem also ports ordinary primary layout; station scene selection remains separate.
 /// Verified 2026-10-25 against 100 native emulator poses: exact position, facing and seed
 /// in Debug and Release, plus both reference cabinet position hashes.
+/// Prime-only (purple) systems confirmed 2026-11-17 in 0x3EFDAFBFFB004 (galaxy index 218, gas giant): Slot 8 saved
+/// docked (rnc.jk4 InStation) faces rnc.l2U = -Facing to 7 digits, on the axis through the generated centre
+/// (GameData.Checks --gas-giant-layout-check).
 /// See docs/research/STATION_EQUIPMENT_LOCATIONS.md for the executable trace.
 /// </summary>
 public static class StationPoseGeneration
@@ -32,9 +35,9 @@ public static class StationPoseGeneration
     /// </summary>
     public static StationPose? GenerateForSystem(ulong portalCode, int galaxy, SolarLayoutTables tables, bool placeMoons)
     {
-        // Prime-only systems stay unsupported (not in the native regression set); with primary bodies present the
-        // station only searches those, so the prime centres don't change the pose.
-        if (SolarLayoutGeneration.ForSystem(portalCode, galaxy, tables, placeMoons) is not { PrimaryCount: > 0 } layout) return null;
+        // With primary bodies present the station only searches those; prime-only (purple) systems search the
+        // prime bodies instead (native 0x14164ff80 branch, see Generate).
+        if (SolarLayoutGeneration.ForSystem(portalCode, galaxy, tables, placeMoons) is not { } layout) return null;
         return Generate(layout.Address, true, SolarLayoutGeneration.RandomFor(layout.Address).Seed,
             layout.Centers, layout.Sizes, layout.PrimaryCount, layout.Centers.Length - layout.PrimaryCount, tables);
     }
