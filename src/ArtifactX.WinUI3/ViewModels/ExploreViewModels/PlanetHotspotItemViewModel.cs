@@ -59,9 +59,10 @@ public sealed partial class PlanetHotspotItemViewModel : ObservableObject
         ? $"{DistanceLabel} · {pDist}"
         : (Hotspot.PortalDistanceLabel ?? DistanceLabel);
 
+    /// <summary>Yield and the hotspot's width. Range is its radius: HotspotCandidate keeps Range + 10 inside the pole cell.</summary>
     public string YieldLabel => Kind == "Power"
-        ? $"Potential: {Math.Round(Strength)} kP ({YieldPercent}%) · {Math.Round(Range)}u range"
-        : $"Density: {YieldPercent}% · {Math.Round(Range)}u range";
+        ? $"Potential: {Math.Round(Strength)} kP ({YieldPercent}%) · {Math.Round(Range * 2)}u wide"
+        : $"Density: {YieldPercent}% · {Math.Round(Range * 2)}u wide";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CardBorderBrush))]

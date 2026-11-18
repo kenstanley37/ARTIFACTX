@@ -248,39 +248,62 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <!-- Hotspot Rows in this Combo -->
-                                    <ItemsControl Grid.Row="1" ItemsSource="{x:Bind Hotspots}" MinHeight="84" VerticalAlignment="Top">
+                                    <StackPanel Grid.Row="1" Spacing="2" MinHeight="84" VerticalAlignment="Top">
+                                    <!-- The portal first, when known: how far it is from this card's base computer -->
+                                    <Grid Padding="0,3" ColumnSpacing="8" Visibility="{x:Bind HasPortalDistance, Mode=OneWay}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Glyph="&#xE707;" FontSize="12" Foreground="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="Portal" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind PortalDistanceLabel}" FontSize="12"
+                                                   Foreground="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- Hotspot Rows in this Combo: resource, then where it sits from this card's base computer and the portal -->
+                                    <ItemsControl ItemsSource="{x:Bind Rows}" VerticalAlignment="Top">
                                         <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="explore:PlanetHotspotItemViewModel">
-                                                <Grid Padding="0,3" ColumnSpacing="8">
+                                            <DataTemplate x:DataType="explore:ClusterHotspotRow">
+                                                <Grid Padding="0,3" ColumnSpacing="8" RowSpacing="1">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
 
                                                     <!-- Class Badge -->
-                                                    <Border Background="{x:Bind ClassBrush}" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
-                                                        <TextBlock Text="{x:Bind ClassBadgeText}" FontSize="10" FontWeight="Bold" Foreground="White"
+                                                    <Border Background="{x:Bind Hotspot.ClassBrush}" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{x:Bind Hotspot.ClassBadgeText}" FontSize="10" FontWeight="Bold" Foreground="White"
                                                                    FontFamily="{ThemeResource ThemeDisplayFont}"/>
                                                     </Border>
 
                                                     <!-- Kind Glyph -->
-                                                    <FontIcon Grid.Column="1" Glyph="{x:Bind KindGlyph}" FontSize="12"
+                                                    <FontIcon Grid.Column="1" Glyph="{x:Bind Hotspot.KindGlyph}" FontSize="12"
                                                               Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
 
                                                     <!-- Resource Name -->
-                                                    <TextBlock Grid.Column="2" Text="{x:Bind ResourceName}" FontSize="13" FontWeight="SemiBold"
+                                                    <TextBlock Grid.Column="2" Text="{x:Bind Hotspot.ResourceName}" FontSize="13" FontWeight="SemiBold"
                                                                Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"/>
 
                                                     <!-- Yield / Details -->
-                                                    <TextBlock Grid.Column="3" Text="{x:Bind YieldLabel}" FontSize="11"
+                                                    <TextBlock Grid.Column="3" Text="{x:Bind Hotspot.YieldLabel}" FontSize="11"
                                                                Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
+
+                                                    <!-- Where it sits from this card's base computer and the portal -->
+                                                    <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Text="{x:Bind Where}" FontSize="12"
+                                                               Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+                                    </StackPanel>
 
                                     <!-- Optimal Base Computer Site Summary Box -->
                                     <Border Grid.Row="2" Background="{ThemeResource ThemePanelAltBrush}"
@@ -289,9 +312,6 @@
                                         <StackPanel Spacing="3" VerticalAlignment="Center">
                                             <TextBlock Text="{x:Bind ReachDescription}" FontSize="11"
                                                        Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
-                                            <TextBlock Text="{x:Bind PortalDistanceLabel}" FontSize="11"
-                                                       Foreground="{ThemeResource ThemeDoneBrush}"
-                                                       Visibility="{x:Bind HasPortalDistance, Mode=OneWay}"/>
                                         </StackPanel>
                                     </Border>
 

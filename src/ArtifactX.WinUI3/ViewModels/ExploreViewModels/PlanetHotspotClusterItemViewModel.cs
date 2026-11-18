@@ -22,11 +22,14 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
     public string Title => Cluster.Title;
     public HotspotComboType ComboType => Cluster.ComboType;
     public IReadOnlyList<PlanetHotspotItemViewModel> Hotspots { get; }
+
+    /// <summary>The card's hotspot rows: each with its distance from this card's base computer and from the portal.</summary>
+    public IReadOnlyList<ClusterHotspotRow> Rows { get; }
     public double MaxRadius => Cluster.MaxRadius;
     public double MaxSpan => Cluster.MaxSpan;
     public string BaseCoordinates => Cluster.BaseCoordinates;
     public string ReachDescription => Cluster.ReachDescription;
-    public string? PortalDistanceLabel => Cluster.PortalDistanceLabel;
+    public string? PortalDistanceLabel => Cluster.PortalDistance is { } portal ? $"{Distance(portal)} from the base computer" : null;
     public string ComboGlyph => Cluster.ComboGlyph;
 
     public Brush BadgeBrush => ThemeResources.Brush(Cluster.ComboBadgeKey);
@@ -75,6 +78,10 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
         Cluster = cluster;
         _onPinnedChanged = onPinnedChanged;
         Hotspots = cluster.Hotspots.Select(h => new PlanetHotspotItemViewModel(h)).ToList();
+        float planetRadius = cluster.BaseLocalPosition.Length();
+        Rows = Hotspots.Select(h => new ClusterHotspotRow(h,
+            $"{Distance(PlanetHotspotCluster.GroundDistance(cluster.BaseLocalPosition, h.Hotspot.LocalPosition, planetRadius))} from the base computer"
+            + (h.Hotspot.PortalDistance is { } portal ? $" · {Distance(portal)} from the portal" : ""))).ToList();
         Refresh();
     }
 
@@ -122,4 +129,6 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
         SaveBeaconService.Remove(Cluster.PlanetAddress, Cluster.BaseLocalPosition);
         Refresh();
     }
+
+    private static string Distance(double metres) => metres < 1000 ? $"{Math.Round(metres)}u" : $"{metres / 1000.0:F1} km";
 }
