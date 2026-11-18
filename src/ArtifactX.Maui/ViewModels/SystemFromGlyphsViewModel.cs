@@ -13,6 +13,9 @@ public sealed partial class SystemFromGlyphsViewModel : ObservableObject
     public partial bool IsLoading { get; set; }
 
     private int _galaxyNumber;
+
+    /// <summary>The galaxy of the system on screen (1-256), 0 before one loads.</summary>
+    public int GalaxyNumber => _galaxyNumber;
     private IReadOnlyList<SystemShipItemViewModel> _allShips = [];
 
     [ObservableProperty]
