@@ -35,13 +35,7 @@ public static partial class CatalogSteps
             return;
         }
 
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            try { index.Add(pak.FullPath, reader.ReadHeader(pak.FullPath), reader.Read(pak.FullPath)); }
-            catch { /* unreadable PAK - skip */ }
-        }
+        var index = GetIndex(pcbanksPath); // shared, cached for the build
         var extraction = new ExtractionService();
 
         // The lists are spread over several language files (update files included).
