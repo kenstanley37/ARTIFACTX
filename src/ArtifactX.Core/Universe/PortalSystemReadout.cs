@@ -46,30 +46,6 @@ public sealed record GeneratedSystemShip(
 }
 
 /// <summary>
-/// A native multi-tool in a reload body's cabinet pool.
-/// </summary>
-public sealed record GeneratedSystemMultiTool(
-    int Index,
-    string Name,
-    string KindLabel,
-    ulong Seed,
-    string SourceLabel,
-    MultiToolSClassStats SClassStats)
-{
-    public string SeedHex => $"0x{Seed:X16}";
-    public string StatsLine => $"S-Class base: {SClassStats.CompactStatsSummary} · {SClassStats.MaxTechSlots} Tech";
-}
-
-/// <summary>
-/// The multi-tools offered by system cabinets when the game is loaded at a specific body (0 = Space Station, 1..N = Planet/Moon).
-/// </summary>
-public sealed record GeneratedMultiToolLoadPool(
-    int BodyIndex,
-    string PlaceTitle,
-    string ReloadInstruction,
-    IReadOnlyList<GeneratedSystemMultiTool> Tools);
-
-/// <summary>
 /// Complete address-derived readout for a star system from its 12-character portal glyph code and 1-based galaxy number.
 /// Works entirely from <see cref="ArtifactX.Core"/> procedural maths without needing game files or a save file.
 /// </summary>
@@ -95,10 +71,7 @@ public sealed record PortalSystemReadout(
     IReadOnlyList<PortalGlyphVector> GlyphVectors,
     IReadOnlyList<GeneratedSystemBody> Bodies,
     string ShipRulesSummary,
-    IReadOnlyList<GeneratedSystemShip> Ships,
-    string MultiToolOddsSummary,
-    string MultiToolExplanation,
-    IReadOnlyList<GeneratedMultiToolLoadPool> MultiToolPools)
+    IReadOnlyList<GeneratedSystemShip> Ships)
 {
     public static bool TryGenerate(string? input, int galaxyNumber, out PortalSystemReadout? readout, out string error)
     {
@@ -296,10 +269,6 @@ public sealed record PortalSystemReadout(
             })
             .ToArray();
 
-        const string mtOddsSummary = "Multi-tool details are unavailable.";
-        const string mtExplanation = "The mobile game tables needed for cabinet pools are not installed. A pool also does not identify the tool sold by a particular cabinet.";
-        GeneratedMultiToolLoadPool[] mtPools = [];
-
         return new PortalSystemReadout(
             normalizedCode,
             codeValue,
@@ -322,10 +291,7 @@ public sealed record PortalSystemReadout(
             glyphVectors,
             bodyList,
             shipRulesSummary,
-            orderedShips,
-            mtOddsSummary,
-            mtExplanation,
-            mtPools);
+            orderedShips);
     }
 
 }
