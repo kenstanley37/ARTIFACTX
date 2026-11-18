@@ -60,6 +60,145 @@ public static class MultiToolService
         return NmsSeedGenerator.TryParse(seedText, out ulong seed) ? seed : null;
     }
 
+    // ------------------------------------------------------------ the Multi-Tool page
+
+    private static string I(int index) => index.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>A tool's whole save entry: name, type, class, stats and tech.</summary>
+    public static string[] ToolPath(int index) => NmsInventoryContainer.MultiToolArrayPath.Append(I(index)).ToArray();
+
+    /// <summary>Its base stat rolls (OsQ.@bB): the same values that feed Damage Potential / Scanner Range, independent of
+    /// the Type (model) - identical across every model swap tested.</summary>
+    public static string[] StatsPath(int index) => NmsInventoryContainer.MultiToolTechnologyPath(index).Append("@bB").ToArray();
+
+    /// <summary>Its model scene (NTx.93M).</summary>
+    public static string? Scene(int index) =>
+        index < 0 ? null : SaveSessionManager.GetValue("vLc", "6f=", "SuJ", I(index), "NTx", "93M")?.Value<string>();
+
+    /// <summary>
+    /// The owned tools, in save order. A slot is owned when it has a model scene (NTx.93M) - not a name: a new save's
+    /// starter tool has none yet (found 2026-08-10). The tool in hand is the one whose OsQ items match Kgt's, a live
+    /// mirror of the equipped tool (OGV stays true on every tool ever equipped - disproved by a real switch-and-diff).
+    /// Compared as (item, position) sets: exact JSON equality broke on harmless field-order/float differences after a
+    /// repair. Two tools with the same loadout (Copy Tech Stack makes that easy) can't be told apart - the save holds no
+    /// other signal (each tool's @EL seed appears only on its own entry) - so only the first match counts (2026-08-01).
+    /// </summary>
+    public static IReadOnlyList<OwnedMultiTool> ReadTools()
+    {
+        if (SaveSessionManager.GetValue(NmsInventoryContainer.MultiToolArrayPath) is not JArray array) return [];
+        var held = OccupiedSignature(SaveSessionManager.GetValue(NmsInventoryContainer.MultiToolActivePath)?[":No"] as JArray);
+        bool found = false;
+        var tools = new List<OwnedMultiTool>();
+        for (int i = 0; i < array.Count; i++)
+        {
+            if (string.IsNullOrEmpty(array[i]?["NTx"]?["93M"]?.Value<string>())) continue;
+            string name = array[i]?["NKm"]?.Value<string>() ?? "";
+            bool unnamed = name.Length == 0;
+            bool active = !found && held.Count > 0 && held.SetEquals(OccupiedSignature(array[i]?["OsQ"]?[":No"] as JArray));
+            found |= active;
+            tools.Add(new OwnedMultiTool(i, unnamed ? $"Multi-Tool {i + 1}" : name, active, unnamed));
+        }
+        return tools;
+    }
+
+    /// <summary>"ItemId@X,Y" for every item in a :No array - which items sit where, nothing else.</summary>
+    private static HashSet<string> OccupiedSignature(JArray? array)
+    {
+        var result = new HashSet<string>();
+        foreach (var entry in array ?? [])
+            if (entry["b2n"]?.Value<string>() is string id && entry["3ZH"] is { } pos)
+                result.Add($"{id}@{pos[">Qh"]?.Value<int>() ?? -1},{pos["XJ>"]?.Value<int>() ?? -1}");
+        return result;
+    }
+
+    /// <summary>
+    /// Labels for tools the player never named: the game makes a name up from the seed ("Pillar of Ooruz-IX") and so
+    /// does ArtifactX (MultiToolNames, 2026-10-16). Before the game data has the name words, the label is the type and
+    /// class ("Standard · B class"), worded so it doesn't pass for a name. The same tool twice (same seed) has the same
+    /// name in game too, so repeats get "(2)".
+    /// </summary>
+    public static async Task<IReadOnlyList<OwnedMultiTool>> LabelUnnamedAsync(IReadOnlyList<OwnedMultiTool> tools)
+    {
+        var labelled = new List<OwnedMultiTool>();
+        var used = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in tools)
+        {
+            if (!t.IsUnnamed) { labelled.Add(t); continue; }
+            string scene = Scene(t.Index) ?? "";
+            string? gameName = SeedOf(t.Index) is ulong seed ? await MultiToolKinds.GameNameAsync(seed, scene) : null;
+            string? label = gameName;
+            if (label is null)
+            {
+                string? kind = MultiToolKinds.IsMainModel(scene) ? await KindOfAsync(t.Index) : MultiToolKinds.NameFor(scene, "");
+                if (string.IsNullOrEmpty(kind)) { labelled.Add(t); continue; }
+                label = ClassLetter(t.Index) is { Length: > 0 } cls ? $"{kind} · {cls} class" : kind;
+            }
+            int n = used[label] = used.GetValueOrDefault(label) + 1;
+            labelled.Add(t with { Name = n == 1 ? label : $"{label} ({n})", GameName = gameName });
+        }
+        return labelled;
+    }
+
+    /// <summary>Stages a typed name. Nothing when it's empty or what the box already showed (the player's name, or the
+    /// game's for an unnamed tool), so the game's name never becomes a saved custom name by accident.</summary>
+    public static bool Rename(OwnedMultiTool tool, string? text)
+    {
+        string name = text?.Trim() ?? "";
+        if (name.Length == 0 || name == (tool.IsUnnamed ? tool.GameName : tool.Name)) return false;
+        SaveSessionManager.StageEdit(name, "vLc", "6f=", "SuJ", I(tool.Index), "NKm");
+        return true;
+    }
+
+    /// <summary>Stages the model scene (NTx.93M), the only field the visual swap needs (in-game test). jl;, which a
+    /// reference tool writes too, was tested and has no effect on rendering, so it's left alone.</summary>
+    public static void SetType(int index, string scenePath) =>
+        SaveSessionManager.StageEdit(scenePath, "vLc", "6f=", "SuJ", I(index), "NTx", "93M");
+
+    public static bool HasEdits(int index) => index >= 0 && SaveSessionManager.HasStagedEditsUnder(ToolPath(index));
+
+    /// <summary>Undoes every staged change to one tool - tech, name and type.</summary>
+    public static void RevertTool(int index)
+    {
+        if (index >= 0) SaveSessionManager.RevertEditsUnder(ToolPath(index));
+    }
+
+    /// <summary>The Type choices for a tool, by name. The main model's name is the kind this tool's seed makes (Alien,
+    /// Experimental...); other models use the game's type names. IsMainModel: the kind is set by the seed.</summary>
+    public static async Task<(IReadOnlyList<MultiToolTypeOption> Options, bool IsMainModel)> TypeOptionsAsync(int index)
+    {
+        var raw = await CatalogService.GetMultiToolTypesAsync();
+        string? current = Scene(index);
+        string mainName = MultiToolKinds.IsMainModel(current) && await KindOfAsync(index) is string kind ? kind : "Standard";
+        var options = raw.Select(t => new MultiToolTypeOption(
+                MultiToolKinds.IsMainModel(t.ScenePath) ? mainName : MultiToolKinds.NameFor(t.ScenePath, t.DisplayName), t.ScenePath))
+            .OrderBy(t => t.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList();
+        return (options, MultiToolKinds.IsMainModel(current));
+    }
+
+    /// <summary>A tool as a Full Build template (Save Current, and "save it first" before deleting).</summary>
+    public static NmsLoadoutTemplate CaptureFullBuild(ViewModels.InventoryGridViewModel tech, string templateName, OwnedMultiTool tool)
+    {
+        var template = tech.ExtractTemplate(templateName, tool.Name, "MultiTool");
+        template.Scope = "FullBuild";
+        template.Stats = StatBonusService.ReadAll(StatsPath(tool.Index));
+        template.TypeScenePath = Scene(tool.Index);
+        NewFromTemplateService.CaptureMultiTool(template, tool.Index);
+        return template;
+    }
+
+    public static NmsLoadoutTemplate CaptureTechStack(ViewModels.InventoryGridViewModel tech, string templateName, OwnedMultiTool tool) =>
+        tech.ExtractTemplate(templateName, tool.Name, "MultiTool");
+
+    /// <summary>Why a Full Build can't be added as a new tool: no tool yet, or every slot in use.</summary>
+    public static string NoRoomText(bool hasTool) => !hasTool
+        ? "This save doesn't have a Multi-Tool yet. Get one in game first, then add builds here."
+        : $"All {NewFromTemplateService.MultiToolSlotCount} Multi-Tool slots are in use. Sell or scrap one in game, then try again.";
+
+    public static (string Title, string Body) AddAsNewText(NmsLoadoutTemplate template, int slot) =>
+        ($"Add \"{template.Name}\" as a new Multi-Tool?",
+            $"It goes in empty slot {slot + 1} of {NewFromTemplateService.MultiToolSlotCount} with this build's tech, class, stats and look. "
+            + "Your other Multi-Tools aren't changed. Nothing is written to your save until you Save.");
+
     public sealed record OwnedToolPreview(
         ShipMesh? Mesh,
         Func<string, uint> MaterialColour,
