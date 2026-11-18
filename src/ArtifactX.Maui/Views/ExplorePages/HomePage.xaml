@@ -8,11 +8,10 @@
     x:Class="ArtifactX.Maui.Views.ExplorePages.HomePage"
     x:DataType="vm:HomeViewModel"
     Shell.NavBarIsVisible="False"
-    Background="{DynamicResource ThemePageBackdropBrush}"
-    xmlns:galaxy="clr-namespace:ArtifactX.Maui.Controls">
+    Background="{DynamicResource ThemePageBackdropBrush}">
     <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
     <Grid RowDefinitions="Auto,*">
-        <galaxy:GalaxyBar />
+        <controls:GalaxyBar />
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Padding="20,22,20,28" Spacing="18">
 
@@ -187,6 +186,8 @@
                                             <Label
                                                 Text="{Binding Subtitle}"
                                                 Style="{StaticResource ThemeDimTextStyle}" />
+                                            <!-- Ready to dial again. -->
+                                            <controls:GlyphRow Code="{Binding PortalCode}" GlyphSize="20" Margin="0,6,0,0" />
                                         </VerticalStackLayout>
                                         <Label
                                             Grid.Column="1"

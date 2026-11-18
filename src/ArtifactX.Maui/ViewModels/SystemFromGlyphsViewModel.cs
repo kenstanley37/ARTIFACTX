@@ -45,12 +45,6 @@ public sealed partial class SystemFromGlyphsViewModel : ObservableObject
     [ObservableProperty]
     public partial string ConflictPill { get; set; } = "";
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(GlyphsDescription))]
-    public partial IReadOnlyList<PortalGlyphVector> GlyphVectors { get; set; } = [];
-
-    /// <summary>Screen-reader text for the glyph strip, in dialling order.</summary>
-    public string GlyphsDescription => "Portal glyphs: " + string.Join(", ", GlyphVectors.Select(g => g.Name));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsPlanetsTabSelected), nameof(IsShipsTabSelected), nameof(IsMultiToolsTabSelected))]
@@ -108,14 +102,14 @@ public sealed partial class SystemFromGlyphsViewModel : ObservableObject
             SystemName = readout.SystemName;
             RegionAndGalaxySubtitle = $"{readout.RegionName} · {readout.GalaxyName}";
             PortalCode = readout.PortalCode;
-            CoordinatesAndDistanceText = $"{readout.PortalCode} · {readout.GalacticCoordinates} · {readout.DistanceToCoreLightYears:N0} ly from core";
+            // The glyphs below are the address; the galactic coordinates are what a signal booster takes.
+            CoordinatesAndDistanceText = $"{readout.GalacticCoordinates} · {readout.DistanceToCoreLightYears:N0} ly from core";
             RequiresPurpleStarAccess = readout.RequiresPurpleStarAccess;
 
             StarPill = readout.StarPill;
             RacePill = readout.RacePill;
             EconomyWealthPill = readout.EconomyWealthPill;
             ConflictPill = readout.ConflictPill;
-            GlyphVectors = readout.GlyphVectors;
 
             Bodies.Clear();
             foreach (var b in readout.Bodies)

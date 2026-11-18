@@ -250,7 +250,9 @@ public sealed record PortalSystemReadout(
             const string swatchHex = "#5CE1E6";
             string primaryLine = isMoon ? $"Moon of {hostName}" : $"Planet {planetNumber} \u00b7 {sizeLabel}";
             if (hasRings) primaryLine += " \u00b7 Planetary rings";
-            string secondaryLine = $"Portal address {bodyPortalCode}";
+            // The body's own address is shown as glyphs (players dial glyphs, not hex - owner 2026-11-18); nothing more
+            // to say here yet.
+            string secondaryLine = "";
 
             bodyList.Add(new GeneratedSystemBody(
                 bodyIndex,

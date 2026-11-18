@@ -9,13 +9,10 @@
     x:DataType="vm:SystemFromGlyphsViewModel"
     Shell.NavBarIsVisible="False"
     Background="{DynamicResource ThemePageBackdropBrush}"
-    xmlns:galaxy="clr-namespace:ArtifactX.Maui.Controls">
-    <ContentPage.Resources>
-        <helpers:PortalGlyphGeometryConverter x:Key="GlyphGeometryConverter" />
-    </ContentPage.Resources>
+    xmlns:controls="clr-namespace:ArtifactX.Maui.Controls">
     <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
     <Grid RowDefinitions="Auto,*">
-        <galaxy:GalaxyBar />
+        <controls:GalaxyBar />
         <Grid Grid.Row="1">
         <ScrollView>
             <VerticalStackLayout Padding="20,20,20,28" Spacing="16" MaximumWidthRequest="720" HorizontalOptions="Fill">
@@ -25,18 +22,9 @@
                 <Label Text="{Binding RegionAndGalaxySubtitle}" Style="{StaticResource ThemeBodyTextStyle}" />
                 <Label Text="{Binding CoordinatesAndDistanceText}" Style="{StaticResource ThemeBodyTextStyle}" />
                 <!-- The address as glyph pictures, in the order they are dialled at a portal. -->
-                <Border Style="{StaticResource ThemeCardAltStyle}" Padding="10,8"
-                        SemanticProperties.Description="{Binding GlyphsDescription}">
-                    <FlexLayout BindableLayout.ItemsSource="{Binding GlyphVectors}" Wrap="NoWrap" JustifyContent="SpaceBetween">
-                        <BindableLayout.ItemTemplate>
-                            <DataTemplate x:DataType="art:PortalGlyphVector">
-                                <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}"
-                                      Fill="{DynamicResource ThemeTextBrush}" Aspect="Uniform"
-                                      WidthRequest="24" HeightRequest="24" FlexLayout.Shrink="1" />
-                            </DataTemplate>
-                        </BindableLayout.ItemTemplate>
-                    </FlexLayout>
-                </Border>
+                    <Border Style="{StaticResource ThemeCardAltStyle}" Padding="10,8">
+                        <controls:GlyphRow Code="{Binding PortalCode}" />
+                    </Border>
                 <Label Text="Generated names may differ from names chosen by players." Style="{StaticResource ThemeDimTextStyle}" />
                 <Label Text="{Binding StarPill}" Style="{StaticResource ThemeBodyTextStyle}" />
                 <Label Text="{Binding RacePill}" Style="{StaticResource ThemeBodyTextStyle}" />
@@ -66,12 +54,18 @@
                                     <VerticalStackLayout Grid.Column="1" Spacing="2">
                                         <Label Text="{Binding Name}" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" />
                                         <Label Text="{Binding PrimaryLine}" Style="{StaticResource ThemeBodyTextStyle}" TextColor="{DynamicResource ThemeTextDimColor}" FontSize="13" />
-                                        <Label Text="{Binding SecondaryLine}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" />
-                                    </VerticalStackLayout>
+</VerticalStackLayout>
                                     <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Grid.Column="2" Text="{Binding CopyButtonLabel}" SemanticProperties.Description="{Binding Name, StringFormat='Copy portal address for {0}'}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=CopyBodyPortalCodeCommand}"
                                             CommandParameter="{Binding .}" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" WidthRequest="110" />
                                 </Grid>
-                                <!-- Portal survey (PortalSurvey, from the rules file): Analysis Visor coordinates for the portal,
+                            <!-- The glyphs that open a portal to this body - each one's first glyph is its own. -->
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="PORTAL GLYPHS" Style="{StaticResource ThemeEyebrowStyle}" />
+                                <Border Style="{StaticResource ThemeCardStyle}" Padding="8,6">
+                                    <controls:GlyphRow Code="{Binding BodyPortalCode}" GlyphSize="22" />
+                                </Border>
+                            </VerticalStackLayout>
+                            <!-- Portal survey (PortalSurvey, from the rules file): Analysis Visor coordinates for the portal,
                                      base computer spots near it that reach deep-level hotspots, and the hotspots around it. -->
                                 <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Text="{Binding SurveyButtonLabel}" Command="{Binding ToggleSurveyCommand}" HorizontalOptions="Start"
                                         SemanticProperties.Description="{Binding Name, StringFormat='Portal and base spots on {0}'}"

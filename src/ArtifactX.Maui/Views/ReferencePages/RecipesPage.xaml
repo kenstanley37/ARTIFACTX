@@ -5,10 +5,10 @@
     x:Class="ArtifactX.Maui.Views.ReferencePages.RecipesPage"
     Shell.NavBarIsVisible="False"
     Background="{DynamicResource ThemePageBackdropBrush}"
-    xmlns:galaxy="clr-namespace:ArtifactX.Maui.Controls">
+    xmlns:controls="clr-namespace:ArtifactX.Maui.Controls">
     <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
     <Grid RowDefinitions="Auto,*">
-        <galaxy:GalaxyBar />
+        <controls:GalaxyBar />
         <VerticalStackLayout Grid.Row="1" Padding="20,24" Spacing="14">
             <Label
                 Text="Recipes"

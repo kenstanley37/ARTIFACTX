@@ -8,11 +8,10 @@
     x:Class="ArtifactX.Maui.Views.ExplorePages.PortalGlyphsPage"
     x:DataType="vm:PortalScannerViewModel"
     Shell.NavBarIsVisible="False"
-    Background="{DynamicResource ThemePageBackdropBrush}"
-    xmlns:galaxy="clr-namespace:ArtifactX.Maui.Controls">
+    Background="{DynamicResource ThemePageBackdropBrush}">
     <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
     <Grid RowDefinitions="Auto,*">
-        <galaxy:GalaxyBar />
+        <controls:GalaxyBar />
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Padding="20,24" Spacing="16" MaximumWidthRequest="680" HorizontalOptions="Fill">
                 <Label Text="Portal glyphs" Style="{StaticResource ThemePageTitleStyle}" />
@@ -35,6 +34,8 @@
                         <Entry Text="{Binding AddressInput}" Placeholder="12-glyph address" MaxLength="12" FontSize="20"
                                TextColor="{DynamicResource ThemeTextColor}" PlaceholderColor="{DynamicResource ThemeTextDimColor}"
                                SemanticProperties.Description="Portal address, 12 hexadecimal characters" />
+                        <!-- What is typed, as the glyphs to check against the portal. -->
+                        <controls:GlyphRow Code="{Binding AddressInput}" GlyphSize="22" />
                         <Button Text="Enter glyphs by hand" Command="{Binding EnterManuallyCommand}"
                                 TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
                         <Label Text="Galaxy" Style="{StaticResource ThemeBodyTextStyle}" />
