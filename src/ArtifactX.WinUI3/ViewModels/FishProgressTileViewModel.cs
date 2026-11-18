@@ -15,7 +15,7 @@ public sealed class FishProgressTileViewModel(string title, int caught, int tota
     public int Caught { get; } = caught;
     public int Total { get; } = total;
 
-    /// <summary>The planet type to filter by when clicked (FishingPage's AllTypes for "All fish").</summary>
+    /// <summary>The planet type to filter by when clicked (PlanetTypeOption.AllTypes for "All fish").</summary>
     public int Biome { get; } = biome;
 
     public bool AllCaught => Caught == Total;
