@@ -20,8 +20,8 @@ namespace ArtifactX.Core.Universe;
 public sealed class GameRules
 {
     /// <summary>This file's layout; a phone refuses a newer one rather than misread it. 2 (2026-11-18): recipes, item
-    /// values and the EGGSEQUENCER row. 3: multi-tool name words.</summary>
-    public const int CurrentFormat = 3;
+    /// values and the EGGSEQUENCER row. 3: multi-tool name words. 4: fish habitats.</summary>
+    public const int CurrentFormat = 4;
 
     public int Format { get; init; } = CurrentFormat;
 
@@ -52,6 +52,9 @@ public sealed class GameRules
     /// <summary>The multi-tool name word lists (the catalog's "MultiToolNameWords" rows) that cabinet tools are named from.</summary>
     public Dictionary<string, List<string>> NameWords { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Where each fish caught outside missions lives (the catalog's "Fish" rows), by item id.</summary>
+    public Dictionary<string, FishHabitat> Fish { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
     public IReadOnlyList<string>? Words(string key) => NameWords.TryGetValue(key, out var words) ? words : null;
 
     // Parsed tables, once each (PLANETPROFILE alone is ~650 KB of JSON).
@@ -69,6 +72,7 @@ public sealed class GameRules
     [System.Text.Json.Serialization.JsonIgnore] public StationEquipmentTables? Stations => Row<StationEquipmentTables>("STATIONEQUIPMENT");
     [System.Text.Json.Serialization.JsonIgnore] public BuildingOverrideRule[]? BuildingOverrides => Row<BuildingOverrideRule[]>("BUILDINGOVERRIDES");
     [System.Text.Json.Serialization.JsonIgnore] public BuildingClassPlacement[]? BuildingPlacement => Row<BuildingClassPlacement[]>("BUILDINGPLACEMENT");
+    [System.Text.Json.Serialization.JsonIgnore] public Recipes.CreatureProductSource[]? CreatureSources => Row<Recipes.CreatureProductSource[]>("CREATUREPRODUCTS");
     [System.Text.Json.Serialization.JsonIgnore] public GalaxyGenerationSettings? GalaxySettings => Row<GalaxyGenerationSettings>("GALAXYGENERATION");
     [System.Text.Json.Serialization.JsonIgnore] public Recipes.ExtractionTables? Extraction => Row<Recipes.ExtractionTables>("EXTRACTIONTABLES");
     [System.Text.Json.Serialization.JsonIgnore] public Recipes.FoodIngestorTables? Food => Row<Recipes.FoodIngestorTables>("FOODINGESTOR");
@@ -104,6 +108,7 @@ public sealed class GameRules
             Recipes = rules.Recipes,
             ItemValues = new(rules.ItemValues, StringComparer.OrdinalIgnoreCase),
             NameWords = new(rules.NameWords, StringComparer.OrdinalIgnoreCase),
+            Fish = new(rules.Fish, StringComparer.OrdinalIgnoreCase),
         };
     }
 }

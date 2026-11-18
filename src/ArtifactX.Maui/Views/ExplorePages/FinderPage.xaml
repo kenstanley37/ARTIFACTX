@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
     xmlns:models="clr-namespace:ArtifactX.Maui.Models"
+    xmlns:services="clr-namespace:ArtifactX.Maui.Services"
     x:Class="ArtifactX.Maui.Views.ExplorePages.FinderPage"
     x:DataType="vm:FinderViewModel"
     Shell.NavBarIsVisible="False"
@@ -13,17 +14,39 @@
     <Grid RowDefinitions="Auto,Auto,*">
         <controls:GalaxyBar />
         <VerticalStackLayout Grid.Row="1" Padding="20,20,20,8" Spacing="10" MaximumWidthRequest="720" HorizontalOptions="Fill">
-            <Label Text="Find multi-tools" Style="{StaticResource ThemePageTitleStyle}" />
-            <Label Text="Station cabinets selling the kind and class of multi-tool you want, in the systems around one you've opened."
-                   Style="{StaticResource ThemeDimTextStyle}" />
+            <Label Text="{Binding Title}" Style="{StaticResource ThemePageTitleStyle}" />
+            <!-- What to find; the chosen one is filled. -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button Text="Multi-tools" Command="{Binding ShowMultiToolsCommand}" BorderWidth="1" BorderColor="{DynamicResource ThemeLineColor}"
+                        TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}"
+                        SemanticProperties.Description="Find multi-tools">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsMultiTools}" Value="True">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ThemeAccentColor}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ThemeOnAccentColor}" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <Button Grid.Column="1" Text="Ingredients" Command="{Binding ShowIngredientsCommand}" BorderWidth="1" BorderColor="{DynamicResource ThemeLineColor}"
+                        TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}"
+                        SemanticProperties.Description="Find ingredients, creature produce and fish">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsIngredients}" Value="True">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource ThemeAccentColor}" />
+                            <Setter Property="TextColor" Value="{DynamicResource ThemeOnAccentColor}" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+            </Grid>
+            <Label Text="{Binding Intro}" Style="{StaticResource ThemeDimTextStyle}" />
             <VerticalStackLayout IsVisible="{Binding HasStarts}" Spacing="6">
                 <Picker ItemsSource="{Binding Starts}" SelectedItem="{Binding Start}" Title="Search around"
                         ItemDisplayBinding="{Binding Name, x:DataType='models:RecentSystemSummary'}"
                         TextColor="{DynamicResource ThemeTextColor}" SemanticProperties.Description="The system to search around" />
-                <Picker ItemsSource="{Binding Areas}" SelectedItem="{Binding Area}" Title="How far"
+                <Picker ItemsSource="{Binding Areas}" SelectedItem="{Binding Area}" Title="How far" IsVisible="{Binding IsMultiTools}"
                         ItemDisplayBinding="{Binding Label, x:DataType='vm:FinderChoice'}"
                         TextColor="{DynamicResource ThemeTextColor}" SemanticProperties.Description="How far to search" />
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="{Binding IsMultiTools}">
                     <Picker ItemsSource="{Binding Classes}" SelectedItem="{Binding Class}" Title="Class"
                             ItemDisplayBinding="{Binding Label, x:DataType='vm:FinderChoice'}"
                             TextColor="{DynamicResource ThemeTextColor}" SemanticProperties.Description="Lowest class to show" />
@@ -31,7 +54,22 @@
                             ItemDisplayBinding="{Binding Label, x:DataType='vm:FinderChoice'}"
                             TextColor="{DynamicResource ThemeTextColor}" SemanticProperties.Description="Kind of multi-tool" />
                 </Grid>
-                <Label Text="{Binding RollNote}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
+                <Label Text="{Binding RollNote}" IsVisible="{Binding IsMultiTools}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
+                <!-- The ingredient: type, then pick it from the names that match. -->
+                <Entry Text="{Binding IngredientText}" IsVisible="{Binding IsIngredients}" Placeholder="What do you need? (e.g. Frost Crystal)"
+                       ClearButtonVisibility="WhileEditing" IsSpellCheckEnabled="False"
+                       TextColor="{DynamicResource ThemeTextColor}" PlaceholderColor="{DynamicResource ThemeTextDimColor}"
+                       SemanticProperties.Description="The ingredient to find" />
+                <FlexLayout BindableLayout.ItemsSource="{Binding Suggestions}" IsVisible="{Binding HasSuggestions}" Wrap="Wrap">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="services:FindableItem">
+                            <Button Text="{Binding Name}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:FinderViewModel}}, Path=PickIngredientCommand}"
+                                    CommandParameter="{Binding .}" SemanticProperties.Description="{Binding Name, StringFormat='Find {0}'}"
+                                    BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Margin="0,0,6,6" Padding="10,6" FontSize="13"
+                                    TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </FlexLayout>
             </VerticalStackLayout>
             <HorizontalStackLayout Spacing="8">
                 <ActivityIndicator IsRunning="{Binding IsSearching}" IsVisible="{Binding IsSearching}" Color="{DynamicResource ThemeAccentColor}" HeightRequest="20" WidthRequest="20" />

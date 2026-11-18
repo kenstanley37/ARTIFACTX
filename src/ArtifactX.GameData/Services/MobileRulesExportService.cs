@@ -94,6 +94,25 @@ public static class MobileRulesExportService
                 if (JsonSerializer.Deserialize<List<string>>(reader.GetString(1)) is { } list) words[reader.GetString(0)] = list;
         }
 
+        // Fish caught outside missions and where they live, as the desktop reads them (CatalogService.GetFishAsync).
+        var fish = new Dictionary<string, FishHabitat>(StringComparer.OrdinalIgnoreCase);
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                WHERE c.TemplateType = 'Fish' AND i.DescriptionEnglish IS NOT NULL
+                """;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                using var json = JsonDocument.Parse(reader.GetString(0));
+                var root = json.RootElement;
+                if (root.GetProperty("mission").GetBoolean() || root.GetProperty("id").GetString() is not { Length: > 0 } id) continue;
+                fish[id] = new FishHabitat(root.GetProperty("biomes").EnumerateArray().Select(b => b.GetInt32()).ToArray(),
+                    root.GetProperty("storm").GetBoolean());
+            }
+        }
+
         if (rows.Count == 0) throw new InvalidDataException("The catalog has no generation tables. Update the game data first.");
         return new GameRules
         {
@@ -106,6 +125,7 @@ public static class MobileRulesExportService
             Recipes = recipes,
             ItemValues = values,
             NameWords = words,
+            Fish = fish,
         };
     }
 

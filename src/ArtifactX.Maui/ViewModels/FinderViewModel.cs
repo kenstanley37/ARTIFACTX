@@ -22,7 +22,9 @@ public sealed record FinderRowViewModel(string Title, string Place, string Actio
 /// <summary>
 /// The phone's Find tab: searches the star systems around one of your recent systems (the phone has no save to say
 /// where you are) for space station cabinets selling a kind and class of multi-tool (MultiToolFinderService, the
-/// desktop's Multi-Tool Finder), best class first then nearest, with the place to load the game for each.
+/// desktop's Multi-Tool Finder), best class first then nearest, with the place to load the game for each; or for the
+/// planets that give an ingredient, creature produce or a fish (IngredientFinderService, the desktop's Ingredient
+/// Finder).
 /// </summary>
 public sealed partial class FinderViewModel : ObservableObject
 {
@@ -32,6 +34,23 @@ public sealed partial class FinderViewModel : ObservableObject
     private (ulong Start, int Radius)? _searchedFor;
     private CancellationTokenSource? _cancel;
     private ulong _start;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIngredients), nameof(Title), nameof(Intro))]
+    public partial bool IsMultiTools { get; set; } = true;
+
+    public bool IsIngredients => !IsMultiTools;
+    public string Title => IsMultiTools ? "Find multi-tools" : "Find ingredients";
+    public string Intro => IsMultiTools
+        ? "Station cabinets selling the kind and class of multi-tool you want, in the systems around one you've opened."
+        : "The nearest systems whose planets give a plant, mineral, creature produce or fish you need.";
+
+    /// <summary>What the player types to find an ingredient; suggestions follow it.</summary>
+    [ObservableProperty] public partial string IngredientText { get; set; } = "";
+    [ObservableProperty] public partial IReadOnlyList<FindableItem> Suggestions { get; private set; } = [];
+    [ObservableProperty] public partial bool HasSuggestions { get; private set; }
+    private FindableItem? _ingredient;
+    private IReadOnlyList<FindableItem> _findable = [];
 
     [ObservableProperty] public partial IReadOnlyList<RecentSystemSummary> Starts { get; private set; } = [];
     [ObservableProperty] public partial RecentSystemSummary? Start { get; set; }
@@ -77,8 +96,84 @@ public sealed partial class FinderViewModel : ObservableObject
         if (!HasStarts) Status = "Open a system on the Systems tab first: the search starts from your recent systems.";
     }
 
-    partial void OnStartChanged(RecentSystemSummary? value) => _ = SearchAsync();
-    partial void OnAreaChanged(FinderChoice? value) => _ = SearchAsync();
+    partial void OnStartChanged(RecentSystemSummary? value) { if (IsMultiTools) _ = SearchAsync(); else _ = FindIngredientAsync(); }
+
+    partial void OnIsMultiToolsChanged(bool value)
+    {
+        _cancel?.Cancel();
+        IsSearching = false;
+        Results = [];
+        Status = "";
+        if (value) { _searchedFor = null; _ = SearchAsync(); }
+        else
+        {
+            if (_ingredient is not null) _ = FindIngredientAsync();
+            else Status = "Type what you need, then pick it from the list.";
+            _ = LoadFindableAsync();
+        }
+    }
+
+    [RelayCommand] private void ShowMultiTools() => IsMultiTools = true;
+
+    [RelayCommand] private void ShowIngredients() => IsMultiTools = false;
+
+    private async Task LoadFindableAsync()
+    {
+        if (_findable.Count == 0) _findable = await IngredientFinderService.ItemsAsync();
+        Suggest();
+    }
+
+    partial void OnIngredientTextChanged(string value) => Suggest();
+
+    /// <summary>Up to 8 items whose name has the typed text, names starting with it first; none once one is picked.</summary>
+    private void Suggest()
+    {
+        string text = IngredientText.Trim();
+        Suggestions = text.Length < 2 || _ingredient?.Name == IngredientText ? []
+            : _findable.Where(i => i.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
+                .OrderBy(i => !i.Name.StartsWith(text, StringComparison.CurrentCultureIgnoreCase)).ThenBy(i => i.Name.Length)
+                .Take(8).ToArray();
+        HasSuggestions = Suggestions.Count > 0;
+    }
+
+    [RelayCommand]
+    private async Task PickIngredientAsync(FindableItem? item)
+    {
+        if (item is null) return;
+        _ingredient = item;
+        IngredientText = item.Name;
+        Suggestions = [];
+        HasSuggestions = false;
+        await FindIngredientAsync();
+    }
+
+    private async Task FindIngredientAsync()
+    {
+        if (Start is not { } start || _ingredient is not { } item) return;
+        ulong from = NmsPortalCode.ToAddress(start.PortalCode, start.GalaxyNumber) & ~(0xFUL << 52);
+        _cancel?.Cancel();
+        var cancel = _cancel = new CancellationTokenSource();
+        IsSearching = true;
+        Results = [];
+        Status = $"Looking for {item.Name} around {start.Name}...";
+        try
+        {
+            var places = await IngredientFinderService.FindAsync(from, item.Id, cancel.Token);
+            if (cancel.IsCancellationRequested) return;
+            if (places is null) { Status = "The finder needs the game rules, which this copy of the app doesn't have."; return; }
+            Results = places.Select(p =>
+            {
+                var (portal, galaxy) = SystemProfiles.PortalOf(p.SystemAddress);
+                return new FinderRowViewModel(p.SystemName, p.Distance, string.Join(Environment.NewLine, p.Bodies.Select(b => "• " + b)),
+                    $"1{portal & 0xFFFFFFFFFFF:X11}", galaxy + 1, p.IsHere);
+            }).ToArray();
+            Status = Results.Count == 0 ? $"No planets near {start.Name} give {item.Name}."
+                : $"The nearest systems with {item.Name}. Tap one to open it.";
+        }
+        catch (OperationCanceledException) { }
+        finally { if (!cancel.IsCancellationRequested) IsSearching = false; }
+    }
+    partial void OnAreaChanged(FinderChoice? value) { if (IsMultiTools) _ = SearchAsync(); }
     partial void OnClassChanged(FinderChoice? value) => Apply();
     partial void OnKindChanged(FinderChoice? value) => Apply();
 

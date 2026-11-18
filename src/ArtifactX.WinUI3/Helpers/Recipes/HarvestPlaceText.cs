@@ -83,12 +83,7 @@ internal static class HarvestPlaceText
 
     /// <summary>What to do on a body where only mining gives the item, for the closest-systems cards: "mine it", or
     /// "break a Whispering Egg" / "kill the ground worms" for the two the game drops from those.</summary>
-    public static string MinedDetail(string itemId) => itemId.ToUpperInvariant() switch
-    {
-        "FIENDCORE" => "break a Whispering Egg",
-        "WORMCORE" => "kill the ground worms",
-        _ => "mine it",
-    };
+    public static string MinedDetail(string itemId) => Core.Universe.IngredientSearch.MinedDetail(itemId);
 
     private static readonly HashSet<string> HowToGiven = new(StringComparer.OrdinalIgnoreCase) { "FIENDCORE", "WORMCORE" };
 

@@ -10,22 +10,6 @@ using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
-/// <summary>A body that gives an item, as two lines: the body ("Frozen planet Okiru II") and what to do there
-/// ("hunt the Kordiussia · fish in storms"; empty when there's nothing to add).</summary>
-public sealed record IngredientBody(string Planet, string Detail)
-{
-    public bool HasDetail => Detail.Length > 0;
-    public override string ToString() => HasDetail ? $"{Planet}, {Detail}" : Planet;
-}
-
-/// <summary>A star system that has an item, for the "Closest to you" list: its name, how far it is in words, and its
-/// bodies that give the item.</summary>
-public sealed record IngredientPlace(ulong SystemAddress, string SystemName, string Distance, IReadOnlyList<IngredientBody> Bodies,
-    bool IsHere, double SortKey)
-{
-    public string AccessibleName => $"{SystemName}, {Distance}: {string.Join("; ", Bodies)}";
-}
-
 /// <summary>
 /// Where to go for a wild ingredient, creature produce or fish (the Ingredient Finder, catalog format 93): the systems nearest
 /// a starting system whose planets give it, from the game's own generators (Core NearbySystems, HarvestSearch and
@@ -79,108 +63,21 @@ public static class IngredientLocatorService
         (await RecipeIngredientSourcesService.CreatureSourcesAsync()).Where(s => s.Method == "Hunt").Select(s => (s.ItemId, s.CreatureId)));
 
     /// <summary>The systems nearest <paramref name="start"/> that give <paramref name="itemId"/>, nearest first (the
-    /// start itself first when it does). Off the UI thread, in parallel; a newer search cancels through
-    /// <paramref name="cancel"/>.</summary>
+    /// start itself first when it does): Core IngredientSearch with the catalog's tables, creature names and the
+    /// start region's stars. Off the UI thread, in parallel; a newer search cancels through <paramref name="cancel"/>.</summary>
     public static async Task<IReadOnlyList<IngredientPlace>> FindAsync(ulong start, string itemId, CancellationToken cancel = default)
     {
         await PlanetTypesService.EnsureLoadedAsync();
         if (await CatalogService.GetGalaxyGenerationSettingsAsync() is not { } settings
             || PlanetTypesService.BiomeTables is not { } biomes || PlanetTypesService.ProfileTables is not { } tables)
             return [];
-        bool fed = CreatureProduceSearch.IsProduce(itemId, tables.Creatures);
         var huntIds = await HuntIdsAsync(itemId);
-        var creatures = fed || huntIds.Count > 0 ? tables.Creatures : null;
-        bool plants = tables.Objects?.Harvest is not null;
         var fish = await FishAsync(itemId);
-        if (creatures is null && !plants && fish is null) return [];
-        var names = creatures is null ? null : await CreatureNameService.LoadAsync();
+        bool creatures = CreatureProduceSearch.IsProduce(itemId, tables.Creatures) || huntIds.Count > 0;
+        var names = creatures ? await CreatureNameService.LoadAsync() : null;
         var stars = await RegionSystemsService.GetStarsAsync(start);
-        ulong startSystem = start & ~(0xFUL << 52);
-        int startIndex = (int)((start >> 40) & 0xFFF);
-        var here = stars?.FirstOrDefault(s => s.System == startIndex);
-
-        return await Task.Run(() =>
-        {
-            var found = new ConcurrentBag<IngredientPlace>();
-            foreach (int radius in new[] { 0, 1 })
-            {
-                var systems = NearbySystems.Around(start, radius, settings)
-                    .Where(s => radius == 0 || s.RegionsAway > 0).ToList();
-                Parallel.ForEach(systems, new ParallelOptions { CancellationToken = cancel }, system =>
-                {
-                    var (portal, galaxy) = SystemProfiles.PortalOf(system.SystemAddress);
-                    PlanetType[] types;
-                    try { types = PlanetGenerator.Generate(portal, galaxy, biomes); }
-                    catch { return; }
-                    var profiles = SystemProfiles.Generate(system.SystemAddress, biomes, tables);
-                    var bodies = new SortedDictionary<int, (string Planet, List<string> Details)>();
-                    List<string> At(int index, PlanetType body)
-                    {
-                        if (!bodies.TryGetValue(index, out var entry)) bodies[index] = entry = (Body(portal, galaxy, index, body), []);
-                        return entry.Details;
-                    }
-                    if (plants)
-                        foreach (var f in HarvestSearch.On(system.SystemAddress, types, profiles, itemId))
-                        {
-                            var details = At(f.PlanetIndex, f.Body);
-                            string where = f.Harvest.TileType switch { 4 => "underwater", 5 => "in caves", _ => "" };
-                            string mine = HarvestPlaceText.MinedDetail(itemId);
-                            if (f.Harvest.Mined) details.Add(where.Length > 0 ? $"{mine} {where}" : mine);
-                            else if (where.Length > 0) details.Add("found " + where);
-                        }
-                    if (creatures is not null)
-                        foreach (var f in CreatureProduceSearch.On(system.SystemAddress, types, profiles, itemId, creatures, fed, huntIds))
-                            At(f.PlanetIndex, f.Body).AddRange(new[] { Species("feed", f.Fed, f.PlanetAddress, names),
-                                Species("hunt", f.Hunted, f.PlanetAddress, names) }.Where(t => t.Length > 0));
-                    if (fish is not null)
-                        foreach (var f in FishSearch.On(system.SystemAddress, types, profiles, fish.Biomes, fish.NeedsStorm))
-                            At(f.PlanetIndex, f.Body).Add(fish.NeedsStorm ? "fish in storms" : "fish here");
-                    if (bodies.Count > 0)
-                        found.Add(Place(system, [.. bodies.Values.Select(b => new IngredientBody(b.Planet, string.Join(" · ", b.Details.Distinct())))],
-                            startSystem, startIndex, stars, here));
-                });
-                if (found.Count(p => !p.IsHere) >= Wanted) break;
-            }
-            return (IReadOnlyList<IngredientPlace>)found.OrderBy(p => p.SortKey).Take(Wanted + 1).ToList();
-        }, cancel);
-    }
-
-    /// <summary>"Frozen planet Okiru II", "Infested Lush planet ..." for the infested variant players look for.</summary>
-    private static string Body(ulong portal, int galaxy, int planetIndex, PlanetType type) =>
-        $"{(type.SubType == NmsPlanets.InfestedSubType ? "Infested " : "")}{NmsPlanets.BiomeGroup(type.Biome)} {(SystemGenerator.Bodies(portal, galaxy).IsMoon(planetIndex) ? "moon" : "planet")} "
-        + SystemGenerator.PlanetName(portal | ((ulong)planetIndex << 44), galaxy);
-
-    /// <summary>"feed the Kordiussia" (the species name the game gives once scanned), "hunt the Kordiussia or the
-    /// Vrandeis", "... or 2 more"; "feed its creatures" when the names are unknown; "" for no creatures.</summary>
-    private static string Species(string verb, PredictedCreature[] creatures, ulong planetAddress, CreatureNameService? names)
-    {
-        if (creatures.Length == 0) return "";
-        var species = creatures.Select(c => names?.PredictedSpecies(c, planetAddress)).OfType<string>().Distinct().ToList();
-        if (species.Count == 0) return $"{verb} its creatures";
-        string shown = string.Join(" or ", species.Take(2).Select(n => "the " + n));
-        return species.Count > 2 ? $"{verb} {shown} or {species.Count - 2} more" : $"{verb} {shown}";
-    }
-
-    private static IngredientPlace Place(NearbySystem system, List<IngredientBody> bodies, ulong startSystem, int startIndex,
-        IReadOnlyList<RegionStar>? stars, RegionStar? here)
-    {
-        var (portal, galaxy) = SystemProfiles.PortalOf(system.SystemAddress);
-        int index = (int)((system.SystemAddress >> 40) & 0xFFF);
-        bool isHere = (system.SystemAddress & ~(0xFUL << 52)) == startSystem;
-        string distance;
-        double sort;
-        if (isHere) { distance = "You're here"; sort = -1; }
-        else if (system.RegionsAway == 0 && here is { } h && stars?.FirstOrDefault(s => s.System == index) is { System: > 0 } star)
-        {
-            int ly = RegionStarPositions.LightYears(star, h);
-            distance = $"{ly:N0} ly";
-            sort = ly;
-        }
-        else
-        {
-            distance = system.RegionsAway == 0 ? "This region" : system.RegionsAway == 1 ? "1 region away" : $"{system.RegionsAway} regions away";
-            sort = system.RegionsAway * 100_000 + index;
-        }
-        return new IngredientPlace(system.SystemAddress, SystemGenerator.SystemName(portal, galaxy), distance, bodies, isHere, sort);
+        return await Task.Run(() => IngredientSearch.Find(start, itemId, settings, biomes, tables,
+            fish is null ? null : new FishHabitat(fish.Biomes, fish.NeedsStorm), huntIds,
+            names is null ? null : names.PredictedSpecies, stars, cancel), cancel);
     }
 }
