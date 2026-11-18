@@ -19,29 +19,15 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
     private CancellationTokenSource? _scanCancellation;
     public ObservableCollection<PortalReviewSlot> Slots { get; } = new(Enumerable.Range(1, 12).Select(i => new PortalReviewSlot(i)));
     public IReadOnlyList<PortalGlyphVector> Keys { get; } = ArtifactXPortalGlyphs.All;
-    public IReadOnlyList<PortalGalaxyOption> Galaxies { get; } = NmsGalaxyInfo.AllGalaxies
-        .Select(g => new PortalGalaxyOption(g.Number, g.Name)).ToArray();
+    public IReadOnlyList<PortalGalaxyOption> Galaxies => GalaxyService.All;
 
-    /// <summary>Starts in the galaxy the player was last in (RecentSystemsService), and follows it when a system is
-    /// opened in another galaxy (a scan, the recent list); a galaxy picked here by hand stays until then.</summary>
+    /// <summary>The galaxy being viewed (GalaxyService) - the same one the galaxy bar shows; picking here changes it
+    /// app-wide.</summary>
     [ObservableProperty]
-    public partial PortalGalaxyOption SelectedGalaxy { get; set; } = GalaxyOption(RecentSystemsService.LastGalaxy);
+    public partial PortalGalaxyOption SelectedGalaxy { get; set; } = GalaxyService.CurrentOption;
 
-    // The last galaxy as this page last saw it.
-    private int _followedGalaxy = RecentSystemsService.LastGalaxy;
-
-    private static PortalGalaxyOption GalaxyOption(int number) =>
-        NmsGalaxyInfo.AllGalaxies.FirstOrDefault(g => g.Number == number) is { } g ? new(g.Number, g.Name) : new(1, "Euclid");
-
-    /// <summary>When the page appears (Systems keeps it alive across visits): moves to the galaxy of a system opened
-    /// elsewhere since.</summary>
-    public void FollowLastGalaxy()
-    {
-        int last = RecentSystemsService.LastGalaxy;
-        if (last == _followedGalaxy) return;
-        _followedGalaxy = last;
-        SelectedGalaxy = GalaxyOption(last);
-    }
+    /// <summary>Follows a galaxy changed elsewhere (the galaxy bar, a scan, the recent list).</summary>
+    public void FollowGalaxy() => SelectedGalaxy = GalaxyService.CurrentOption;
     [ObservableProperty]
     public partial string AddressInput { get; set; } = "";
     [ObservableProperty]
@@ -61,7 +47,11 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
     [ObservableProperty]
     public partial int SelectedPosition { get; set; } = 1;
 
-    partial void OnSelectedGalaxyChanged(PortalGalaxyOption value) => SystemSummary = "";
+    partial void OnSelectedGalaxyChanged(PortalGalaxyOption value)
+    {
+        SystemSummary = "";
+        if (value is not null) GalaxyService.Set(value.Number);
+    }
     partial void OnAddressInputChanged(string value) => SystemSummary = "";
     partial void OnSelectedPositionChanged(int value)
     {

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- The galaxy being viewed, at the top of every page (GalaxyService): a constant reminder, and one tap to change it
+     when the player changes galaxy in game. -->
+<ContentView
+    x:Class="ArtifactX.Maui.Controls.GalaxyBar"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    <Border BackgroundColor="{DynamicResource ThemeChromeColor}" Stroke="{DynamicResource ThemeLineColor}" StrokeThickness="0"
+            Padding="20,6,20,6">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+            <Label Text="GALAXY" Style="{StaticResource ThemeEyebrowStyle}" VerticalOptions="Center" />
+            <Picker x:Name="GalaxyPicker" Grid.Column="1" Title="Select your galaxy" ItemDisplayBinding="{Binding DisplayName}"
+                    TextColor="{DynamicResource ThemeAccentColor}" FontAttributes="Bold" FontSize="15" VerticalOptions="Center"
+                    SelectedIndexChanged="GalaxyPicker_SelectedIndexChanged" />
+            <Label Grid.Column="2" Text="Change" TextColor="{DynamicResource ThemeTextDimColor}" FontSize="12" VerticalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="Change_Tapped" />
+                </Label.GestureRecognizers>
+            </Label>
+        </Grid>
+    </Border>
+</ContentView>

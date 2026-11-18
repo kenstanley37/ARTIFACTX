@@ -7,20 +7,25 @@
              x:Class="ArtifactX.Maui.Views.ExplorePages.LivePortalScannerPage"
              x:DataType="vm:LivePortalScannerViewModel"
              Shell.NavBarIsVisible="True" Title="Scan portal address"
-             BackgroundColor="{DynamicResource ThemeVoidColor}">
-    <Grid RowDefinitions="*,Auto">
-        <camera:CameraView x:Name="Preview" Grid.Row="0" SemanticProperties.Description="Live camera preview. Fit the 12 portal glyphs and the galaxy name below them inside the box." />
-        <controls:PortalScanOverlay Grid.Row="0" Target="{Binding ScanTarget}" IsLocked="{Binding IsLocked}"
-                                    GuideColor="{DynamicResource ThemeTextColor}"
-                                    TrackingColor="{DynamicResource ThemeAccentColor}"
-                                    LockColor="{DynamicResource ThemeScanLockColor}" />
-        <Border Grid.Row="1" Style="{StaticResource ThemeCardStyle}" Padding="20">
-            <VerticalStackLayout Spacing="10">
-                <Label Text="{Binding AddressPreview}" Style="{StaticResource ThemeCardTitleStyle}" />
-                <Label Text="{Binding GalaxyPreview}" Style="{StaticResource ThemeBodyTextStyle}" />
-                <Label Text="{Binding Status}" Style="{StaticResource ThemeBodyTextStyle}" SemanticProperties.Description="{Binding Status}" />
-                <Label Text="The system opens automatically when both readings are stable." Style="{StaticResource ThemeDimTextStyle}" />
-            </VerticalStackLayout>
-        </Border>
+             BackgroundColor="{DynamicResource ThemeVoidColor}"
+    xmlns:galaxy="clr-namespace:ArtifactX.Maui.Controls">
+    <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
+    <Grid RowDefinitions="Auto,*">
+        <galaxy:GalaxyBar />
+        <Grid Grid.Row="1" RowDefinitions="*,Auto">
+            <camera:CameraView x:Name="Preview" Grid.Row="0" SemanticProperties.Description="Live camera preview. Fit the 12 portal glyphs and the galaxy name below them inside the box." />
+            <controls:PortalScanOverlay Grid.Row="0" Target="{Binding ScanTarget}" IsLocked="{Binding IsLocked}"
+                                        GuideColor="{DynamicResource ThemeTextColor}"
+                                        TrackingColor="{DynamicResource ThemeAccentColor}"
+                                        LockColor="{DynamicResource ThemeScanLockColor}" />
+            <Border Grid.Row="1" Style="{StaticResource ThemeCardStyle}" Padding="20">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="{Binding AddressPreview}" Style="{StaticResource ThemeCardTitleStyle}" />
+                    <Label Text="{Binding GalaxyPreview}" Style="{StaticResource ThemeBodyTextStyle}" />
+                    <Label Text="{Binding Status}" Style="{StaticResource ThemeBodyTextStyle}" SemanticProperties.Description="{Binding Status}" />
+                    <Label Text="The system opens automatically when both readings are stable." Style="{StaticResource ThemeDimTextStyle}" />
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
     </Grid>
 </ContentPage>

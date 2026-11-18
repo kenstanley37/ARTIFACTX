@@ -4,14 +4,18 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     x:Class="ArtifactX.Maui.Views.ExplorePages.EggSequencerPage"
     Shell.NavBarIsVisible="False"
-    Background="{DynamicResource ThemePageBackdropBrush}">
-
-    <VerticalStackLayout Padding="20,24" Spacing="14">
-        <Label
-            Text="Egg Sequencer"
-            Style="{StaticResource ThemePageTitleStyle}" />
-        <Label
-            Text="Pick your companion and what you'll put in the sequencer to see what the egg changes."
-            Style="{StaticResource ThemeDimTextStyle}" />
-    </VerticalStackLayout>
+    Background="{DynamicResource ThemePageBackdropBrush}"
+    xmlns:galaxy="clr-namespace:ArtifactX.Maui.Controls">
+    <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
+    <Grid RowDefinitions="Auto,*">
+        <galaxy:GalaxyBar />
+        <VerticalStackLayout Grid.Row="1" Padding="20,24" Spacing="14">
+            <Label
+                Text="Egg Sequencer"
+                Style="{StaticResource ThemePageTitleStyle}" />
+            <Label
+                Text="Pick your companion and what you'll put in the sequencer to see what the egg changes."
+                Style="{StaticResource ThemeDimTextStyle}" />
+        </VerticalStackLayout>
+    </Grid>
 </ContentPage>
