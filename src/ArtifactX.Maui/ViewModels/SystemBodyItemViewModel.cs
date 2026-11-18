@@ -30,8 +30,11 @@ public sealed partial class SystemBodyItemViewModel : ObservableObject
         SwatchColor = Color.FromArgb(body.SwatchHex);
     }
 
+    /// <summary>The body's colour dot: the readout's neutral colour until its type is known, then the planet type's
+    /// colour (NmsPlanets.TypeColour, as the desktop's lists).</summary>
+    [ObservableProperty] public partial Color SwatchColor { get; private set; }
+
     public GeneratedSystemBody Body { get; }
-    public Color SwatchColor { get; }
     public string Name => Body.Name;
     public string PrimaryLine => Body.PrimaryLine;
     public string SecondaryLine => Body.SecondaryLine;
@@ -54,6 +57,7 @@ public sealed partial class SystemBodyItemViewModel : ObservableObject
     public void ApplyProfile(PlanetProfile profile, PlanetType? type, GameRules rules)
     {
         TypeText = profile.Descriptor;
+        if (type is not null) SwatchColor = Color.FromArgb(NmsPlanets.TypeColour(type.Biome));
         WeatherText = PlanetProfileText.Weather(profile, type);
         string sentinels = PlanetProfileText.Sentinels(profile);
         SentinelsText = $"{sentinels} sentinels";
