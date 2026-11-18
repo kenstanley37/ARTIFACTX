@@ -140,6 +140,62 @@ public sealed partial class SystemBodyItemViewModel : ObservableObject
         finally { IsSurveying = false; }
     }
 
+    // ---------------------------------------------------------------- crashed ships and shops (PlanetFindsService)
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindsButtonLabel))]
+    public partial bool IsFindsOpen { get; set; }
+
+    public string FindsButtonLabel => IsFindsOpen ? "Hide crashed ships and shops" : "Crashed ships and shops";
+
+    [ObservableProperty] public partial bool IsFinding { get; set; }
+    [ObservableProperty] public partial string FindsNote { get; set; } = "";
+    [ObservableProperty] public partial bool HasFindsNote { get; set; }
+    [ObservableProperty] public partial string WreckCounts { get; set; } = "";
+    [ObservableProperty] public partial bool HasWreckCounts { get; set; }
+    [ObservableProperty] public partial IReadOnlyList<PlanetFindViewModel> Wrecks { get; set; } = [];
+    [ObservableProperty] public partial bool HasWrecks { get; set; }
+    [ObservableProperty] public partial IReadOnlyList<PlanetFindViewModel> Shops { get; set; } = [];
+    [ObservableProperty] public partial bool HasShops { get; set; }
+
+    private bool _found;
+
+    /// <summary>The planet's crashed ships by class and the best ones and nearest shops from the portal; worked out once,
+    /// off the UI thread (a whole-planet pass, a second or two on a phone).</summary>
+    [RelayCommand]
+    private async Task ToggleFindsAsync()
+    {
+        IsFindsOpen = !IsFindsOpen;
+        if (!IsFindsOpen || _found || IsFinding) return;
+        IsFinding = true;
+        try
+        {
+            if (await GameRulesService.GetAsync() is not { } rules)
+            {
+                SetFindsNote("This copy of ArtifactX doesn't have the game rules it needs for crashed ships.");
+                return;
+            }
+            ulong planetAddress = NmsPortalCode.ToAddress(Body.BodyPortalCode, _galaxyNumber);
+            var (finds, reason) = await Task.Run(() => PlanetFindsService.ForPlanet(planetAddress, rules));
+            _found = true;
+            if (finds is null) { SetFindsNote(reason); return; }
+            WreckCounts = finds.ClassCounts.Length > 0 ? $"Crashed ships on this planet: {finds.ClassCounts}" : "";
+            HasWreckCounts = WreckCounts.Length > 0;
+            Wrecks = finds.Wrecks.Select(f => new PlanetFindViewModel(f)).ToArray();
+            HasWrecks = Wrecks.Count > 0;
+            Shops = finds.Shops.Select(f => new PlanetFindViewModel(f)).ToArray();
+            HasShops = Shops.Count > 0;
+            if (finds.Note.Length > 0) SetFindsNote(finds.Note);
+        }
+        finally { IsFinding = false; }
+    }
+
+    private void SetFindsNote(string note)
+    {
+        FindsNote = note;
+        HasFindsNote = true;
+    }
+
     [RelayCommand]
     private void ShowMoreSpots()
     {

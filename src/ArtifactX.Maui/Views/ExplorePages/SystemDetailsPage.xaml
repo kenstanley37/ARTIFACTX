@@ -148,6 +148,32 @@
                                         </BindableLayout.ItemTemplate>
                                     </VerticalStackLayout>
                                 </VerticalStackLayout>
+                                <!-- Crashed ships and shops, measured from the portal (PlanetFindsService). -->
+                                <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Text="{Binding FindsButtonLabel}" Command="{Binding ToggleFindsCommand}" HorizontalOptions="Start"
+                                        SemanticProperties.Description="{Binding Name, StringFormat='Crashed ships and shops on {0}'}"
+                                        TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="12" Padding="10,6" />
+                                <VerticalStackLayout IsVisible="{Binding IsFindsOpen}" Spacing="8">
+                                    <ActivityIndicator IsRunning="{Binding IsFinding}" IsVisible="{Binding IsFinding}" Color="{DynamicResource ThemeAccentColor}" HorizontalOptions="Start" />
+                                    <Label Text="{Binding FindsNote}" IsVisible="{Binding HasFindsNote}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" />
+                                    <Label Text="{Binding WreckCounts}" IsVisible="{Binding HasWreckCounts}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="14" />
+                                    <Label Text="BEST CRASHED SHIPS NEAR THE PORTAL" IsVisible="{Binding HasWrecks}" Style="{StaticResource ThemeEyebrowStyle}" Margin="0,4,0,0" />
+                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Wrecks}" Spacing="8">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:PlanetFindViewModel">
+                                                <controls:FindRow />
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
+                                    <Label Text="SHOPS NEAR THE PORTAL" IsVisible="{Binding HasShops}" Style="{StaticResource ThemeEyebrowStyle}" Margin="0,4,0,0" />
+                                    <Label Text="Their cabinets sell the Multi-tools tab's list for where you last loaded." IsVisible="{Binding HasShops}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" />
+                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Shops}" Spacing="8">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:PlanetFindViewModel">
+                                                <controls:FindRow />
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
+                                </VerticalStackLayout>
                                 </VerticalStackLayout>
                             </Border>
                         </DataTemplate>

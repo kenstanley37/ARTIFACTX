@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- A crashed ship or shop near the portal: what it is (gold for the best class), its coordinates and a Copy button. -->
+<ContentView
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
+    x:Class="ArtifactX.Maui.Controls.FindRow"
+    x:DataType="vm:PlanetFindViewModel">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+        <VerticalStackLayout Spacing="1">
+            <Label Text="{Binding Title}" TextColor="{DynamicResource ThemeTextColor}" FontSize="14" FontAttributes="Bold">
+                <Label.Triggers>
+                    <DataTrigger TargetType="Label" Binding="{Binding IsBest}" Value="True">
+                        <Setter Property="TextColor" Value="{DynamicResource ThemeDoneColor}" />
+                    </DataTrigger>
+                </Label.Triggers>
+            </Label>
+            <Label Text="{Binding Coordinates}" TextColor="{DynamicResource ThemeAccentColor}" FontSize="14" />
+            <Label Text="{Binding Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
+        </VerticalStackLayout>
+        <Button Grid.Column="1" BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Text="{Binding CopyLabel}" Command="{Binding CopyCommand}"
+                SemanticProperties.Description="{Binding CopyDescription}" VerticalOptions="Center"
+                TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" />
+    </Grid>
+</ContentView>

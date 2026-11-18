@@ -59,3 +59,12 @@ public sealed class NearbyHotspotViewModel(PlanetHotspot hotspot) : CopyCoordina
 
     public string CopyDescription => $"Copy coordinates for {Title}";
 }
+
+/// <summary>A crashed ship or shop near the portal (PlanetFindsService), with its coordinates to copy.</summary>
+public sealed class PlanetFindViewModel(ArtifactX.Maui.Services.PlanetFind find) : CopyCoordinatesViewModel(find.Coordinates)
+{
+    public string Title { get; } = find.Title;
+    public string Detail { get; } = find.Detail;
+    public bool IsBest { get; } = find.IsBest;
+    public string CopyDescription => $"Copy coordinates for {find.Title}";
+}
