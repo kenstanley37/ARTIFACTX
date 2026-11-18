@@ -116,7 +116,7 @@ public sealed partial class SystemFromGlyphsViewModel : ObservableObject
 
             Bodies.Clear();
             foreach (var b in readout.Bodies)
-                Bodies.Add(new SystemBodyItemViewModel(b));
+                Bodies.Add(new SystemBodyItemViewModel(b, galaxyNumber));
 
             ShipRulesSummary = readout.ShipRulesSummary;
             _allShips = readout.Ships.Select(s => new SystemShipItemViewModel(s)).ToArray();

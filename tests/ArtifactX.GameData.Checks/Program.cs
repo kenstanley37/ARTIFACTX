@@ -462,6 +462,12 @@ if (args.Length == 4 && args[0] == "--building-layout-check")
     return;
 }
 
+if (args.Length == 2 && args[0] == "--mobile-rules-check")
+{
+    MobileRulesChecks.Run(args[1]);
+    return;
+}
+
 if (args.Length == 1 && args[0] == "--enum-check")
 {
     GameEnumChecks.Run();

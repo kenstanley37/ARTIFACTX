@@ -1,3 +1,4 @@
+using ArtifactX.Core.Recipes;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -54,7 +55,7 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
     public double MaxSpan => Cluster.MaxSpan;
     public string BaseCoordinates => Cluster.BaseCoordinates;
     public string ReachDescription => Cluster.ReachDescription;
-    public string? PortalDistanceLabel => Cluster.PortalDistance is { } portal ? $"{Distance(portal)} from the portal" : null;
+    public string? PortalDistanceLabel => Cluster.PortalDistance is { } portal ? $"{HotspotPlanner.FormatDistance(portal)} from the portal" : null;
     public string ComboGlyph => Cluster.ComboGlyph;
 
     public Brush BadgeBrush => ThemeResources.Brush(Cluster.ComboBadgeKey);
@@ -105,10 +106,6 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
     private readonly PortalLocation? _portal;
     private bool _addedPortalMarker;
 
-    /// <summary>Less room than this between the farthest site and the base boundary reads as tight (yellow). A display
-    /// choice, not game data: about the error of placing a base computer by eye at a beacon.</summary>
-    private const double TightMargin = 50;
-
     public PlanetHotspotClusterItemViewModel(PlanetHotspotCluster cluster, Action<PlanetHotspotClusterItemViewModel>? onPinnedChanged = null,
         float baseReach = 0f, PortalLocation? portal = null)
     {
@@ -116,21 +113,13 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
         _onPinnedChanged = onPinnedChanged;
         _portal = portal;
         Hotspots = cluster.Hotspots.Select(h => new PlanetHotspotItemViewModel(h)).ToList();
-        float planetRadius = cluster.BaseLocalPosition.Length();
-        Rows = Hotspots.Select(h => new ClusterHotspotRow(h,
-            h.Kind == "Power" ? $"{Math.Round(h.Strength)} kP" : $"{h.YieldPercent}%",
-            Distance(PlanetHotspotCluster.GroundDistance(cluster.BaseLocalPosition, h.Hotspot.LocalPosition, planetRadius)),
-            h.Hotspot.PortalDistance is { } fromPortal ? Distance(fromPortal) : "",
-            $"{h.ResourceName}, class {h.Class}: {h.YieldLabel}")).ToList();
+        // The wording is shared with the mobile app (PortalSurvey).
+        Rows = Hotspots.Zip(PortalSurvey.Lines(cluster), (h, line) => new ClusterHotspotRow(h, line.Amount, line.FromComputer, line.FromPortal,
+            $"{line.Description}: {h.YieldLabel}")).ToList();
         HasPortalColumn = cluster.PortalDistance is not null;
-        string what = cluster.IncludesPortal
-            ? (Hotspots.Count == 1 ? "the portal and the hotspot" : $"the portal and all {Hotspots.Count} hotspots")
-            : $"all {Hotspots.Count} hotspots";
-        double spare = baseReach - cluster.MaxRadius;
-        SpareText = baseReach > 0
-            ? $"Reaches {what} - the farthest is {Math.Round(cluster.MaxRadius)}u of {Math.Round(baseReach)}u ({Math.Max(0, Math.Round(spare))}u to spare)"
-            : cluster.ReachDescription;
-        SpareBrush = ThemeResources.Brush(baseReach > 0 && spare < TightMargin ? "ThemeWarningBrush" : "ThemeDoneBrush");
+        var (spareText, tight) = PortalSurvey.Spare(cluster, baseReach);
+        SpareText = spareText;
+        SpareBrush = ThemeResources.Brush(tight ? "ThemeWarningBrush" : "ThemeDoneBrush");
         Refresh();
     }
 
@@ -197,5 +186,4 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
         _onPinnedChanged?.Invoke(this); // the page re-checks which card holds the beacon
     }
 
-    private static string Distance(double metres) => metres < 1000 ? $"{Math.Round(metres)}u" : $"{metres / 1000.0:F1} km";
 }
