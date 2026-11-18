@@ -4,6 +4,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Changed
+- Game data: "Game data ready" now says how long reading your game files took. Updates after the first are a little faster: icons the game update didn't change are reused instead of converted again, and the game's files are listed once per update instead of a dozen times.
+
 ## 1.2.0 — 2026-11-17
 
 ### Added

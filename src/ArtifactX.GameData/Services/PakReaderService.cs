@@ -14,9 +14,38 @@ public class PakReaderService : IPakReaderService
     private const int IndexEntrySize = 32; // 16-byte hash + UInt64 offset + UInt64 size
     private const int ChunkSizeEntrySize = 8; // UInt64 compressed size, per chunk
 
+    /// <summary>
+    /// Each PAK's header and file list, read once per build: a dozen catalog steps scan every PAK themselves (97 PAKs,
+    /// ~1 s and ~900 log lines a scan; nine scans in the first two minutes of a build, 2026-11-17). Keyed by path, size
+    /// and write time, so a PAK the game replaced is read again. Entries are only written while a PAK is read here, so
+    /// sharing them between steps is safe. Cleared with the other build caches (CatalogSteps.ClearCache).
+    /// </summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long Length, DateTime Written, PakHeader? Header, IReadOnlyList<PakEntry>? Entries)> Memo
+        = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Forgets every PAK read (after a build).</summary>
+    public static void ClearMemo() => Memo.Clear();
+
+    private static (long Length, DateTime Written) Stamp(string pakPath)
+    {
+        var info = new FileInfo(pakPath);
+        return (info.Length, info.LastWriteTimeUtc);
+    }
+
     public IReadOnlyList<PakEntry> Read(string pakPath)
     {
         ValidatePakExists(pakPath);
+        var stamp = Stamp(pakPath);
+        if (Memo.TryGetValue(pakPath, out var known) && known.Length == stamp.Length && known.Written == stamp.Written
+            && known.Entries is { } entries) return entries;
+        var read = ReadUncached(pakPath);
+        Memo.AddOrUpdate(pakPath, _ => (stamp.Length, stamp.Written, null, read),
+            (_, old) => old.Length == stamp.Length && old.Written == stamp.Written ? old with { Entries = read } : (stamp.Length, stamp.Written, null, read));
+        return read;
+    }
+
+    private IReadOnlyList<PakEntry> ReadUncached(string pakPath)
+    {
 
         var header = ReadHeader(pakPath);
         PrintHeaderInfo(header, pakPath);
@@ -64,6 +93,17 @@ public class PakReaderService : IPakReaderService
     public PakHeader ReadHeader(string pakPath)
     {
         ValidatePakExists(pakPath);
+        var stamp = Stamp(pakPath);
+        if (Memo.TryGetValue(pakPath, out var known) && known.Length == stamp.Length && known.Written == stamp.Written
+            && known.Header is { } header) return header;
+        var read = ReadHeaderUncached(pakPath);
+        Memo.AddOrUpdate(pakPath, _ => (stamp.Length, stamp.Written, read, null),
+            (_, old) => old.Length == stamp.Length && old.Written == stamp.Written ? old with { Header = read } : (stamp.Length, stamp.Written, read, null));
+        return read;
+    }
+
+    private PakHeader ReadHeaderUncached(string pakPath)
+    {
 
         using var stream = File.OpenRead(pakPath);
         using var reader = new BinaryReader(stream);

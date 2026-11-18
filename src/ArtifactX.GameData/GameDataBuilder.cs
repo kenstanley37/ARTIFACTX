@@ -113,6 +113,7 @@ public static class GameDataBuilder
             new CatalogBuildService(discovery, new PakReaderService(), new ExtractionService())
             {
                 Progress = f => { cancel.ThrowIfCancellationRequested(); Send(MainShare * f); },
+                IconCacheFolder = Path.Combine(workFolder, "icon-cache"),
             }.Run(game.PcbanksPath, full, iconTargetSize: 128);
             if (!File.Exists(full)) throw new InvalidOperationException("The game files couldn't be read - no catalog was written.");
 
