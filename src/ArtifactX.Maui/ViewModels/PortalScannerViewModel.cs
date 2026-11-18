@@ -52,7 +52,18 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
         SystemSummary = "";
         if (value is not null) GalaxyService.Set(value.Number);
     }
-    partial void OnAddressInputChanged(string value) => SystemSummary = "";
+    /// <summary>The address as glyphs, the way Find system will read it: a complete code or galactic coordinates
+    /// (XXXX:YYYY:ZZZZ:SSSS, from a signal booster) as their portal address; a code still being typed as the digits so
+    /// far; nothing for coordinates still being typed (their digits aren't glyphs).</summary>
+    [ObservableProperty]
+    public partial string PreviewCode { get; private set; } = "";
+
+    partial void OnAddressInputChanged(string value)
+    {
+        SystemSummary = "";
+        PreviewCode = NmsPortalCode.TryParse(value, out string code, out _) ? code
+            : value.Contains(':') ? "" : new string(value.Where(Uri.IsHexDigit).Take(12).Select(char.ToUpperInvariant).ToArray());
+    }
     partial void OnSelectedPositionChanged(int value)
     {
         foreach (var slot in Slots) slot.IsSelected = slot.Position == value;
@@ -114,7 +125,7 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
     private void TapGlyph(PortalGlyphVector? glyph)
     {
         if (glyph is null) return;
-        if (!HasReview) { ReviewInput = AddressInput; HasReview = true; }
+        if (!HasReview) { ReviewInput = PreviewCode; HasReview = true; }
         var chars = Enumerable.Range(0, 12).Select(i => Slots[i].Digit ?? '_').ToArray();
         chars[SelectedPosition - 1] = glyph.HexDigit;
         ReviewInput = new string(chars);
@@ -124,7 +135,8 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
     [RelayCommand]
     private void EnterManually()
     {
-        ReviewInput = AddressInput;
+        // The address as read (spaces dropped, coordinates as their code), so each glyph lands in its own slot.
+        ReviewInput = PreviewCode;
         HasReview = true;
         IsKeypadOpen = true;
         SelectedPosition = 1;
