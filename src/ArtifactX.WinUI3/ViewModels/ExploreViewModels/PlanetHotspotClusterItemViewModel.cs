@@ -89,7 +89,11 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(PinTooltip))]
     public partial bool IsPinned { get; set; }
 
-    [ObservableProperty] public partial bool CanAddMarker { get; private set; }
+    /// <summary>Also the command's CanExecute: a Button's Command decides whether it can be clicked, so the IsEnabled
+    /// binding alone let a locked card place a second beacon (owner test 2026-11-17).</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddMarkerCommand))]
+    public partial bool CanAddMarker { get; private set; }
     [ObservableProperty] public partial bool CanUndoMarker { get; private set; }
     [ObservableProperty] public partial bool CanRemoveMarker { get; private set; }
     [ObservableProperty] public partial string RemoveButtonText { get; private set; } = "Undo";
@@ -165,9 +169,11 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
         _onPinnedChanged?.Invoke(this);
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanAddMarker))]
     public void AddMarker()
     {
+        Refresh();
+        if (!CanAddMarker) return; // locked by another option, already placed, or the game is running
         SaveBeaconService.Add(Cluster.PlanetAddress, Cluster.BaseLocalPosition);
         // The same portal marker Planet Details adds (ScanMarkerService, table 3) - unless one is already waiting to save.
         if (MarksPortal && _portal is { } portal && !ScanMarkerService.IsUnsaved(portal.Key))

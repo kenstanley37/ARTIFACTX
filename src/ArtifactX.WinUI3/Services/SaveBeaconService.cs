@@ -44,11 +44,13 @@ public static class SaveBeaconService
 
     public static bool CanRemove => SaveSessionManager.IsSaveLoaded && !GameProcessMonitorService.IsGameRunning;
 
+    /// <summary>The session key of a site: its direction rounded to 1e-5 (5 m on a Giant planet's 523 km radius). The
+    /// old 0.01 rounding was ~5 km there, so two base options 20 m apart shared one key (2026-11-17).</summary>
     public static string PosKey(ulong planetAddress, Vector3 pos)
     {
         float l = pos.Length();
         Vector3 dir = l > 1f ? pos / l : pos;
-        return $"{planetAddress:X}_{Math.Round(dir.X * 100.0)}_{Math.Round(dir.Y * 100.0)}_{Math.Round(dir.Z * 100.0)}";
+        return $"{planetAddress:X}_{Math.Round(dir.X * 1e5)}_{Math.Round(dir.Y * 1e5)}_{Math.Round(dir.Z * 1e5)}";
     }
 
     /// <summary>
