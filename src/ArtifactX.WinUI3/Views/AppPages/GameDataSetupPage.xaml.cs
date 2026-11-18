@@ -80,7 +80,8 @@ public sealed partial class GameDataSetupPage : Page
             StepTxt.Text = p.Step == 0 ? "Starting..." : $"Step {p.Step} of {p.Steps}: {p.Label}";
             Bar.Value = p.Fraction * 100;
             PercentTxt.Text = $"{p.Fraction * 100:0}%";
-            TimeTxt.Text = $"{Elapsed(p.Elapsed)} so far" + Remaining(p);
+            var elapsed = GameDataService.BuildElapsed ?? p.Elapsed;
+            TimeTxt.Text = $"{GameDataService.FormatElapsed(elapsed)} so far" + Remaining(p, elapsed);
         }
         else if (!building)
         {
@@ -91,14 +92,12 @@ public sealed partial class GameDataSetupPage : Page
     }
 
     /// <summary>"about 6 minutes left", once there's enough done to guess from.</summary>
-    private static string Remaining(GameDataProgress p)
+    private static string Remaining(GameDataProgress p, TimeSpan elapsed)
     {
-        if (p.Fraction < 0.05 || p.Elapsed.TotalSeconds < 20) return "";
-        double left = p.Elapsed.TotalSeconds * (1 - p.Fraction) / p.Fraction;
+        if (p.Fraction < 0.05 || elapsed.TotalSeconds < 20) return "";
+        double left = elapsed.TotalSeconds * (1 - p.Fraction) / p.Fraction;
         return left < 60 ? " · less than a minute left" : $" · about {Math.Ceiling(left / 60):0} minute{(left >= 120 ? "s" : "")} left";
     }
-
-    private static string Elapsed(TimeSpan t) => t.TotalMinutes >= 1 ? $"{(int)t.TotalMinutes}m {t.Seconds:00}s" : $"{t.Seconds}s";
 
     private void Start_Click(object sender, RoutedEventArgs e)
     {

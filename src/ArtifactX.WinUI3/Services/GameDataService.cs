@@ -121,6 +121,17 @@ public static class GameDataService
     /// <summary>The latest progress of a running build (null when none).</summary>
     public static GameDataProgress? Progress { get; private set; }
 
+    private static readonly System.Diagnostics.Stopwatch BuildClock = new();
+    private static Timer? _tick;
+
+    /// <summary>Time since the running build started, read at any moment (pages tick it every second; the builder's
+    /// own Elapsed only moves when a step reports, so it froze during long steps). Null when no build runs.</summary>
+    public static TimeSpan? BuildElapsed => IsBuilding ? BuildClock.Elapsed : null;
+
+    /// <summary>"45s", "3m 07s".</summary>
+    public static string FormatElapsed(TimeSpan t) =>
+        t.TotalMinutes >= 1 ? $"{(int)t.TotalMinutes}m {t.Seconds:00}s" : $"{t.Seconds}s";
+
     /// <summary>Raised (builder thread) with each step.</summary>
     public static event Action<GameDataProgress>? ProgressChanged;
 
@@ -142,6 +153,9 @@ public static class GameDataService
             _cancel = new CancellationTokenSource();
             var token = _cancel.Token;
             Progress = new GameDataProgress(0, GameDataBuilder.StepCount, "Starting", 0, TimeSpan.Zero);
+            BuildClock.Restart();
+            // Once a second, so the elapsed time on screen keeps moving through long steps.
+            _tick = new Timer(_ => { if (Progress is { } now) ProgressChanged?.Invoke(now); }, null, 1000, 1000);
             lock (ActivityLines) ActivityLines.Clear();
             _build = Task.Factory.StartNew(() => Run(game, token), token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
@@ -176,6 +190,8 @@ public static class GameDataService
         {
             LogService.MessageWritten -= OnLogMessage;
             LogService.Close(); // so "Open build log" can read all of it
+            _tick?.Dispose();
+            _tick = null;
             Progress = null;
             // The builder holds every decoded table while it runs; give that back.
             GC.Collect();
