@@ -64,12 +64,12 @@
                                     <Label Text="{Binding PrimaryLine}" Style="{StaticResource ThemeBodyTextStyle}" TextColor="{DynamicResource ThemeTextDimColor}" FontSize="13" />
                                     <Label Text="{Binding SecondaryLine}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" />
                                 </VerticalStackLayout>
-                                <Button Grid.Column="2" Text="{Binding CopyButtonLabel}" SemanticProperties.Description="{Binding Name, StringFormat='Copy portal address for {0}'}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=CopyBodyPortalCodeCommand}"
+                                <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Grid.Column="2" Text="{Binding CopyButtonLabel}" SemanticProperties.Description="{Binding Name, StringFormat='Copy portal address for {0}'}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=CopyBodyPortalCodeCommand}"
                                         CommandParameter="{Binding .}" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" WidthRequest="110" />
                             </Grid>
                             <!-- Portal survey (PortalSurvey, from the rules file): Analysis Visor coordinates for the portal,
                                  base computer spots near it that reach deep-level hotspots, and the hotspots around it. -->
-                            <Button Text="{Binding SurveyButtonLabel}" Command="{Binding ToggleSurveyCommand}" HorizontalOptions="Start"
+                            <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Text="{Binding SurveyButtonLabel}" Command="{Binding ToggleSurveyCommand}" HorizontalOptions="Start"
                                     SemanticProperties.Description="{Binding Name, StringFormat='Portal and base spots on {0}'}"
                                     TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="12" Padding="10,6" />
                             <VerticalStackLayout IsVisible="{Binding IsSurveyOpen}" Spacing="8">
@@ -80,7 +80,7 @@
                                         <Label Text="PORTAL" Style="{StaticResource ThemeEyebrowStyle}" />
                                         <Label Text="{Binding PortalCoordinates}" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" FontSize="15" />
                                     </VerticalStackLayout>
-                                    <Button Grid.Column="1" Text="{Binding PortalCopyLabel}" Command="{Binding CopyPortalCoordinatesCommand}" VerticalOptions="Center"
+                                    <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Grid.Column="1" Text="{Binding PortalCopyLabel}" Command="{Binding CopyPortalCoordinatesCommand}" VerticalOptions="Center"
                                             SemanticProperties.Description="{Binding Name, StringFormat='Copy portal coordinates on {0}'}"
                                             TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" />
                                 </Grid>
@@ -117,6 +117,8 @@
                                         </DataTemplate>
                                     </BindableLayout.ItemTemplate>
                                 </VerticalStackLayout>
+                                <Button Text="{Binding MoreSpotsLabel}" Command="{Binding ShowMoreSpotsCommand}" IsVisible="{Binding HasMoreSpots}" HorizontalOptions="Start"
+                                        BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="12" Padding="10,6" />
                                 <Label Text="HOTSPOTS NEAR THE PORTAL" IsVisible="{Binding HasNearbyHotspots}" Style="{StaticResource ThemeEyebrowStyle}" Margin="0,4,0,0" />
                                 <VerticalStackLayout BindableLayout.ItemsSource="{Binding NearbyHotspots}" Spacing="6">
                                     <BindableLayout.ItemTemplate>
@@ -127,7 +129,7 @@
                                                     <Label Text="{Binding Coordinates}" TextColor="{DynamicResource ThemeAccentColor}" FontSize="13" />
                                                     <Label Text="{Binding Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" />
                                                 </VerticalStackLayout>
-                                                <Button Grid.Column="1" Text="{Binding CopyLabel}" Command="{Binding CopyCommand}" SemanticProperties.Description="{Binding CopyDescription}"
+                                                <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Grid.Column="1" Text="{Binding CopyLabel}" Command="{Binding CopyCommand}" SemanticProperties.Description="{Binding CopyDescription}"
                                                         VerticalOptions="Center" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" />
                                             </Grid>
                                         </DataTemplate>

@@ -16,6 +16,11 @@ public sealed partial class SystemBodyItemViewModel : ObservableObject
     /// <summary>How many hotspots near the portal to list: the closest, enough to pick from without a long scroll.</summary>
     private const int NearbyCount = 8;
 
+    /// <summary>Base spot options shown before "Show more": the best ones fit a phone screen (seven made a long scroll).</summary>
+    private const int FirstSpots = 3;
+
+    private List<BaseSpotItemViewModel> _allSpots = [];
+
     private readonly int _galaxyNumber;
 
     public SystemBodyItemViewModel(GeneratedSystemBody body, int galaxyNumber)
@@ -55,6 +60,8 @@ public sealed partial class SystemBodyItemViewModel : ObservableObject
     [ObservableProperty] public partial bool HasSurveyNote { get; set; }
     [ObservableProperty] public partial bool HasBaseSpots { get; set; }
     [ObservableProperty] public partial bool HasNearbyHotspots { get; set; }
+    [ObservableProperty] public partial bool HasMoreSpots { get; set; }
+    [ObservableProperty] public partial string MoreSpotsLabel { get; set; } = "";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PortalCopyLabel))]
@@ -92,11 +99,14 @@ public sealed partial class SystemBodyItemViewModel : ObservableObject
             }
             HasPortal = true;
             PortalCoordinates = survey.Portal.Coordinates;
-            BaseSpots.Clear();
             int rank = 1;
-            foreach (var spot in survey.Plan.PortalSites ?? [])
-                BaseSpots.Add(new BaseSpotItemViewModel(spot, survey.Plan.BaseReach, rank++));
+            _allSpots = (survey.Plan.PortalSites ?? []).Select(spot => new BaseSpotItemViewModel(spot, survey.Plan.BaseReach, rank++)).ToList();
+            BaseSpots.Clear();
+            foreach (var spot in _allSpots.Take(FirstSpots)) BaseSpots.Add(spot);
             HasBaseSpots = BaseSpots.Count > 0;
+            int more = _allSpots.Count - BaseSpots.Count;
+            HasMoreSpots = more > 0;
+            MoreSpotsLabel = more == 1 ? "Show 1 more option" : $"Show {more} more options";
             NearbyHotspots.Clear();
             foreach (var hotspot in survey.NearPortal(NearbyCount))
                 NearbyHotspots.Add(new NearbyHotspotViewModel(hotspot));
@@ -104,6 +114,13 @@ public sealed partial class SystemBodyItemViewModel : ObservableObject
             if (survey.Plan.PortalNote is { } note) ShowNote(note);
         }
         finally { IsSurveying = false; }
+    }
+
+    [RelayCommand]
+    private void ShowMoreSpots()
+    {
+        foreach (var spot in _allSpots.Skip(BaseSpots.Count)) BaseSpots.Add(spot);
+        HasMoreSpots = false;
     }
 
     private void ShowNote(string note)
