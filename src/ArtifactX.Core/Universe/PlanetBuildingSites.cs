@@ -59,7 +59,8 @@ public static class PlanetBuildingSites
     /// <summary>Planet radius by GcPlanetSize (Large, Medium, Small, Moon, Giant) as read from the running game (5 planets
     /// 2026-10-28). Giant read 2026-11-17 (build 185034, read-only memory scan of GcPlanetBuildingData: PlanetUA at +0x30,
     /// PlanetRadius at +0x38): Uwaiimor XIII, body 1 of 0x3EFDAFBFFB004 (galaxy index 218), a size-4 Anomaly world,
-    /// 523264 (= 511 x 1024); its five moons read 15360 in the same scan.</summary>
+    /// 523264 (= 511 x 1024); its five moons read 15360 in the same scan. Owner confirmed in game the same day that the
+    /// predicted portal and hotspots on Uwaiimor XIII were where the app marked them.</summary>
     private static readonly float[] Radii = { 130048f, 98304f, 64512f, 15360f, 523264f };
 
     // Face axes of the Voronoi worker (NMS.exe tables 0x1450AF140 and 0x1450AF0F0, indexed by face).
