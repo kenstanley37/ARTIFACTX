@@ -4,6 +4,20 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+## 1.2.0 — 2026-11-17
+
+### Added
+- Planetary Hotspots: a new "Near Portal" view lists base computer spots whose base reaches the portal and the hotspots around it, power first, so you can build at the portal without a field of solar panels. Its button places a Save Beacon where the base computer goes and marks the portal; your visor finds the hotspots from there. When no hotspot is close enough for one base, it names the nearest power hotspot and how far it is from the portal. Update your game data once to get this.
+- Planetary Hotspots: Near Portal and Base Combo cards are now a table: each hotspot with its yield, its distance from the base computer and from the portal; below it the base computer spot with its coordinates and distance from the portal, and how much room the base has to spare (green, or yellow when tight). Bright text throughout instead of grey. The cards are numbered options for the same base, and only one can have the Save Beacon: the others turn off until you remove it.
+
+### Fixed
+- Planetary Hotspots: Base Combo cards said a base reached its hotspots "within 0u", and hotspots closer than about 350u showed wrong distances. Combos now use the game's own base size (300u from the base computer) instead of 375u, so a few pairs that can't share one base no longer show.
+- Giant-size planets you can land on (like the anomaly world in some purple systems) now get their portal, hotspots, crashed ships and shops on Planet Details and Current System. Before, they showed none, because the app didn't know how big a Giant planet is. True gas giants still show none, since you can't land on them.
+
+### Changed
+- Game data: while ArtifactX reads your game files, Settings and the notice at the top show how long it has been running ("3m 07s so far"), counting every second. Before, the time only moved when a step finished.
+- Freighter: a new Home Seed now shows its paint in the preview even when you've picked your own colours in game. Saving it clears those colours, as the game's Reset Custom Colors does, and a note under the Home Seed warns you first; put the Home Seed back to keep them. The Home Seed help no longer warns that it's your freighter's home address: changing it only changes the paint, and your freighter, its base and summoning stay as they are.
+
 ## 1.1.0 — 2026-11-17
 
 ### Added

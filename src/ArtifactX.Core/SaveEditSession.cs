@@ -123,6 +123,9 @@ public sealed class SaveEditSession
 
     public bool HasStagedEdit(string[] path) => _pendingEdits.ContainsKey(Join(path));
 
+    /// <summary>The value as loaded from the save, ignoring every staged edit.</summary>
+    public JToken? GetSavedValue(params string[] path) => Resolve(Root, path);
+
     /// <summary>True if this exact path, or anything nested under it, has a
     /// staged edit - used to drive a whole page/container's "changed" state
     /// regardless of which specific field within it was touched.</summary>

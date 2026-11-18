@@ -73,6 +73,7 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
     PlanetDescriptorChecks.Check();
     SystemWordChecks.Check();
     PlanetSurfaceChecks.Check();
+    PortalBaseSiteChecks.Run();
     PlanetRegionChecks.Check();
     SpeciesNameChecks.FaunaSeeds();
     SpeciesNameChecks.FaunaSizeClass();

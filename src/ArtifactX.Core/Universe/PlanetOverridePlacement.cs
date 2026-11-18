@@ -49,7 +49,7 @@ public static class PlanetOverridePlacement
 
     /// <summary>Every body's override buildings from a system's portal code and galaxy alone (planet types, terrain,
     /// sea, size, Voronoi grid and centre generated, all tables from the catalog), body 1 first; null for a body this
-    /// can't place (gas-giant systems, an unmeasured planet size, a catalog without terrain layers).</summary>
+    /// can't place (a true gas giant, an unmeasured planet size, a catalog without terrain layers).</summary>
     public static OverrideBuilding[]?[] ForSystem(ulong portalCode, int galaxy, BiomeTables biomes, PlanetProfileTables profiles,
         SolarLayoutTables layoutTables, IReadOnlyList<BuildingOverrideRule> rules)
     {
@@ -62,7 +62,8 @@ public static class PlanetOverridePlacement
         for (int i = 0; i < result.Length && i < layout.Centers.Length; i++)
         {
             var body = types[i];
-            if (PlanetBuildingSites.Radius(body.BodyClass) is not { } radius
+            // A true gas giant has no surface (SurfaceRadius null); a Giant-size anomaly world is placed like any planet.
+            if (PlanetBuildingSites.SurfaceRadius(body.BodyClass, body.Biome) is not { } radius
                 || PlanetProfileGenerator.TerrainChoiceFor(seeds[i], body, star, profiles) is not { } choice
                 || choice.SettingIndex >= terrainTables.Settings.Length
                 || PlanetTerrain.Generate(seeds[i], terrainTables.Settings[choice.SettingIndex], choice, terrainTables.SeaStandard,

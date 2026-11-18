@@ -68,7 +68,7 @@ public static class BaseExtractionSites
         var types = PlanetGenerator.Generate(code, galaxy, tables.Biomes);
         var bodies = SystemGenerator.Bodies(code, galaxy);
         int index = planet - 1;
-        if (index >= types.Length || index >= bodies.PlanetSeeds.Length || PlanetBuildingSites.Radius(types[index].BodyClass) is not float radius) return null;
+        if (index >= types.Length || index >= bodies.PlanetSeeds.Length || PlanetBuildingSites.SurfaceRadius(types[index].BodyClass, types[index].Biome) is not float radius) return null;
         var system = SystemGenerator.Attributes(code, galaxy);
         var profile = PlanetProfileGenerator.Generate(bodies.PlanetSeeds[index], index, types[index], (int)system.Star,
             PlanetGenerator.GalaxyType(galaxy), system.GasGiantPlanet, tables.Profiles with { Objects = null }, system.Uncharted, system.Abandoned);

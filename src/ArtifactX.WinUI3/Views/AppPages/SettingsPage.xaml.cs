@@ -79,6 +79,7 @@ public sealed partial class SettingsPage : Page
         string from = info?.ExeVersion is { Length: > 0 } v ? $" from build {v}" : "";
         GameDataStatusTxt.Text = GameDataService.IsBuilding
             ? $"Reading your game files - {(GameDataService.Progress is { } p ? $"step {p.Step} of {p.Steps}: {p.Label}" : "starting")}..."
+              + (GameDataService.BuildElapsed is { } running ? $" {GameDataService.FormatElapsed(running)} so far." : "")
             : GameDataService.State switch
             {
                 GameDataState.UpToDate => $"{built}{from} - matches your game.",
