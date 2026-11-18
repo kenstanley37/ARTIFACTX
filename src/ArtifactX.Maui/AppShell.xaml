@@ -25,6 +25,11 @@
             ContentTemplate="{DataTemplate explore:PortalGlyphsPage}" />
 
         <ShellContent
+            Title="Find"
+            Route="find"
+            ContentTemplate="{DataTemplate explore:FinderPage}" />
+
+        <ShellContent
             Title="Recipes"
             Route="recipes"
             ContentTemplate="{DataTemplate reference:RecipesPage}" />

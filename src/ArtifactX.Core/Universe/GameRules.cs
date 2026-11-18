@@ -69,6 +69,7 @@ public sealed class GameRules
     [System.Text.Json.Serialization.JsonIgnore] public StationEquipmentTables? Stations => Row<StationEquipmentTables>("STATIONEQUIPMENT");
     [System.Text.Json.Serialization.JsonIgnore] public BuildingOverrideRule[]? BuildingOverrides => Row<BuildingOverrideRule[]>("BUILDINGOVERRIDES");
     [System.Text.Json.Serialization.JsonIgnore] public BuildingClassPlacement[]? BuildingPlacement => Row<BuildingClassPlacement[]>("BUILDINGPLACEMENT");
+    [System.Text.Json.Serialization.JsonIgnore] public GalaxyGenerationSettings? GalaxySettings => Row<GalaxyGenerationSettings>("GALAXYGENERATION");
     [System.Text.Json.Serialization.JsonIgnore] public Recipes.ExtractionTables? Extraction => Row<Recipes.ExtractionTables>("EXTRACTIONTABLES");
     [System.Text.Json.Serialization.JsonIgnore] public Recipes.FoodIngestorTables? Food => Row<Recipes.FoodIngestorTables>("FOODINGESTOR");
     [System.Text.Json.Serialization.JsonIgnore] public InventoryGenerationTables? Inventory => Row<InventoryGenerationTables>("INVENTORYGENERATION");
