@@ -13,6 +13,9 @@ namespace ArtifactX.Core.NmsModels;
 /// them lies within <c>reach</c> of it along the surface. Reach is a new base's boundary from the catalog
 /// (GcBuildingGlobals.MinRadiusForBases). Ranked: power first, then more hotspots, better grades, and a base computer
 /// closer to the portal.
+/// Confirmed in game 2026-11-17 (Slot 8, Uwaiimor XIII, option 1 "Portal + Power + Mineral"): standing at the Save Beacon
+/// the app placed (-7.83, -162.84), the visor read Hotspot Proximity 113.49 to the C-class power hotspot (card: 113u) and
+/// 256.54 to the A-class Dioxite deposit (card: 255u); a gas hotspot at 367.79, outside the 300u reach, was rightly left off.
 /// </summary>
 public static class PortalBaseSites
 {

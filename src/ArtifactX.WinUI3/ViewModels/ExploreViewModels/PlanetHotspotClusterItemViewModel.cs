@@ -19,7 +19,20 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
 
     public PlanetHotspotCluster Cluster { get; }
 
-    public string Title => Cluster.Title;
+    /// <summary>"OPTION 2 · PORTAL + POWER": the cards are alternative spots for one base, numbered in ranking order.</summary>
+    public string Title => OptionNumber > 0 ? $"OPTION {OptionNumber} · {Cluster.Title}" : Cluster.Title;
+
+    /// <summary>The card's place in the ranking (1 = best), set when the list loads.</summary>
+    public int OptionNumber { get; set; }
+
+    /// <summary>Another card on this page already has the Save Beacon: one base, one beacon, so this one can't add its own
+    /// until that one is removed (owner request 2026-11-17).</summary>
+    public bool BlockedByOther
+    {
+        get => _blockedByOther;
+        set { if (_blockedByOther != value) { _blockedByOther = value; Refresh(); } }
+    }
+    private bool _blockedByOther;
     public HotspotComboType ComboType => Cluster.ComboType;
     public IReadOnlyList<PlanetHotspotItemViewModel> Hotspots { get; }
 
@@ -124,11 +137,12 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
         bool unsaved = SaveBeaconService.IsUnsaved(Cluster.PlanetAddress, Cluster.BaseLocalPosition);
 
         IsMarked = marked;
-        CanAddMarker = !marked && SaveBeaconService.CanAdd;
+        CanAddMarker = !marked && !BlockedByOther && SaveBeaconService.CanAdd;
         CanUndoMarker = marked;
         CanRemoveMarker = SaveBeaconService.CanRemove;
         RemoveButtonText = unsaved ? "Undo" : "Remove";
         AddMarkerText = marked ? (MarksPortal ? "Beacon placed, portal marked ✓" : "Save Beacon placed ✓")
+            : BlockedByOther ? "Another option has the beacon"
             : MarksPortal ? "Place Save Beacon and mark the portal" : "Place Save Beacon at site";
 
         MarkerStatus = unsaved
@@ -138,6 +152,7 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
             : marked && GameProcessMonitorService.IsGameRunning
                 ? "Save Beacon placed in save. Close No Man's Sky to remove."
             : marked ? "Save Beacon placed in save. Click Remove to take it out."
+            : BlockedByOther ? "Another option on this page has the Save Beacon. These are different spots for the same base - remove that beacon first to use this spot instead."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to place a Save Beacon."
             : MarksPortal ? "Places a Save Beacon where the base computer goes and marks the portal. Use your visor to find the hotspots from there."
             : "Places an in-game Save Beacon at the optimal Base Computer location.";
@@ -173,6 +188,7 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
         if (_addedPortalMarker && _portal is { } portal && ScanMarkerService.IsUnsaved(portal.Key)) ScanMarkerService.Remove(portal.Key);
         _addedPortalMarker = false;
         Refresh();
+        _onPinnedChanged?.Invoke(this); // the page re-checks which card holds the beacon
     }
 
     private static string Distance(double metres) => metres < 1000 ? $"{Math.Round(metres)}u" : $"{metres / 1000.0:F1} km";

@@ -6,7 +6,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ### Added
 - Planetary Hotspots: a new "Near Portal" view lists base computer spots whose base reaches the portal and the hotspots around it, power first, so you can build at the portal without a field of solar panels. Its button places a Save Beacon where the base computer goes and marks the portal; your visor finds the hotspots from there. When no hotspot is close enough for one base, it names the nearest power hotspot and how far it is from the portal. Update your game data once to get this.
-- Planetary Hotspots: Near Portal and Base Combo cards are now a table: each hotspot with its yield, its distance from the base computer and from the portal; below it the base computer spot with its coordinates and distance from the portal, and how much room the base has to spare (green, or yellow when tight). Bright text throughout instead of grey.
+- Planetary Hotspots: Near Portal and Base Combo cards are now a table: each hotspot with its yield, its distance from the base computer and from the portal; below it the base computer spot with its coordinates and distance from the portal, and how much room the base has to spare (green, or yellow when tight). Bright text throughout instead of grey. The cards are numbered options for the same base, and only one can have the Save Beacon: the others turn off until you remove it.
 
 ### Fixed
 - Planetary Hotspots: Base Combo cards said a base reached its hotspots "within 0u", and hotspots closer than about 350u showed wrong distances. Combos now use the game's own base size (300u from the base computer) instead of 375u, so a few pairs that can't share one base no longer show.

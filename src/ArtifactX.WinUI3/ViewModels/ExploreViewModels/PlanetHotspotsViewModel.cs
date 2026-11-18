@@ -99,8 +99,18 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
         ApplyFiltersAndSorting();
     }
 
+    /// <summary>One base, one Save Beacon: when any card on the page has the beacon, every other card's button is off.</summary>
+    private void UpdateBeaconLocks()
+    {
+        var cards = _allClusters.Concat(_allPortalSites).ToList();
+        foreach (var card in cards) card.Refresh();
+        bool any = cards.Any(c => c.IsMarked);
+        foreach (var card in cards) card.BlockedByOther = any && !card.IsMarked;
+    }
+
     private void OnClusterPinnedChanged(PlanetHotspotClusterItemViewModel item)
     {
+        UpdateBeaconLocks();
         if (item.IsPinned)
             _pinnedClusterKeys.Add(item.Cluster.ClusterKey);
         else
@@ -218,6 +228,9 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
                 {
                     IsPinned = _pinnedClusterKeys.Contains(c.ClusterKey)
                 });
+            for (int n = 0; n < _allClusters.Count; n++) _allClusters[n].OptionNumber = n + 1;
+            for (int n = 0; n < _allPortalSites.Count; n++) _allPortalSites[n].OptionNumber = n + 1;
+            UpdateBeaconLocks();
             int portalCount = _allPortalSites.Count;
             int portalPowerCount = _allPortalSites.Count(c => c.Hotspots.Any(h => h.Kind == "Power"));
 
@@ -236,13 +249,13 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
             TotalCountLabel = $"{allCount} hotspots detected within survey range.";
             _clusterLabel = clusterCount > 0
-                ? $"{clusterCount} multi-hotspot base clusters found within single Base Computer boundary radius (≤ {data.BaseReach:0}u)."
-                : $"No multi-hotspot clusters within {data.BaseReach:0}u base radius found in this area.";
-            _portalLabel = portalPowerCount > 0
-                ? $"{portalCount} base spots reach the portal and at least one hotspot ({portalPowerCount} with power) - a base reaches {data.BaseReach:0}u from its computer. Power comes first."
-                : portalCount > 0
-                    ? $"{portalCount} base spots reach the portal and at least one hotspot - a base reaches {data.BaseReach:0}u from its computer."
-                    : data.PortalNote ?? "No portal is predicted on this planet, so there are no base spots near it.";
+                ? $"{clusterCount} options for where to put one base that reaches 2 or 3 hotspots (a base reaches {data.BaseReach:0}u from its computer). "
+                  + "Each card is a different spot - pick one; it gets the Save Beacon."
+                : $"No two hotspots here are close enough to share one base (a base reaches {data.BaseReach:0}u from its computer).";
+            _portalLabel = portalCount > 0
+                ? $"{portalCount} options for where to put one base near the portal{(portalPowerCount > 0 ? $" ({portalPowerCount} with power, shown first)" : "")}. "
+                  + $"Each card is a different spot in the same area - pick one; it gets the Save Beacon. A base reaches {data.BaseReach:0}u from its computer."
+                : data.PortalNote ?? "No portal is predicted on this planet, so there are no base spots near it.";
 
             HasHotspots = allCount > 0;
             HasClusters = clusterCount > 0;
@@ -353,9 +366,6 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
         {
             item.Refresh();
         }
-        foreach (var cluster in _allClusters.Concat(_allPortalSites))
-        {
-            cluster.Refresh();
-        }
+        UpdateBeaconLocks();
     }
 }
