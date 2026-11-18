@@ -1,3 +1,5 @@
+using System.Text.Json;
+using ArtifactX.Core.Recipes;
 using ArtifactX.Core.Universe;
 using Microsoft.Data.Sqlite;
 
@@ -5,7 +7,8 @@ namespace ArtifactX.GameData.Services;
 
 /// <summary>
 /// Writes the mobile app's rules file (<see cref="GameRules"/>) from a catalog built from the player's install: every
-/// "PlanetGeneration" row as the catalog stores it, and the products' and substances' names. Numbers and text only -
+/// "PlanetGeneration" row as the catalog stores it, the Egg Sequencer row, every recipe, and the products' and
+/// substances' names and base values. Numbers and text only -
 /// no icons or other assets (docs/AGENT_HANDOFF_NOTES.md "Mobile app constraints"). Build-stamped and kept out of git,
 /// like the portal glyph model; rebuilt each NMS update.
 /// </summary>
@@ -45,6 +48,39 @@ public static class MobileRulesExportService
             while (reader.Read()) names.TryAdd(reader.GetString(0), reader.GetString(1));
         }
 
+        // The Egg Sequencer's rules row, as the desktop reads it (CatalogService.GetEggSequencerRulesAsync).
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'EGGSEQUENCER'";
+            if (command.ExecuteScalar() is string json) rows["EGGSEQUENCER"] = json;
+        }
+
+        // Recipes and item values, read as the desktop reads them (CatalogService.GetRecipesAsync / GetItemValuesAsync).
+        var recipes = new List<RequirementRecipe>();
+        var values = new Dictionary<string, ItemBaseValue>(StringComparer.OrdinalIgnoreCase);
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT c.TemplateType, i.GameId, i.UsageCategory, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                WHERE c.TemplateType IN ('Recipes', 'ItemValues') AND i.DescriptionEnglish IS NOT NULL ORDER BY i.Id
+                """;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                using var json = JsonDocument.Parse(reader.GetString(3));
+                var root = json.RootElement;
+                if (reader.GetString(0) == "Recipes")
+                {
+                    static RequirementIngredient Pair(JsonElement e) => new(e[0].GetString() ?? "", e[1].GetInt32());
+                    var result = Pair(root.GetProperty("result"));
+                    recipes.Add(new RequirementRecipe(reader.GetString(1), reader.IsDBNull(2) ? "" : reader.GetString(2), result.Id,
+                        result.Amount, root.GetProperty("ingredients").EnumerateArray().Select(Pair).ToArray()));
+                }
+                else if (root.GetProperty("kind").GetString() is "Product" or "Substance" && root.GetProperty("id").GetString() is { Length: > 0 } id)
+                    values[id] = new ItemBaseValue(root.GetProperty("value").GetInt64(), root.GetProperty("kind").GetString() == "Substance");
+            }
+        }
+
         if (rows.Count == 0) throw new InvalidDataException("The catalog has no generation tables. Update the game data first.");
         return new GameRules
         {
@@ -54,6 +90,8 @@ public static class MobileRulesExportService
             ExportedUtc = DateTime.UtcNow,
             Rows = rows,
             ItemNames = names,
+            Recipes = recipes,
+            ItemValues = values,
         };
     }
 

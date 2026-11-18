@@ -2,20 +2,138 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
+    xmlns:core="clr-namespace:ArtifactX.Core.Companions;assembly=ArtifactX.Core"
     x:Class="ArtifactX.Maui.Views.ExplorePages.EggSequencerPage"
+    x:DataType="vm:EggSequencerViewModel"
     Shell.NavBarIsVisible="False"
     Background="{DynamicResource ThemePageBackdropBrush}"
     xmlns:controls="clr-namespace:ArtifactX.Maui.Controls">
     <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
     <Grid RowDefinitions="Auto,*">
         <controls:GalaxyBar />
-        <VerticalStackLayout Grid.Row="1" Padding="20,24" Spacing="14">
-            <Label
-                Text="Egg Sequencer"
-                Style="{StaticResource ThemePageTitleStyle}" />
-            <Label
-                Text="Pick your companion and what you'll put in the sequencer to see what the egg changes."
-                Style="{StaticResource ThemeDimTextStyle}" />
-        </VerticalStackLayout>
+        <ScrollView x:Name="Scroller" Grid.Row="1">
+            <VerticalStackLayout Padding="20,20,20,28" Spacing="14" MaximumWidthRequest="720" HorizontalOptions="Fill">
+                <Label Text="Egg Sequencer" Style="{StaticResource ThemePageTitleStyle}" />
+                <Label Text="Pick a slot, then the item you'll put in it, to see what the egg changes. Without your save the results are for any egg."
+                       Style="{StaticResource ThemeDimTextStyle}" />
+                <Label Text="{Binding Message}" IsVisible="{Binding IsNotReady}" Style="{StaticResource ThemeBodyTextStyle}" />
+
+                <VerticalStackLayout IsVisible="{Binding IsReady}" Spacing="14">
+                    <!-- The four catalyst slots, in the game's order; the selected one is outlined. -->
+                    <Label Text="CATALYSTS" Style="{StaticResource ThemeEyebrowStyle}" />
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Slots}" Spacing="8">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EggSlotItemViewModel">
+                                <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12,10" StrokeThickness="1"
+                                        Stroke="{DynamicResource ThemeLineColor}"
+                                        SemanticProperties.Description="{Binding AccessibleName}" SemanticProperties.Hint="Choose this slot">
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                            <Setter Property="Stroke" Value="{DynamicResource ThemeAccentColor}" />
+                                            <Setter Property="StrokeThickness" Value="2" />
+                                            <Setter Property="BackgroundColor" Value="{DynamicResource ThemeSelectedFillColor}" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:EggSequencerViewModel}}, Path=SelectSlotCommand}"
+                                                              CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                        <VerticalStackLayout Spacing="2">
+                                            <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="16" TextColor="{DynamicResource ThemeTextColor}" />
+                                            <Label Text="{Binding ItemLine}" FontSize="14" TextColor="{DynamicResource ThemeTextDimColor}" />
+                                        </VerticalStackLayout>
+                                        <Label Grid.Column="1" Text="{Binding DoseText}" IsVisible="{Binding HasItem}" VerticalOptions="Center"
+                                               FontSize="14" FontAttributes="Bold" TextColor="{DynamicResource ThemeDoneColor}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsOverdosed}" Value="True">
+                                                    <Setter Property="TextColor" Value="{DynamicResource ThemeWarningColor}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+
+                    <!-- The selected slot: what is in it and what happens. -->
+                    <ContentView BindingContext="{Binding SelectedSlot}">
+                    <Border Style="{StaticResource ThemeCardStyle}" Padding="14" x:DataType="vm:EggSlotItemViewModel">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="{Binding Name}" Style="{StaticResource ThemeCardTitleStyle}" />
+                            <Label Text="{Binding Subtitle}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
+                            <Label Text="{Binding ItemLine}" FontSize="16" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" />
+                            <Grid IsVisible="{Binding HasItem}" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                                <Button Text="−" Command="{Binding DecreaseCommand}" FontSize="20" Padding="0" WidthRequest="48"
+                                        SemanticProperties.Description="{Binding Name, StringFormat='One fewer in the {0}'}"
+                                        TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                                <Entry Grid.Column="1" Text="{Binding CountEntry}" Keyboard="Numeric" FontSize="18" HorizontalTextAlignment="Center"
+                                       TextColor="{DynamicResource ThemeTextColor}"
+                                       SemanticProperties.Description="{Binding Name, StringFormat='How many go in the {0}'}" />
+                                <Button Grid.Column="2" Text="+" Command="{Binding IncreaseCommand}" FontSize="20" Padding="0" WidthRequest="48"
+                                        SemanticProperties.Description="{Binding Name, StringFormat='One more in the {0}'}"
+                                        TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                                <Button Grid.Column="3" Text="Remove" Command="{Binding ClearCommand}"
+                                        SemanticProperties.Description="{Binding Name, StringFormat='Empty the {0}'}"
+                                        TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                            </Grid>
+                            <Label Text="{Binding DoseText}" FontSize="16" FontAttributes="Bold" TextColor="{DynamicResource ThemeDoneColor}">
+                                <Label.Triggers>
+                                    <DataTrigger TargetType="Label" Binding="{Binding IsOverdosed}" Value="True">
+                                        <Setter Property="TextColor" Value="{DynamicResource ThemeWarningColor}" />
+                                    </DataTrigger>
+                                </Label.Triggers>
+                            </Label>
+                            <Label Text="{Binding StatusLine}" FontSize="15" TextColor="{DynamicResource ThemeAccentColor}" />
+                            <Label Text="{Binding Explanation}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="15" />
+                        </VerticalStackLayout>
+                    </Border>
+                    </ContentView>
+                    <Label Text="{Binding DoseNote}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
+
+                    <!-- The items the selected slot takes. -->
+                    <Label Text="{Binding ListHeading}" Style="{StaticResource ThemeEyebrowStyle}" Margin="0,6,0,0" />
+                    <Picker ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter}" Title="What it does"
+                            ItemDisplayBinding="{Binding Label, x:DataType='core:EggCatalystFilter'}"
+                            TextColor="{DynamicResource ThemeTextColor}" SemanticProperties.Description="Show items by what they do" />
+                    <Entry Text="{Binding Search}" Placeholder="Search items" ClearButtonVisibility="WhileEditing"
+                           TextColor="{DynamicResource ThemeTextColor}" PlaceholderColor="{DynamicResource ThemeTextDimColor}"
+                           SemanticProperties.Description="Search items by name" />
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
+                        <CheckBox IsChecked="{Binding OnlyFullEffect}" Color="{DynamicResource ThemeAccentColor}"
+                                  SemanticProperties.Description="Only items that give the full effect" />
+                        <Label Grid.Column="1" Text="Only items that give the full effect" VerticalOptions="Center" Style="{StaticResource ThemeBodyTextStyle}">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnlyFullEffect_Tapped" />
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </Grid>
+                    <Label Text="{Binding Message}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Items}" Spacing="8">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EggCatalystItemViewModel">
+                                <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12,10"
+                                        SemanticProperties.Description="{Binding AccessibleName}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:EggSequencerViewModel}}, Path=PickCommand}"
+                                                              CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="15" TextColor="{DynamicResource ThemeTextColor}" />
+                                        <Label Text="{Binding EffectText}" FontSize="14" TextColor="{DynamicResource ThemeAccentColor}" />
+                                        <Label Text="{Binding AmountText}" FontSize="13" TextColor="{DynamicResource ThemeTextDimColor}" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                    <Button Text="{Binding MoreLabel}" Command="{Binding ShowMoreCommand}" IsVisible="{Binding HasMore}" HorizontalOptions="Start"
+                            BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1"
+                            TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </ScrollView>
     </Grid>
 </ContentPage>

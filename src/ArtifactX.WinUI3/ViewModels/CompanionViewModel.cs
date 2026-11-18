@@ -267,7 +267,7 @@ public sealed partial class CompanionViewModel : ObservableObject
     /// without game data.</summary>
     private static string? TraitWord(int index, double value) =>
         index is < 0 or > 2 || _traitWords is null ? null
-        : _traitWords.GetValueOrDefault((value < 0 ? EggCatalystRowViewModel.NegativeKeys : EggCatalystRowViewModel.PositiveKeys)[index]) is { Length: > 0 } word
+        : _traitWords.GetValueOrDefault((value < 0 ? EggSequencerText.NegativeKeys : EggSequencerText.PositiveKeys)[index]) is { Length: > 0 } word
             ? word : null;
 
     /// <summary>A trait is shown 0-100 under its word (TraitWord); the stored value's sign picks the word, so it's

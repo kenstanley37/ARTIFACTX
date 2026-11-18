@@ -40,6 +40,8 @@ public static class MauiProgram
         builder.Services.AddTransient<Views.ExplorePages.PortalGlyphsPage>();
         builder.Services.AddTransient<ViewModels.SystemFromGlyphsViewModel>();
         builder.Services.AddTransient<Views.ExplorePages.SystemDetailsPage>();
+        builder.Services.AddTransient<ViewModels.RecipeDetailsViewModel>();
+        builder.Services.AddTransient<Views.ReferencePages.RecipeDetailsPage>();
         return builder.Build();
     }
 }
