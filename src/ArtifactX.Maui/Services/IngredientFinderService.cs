@@ -10,8 +10,8 @@ public sealed record FindableItem(string Id, string Name)
 
 /// <summary>
 /// The phone's Ingredient Finder: the systems nearest a start whose planets give a wild ingredient, creature produce
-/// or fish - Core IngredientSearch, the desktop's search, on the rules file. Without the desktop's creature names
-/// and in-region star positions, creatures read "feed its creatures" and nearby systems "This region".
+/// or fish - Core IngredientSearch, the desktop's search, on the rules file, with the creatures' species names and
+/// galaxy-map light-years inside the start's region, as the desktop.
 /// </summary>
 public static class IngredientFinderService
 {
@@ -44,7 +44,11 @@ public static class IngredientFinderService
         var roots = rules.Words("CRE");
         Func<PredictedCreature, ulong, string?>? names = roots is null ? null
             : (creature, planetAddress) => ArtifactX.Core.Procedural.SpeciesNames.Predicted(creature, planetAddress, roots);
-        return await Task.Run(() => IngredientSearch.Find(start, itemId, settings, biomes, tables,
-            rules.Fish.GetValueOrDefault(itemId), hunt, names, null, cancel), cancel);
+        return await Task.Run(() =>
+        {
+            // The start region's stars, for galaxy-map light-years to the systems in it (as the desktop).
+            var stars = rules.GalaxyPlacement is { } placement ? RegionStarPositions.ForSystem(start, settings, placement) : null;
+            return IngredientSearch.Find(start, itemId, settings, biomes, tables, rules.Fish.GetValueOrDefault(itemId), hunt, names, stars, cancel);
+        }, cancel);
     }
 }

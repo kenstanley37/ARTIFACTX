@@ -34,6 +34,8 @@ public sealed partial class FinderViewModel : ObservableObject
     private (ulong Start, int Radius)? _searchedFor;
     private CancellationTokenSource? _cancel;
     private ulong _start;
+    /// <summary>The start region's stars (RegionStarPositions), for galaxy-map light-years inside it; null when unknown.</summary>
+    private IReadOnlyList<RegionStar>? _stars;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIngredients), nameof(Title), nameof(Intro))]
@@ -207,6 +209,9 @@ public sealed partial class FinderViewModel : ObservableObject
             }
             _found = found;
             _searchedFor = (_start, radius);
+            ulong from = _start;
+            _stars = await GameRulesService.GetAsync() is { GalaxySettings: { } settings, GalaxyPlacement: { } placement }
+                ? await Task.Run(() => RegionStarPositions.ForSystem(from, settings, placement)) : null;
             string keep = Kind?.Value ?? "";
             Kinds = [new("Any kind", ""), .. found.GroupBy(f => f.Kind).OrderBy(g => g.Key, StringComparer.CurrentCulture)
                 .Select(g => new FinderChoice(g.Key, g.Key))];
@@ -225,7 +230,7 @@ public sealed partial class FinderViewModel : ObservableObject
         var shown = _found.Where(f => f.ClassIndex >= minClass && (kind.Length == 0 || f.Kind == kind))
             // The same tool in the same cabinet once (two cabinets can draw the same pool member).
             .GroupBy(f => (f.SystemAddress, f.ReloadBody, f.Cabinet, f.Tool.Seed)).Select(g => g.First())
-            .Select(f => (Find: f, Ly: NmsPlanets.DistanceLightYears(_start, f.SystemAddress)))
+            .Select(f => (Find: f, Ly: LightYears(f.SystemAddress)))
             .OrderByDescending(x => x.Find.ClassIndex).ThenBy(x => x.Ly).ThenBy(x => x.Find.ReloadBody)
             .ToList();
         Results = shown.Take(MaxRows).Select(x => Row(x.Find, x.Find.SystemAddress == _start ? null : x.Ly)).ToArray();
@@ -234,12 +239,25 @@ public sealed partial class FinderViewModel : ObservableObject
             : $"{shown.Count:N0} offers. Tap one to open its system.";
     }
 
+    /// <summary>Light-years from the start: the galaxy map's inside its region (the stars' own positions, checked on
+    /// the map 2026-10-27), else between regions (NmsPlanets.DistanceLightYears).</summary>
+    private double? LightYears(ulong system)
+    {
+        if (RegionStarGeneration.RegionKey(system) == RegionStarGeneration.RegionKey(_start) && _stars is { } stars)
+        {
+            int here = (int)((_start >> 40) & 0xFFF), there = (int)((system >> 40) & 0xFFF);
+            if (stars.FirstOrDefault(s => s.System == here) is { System: > 0 } a && stars.FirstOrDefault(s => s.System == there) is { System: > 0 } b)
+                return RegionStarPositions.LightYears(a, b);
+        }
+        return NmsPlanets.DistanceLightYears(_start, system);
+    }
+
     private static FinderRowViewModel Row(CabinetMultiToolFind f, double? ly)
     {
         var (portal, galaxy) = SystemProfiles.PortalOf(f.SystemAddress);
         string letter = f.ClassIndex switch { 3 => "S", 2 => "A", 1 => "B", _ => "C" };
         string system = SystemGenerator.SystemName(portal, galaxy);
-        // Distances are between regions (NmsPlanets.DistanceLightYears), so the start's own region reads 0.
+        // Systems whose star isn't placed (spiral regions, the centre) fall back to between-region distance: 0 inside.
         string distance = ly is not double d ? "the start system" : d < 1 ? "in the same region" : $"{d:N0} ly away";
         string load = f.ReloadBody == 0 ? "Load at the space station (or just warp in)"
             : $"Load on {SystemGenerator.PlanetName(portal | ((ulong)f.ReloadBody << 44), galaxy)} (body {f.ReloadBody})";

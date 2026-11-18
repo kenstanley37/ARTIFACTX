@@ -37,8 +37,7 @@ public static class RegionSystemsService
         if (StarCache.TryGetValue(key, out var cached)) return cached;
         if (await CatalogService.GetGalaxyGenerationSettingsAsync() is not { } settings
             || await CatalogService.GetGalaxyPlacementSettingsAsync() is not { } placement) return null;
-        var stars = await Task.Run(() => RegionStarPositions.Stars((int)((key >> 32) & 0xFF), (int)(key & 0xFFF),
-            (int)((key >> 24) & 0xFF), (int)((key >> 12) & 0xFFF), settings, placement));
+        var stars = await Task.Run(() => RegionStarPositions.ForSystem(systemAddress, settings, placement));
         StarCache[key] = stars;
         return stars;
     }
