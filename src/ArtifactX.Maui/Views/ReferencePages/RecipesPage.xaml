@@ -51,12 +51,9 @@
                         MaximumWidthRequest="720" HorizontalOptions="Fill" Margin="20,0,20,0">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="vm:RecipeRowViewModel">
-                    <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12,10" Margin="0,0,0,8"
-                            SemanticProperties.Description="{Binding AccessibleName}">
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:RecipesViewModel}}, Path=OpenCommand}"
-                                                  CommandParameter="{Binding .}" />
-                        </Border.GestureRecognizers>
+                    <controls:TapCard Margin="0,0,0,8" AccessibleName="{Binding AccessibleName}" CommandParameter="{Binding .}"
+                                      Command="{Binding Source={RelativeSource AncestorType={x:Type vm:RecipesViewModel}}, Path=OpenCommand}">
+                    <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12,10">
                         <VerticalStackLayout Spacing="3">
                             <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="16" TextColor="{DynamicResource ThemeTextColor}" />
                             <Label Text="{Binding Formula}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}" />
@@ -64,6 +61,7 @@
                             <Label Text="{Binding StationLine}" FontSize="13" TextColor="{DynamicResource ThemeTextDimColor}" />
                         </VerticalStackLayout>
                     </Border>
+                    </controls:TapCard>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>

@@ -25,9 +25,10 @@
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding Slots}" Spacing="8">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:EggSlotItemViewModel">
+                                <controls:TapCard AccessibleName="{Binding AccessibleName}" AccessibleHint="Choose this slot" CommandParameter="{Binding .}"
+                                                  Command="{Binding Source={RelativeSource AncestorType={x:Type vm:EggSequencerViewModel}}, Path=SelectSlotCommand}">
                                 <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12,10" StrokeThickness="1"
-                                        Stroke="{DynamicResource ThemeLineColor}"
-                                        SemanticProperties.Description="{Binding AccessibleName}" SemanticProperties.Hint="Choose this slot">
+                                        Stroke="{DynamicResource ThemeLineColor}">
                                     <Border.Triggers>
                                         <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
                                             <Setter Property="Stroke" Value="{DynamicResource ThemeAccentColor}" />
@@ -35,10 +36,6 @@
                                             <Setter Property="BackgroundColor" Value="{DynamicResource ThemeSelectedFillColor}" />
                                         </DataTrigger>
                                     </Border.Triggers>
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:EggSequencerViewModel}}, Path=SelectSlotCommand}"
-                                                              CommandParameter="{Binding .}" />
-                                    </Border.GestureRecognizers>
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                         <VerticalStackLayout Spacing="2">
                                             <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="16" TextColor="{DynamicResource ThemeTextColor}" />
@@ -54,6 +51,7 @@
                                         </Label>
                                     </Grid>
                                 </Border>
+                                </controls:TapCard>
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>
                     </VerticalStackLayout>
@@ -114,18 +112,16 @@
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding Items}" Spacing="8">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:EggCatalystItemViewModel">
-                                <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12,10"
-                                        SemanticProperties.Description="{Binding AccessibleName}">
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:EggSequencerViewModel}}, Path=PickCommand}"
-                                                              CommandParameter="{Binding .}" />
-                                    </Border.GestureRecognizers>
+                                <controls:TapCard AccessibleName="{Binding AccessibleName}" CommandParameter="{Binding .}"
+                                                  Command="{Binding Source={RelativeSource AncestorType={x:Type vm:EggSequencerViewModel}}, Path=PickCommand}">
+                                <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12,10">
                                     <VerticalStackLayout Spacing="2">
                                         <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="15" TextColor="{DynamicResource ThemeTextColor}" />
                                         <Label Text="{Binding EffectText}" FontSize="14" TextColor="{DynamicResource ThemeAccentColor}" />
                                         <Label Text="{Binding AmountText}" FontSize="13" TextColor="{DynamicResource ThemeTextDimColor}" />
                                     </VerticalStackLayout>
                                 </Border>
+                                </controls:TapCard>
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>
                     </VerticalStackLayout>
