@@ -79,7 +79,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="MULTI-TOOL" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
                     <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Multi-Tool Changes" Click="PageResetBtn_Click"
-                            Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+                            Visibility="{x:Bind ViewModel.HasPageEdits, Mode=OneWay}" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
                 </Grid>
 
                 <StackPanel x:Name="MainColumn" Grid.Row="1" Grid.Column="0" Spacing="22">
@@ -92,7 +92,7 @@
                                  this strip is bounded and scrolls internally instead of growing the page. -->
                             <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                                <controls:EquipmentStrip x:Name="ToolStrip" ChipClicked="ToolStrip_ChipClicked"/>
+                                <controls:EquipmentStrip x:Name="ToolStrip" Items="{x:Bind ViewModel.Chips, Mode=OneWay}" ChipClicked="ToolStrip_ChipClicked"/>
                             </ScrollViewer>
                         </StackPanel>
                     </Border>
@@ -102,7 +102,7 @@
                          (WEAPON_DAMAGE/WEAPON_MINING/WEAPON_SCAN) in one wrapping row, then
                          Name (NKm), class badge and Type. -->
                     <Border x:Name="ToolInfoBorder" Style="{StaticResource ThemeCardStyle}">
-                        <controls:FoldingCard x:Name="DetailsCard" Title="MULTI-TOOL DETAILS" SettingKey="MultiToolDetailsCollapsed">
+                        <controls:FoldingCard x:Name="DetailsCard" Title="MULTI-TOOL DETAILS" SettingKey="MultiToolDetailsCollapsed" FoldedName="{x:Bind ViewModel.FoldedName, Mode=OneWay}">
                             <StackPanel Padding="18,14,18,18">
                                 <!-- Stats, name and type on the left, the 3D preview beside them; it
                                      wraps below on narrow windows - same as Starships (2026-10-16). -->
@@ -112,13 +112,15 @@
                                         <ctcontrols:WrapPanel HorizontalSpacing="32" VerticalSpacing="16">
                                             <StackPanel Width="280" Spacing="6">
                                                 <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" LostFocus="NameEditBox_LostFocus"/>
-                                                <HyperlinkButton x:Name="NameUpdateLink" Content="Update game data now" Padding="0" Visibility="Collapsed" Click="NameUpdateLink_Click"/>
+                                                <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" LostFocus="NameEditBox_LostFocus"
+                                                         Text="{x:Bind ViewModel.Name, Mode=OneWay}" PlaceholderText="{x:Bind ViewModel.NamePlaceholder, Mode=OneWay}"/>
+                                                <HyperlinkButton x:Name="NameUpdateLink" Content="Update game data now" Padding="0" Visibility="{x:Bind ViewModel.ShowNameUpdateLink, Mode=OneWay}" Click="NameUpdateLink_Click"/>
                                             </StackPanel>
                                             <StackPanel Spacing="6">
                                                 <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                <Border x:Name="SelectedToolClassBadge" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,3" HorizontalAlignment="Left">
-                                                    <TextBlock x:Name="SelectedToolClassTxt" Text="—" FontWeight="Bold" FontSize="14"
+                                                <Border x:Name="SelectedToolClassBadge" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,3" HorizontalAlignment="Left"
+                                                        Background="{x:Bind ViewModel.ClassBadgeBrush, Mode=OneWay}">
+                                                    <TextBlock x:Name="SelectedToolClassTxt" Text="{x:Bind ViewModel.ClassBadgeText, Mode=OneWay}" FontWeight="Bold" FontSize="14"
                                                                FontFamily="{ThemeResource ThemeDisplayFont}"/>
                                                 </Border>
                                             </StackPanel>
@@ -126,9 +128,11 @@
                                                 <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
                                                 <ComboBox x:Name="TypeComboBox" AutomationProperties.Name="Type" HorizontalAlignment="Stretch"
                                                           DisplayMemberPath="DisplayName"
-                                                          SelectionChanged="TypeComboBox_SelectionChanged"/>
+                                                          ItemsSource="{x:Bind ViewModel.TypeOptions, Mode=OneWay}"
+                                                          SelectedItem="{x:Bind ViewModel.SelectedType, Mode=TwoWay}"/>
                                                 <!-- The main model's kind comes from the seed (MultiToolKinds). -->
-                                                <TextBlock x:Name="KindTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"/>
+                                                <TextBlock x:Name="KindTxt" Text="Set by the tool's seed" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
+                                                           Visibility="{x:Bind ViewModel.ShowKindNote, Mode=OneWay}"/>
                                             </StackPanel>
                                         </ctcontrols:WrapPanel>
                                         <!-- Base stats under who it is (user, 2026-10-22 - they were first). -->
@@ -155,14 +159,15 @@
                     <controls:InventoryLayout x:Name="TechLayout" ListTitle="MULTI-TOOL TECHNOLOGY">
                         <controls:InventoryLayout.Inventories>
                             <StackPanel Spacing="22">
-                                <controls:InventoryCard x:Name="TechCard" Title="TECHNOLOGY" Kind="Technology" Edited="Inventory_Edited">
+                                <controls:InventoryCard x:Name="TechCard" Title="{x:Bind ViewModel.TechTitle, Mode=OneWay}" Kind="Technology" Edited="Inventory_Edited">
                                     <controls:InventoryCard.ExtraActions>
                                         <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
                                     </controls:InventoryCard.ExtraActions>
                                     <controls:InventoryCard.AboveSlots>
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}" VerticalAlignment="Center"/>
-                                            <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"/>
+                                            <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"
+                                                                  SelectedClass="{x:Bind ViewModel.ClassLetter, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasClass, Mode=OneWay}"/>
                                         </StackPanel>
                                     </controls:InventoryCard.AboveSlots>
                                     <controls:InventorySlotGrid x:Name="TechGrid"/>
