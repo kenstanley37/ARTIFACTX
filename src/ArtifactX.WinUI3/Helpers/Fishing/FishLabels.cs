@@ -1,4 +1,3 @@
-using ArtifactX.Core.NmsModels;
 using System;
 using System.Globalization;
 
@@ -34,9 +33,6 @@ public static class FishLabels
         "Night" => "Night only",
         _ => "Day or night",
     };
-
-    public static string Galaxy(int galaxy) =>
-        NmsGalaxyNames.ForNumber(galaxy) is string name ? $"{name} ({galaxy})" : $"Galaxy {galaxy}";
 
     /// <summary>"#RRGGBB" as a colour (NmsPlanets.TypeColour).</summary>
     public static Windows.UI.Color ParseColour(string hex) => Windows.UI.Color.FromArgb(255,

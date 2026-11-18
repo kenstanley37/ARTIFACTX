@@ -33,7 +33,7 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                         ToolTipService.ToolTip="This page follows your game, so Use my current location and the distances stay up to date. It only reads the save.">
                 <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
-                <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                <TextBlock x:Name="LiveStatusTxt" Text="{x:Bind ViewModel.LiveStatus, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
             </StackPanel>
         </Grid>
 
@@ -52,7 +52,7 @@
         </Border>
 
         <!-- Where the player is right now (from the save), so a find can be recorded here. -->
-        <Border Grid.Row="2" x:Name="HerePanel" Visibility="Collapsed" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+        <Border Grid.Row="2" x:Name="HerePanel" Visibility="{x:Bind ViewModel.ShowHere, Mode=OneWay}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                 Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
@@ -62,8 +62,8 @@
                 <FontIcon Glyph="&#xE81D;" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Spacing="2">
                     <TextBlock Text="YOU ARE HERE" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
-                    <TextBlock x:Name="HereSystemTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="HerePlaceTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="HereSystemTxt" Text="{x:Bind ViewModel.HereSystem, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="HerePlaceTxt" Text="{x:Bind ViewModel.HerePlace, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                     <TextBlock x:Name="HereHintTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
                                Text="The game only writes a system's name into the save when you save in your ship in space. Save there once, or type the name in the System name box below."/>
                 </StackPanel>
@@ -76,27 +76,48 @@
                 <Button x:Name="FormToggleBtn" Click="FormToggle_Click" AutomationProperties.Name="{Binding Text, ElementName=FormTitleTxt}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                         Background="Transparent" BorderThickness="0" Padding="18,11">
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <FontIcon x:Name="FormToggleIcon" Glyph="&#xE710;" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                        <TextBlock x:Name="FormTitleTxt" Text="ADD A FIND" Style="{StaticResource ThemeEyebrowStyle}"/>
+                        <FontIcon x:Name="FormToggleIcon" Glyph="{x:Bind ViewModel.Form.ToggleGlyph, Mode=OneWay}" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                        <TextBlock x:Name="FormTitleTxt" Text="{x:Bind ViewModel.Form.FormTitle, Mode=OneWay}" Style="{StaticResource ThemeEyebrowStyle}"/>
                     </StackPanel>
                 </Button>
 
-                <StackPanel x:Name="FormPanel" Visibility="Collapsed" Padding="18,4,18,18" Spacing="12">
+                <StackPanel x:Name="FormPanel" Visibility="{x:Bind ViewModel.Form.IsOpen, Mode=OneWay}" Padding="18,4,18,18" Spacing="12">
                     <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
-                        <ComboBox x:Name="FormTypeBox" Header="Type" Width="200" SelectionChanged="FormType_Changed"/>
-                        <TextBox x:Name="FormTitleBox" Header="Title" Width="340" PlaceholderText="e.g. Red S-class Exotic at the station"/>
-                        <ComboBox x:Name="FormClassBox" Header="Class" Width="110"/>
-                        <ComboBox x:Name="FormSubtypeBox" Header="Kind" Width="220"/>
-                        <TextBox x:Name="FormLocationBox" Header="Where to find it" Width="300"
+                        <ComboBox x:Name="FormTypeBox" Header="Type" Width="200"
+                                  ItemsSource="{x:Bind ViewModel.Form.Types}" SelectedItem="{x:Bind ViewModel.Form.SelectedType, Mode=TwoWay}"/>
+                        <TextBox x:Name="FormTitleBox" Header="Title" Width="340" Text="{x:Bind ViewModel.Form.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="e.g. Red S-class Exotic at the station"/>
+                        <ComboBox x:Name="FormClassBox" Header="Class" Width="110" DisplayMemberPath="Label" Visibility="{x:Bind ViewModel.Form.ShowClass, Mode=OneWay}"
+                                  ItemsSource="{x:Bind ViewModel.Form.ClassOptions}" SelectedItem="{x:Bind ViewModel.Form.SelectedClass, Mode=TwoWay}"/>
+                        <ComboBox x:Name="FormSubtypeBox" Header="Kind" Width="220" Visibility="{x:Bind ViewModel.Form.ShowKinds, Mode=OneWay}"
+                                  ItemsSource="{x:Bind ViewModel.Form.Kinds, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Form.SelectedKind, Mode=TwoWay}"/>
+                        <TextBox x:Name="FormLocationBox" Header="Where to find it" Width="300" Text="{x:Bind ViewModel.Form.Location, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  PlaceholderText="e.g. Space station landing pad, planet 3 crash site"/>
                     </ctcontrols:WrapPanel>
 
                     <!-- Sells items / Fishing spot: pick items (or fish) from the game's own lists. -->
-                    <StackPanel x:Name="FormItemsPanel" Spacing="6" HorizontalAlignment="Left">
-                        <AutoSuggestBox x:Name="FormItemSearch" Header="Items sold here" Width="340" QueryIcon="Add"
-                                        PlaceholderText="Search an item, e.g. Pugneum"
+                    <StackPanel x:Name="FormItemsPanel" Spacing="6" HorizontalAlignment="Left" Visibility="{x:Bind ViewModel.Form.ShowItems, Mode=OneWay}">
+                        <AutoSuggestBox x:Name="FormItemSearch" Header="{x:Bind ViewModel.Form.ItemSearchHeader, Mode=OneWay}" Width="340" QueryIcon="Add"
+                                        PlaceholderText="{x:Bind ViewModel.Form.ItemSearchPlaceholder, Mode=OneWay}"
                                         TextChanged="FormItemSearch_TextChanged" SuggestionChosen="FormItemSearch_SuggestionChosen"/>
-                        <ctcontrols:WrapPanel x:Name="FormItemChips" HorizontalSpacing="6" VerticalSpacing="6"/>
+                        <ItemsControl x:Name="FormItemChips" ItemsSource="{x:Bind ViewModel.Form.Items}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ctcontrols:WrapPanel HorizontalSpacing="6" VerticalSpacing="6"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:FindFormItemChip">
+                                    <Button Padding="6,2,6,2" Tag="{x:Bind Id}" Click="FormItemRemove_Click"
+                                            ToolTipService.ToolTip="Remove" AutomationProperties.Name="{x:Bind RemoveName}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Image Source="{x:Bind Icon, Mode=OneWay}" Width="18" Height="18"/>
+                                            <TextBlock Text="{x:Bind Label}" FontSize="12" VerticalAlignment="Center"/>
+                                            <FontIcon Glyph="&#xE711;" FontSize="10"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
 
                     <!-- Location: current position from the save, or a pasted address. -->
@@ -104,50 +125,53 @@
                         <StackPanel Spacing="4">
                             <TextBlock Text="Portal address" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13"/>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button x:Name="UseHereBtn" Content="Use my current location" Click="UseHere_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
-                                <TextBox x:Name="FormCodeBox" Width="220" PlaceholderText="or paste a code / coordinates" TextChanged="FormCode_TextChanged"/>
+                                <Button x:Name="UseHereBtn" Content="Use my current location" Click="UseHere_Click" IsEnabled="{x:Bind ViewModel.Form.CanUseHere, Mode=OneWay}" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                                <TextBox x:Name="FormCodeBox" Width="220" PlaceholderText="or paste a code / coordinates" AutomationProperties.Name="Portal address"
+                                         Text="{x:Bind ViewModel.Form.Code, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             </StackPanel>
                         </StackPanel>
-                        <ComboBox x:Name="FormGalaxyBox" Header="Galaxy" Width="240" SelectionChanged="FormGalaxy_Changed"/>
-                        <TextBox x:Name="FormSystemNameBox" Header="System name" Width="220" PlaceholderText="As shown in game"
+                        <ComboBox x:Name="FormGalaxyBox" Header="Galaxy" Width="240" DisplayMemberPath="Label"
+                                  ItemsSource="{x:Bind ViewModel.Form.Galaxies}" SelectedItem="{x:Bind ViewModel.Form.SelectedGalaxy, Mode=TwoWay}"/>
+                        <TextBox x:Name="FormSystemNameBox" Header="System name" Width="220" PlaceholderText="{x:Bind ViewModel.Form.SystemNamePlaceholder, Mode=OneWay}"
+                                 Text="{x:Bind ViewModel.Form.SystemName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  ToolTipService.ToolTip="The game only writes the system name into the save when you save in space, so type it here if it's missing. It's shared with the Planets page."/>
                         <StackPanel Spacing="4" VerticalAlignment="Bottom">
-                            <controls:GlyphStrip x:Name="FormGlyphStrip" GlyphSize="24"/>
-                            <TextBlock x:Name="FormCodeStatusTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                            <controls:GlyphStrip x:Name="FormGlyphStrip" GlyphSize="24" Code="{x:Bind ViewModel.Form.GlyphCode, Mode=OneWay}"/>
+                            <TextBlock x:Name="FormCodeStatusTxt" Text="{x:Bind ViewModel.Form.CodeStatus, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
                         </StackPanel>
                     </ctcontrols:WrapPanel>
 
-                    <TextBox x:Name="FormNotesBox" Header="Notes" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" MaxWidth="760" HorizontalAlignment="Left"
+                    <TextBox x:Name="FormNotesBox" Header="Notes" Text="{x:Bind ViewModel.Form.Notes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" MaxWidth="760" HorizontalAlignment="Left"
                              PlaceholderText="Anything worth remembering - price, colours, how many slots..."/>
 
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button x:Name="FormSaveBtn" Content="Save find" Click="FormSave_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                        <Button x:Name="FormSaveBtn" Content="{x:Bind ViewModel.Form.SaveText, Mode=OneWay}" Click="FormSave_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
                         <Button x:Name="FormCancelBtn" Content="Cancel" Click="FormCancel_Click"/>
-                        <TextBlock x:Name="FormErrorTxt" Foreground="{ThemeResource ThemeWarningBrush}" FontSize="13" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="FormErrorTxt" Text="{x:Bind ViewModel.Form.Error, Mode=OneWay}" Foreground="{ThemeResource ThemeWarningBrush}" FontSize="13" VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
         </Border>
 
         <ctcontrols:WrapPanel Grid.Row="4" HorizontalSpacing="14" VerticalSpacing="10">
-            <TextBox x:Name="SearchBox" Header="Search" Width="300" PlaceholderText="Title, item sold, fish, notes, system..." TextChanged="Search_TextChanged"/>
-            <ComboBox x:Name="TypeFilterBox" Header="Type" Width="220" SelectionChanged="Filter_Changed"/>
-            <ComboBox x:Name="ClassFilterBox" Header="Class" Width="140" SelectionChanged="Filter_Changed"/>
-            <ComboBox x:Name="SortBox" Header="Sort" Width="200" SelectionChanged="Filter_Changed">
-                <ComboBoxItem Content="Newest first"/>
-                <ComboBoxItem Content="Nearest to you first"/>
-                <ComboBoxItem Content="Title (A to Z)"/>
-            </ComboBox>
+            <TextBox x:Name="SearchBox" Header="Search" Width="300" PlaceholderText="Title, item sold, fish, notes, system..."
+                     Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            <ComboBox x:Name="TypeFilterBox" Header="Type" Width="220" DisplayMemberPath="Label"
+                      ItemsSource="{x:Bind ViewModel.TypeFilters, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedTypeFilter, Mode=TwoWay}"/>
+            <ComboBox x:Name="ClassFilterBox" Header="Class" Width="140" DisplayMemberPath="Label"
+                      ItemsSource="{x:Bind ViewModel.ClassFilters}" SelectedItem="{x:Bind ViewModel.SelectedClassFilter, Mode=TwoWay}"/>
+            <ComboBox x:Name="SortBox" Header="Sort" Width="200" DisplayMemberPath="Label"
+                      ItemsSource="{x:Bind ViewModel.SortOptions}" SelectedItem="{x:Bind ViewModel.SelectedSort, Mode=TwoWay}"/>
             <controls:HyperdriveRangeBox VerticalAlignment="Bottom"/>
             <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
                     ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
-            <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+            <TextBlock x:Name="CountTxt" Text="{x:Bind ViewModel.CountText, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
 
-        <TextBlock Grid.Row="5" x:Name="EmptyTxt" Style="{StaticResource ThemeDimTextStyle}" Visibility="Collapsed" Margin="0,12,0,0"
+        <TextBlock Grid.Row="5" x:Name="EmptyTxt" Style="{StaticResource ThemeDimTextStyle}" Visibility="{x:Bind ViewModel.ShowEmpty, Mode=OneWay}" Margin="0,12,0,0"
                    Text="No finds yet. Use Add a find above - next time you spot an S-class ship or a trader with something you need, record it here."/>
 
-        <GridView Grid.Row="5" x:Name="FindsList" SelectionMode="None" IsItemClickEnabled="False">
+        <GridView Grid.Row="5" x:Name="FindsList" ItemsSource="{x:Bind ViewModel.Cards, Mode=OneWay}" SelectionMode="None" IsItemClickEnabled="False">
             <GridView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <ItemsWrapGrid Orientation="Horizontal" ItemWidth="340" ItemHeight="270"/>
