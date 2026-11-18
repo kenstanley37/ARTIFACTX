@@ -179,7 +179,7 @@ public static class CrashedShipService
             var types = PlanetGenerator.Generate(code, galaxy, biomes);
             var seeds = SystemGenerator.Bodies(code, galaxy).PlanetSeeds;
             if (index > types.Length || index > seeds.Length
-                || PlanetBuildingSites.Radius(types[index - 1].BodyClass) is not { } radius
+                || PlanetBuildingSites.SurfaceRadius(types[index - 1].BodyClass, types[index - 1].Biome) is not { } radius
                 || PlanetBuildingSites.FactsFor(code, galaxy, index - 1, biomes, profiles) is not { } facts) return null;
             var attributes = SystemGenerator.Attributes(code, galaxy);
             var layout = solar?.ShipPool is null ? null : SolarLayoutGeneration.ForSystem(code, galaxy, solar, true);

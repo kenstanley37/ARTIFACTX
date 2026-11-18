@@ -43,6 +43,11 @@ internal static class GasGiantLayoutChecks
         float miss = Vector3.Distance(portal.Position, PortalMarker);
         if (miss > 1f) throw new InvalidOperationException($"Moon 3 portal is {miss:F2} from the save's portal marker.");
         CheckStation(stations.SolarLayout);
+        // A Giant-size anomaly world (Uwaiimor XIII, body 1 of 0x3EFDAFBFFB004, radius 523264 read from the game) is landable.
+        var giant = PlanetOverridePlacement.ForSystem((0x3EFUL << 32) | 0xFBFFB004, 218, Read<BiomeTables>("BIOMETABLES"),
+            Read<PlanetProfileTables>("PLANETPROFILE"), stations.SolarLayout, Read<BuildingOverrideRule[]>("BUILDINGOVERRIDES"));
+        if (giant[0]?.Any(b => b.Class == 16 && b.Placed) != true)
+            throw new InvalidOperationException("The Giant-size anomaly world has no placed portal.");
         Console.WriteLine($"PASS: purple gas-giant system laid out (4,3,3,3,3,3); moon 3 portal {miss:F2} from the save's marker.");
     }
 

@@ -135,7 +135,9 @@ public static class PlanetHotspotService
             if (index < 0 || index >= types.Length || index >= bodies.PlanetSeeds.Length)
                 return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
 
-            float radius = PlanetBuildingSites.Radius(types[index].BodyClass) ?? 98304f;
+            // No surface (a true gas giant) or an unmeasured size: no hotspots rather than a guessed radius.
+            if (PlanetBuildingSites.SurfaceRadius(types[index].BodyClass, types[index].Biome) is not { } radius)
+                return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
             var system = SystemGenerator.Attributes(portalCode, galaxy);
             var body = types[index];
             var profile = PlanetProfileGenerator.Generate(bodies.PlanetSeeds[index], index, body, (int)system.Star,

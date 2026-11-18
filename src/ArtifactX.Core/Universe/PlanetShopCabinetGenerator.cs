@@ -153,7 +153,7 @@ public static class PlanetShopCabinetGenerator
         if (planetIndex < 0 || planetIndex >= types.Length || planetIndex >= seeds.Length) return null;
         var body = types[planetIndex];
         ulong planetSeed = seeds[planetIndex];
-        if (PlanetBuildingSites.Radius(body.BodyClass) is not { } planetRadius) return null;
+        if (PlanetBuildingSites.SurfaceRadius(body.BodyClass, body.Biome) is not { } planetRadius) return null;
         if (PlanetBuildingSites.FactsFor(portalCode, galaxy, planetIndex, biomes, profiles) is not { } facts) return null;
         if (profiles.Objects?.Terrain is not { } tt) return null;
         var attrs = SystemGenerator.Attributes(portalCode, galaxy);

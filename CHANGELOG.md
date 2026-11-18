@@ -4,6 +4,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Fixed
+- Giant-size planets you can land on (like the anomaly world in some purple systems) now get their portal, hotspots, crashed ships and shops on Planet Details and Current System. Before, they showed none, because the app didn't know how big a Giant planet is. True gas giants still show none, since you can't land on them.
+
 ### Changed
 - Freighter: a new Home Seed now shows its paint in the preview even when you've picked your own colours in game. Saving it clears those colours, as the game's Reset Custom Colors does, and a note under the Home Seed warns you first; put the Home Seed back to keep them. The Home Seed help no longer warns that it's your freighter's home address: changing it only changes the paint, and your freighter, its base and summoning stay as they are.
 
