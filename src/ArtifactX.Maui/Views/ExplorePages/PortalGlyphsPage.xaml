@@ -35,7 +35,7 @@
                                TextColor="{DynamicResource ThemeTextColor}" PlaceholderColor="{DynamicResource ThemeTextDimColor}"
                                SemanticProperties.Description="Portal address, 12 hexadecimal characters" />
                         <!-- What is typed, as the glyphs to check against the portal. -->
-                        <controls:GlyphRow Code="{Binding AddressInput}" GlyphSize="22" />
+                        <controls:GlyphRow Code="{Binding AddressInput}" Caption="Your address" GlyphSize="22" />
                         <Button Text="Enter glyphs by hand" Command="{Binding EnterManuallyCommand}"
                                 TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
                         <Label Text="Galaxy" Style="{StaticResource ThemeBodyTextStyle}" />

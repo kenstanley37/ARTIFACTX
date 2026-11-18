@@ -23,9 +23,9 @@
                 <Label Text="{Binding CoordinatesAndDistanceText}" Style="{StaticResource ThemeBodyTextStyle}" />
                 <!-- The address as glyph pictures, in the order they are dialled at a portal. -->
                     <Border Style="{StaticResource ThemeCardAltStyle}" Padding="10,8">
-                        <controls:GlyphRow Code="{Binding PortalCode}" />
+                        <controls:GlyphRow Code="{Binding PortalCode}" Caption="{Binding SystemName}" />
                     </Border>
-                <Label Text="Generated names may differ from names chosen by players." Style="{StaticResource ThemeDimTextStyle}" />
+                <Label Text="Tap the glyphs to see them larger. Generated names may differ from names chosen by players." Style="{StaticResource ThemeDimTextStyle}" />
                 <Label Text="{Binding StarPill}" Style="{StaticResource ThemeBodyTextStyle}" />
                 <Label Text="{Binding RacePill}" Style="{StaticResource ThemeBodyTextStyle}" />
                 <Label Text="{Binding EconomyWealthPill}" Style="{StaticResource ThemeBodyTextStyle}" />
@@ -60,9 +60,9 @@
                                 </Grid>
                             <!-- The glyphs that open a portal to this body - each one's first glyph is its own. -->
                             <VerticalStackLayout Spacing="4">
-                                <Label Text="PORTAL GLYPHS" Style="{StaticResource ThemeEyebrowStyle}" />
+                                <Label Text="PORTAL GLYPHS · TAP TO ENLARGE" Style="{StaticResource ThemeEyebrowStyle}" />
                                 <Border Style="{StaticResource ThemeCardStyle}" Padding="8,6">
-                                    <controls:GlyphRow Code="{Binding BodyPortalCode}" GlyphSize="22" />
+                                    <controls:GlyphRow Code="{Binding BodyPortalCode}" Caption="{Binding Name}" GlyphSize="22" />
                                 </Border>
                             </VerticalStackLayout>
                             <!-- Portal survey (PortalSurvey, from the rules file): Analysis Visor coordinates for the portal,

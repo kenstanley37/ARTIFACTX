@@ -187,7 +187,7 @@
                                                 Text="{Binding Subtitle}"
                                                 Style="{StaticResource ThemeDimTextStyle}" />
                                             <!-- Ready to dial again. -->
-                                            <controls:GlyphRow Code="{Binding PortalCode}" GlyphSize="20" Margin="0,6,0,0" />
+                                            <controls:GlyphRow Code="{Binding PortalCode}" Caption="{Binding Name}" Galaxy="{Binding GalaxyName}" GlyphSize="20" Margin="0,6,0,0" />
                                         </VerticalStackLayout>
                                         <Label
                                             Grid.Column="1"
