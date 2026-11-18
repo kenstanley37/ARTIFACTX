@@ -64,12 +64,9 @@ public static class SaveBeaconService
         float l2 = p2.Length();
         if (l1 < 100f || l2 < 100f) return Vector3.Distance(p1, p2) < maxSurfaceDistMeters;
 
-        Vector3 dir1 = p1 / l1;
-        Vector3 dir2 = p2 / l2;
-        float dot = Math.Clamp(Vector3.Dot(dir1, dir2), -1f, 1f);
-        float angle = MathF.Acos(dot);
-        float avgRadius = (l1 + l2) * 0.5f;
-        return (angle * avgRadius) < maxSurfaceDistMeters;
+        // Doubles (GroundDistance): acos of a float dot product can't resolve the 0.5 m own-beacon tolerance - on a Giant
+        // planet (523 km) the app couldn't find the beacon it had just placed (owner test 2026-11-17).
+        return PlanetHotspotCluster.GroundDistance(p1, p2, (l1 + l2) * 0.5) < maxSurfaceDistMeters;
     }
 
     /// <summary>The RegionSeed ("ofi") the game expects at this site: it builds a saved object only in the terrain
