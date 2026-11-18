@@ -16,6 +16,8 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 {
     private readonly List<PlanetHotspotItemViewModel> _all = new();
     private readonly List<PlanetHotspotClusterItemViewModel> _allClusters = new();
+    private readonly List<PlanetHotspotClusterItemViewModel> _allPortalSites = new();
+    private string _clusterLabel = "", _portalLabel = "";
     private readonly HashSet<ulong> _pinnedClusterKeys = new();
     private readonly HashSet<ulong> _pinnedHotspotKeys = new();
 
@@ -38,11 +40,12 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
     private int _activeViewModeIndex = 0;
     private int _activeFilterIndex = 0;
 
-    // View Mode: 0 = All Sites, 1 = Base Clusters & Combos
+    // View Mode: 0 = All Sites, 1 = Base Clusters & Combos, 2 = Near Portal (base spots that also reach the portal, #63).
+    // Modes 1 and 2 share the cluster cards; Clusters holds whichever list is shown.
     [ObservableProperty] public partial int SelectedViewModeIndex { get; set; } = 0;
     [ObservableProperty] public partial bool IsSingleSitesView { get; private set; } = true;
     [ObservableProperty] public partial bool IsClustersView { get; private set; } = false;
-    public ObservableCollection<string> ViewModeChoices { get; } = new(["All Sites", "Base Combos & Clusters"]);
+    public ObservableCollection<string> ViewModeChoices { get; } = new(["All Sites", "Base Combos & Clusters", "Near Portal"]);
 
     // Search and Sort
     [ObservableProperty] public partial string SearchText { get; set; } = "";
@@ -70,7 +73,7 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
         }
         _activeViewModeIndex = value;
         IsSingleSitesView = value == 0;
-        IsClustersView = value == 1;
+        IsClustersView = value >= 1;
         ApplyFiltersAndSorting();
     }
 
@@ -96,8 +99,18 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
         ApplyFiltersAndSorting();
     }
 
+    /// <summary>One base, one Save Beacon: when any card on the page has the beacon, every other card's button is off.</summary>
+    private void UpdateBeaconLocks()
+    {
+        var cards = _allClusters.Concat(_allPortalSites).ToList();
+        foreach (var card in cards) card.Refresh();
+        bool any = cards.Any(c => c.IsMarked);
+        foreach (var card in cards) card.BlockedByOther = any && !card.IsMarked;
+    }
+
     private void OnClusterPinnedChanged(PlanetHotspotClusterItemViewModel item)
     {
+        UpdateBeaconLocks();
         if (item.IsPinned)
             _pinnedClusterKeys.Add(item.Cluster.ClusterKey);
         else
@@ -125,7 +138,8 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
         double centerLon,
         bool isHere,
         double? portalLat = null,
-        double? portalLon = null)
+        double? portalLon = null,
+        PortalLocation? portal = null)
     {
         // Calculate distance shifted to avoid scrambling cards while walking locally (< 300 meters)
         double movedMeters = double.MaxValue;
@@ -201,35 +215,54 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
             _allClusters.Clear();
             foreach (var c in data.Clusters)
             {
-                var item = new PlanetHotspotClusterItemViewModel(c, OnClusterPinnedChanged)
+                var item = new PlanetHotspotClusterItemViewModel(c, OnClusterPinnedChanged, data.BaseReach)
                 {
                     IsPinned = _pinnedClusterKeys.Contains(c.ClusterKey)
                 };
                 _allClusters.Add(item);
             }
 
+            _allPortalSites.Clear();
+            foreach (var c in data.PortalSites ?? [])
+                _allPortalSites.Add(new PlanetHotspotClusterItemViewModel(c, OnClusterPinnedChanged, data.BaseReach, portal)
+                {
+                    IsPinned = _pinnedClusterKeys.Contains(c.ClusterKey)
+                });
+            for (int n = 0; n < _allClusters.Count; n++) _allClusters[n].OptionNumber = n + 1;
+            for (int n = 0; n < _allPortalSites.Count; n++) _allPortalSites[n].OptionNumber = n + 1;
+            UpdateBeaconLocks();
+            int portalCount = _allPortalSites.Count;
+            int portalPowerCount = _allPortalSites.Count(c => c.Hotspots.Any(h => h.Kind == "Power"));
+
             int clusterCount = _allClusters.Count;
             int trifectaCount = _allClusters.Count(c => c.ComboType == HotspotComboType.Trifecta);
 
             string mode0 = $"All Sites ({allCount})";
             string mode1 = trifectaCount > 0 ? $"Base Combos ({clusterCount} · {trifectaCount} Trifecta)" : $"Base Combos ({clusterCount})";
-            if (ViewModeChoices.Count >= 2)
+            string mode2 = portalPowerCount > 0 ? $"Near Portal ({portalCount} · {portalPowerCount} with power)" : $"Near Portal ({portalCount})";
+            if (ViewModeChoices.Count >= 3)
             {
                 ViewModeChoices[0] = mode0;
                 ViewModeChoices[1] = mode1;
+                ViewModeChoices[2] = mode2;
             }
 
             TotalCountLabel = $"{allCount} hotspots detected within survey range.";
-            ClusterCountLabel = clusterCount > 0
-                ? $"{clusterCount} multi-hotspot base clusters found within single Base Computer boundary radius (≤ 375u)."
-                : "No multi-hotspot clusters within 375u base radius found in this area.";
+            _clusterLabel = clusterCount > 0
+                ? $"{clusterCount} options for where to put one base that reaches 2 or 3 hotspots (a base reaches {data.BaseReach:0}u from its computer). "
+                  + "Each card is a different spot - pick one; it gets the Save Beacon."
+                : $"No two hotspots here are close enough to share one base (a base reaches {data.BaseReach:0}u from its computer).";
+            _portalLabel = portalCount > 0
+                ? $"{portalCount} options for where to put one base near the portal{(portalPowerCount > 0 ? $" ({portalPowerCount} with power, shown first)" : "")}. "
+                  + $"Each card is a different spot in the same area - pick one; it gets the Save Beacon. A base reaches {data.BaseReach:0}u from its computer."
+                : data.PortalNote ?? "No portal is predicted on this planet, so there are no base spots near it.";
 
             HasHotspots = allCount > 0;
             HasClusters = clusterCount > 0;
 
             // Ensure view mode is applied to single sites or clusters
             IsSingleSitesView = SelectedViewModeIndex == 0;
-            IsClustersView = SelectedViewModeIndex == 1;
+            IsClustersView = SelectedViewModeIndex >= 1;
 
             ApplyFiltersAndSorting();
         }
@@ -289,8 +322,10 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
             Hotspots.Add(item);
         }
 
-        // 2. Base Clusters & Combos
-        IEnumerable<PlanetHotspotClusterItemViewModel> clusterQuery = _allClusters;
+        // 2. Base Clusters & Combos, or base spots near the portal (same cards)
+        bool portalView = SelectedViewModeIndex == 2;
+        ClusterCountLabel = portalView ? _portalLabel : _clusterLabel;
+        IEnumerable<PlanetHotspotClusterItemViewModel> clusterQuery = portalView ? _allPortalSites : _allClusters;
         if (!string.IsNullOrEmpty(filterText))
         {
             clusterQuery = clusterQuery.Where(c =>
@@ -310,6 +345,8 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
             3 => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2))
                              .ThenBy(c => c.Title)
                              .ThenBy(c => c.MaxRadius),
+            // Near Portal keeps PortalBaseSites' ranking: power first, more hotspots, better grades, closer to the portal.
+            _ when portalView => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2)),
             _ => clusterQuery.OrderBy(c => c.IsPinned ? 0 : (c.IsMarked ? 1 : 2))
                              .ThenBy(c => c.IsTrifecta ? 0 : 1)
                              .ThenBy(c => c.MaxRadius)
@@ -329,9 +366,6 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
         {
             item.Refresh();
         }
-        foreach (var cluster in _allClusters)
-        {
-            cluster.Refresh();
-        }
+        UpdateBeaconLocks();
     }
 }

@@ -7,9 +7,12 @@ public sealed record HotspotBiomeGases(int Biome, string FirstGas, string Second
 
 /// <summary>Portable extraction inputs supplied entirely by the game-data catalog.
 /// The biome index and generated resource fields match native resource selection
-/// inspected 2026-11-01. No saved network resource identity is assumed here.</summary>
+/// inspected 2026-11-01. No saved network resource identity is assumed here.
+/// PlanetBaseRadius: GcBuildingGlobals.MinRadiusForBases (300 in 7.14), how far a newly placed base computer reaches
+/// (catalog format 105; null in older catalogs).</summary>
 public sealed record ExtractionTables(HotspotPoleRules Rules, HotspotDefinition[] Hotspots,
-    HotspotBiomeGases[] BiomeGases, ExtractionSubstance[] Substances, ExtractionNetworkRule[] Networks)
+    HotspotBiomeGases[] BiomeGases, ExtractionSubstance[] Substances, ExtractionNetworkRule[] Networks,
+    float? PlanetBaseRadius = null)
 {
     public HotspotResources ResourcesFor(PlanetProfile profile, int biome)
     {

@@ -175,35 +175,42 @@ public static class PlanetHotspotService
             var categories = tables.Extraction.Hotspots.Select(h => h.Parameters).ToArray();
             var candidates = new List<HotspotCandidate>();
 
-            // 1. Immediate neighborhood (4 surrounding poles)
-            candidates.AddRange(HotspotNeighborhood.Around(planetAddress, targetPoint, radius, tables.Extraction.Rules, categories));
+            Gather(targetPoint);
+            // Base spots near the portal need the hotspots around the portal, wherever the reference point is.
+            if (portalDir is { } portalAround) Gather(portalAround * radius);
 
-            // 2. If expandSearch requested, query adjacent poles for a ~3-5km coverage area
-            if (expandSearch)
+            void Gather(Vector3 point)
             {
-                var angles = HotspotOrientation.Inverse(HotspotOrientation.Direction(planetAddress), targetPoint);
-                int divisions = (int)(radius * MathF.PI / tables.Extraction.Rules.Spacing + 0.5f);
-                int latitude = (int)(divisions * angles.Latitude / MathF.PI);
-                float circumference = radius * 6.2831855f;
+                // 1. Immediate neighborhood (4 surrounding poles)
+                candidates.AddRange(HotspotNeighborhood.Around(planetAddress, point, radius, tables.Extraction.Rules, categories));
 
-                int[] poleLatitudes = { latitude - 1, latitude + 2 };
-                foreach (int pLat in poleLatitudes)
+                // 2. If expandSearch requested, query adjacent poles for a ~3-5km coverage area
+                if (expandSearch)
                 {
-                    if (pLat < 0 || pLat > divisions) continue;
-                    float ring = GameTrig.Sin(pLat * MathF.PI / divisions) * circumference;
-                    if (ring <= 0) continue;
+                    var angles = HotspotOrientation.Inverse(HotspotOrientation.Direction(planetAddress), point);
+                    int divisions = (int)(radius * MathF.PI / tables.Extraction.Rules.Spacing + 0.5f);
+                    int latitude = (int)(divisions * angles.Latitude / MathF.PI);
+                    float circumference = radius * 6.2831855f;
 
-                    int maxB = (int)(ring / tables.Extraction.Rules.Spacing);
-                    if (maxB <= 0) continue;
-
-                    float scaled = ring * angles.Longitude / 6.2831855f / tables.Extraction.Rules.Spacing;
-                    int baseB = (int)scaled;
-
-                    for (int bOffset = -1; bOffset <= 2; bOffset++)
+                    int[] poleLatitudes = { latitude - 1, latitude + 2 };
+                    foreach (int pLat in poleLatitudes)
                     {
-                        int pLon = (baseB + bOffset) % maxB;
-                        if (pLon < 0) pLon += maxB;
-                        candidates.AddRange(HotspotPole.Generate(planetAddress, radius, pLat, pLon, tables.Extraction.Rules, categories));
+                        if (pLat < 0 || pLat > divisions) continue;
+                        float ring = GameTrig.Sin(pLat * MathF.PI / divisions) * circumference;
+                        if (ring <= 0) continue;
+
+                        int maxB = (int)(ring / tables.Extraction.Rules.Spacing);
+                        if (maxB <= 0) continue;
+
+                        float scaled = ring * angles.Longitude / 6.2831855f / tables.Extraction.Rules.Spacing;
+                        int baseB = (int)scaled;
+
+                        for (int bOffset = -1; bOffset <= 2; bOffset++)
+                        {
+                            int pLon = (baseB + bOffset) % maxB;
+                            if (pLon < 0) pLon += maxB;
+                            candidates.AddRange(HotspotPole.Generate(planetAddress, radius, pLat, pLon, tables.Extraction.Rules, categories));
+                        }
                     }
                 }
             }
@@ -225,8 +232,7 @@ public static class PlanetHotspotService
                 double cLat = Math.Asin(Math.Clamp(c.Direction.Y, -1f, 1f)) * (180.0 / Math.PI);
                 double cLon = Math.Atan2(c.Direction.X, c.Direction.Z) * (180.0 / Math.PI);
 
-                float dot = Math.Clamp(Vector3.Dot(targetDir, c.Direction), -1f, 1f);
-                double distanceMeters = Math.Acos(dot) * radius;
+                double distanceMeters = PlanetHotspotCluster.GroundDistance(targetDir, c.Direction, radius);
 
                 string kind = c.Attributes.Flag == 1 ? "Power" : (c.Attributes.Flag & 14) != 0 ? "Mineral" : "Gas";
                 string resourceId = c.Attributes.Flag == 1 ? "POWER" : tables.Extraction.ResourceForFlag(resources, c.Attributes.Flag);
@@ -260,8 +266,7 @@ public static class PlanetHotspotService
                 string? portalDistanceLabel = null;
                 if (portalDir.HasValue)
                 {
-                    float dotPortal = Math.Clamp(Vector3.Dot(portalDir.Value, c.Direction), -1f, 1f);
-                    double pDist = Math.Acos(dotPortal) * radius;
+                    double pDist = PlanetHotspotCluster.GroundDistance(portalDir.Value, c.Direction, radius);
                     portalDistance = pDist;
                     portalDistanceLabel = pDist < 1000
                         ? $"{Math.Round(pDist)}u from portal"
@@ -300,10 +305,31 @@ public static class PlanetHotspotService
 
             // Sort nearest first
             var sorted = (IReadOnlyList<PlanetHotspot>)results.OrderBy(r => r.Distance).ToList();
-            var clusters = PlanetHotspotCluster.Find(sorted, maxBaseRadius: 375.0, maxSpan: 650.0, portalLat, portalLon, terrain, radius);
-            return new PlanetHotspotData(sorted, clusters);
+            // A new base's boundary from the catalog (format 105); older catalogs keep the earlier 375 for combos.
+            float? reach = tables.Extraction.PlanetBaseRadius;
+            var clusters = PlanetHotspotCluster.Find(sorted, maxBaseRadius: reach ?? 375.0, maxSpan: 2 * (reach ?? 325.0),
+                portalLat, portalLon, terrain, radius);
+            IReadOnlyList<PlanetHotspotCluster> portalSites = Array.Empty<PlanetHotspotCluster>();
+            string? portalNote = null;
+            if (portalDir is { } toPortal)
+            {
+                if (reach is not { } baseReach)
+                    portalNote = "Update your game data (Settings) to find base spots near the portal.";
+                else
+                {
+                    portalSites = PortalBaseSites.Find(sorted, toPortal, baseReach, radius, terrain);
+                    if (portalSites.Count == 0)
+                        portalNote = PortalBaseSites.NearestPower(sorted, toPortal, radius) is { } power
+                            ? $"No hotspot is close enough to the portal for one base (a base reaches {baseReach:0}u from its computer). "
+                              + $"The nearest power hotspot is {FormatDistance(power.Distance)} from the portal, at {power.Hotspot.Coordinates}."
+                            : $"No hotspot is close enough to the portal for one base (a base reaches {baseReach:0}u from its computer).";
+                }
+            }
+            return new PlanetHotspotData(sorted, clusters, portalSites, portalNote, reach ?? 375f);
         });
     }
+
+    private static string FormatDistance(double metres) => metres < 1000 ? $"{Math.Round(metres)}u" : $"{metres / 1000.0:F1} km";
 
     /// <summary>
     /// Predicts and returns hotspots around a specific latitude and longitude on the given planet.
@@ -333,7 +359,12 @@ public static class PlanetHotspotService
         PlanetHotspotCluster.Find(hotspots, maxBaseRadius, maxSpan, portalLat, portalLon);
 }
 
+/// <summary>Predicted hotspots, multi-hotspot base clusters, and base spots that also reach the portal (#63) with a
+/// note when there are none (or the catalog predates the base radius).</summary>
 public sealed record PlanetHotspotData(
     IReadOnlyList<PlanetHotspot> Hotspots,
-    IReadOnlyList<PlanetHotspotCluster> Clusters);
+    IReadOnlyList<PlanetHotspotCluster> Clusters,
+    IReadOnlyList<PlanetHotspotCluster>? PortalSites = null,
+    string? PortalNote = null,
+    float BaseReach = 375f);
 

@@ -44,11 +44,13 @@ public static class SaveBeaconService
 
     public static bool CanRemove => SaveSessionManager.IsSaveLoaded && !GameProcessMonitorService.IsGameRunning;
 
+    /// <summary>The session key of a site: its direction rounded to 1e-5 (5 m on a Giant planet's 523 km radius). The
+    /// old 0.01 rounding was ~5 km there, so two base options 20 m apart shared one key (2026-11-17).</summary>
     public static string PosKey(ulong planetAddress, Vector3 pos)
     {
         float l = pos.Length();
         Vector3 dir = l > 1f ? pos / l : pos;
-        return $"{planetAddress:X}_{Math.Round(dir.X * 100.0)}_{Math.Round(dir.Y * 100.0)}_{Math.Round(dir.Z * 100.0)}";
+        return $"{planetAddress:X}_{Math.Round(dir.X * 1e5)}_{Math.Round(dir.Y * 1e5)}_{Math.Round(dir.Z * 1e5)}";
     }
 
     /// <summary>
@@ -62,12 +64,9 @@ public static class SaveBeaconService
         float l2 = p2.Length();
         if (l1 < 100f || l2 < 100f) return Vector3.Distance(p1, p2) < maxSurfaceDistMeters;
 
-        Vector3 dir1 = p1 / l1;
-        Vector3 dir2 = p2 / l2;
-        float dot = Math.Clamp(Vector3.Dot(dir1, dir2), -1f, 1f);
-        float angle = MathF.Acos(dot);
-        float avgRadius = (l1 + l2) * 0.5f;
-        return (angle * avgRadius) < maxSurfaceDistMeters;
+        // Doubles (GroundDistance): acos of a float dot product can't resolve the 0.5 m own-beacon tolerance - on a Giant
+        // planet (523 km) the app couldn't find the beacon it had just placed (owner test 2026-11-17).
+        return PlanetHotspotCluster.GroundDistance(p1, p2, (l1 + l2) * 0.5) < maxSurfaceDistMeters;
     }
 
     /// <summary>The RegionSeed ("ofi") the game expects at this site: it builds a saved object only in the terrain
