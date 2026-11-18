@@ -134,7 +134,7 @@ public static class PlanetShopService
             var allShops = found.Sites
                 .Select(s =>
                 {
-                    double angle = Math.Acos(Math.Clamp(Vector3.Dot(CrashedShipService.Direction(s.Latitude, s.Longitude), dir), -1f, 1f));
+                    double angle = ArtifactX.Core.NmsModels.PlanetHotspotCluster.GroundDistance(CrashedShipService.Direction(s.Latitude, s.Longitude), dir, 1.0);
                     double distKm = angle * found.Radius / 1000.0;
                     bool isCurrent = here && distKm < 0.15;
                     bool isVisited = isCurrent || IsLocationVisited(s.Latitude, s.Longitude, visited);
