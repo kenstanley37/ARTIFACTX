@@ -77,7 +77,9 @@ public static class MobileRulesExportService
                         result.Amount, root.GetProperty("ingredients").EnumerateArray().Select(Pair).ToArray()));
                 }
                 else if (root.GetProperty("kind").GetString() is "Product" or "Substance" && root.GetProperty("id").GetString() is { Length: > 0 } id)
-                    values[id] = new ItemBaseValue(root.GetProperty("value").GetInt64(), root.GetProperty("kind").GetString() == "Substance");
+                    values[id] = new ItemBaseValue(root.GetProperty("value").GetInt64(), root.GetProperty("kind").GetString() == "Substance",
+                        reader.IsDBNull(2) ? "None" : reader.GetString(2),
+                        root.TryGetProperty("legality", out var legality) && legality.GetString() == "Illegal");
             }
         }
 

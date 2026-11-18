@@ -20,8 +20,8 @@ namespace ArtifactX.Core.Universe;
 public sealed class GameRules
 {
     /// <summary>This file's layout; a phone refuses a newer one rather than misread it. 2 (2026-11-18): recipes, item
-    /// values and the EGGSEQUENCER row. 3: multi-tool name words. 4: fish habitats.</summary>
-    public const int CurrentFormat = 4;
+    /// values and the EGGSEQUENCER row. 3: multi-tool name words. 4: fish habitats. 5: trade category and legality on item values.</summary>
+    public const int CurrentFormat = 5;
 
     public int Format { get; init; } = CurrentFormat;
 
@@ -113,5 +113,6 @@ public sealed class GameRules
     }
 }
 
-/// <summary>An item's base value (GcProductData/GcRealitySubstanceData BaseValue) and whether it is a substance.</summary>
-public sealed record ItemBaseValue(long Value, bool IsSubstance);
+/// <summary>An item's base value (GcProductData/GcRealitySubstanceData BaseValue), whether it is a substance, its trade
+/// category (Recipes.TradeEconomies names the economy) and whether it is contraband.</summary>
+public sealed record ItemBaseValue(long Value, bool IsSubstance, string TradeCategory = "None", bool Illegal = false);

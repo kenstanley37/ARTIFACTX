@@ -17,17 +17,8 @@ namespace ArtifactX.WinUI3.Views.ReferencePages;
 /// </summary>
 public sealed partial class ItemValuesPage : Page
 {
-    // Trade category -> economy type, as the system info panel names them.
-    private static readonly (string Category, string Economy)[] Economies =
-    {
-        ("Commodity", "Trading"),
-        ("Mineral", "Mining"),
-        ("Component", "Manufacturing"),
-        ("Tech", "Technology"),
-        ("Exotic", "Scientific"),
-        ("Energy", "Power Generation"),
-        ("Alloy", "Advanced Materials"),
-    };
+    // Trade category -> economy type, as the system info panel names them (Core TradeEconomies, shared with the phone).
+    private static IReadOnlyList<(string Category, string Economy)> Economies => ArtifactX.Core.Recipes.TradeEconomies.All;
 
     private List<ItemValueInfo> _items = new();
     private bool _ready;
@@ -58,8 +49,7 @@ public sealed partial class ItemValuesPage : Page
         Apply();
     }
 
-    private static string? EconomyFor(string category) =>
-        Economies.FirstOrDefault(e => e.Category == category).Economy;
+    private static string? EconomyFor(string category) => ArtifactX.Core.Recipes.TradeEconomies.EconomyFor(category);
 
     private void Apply()
     {
@@ -96,13 +86,10 @@ public sealed partial class ItemValuesPage : Page
 
     private static ItemValueRowViewModel ToRow(ItemValueInfo i)
     {
-        var parts = new List<string> { i.Kind == "Substance" ? "Raw substance" : "Product" };
-        if (EconomyFor(i.TradeCategory) is string economy) parts.Add($"Trade good · {economy} economies");
-        if (i.Legality == "Illegal") parts.Add("Contraband - sold at outlaw stations");
         return new ItemValueRowViewModel
         {
             Name = i.Name,
-            Detail = string.Join(" · ", parts),
+            Detail = ArtifactX.Core.Recipes.TradeEconomies.Detail(i.Kind == "Substance", i.TradeCategory, i.Legality == "Illegal"),
             Value = $"{i.Value:N0} u",
             Icon = CatalogService.TryGet(i.Id)?.Icon,
         };
