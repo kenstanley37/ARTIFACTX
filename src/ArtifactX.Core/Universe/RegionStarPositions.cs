@@ -177,7 +177,7 @@ public static class RegionStarPositions
 
         // Purple systems 1001..1065 (0x141369A80..0x141369BE4): a size draw, three position
         // draws (z, y, x) spread over the whole region, and the callback's size draw.
-        for (int k = 0; k < PurpleSystems; k++)
+        for (int k = 0; k < PurpleSystems.Count; k++)
         {
             rng.Step();
             float pz = RegionPathSegments.Unit(rng.NextWord()) * CellSpacing * 19f + 0f + CellOffset;
@@ -252,8 +252,6 @@ public static class RegionStarPositions
         float low = 0f > v ? 0f : v;
         return 1f < low ? 1f : low;
     }
-
-    private const int PurpleSystems = 65;
 
     private const int Grid = 19;
     private static readonly float CellOffset = BitConverter.Int32BitsToSingle(unchecked((int)0xC23D7943));

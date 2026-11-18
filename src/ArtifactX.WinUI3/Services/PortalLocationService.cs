@@ -22,7 +22,7 @@ public sealed record PortalLocation(ulong PlanetAddress, ulong Key, double X, do
 /// </summary>
 public static class PortalLocationService
 {
-    private const int PortalClass = 16;
+    private const int PortalClass = ArtifactX.Core.Universe.BuildingClass.Portal;
     private static readonly ConcurrentDictionary<ulong, Task<IReadOnlyDictionary<int, PortalLocation>?>> Systems = new();
 
     // A rebuilt catalog may change the rules; results worked out before it are dropped.

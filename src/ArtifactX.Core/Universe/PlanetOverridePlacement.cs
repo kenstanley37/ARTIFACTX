@@ -38,7 +38,8 @@ public readonly record struct OverrideBuilding(int Class, ulong Key, Vector3 Pos
 /// </summary>
 public static class PlanetOverridePlacement
 {
-    private const int Shelter = 2, DistressSignal = 20, GameStartSpawn = 28, WaterDistressSignal = 32, Waterworld = 14;
+    private const int Shelter = BuildingClass.Shelter, DistressSignal = BuildingClass.DistressSignal, GameStartSpawn = BuildingClass.GameStartSpawn,
+        WaterDistressSignal = BuildingClass.WaterDistressSignal, Waterworld = BiomeType.Waterworld;
     private const int UnderwaterOnly = 3;
     private const float Growth = 0.002f, CrashMin = 500f, CrashMax = 600f, ShelterMin = 800f, ShelterMax = 1000f;   // GcBuildingGlobals
     private const float SeaAbove = 5f, WaterOnlyDepth = 35f, MinBelowSea = 60f, MaxSlope = 1f;

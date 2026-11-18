@@ -143,6 +143,8 @@ public static partial class CatalogSteps
             rows.Add(new CatalogItem { GameId = "MULTITOOLTECHNOLOGY", NameEnglish = "MultiToolTechnologyTables", DescriptionEnglish = JsonSerializer.Serialize(technology) });
         if (MultiToolModel(Decode) is { } multiToolModel)
             rows.Add(new CatalogItem { GameId = "MULTITOOLMODEL", NameEnglish = "MultiToolModelTables", DescriptionEnglish = JsonSerializer.Serialize(multiToolModel) });
+        if (SystemChances(Decode) is { } systemChances)
+            rows.Add(new CatalogItem { GameId = "SYSTEMCHANCES", NameEnglish = "SystemChanceTables", DescriptionEnglish = JsonSerializer.Serialize(systemChances) });
         if (GalaxyGeneration(Decode) is { } galaxyGeneration)
             rows.Add(new CatalogItem { GameId = "GALAXYGENERATION", NameEnglish = "GalaxyGenerationSettings", DescriptionEnglish = JsonSerializer.Serialize(galaxyGeneration) });
         if (GalaxyPlacement(Decode) is { } galaxyPlacement)

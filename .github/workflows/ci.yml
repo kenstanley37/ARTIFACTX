@@ -25,5 +25,8 @@ jobs:
       - name: Run Core Checks
         run: dotnet run --project tests/ArtifactX.Core.Checks
 
+      - name: Check game enum copies against libMBIN
+        run: dotnet run --project tests/ArtifactX.GameData.Checks -- --enum-check
+
       - name: Build ArtifactX.WinUI3 (win-x64)
         run: dotnet build src/ArtifactX.WinUI3/ArtifactX.WinUI3.csproj -c Release -p:Platform=x64 -r win-x64

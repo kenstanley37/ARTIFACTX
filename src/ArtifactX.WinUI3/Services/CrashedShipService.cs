@@ -48,7 +48,9 @@ public sealed record CrashedShipsOfClass(IReadOnlyList<CrashedShipSite> Nearest,
 /// </summary>
 public static class CrashedShipService
 {
-    private const int DistressSignal = 20, WaterDistressSignal = 32, SentinelDistressSignal = 52;
+    private const int DistressSignal = ArtifactX.Core.Universe.BuildingClass.DistressSignal,
+        WaterDistressSignal = ArtifactX.Core.Universe.BuildingClass.WaterDistressSignal,
+        SentinelDistressSignal = ArtifactX.Core.Universe.BuildingClass.SentinelDistressSignal;
 
     /// <summary>Claimable wrecks: land (20), underwater (32) and crashed Sentinel Interceptors (52, only on planets with
     /// corrupted sentinels - the building table's RequiresCorruptSentinels).</summary>
@@ -237,7 +239,7 @@ public static class CrashedShipService
             int nativeWealth = context.Attributes.Pirate ? 3 : Math.Clamp(context.Attributes.Wealth - 1, 0, 2);
             invSummary = StarshipInventoryGeneration.ForCrashedShip(ship.Type, modelSize, site.Key, cls, context.Inventory, nativeWealth);
         }
-        double angle = Math.Acos(Math.Clamp(Vector3.Dot(Vector3.Normalize(site.Point), from), -1f, 1f));
+        double angle = ArtifactX.Core.NmsModels.PlanetHotspotCluster.GroundDistance(site.Point, from, 1.0);
         return new CrashedShipSite(context.PlanetAddress, site.Key, c.X + site.Point.X, c.Y + site.Point.Y, c.Z + site.Point.Z,
             lat, lon, angle * context.Radius / 1000, ship,
             shipClass, site.Class == WaterDistressSignal,
@@ -272,5 +274,5 @@ public static class CrashedShipService
 
     /// <summary>The angle between a site's direction from the planet centre and a direction.</summary>
     private static double Angle(CrashedShipSite site, Vector3 dir) =>
-        Math.Acos(Math.Clamp(Vector3.Dot(Direction(site.Latitude, site.Longitude), dir), -1f, 1f));
+        ArtifactX.Core.NmsModels.PlanetHotspotCluster.GroundDistance(Direction(site.Latitude, site.Longitude), dir, 1.0);
 }
