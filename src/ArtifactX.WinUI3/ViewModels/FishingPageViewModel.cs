@@ -46,20 +46,20 @@ public sealed partial class FishingPageViewModel : ObservableObject
         new[] { new PlanetTypeOption("Where I am", PlanetTypeOption.WhereIAm), new PlanetTypeOption("All planet types", PlanetTypeOption.AllTypes) }
             .Concat(NmsPlanets.SelectableTypes.Select(b => new PlanetTypeOption(NmsPlanets.TypeName(b), b))).ToList();
 
-    public IReadOnlyList<FishFilterOption> ShowOptions { get; } =
-        new FishFilterOption[] { new("All fish", ""), new("Not caught yet", "uncaught"), new("Caught", "caught") };
+    public IReadOnlyList<TextOption> ShowOptions { get; } =
+        new TextOption[] { new("All fish", ""), new("Not caught yet", "uncaught"), new("Caught", "caught") };
 
-    public IReadOnlyList<FishFilterOption> TimeOptions { get; } =
-        new FishFilterOption[] { new("Any time", ""), new("Bites by day", "Day"), new("Bites at night", "Night") };
+    public IReadOnlyList<TextOption> TimeOptions { get; } =
+        new TextOption[] { new("Any time", ""), new("Bites by day", "Day"), new("Bites at night", "Night") };
 
-    public IReadOnlyList<FishFilterOption> RarityOptions { get; } =
-        new[] { new FishFilterOption("Any rarity", "") }
-            .Concat(new[] { "Common", "Rare", "Epic", "Legendary" }.Select(q => new FishFilterOption(FishInfo.RarityName(q), q))).ToList();
+    public IReadOnlyList<TextOption> RarityOptions { get; } =
+        new[] { new TextOption("Any rarity", "") }
+            .Concat(new[] { "Common", "Rare", "Epic", "Legendary" }.Select(q => new TextOption(FishInfo.RarityName(q), q))).ToList();
 
     [ObservableProperty] public partial PlanetTypeOption? SelectedPlanetType { get; set; }
-    [ObservableProperty] public partial FishFilterOption? SelectedShow { get; set; }
-    [ObservableProperty] public partial FishFilterOption? SelectedTime { get; set; }
-    [ObservableProperty] public partial FishFilterOption? SelectedRarity { get; set; }
+    [ObservableProperty] public partial TextOption? SelectedShow { get; set; }
+    [ObservableProperty] public partial TextOption? SelectedTime { get; set; }
+    [ObservableProperty] public partial TextOption? SelectedRarity { get; set; }
     [ObservableProperty] public partial string SearchText { get; set; } = "";
     [ObservableProperty] public partial bool IncludeAnywhere { get; set; } = true;
 
@@ -77,9 +77,9 @@ public sealed partial class FishingPageViewModel : ObservableObject
         Apply();
     }
 
-    partial void OnSelectedShowChanged(FishFilterOption? value) => Apply();
-    partial void OnSelectedTimeChanged(FishFilterOption? value) => Apply();
-    partial void OnSelectedRarityChanged(FishFilterOption? value) => Apply();
+    partial void OnSelectedShowChanged(TextOption? value) => Apply();
+    partial void OnSelectedTimeChanged(TextOption? value) => Apply();
+    partial void OnSelectedRarityChanged(TextOption? value) => Apply();
     partial void OnSearchTextChanged(string value) => Apply();
     partial void OnIncludeAnywhereChanged(bool value) => Apply();
 
@@ -242,7 +242,7 @@ public sealed partial class FishingPageViewModel : ObservableObject
         }
         ShowHere = true;
         string systemName = UniverseInfo.SystemName(system);
-        string galaxy = FishLabels.Galaxy(S.GalaxyNumber(system));
+        string galaxy = PlanetText.GalaxyLabel(S.GalaxyNumber(system));
 
         if (_place.Planet == 0)
         {
@@ -545,7 +545,7 @@ public sealed partial class FishingPageViewModel : ObservableObject
             p.Classification(PlanetTypesService.Descriptor(p.SystemAddress, p.PlanetIndex), ringSuffix: " · rings", isMoon: isMoon),
             UniverseInfo.SystemName(p.SystemAddress),
             UniverseInfo.Compact(p.SystemAddress),
-            FishLabels.Galaxy(p.Galaxy),
+            PlanetText.GalaxyLabel(p.Galaxy),
         };
         if (p.Source.Length > 0) detail.Add(p.Source);
 
