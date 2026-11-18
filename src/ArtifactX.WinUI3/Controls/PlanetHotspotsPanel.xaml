@@ -236,14 +236,14 @@
                                         <Grid ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="64"/>
-                                                <ColumnDefinition Width="72"/>
-                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="56"/>
+                                                <ColumnDefinition Width="52"/>
+                                                <ColumnDefinition Width="68"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="HOTSPOT" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12"/>
                                             <TextBlock Grid.Column="1" Text="YIELD" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12" HorizontalAlignment="Right"/>
-                                            <TextBlock Grid.Column="2" Text="FROM BASE" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12" HorizontalAlignment="Right"/>
-                                            <TextBlock Grid.Column="3" Text="FROM PORTAL" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12" HorizontalAlignment="Right"
+                                            <TextBlock Grid.Column="2" Text="BASE" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12" HorizontalAlignment="Right"/>
+                                            <TextBlock Grid.Column="3" Text="PORTAL" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12" HorizontalAlignment="Right"
                                                        Visibility="{x:Bind HasPortalColumn}"/>
                                         </Grid>
                                         <ItemsControl ItemsSource="{x:Bind Rows}">
@@ -252,9 +252,9 @@
                                                     <Grid Padding="0,4" ColumnSpacing="8" ToolTipService.ToolTip="{x:Bind Details}">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="64"/>
-                                                            <ColumnDefinition Width="72"/>
-                                                            <ColumnDefinition Width="80"/>
+                                                            <ColumnDefinition Width="56"/>
+                                                            <ColumnDefinition Width="52"/>
+                                                            <ColumnDefinition Width="68"/>
                                                         </Grid.ColumnDefinitions>
                                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                                             <Border Background="{x:Bind Hotspot.ClassBrush}" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
@@ -284,22 +284,15 @@
                                             BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                                             Padding="12,10" CornerRadius="4">
                                         <StackPanel Spacing="6">
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" Spacing="10">
                                                 <TextBlock Text="BASE COMPUTER" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="{x:Bind BaseCoordinates}" FontSize="14" FontWeight="Bold"
+                                                <TextBlock Text="{x:Bind BaseCoordinates}" FontSize="14" FontWeight="Bold"
                                                            FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeAccentBrush}"
                                                            VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
-                                                <controls:CopyCodeButton Grid.Column="2" Code="{x:Bind BaseCoordinates}" Padding="8,2" Content="Copy" FontSize="12"/>
-                                                <TextBlock Grid.Column="3" Text="{x:Bind PortalDistanceLabel}" FontSize="13" FontWeight="SemiBold"
-                                                           Foreground="{ThemeResource ThemeTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                           Visibility="{x:Bind HasPortalDistance, Mode=OneWay}"/>
-                                            </Grid>
+                                            </StackPanel>
+                                            <TextBlock Text="{x:Bind PortalDistanceLabel}" FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource ThemeTextBrush}"
+                                                       Visibility="{x:Bind HasPortalDistance, Mode=OneWay}"/>
                                             <TextBlock Text="{x:Bind SpareText}" FontSize="13" Foreground="{x:Bind SpareBrush}" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
