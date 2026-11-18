@@ -30,23 +30,24 @@
             <TextBlock Text="FISHING" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
             <Button x:Name="OverviewToggle" Click="OverviewToggle_Click" Padding="10,3" FontSize="12"
+                    AutomationProperties.Name="{x:Bind ViewModel.OverviewToggleText, Mode=OneWay}"
                     ToolTipService.ToolTip="Hide the info, You are here and planet-type boxes to give the fish list and Where to catch more room">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                    <FontIcon x:Name="OverviewToggleIcon" Glyph="&#xE70E;" FontSize="11"/>
-                    <TextBlock x:Name="OverviewToggleTxt" Text="Hide overview"/>
+                    <FontIcon x:Name="OverviewToggleIcon" Glyph="{x:Bind ViewModel.OverviewToggleGlyph, Mode=OneWay}" FontSize="11"/>
+                    <TextBlock x:Name="OverviewToggleTxt" Text="{x:Bind ViewModel.OverviewToggleText, Mode=OneWay}"/>
                 </StackPanel>
             </Button>
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                         ToolTipService.ToolTip="This page follows your game: save on a planet and it shows that planet's fish, and your catches update too. It only reads the save.">
                 <Ellipse Width="8" Height="8" Fill="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
-                <TextBlock x:Name="LiveStatusTxt" Text="Following your game" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
+                <TextBlock x:Name="LiveStatusTxt" Text="{x:Bind ViewModel.LiveStatus, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12"/>
             </StackPanel>
             </StackPanel>
         </Grid>
 
         <!-- Collapsible (OverviewToggle, remembered) so the list and Where to
              catch get the room (2026-10-15). -->
-        <StackPanel Grid.Row="1" x:Name="OverviewPanel" Spacing="16">
+        <StackPanel Grid.Row="1" x:Name="OverviewPanel" Spacing="16" Visibility="{x:Bind ViewModel.ShowOverview, Mode=OneWay}">
             <Border BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                     Background="{ThemeResource ThemePanelAltBrush}"
                     CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
@@ -62,7 +63,7 @@
             </Border>
 
             <!-- Where the player is right now, and how much of this planet's list is done. -->
-            <Border x:Name="HerePanel" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
+            <Border x:Name="HerePanel" Visibility="{x:Bind ViewModel.ShowHere, Mode=OneWay}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                     Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,10">
                 <Grid ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
@@ -73,11 +74,11 @@
                     <FontIcon Glyph="&#xE81D;" FontSize="16" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="1" Spacing="2">
                         <TextBlock Text="YOU ARE HERE" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
-                        <TextBlock x:Name="HereTitleTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                        <TextBlock x:Name="HerePlaceTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="HereTitleTxt" Text="{x:Bind ViewModel.HereTitle, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="HerePlaceTxt" Text="{x:Bind ViewModel.HerePlace, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <StackPanel Grid.Column="2" x:Name="HereProgressPanel" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="0">
-                        <TextBlock x:Name="HereProgressTxt" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="22"
+                    <StackPanel Grid.Column="2" x:Name="HereProgressPanel" Visibility="{x:Bind ViewModel.ShowHereProgress, Mode=OneWay}" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="0">
+                        <TextBlock x:Name="HereProgressTxt" Text="{x:Bind ViewModel.HereProgress, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold" FontSize="22"
                                    Foreground="{ThemeResource ThemeAccentBrush}" HorizontalAlignment="Right"/>
                         <TextBlock Text="caught here" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" HorizontalAlignment="Right"/>
                     </StackPanel>
@@ -85,7 +86,7 @@
             </Border>
 
             <!-- Where to go next: planet types with the most fish still to catch (click to filter). -->
-            <ItemsControl x:Name="NextTiles" Visibility="Collapsed">
+            <ItemsControl x:Name="NextTiles" ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}" Visibility="{x:Bind ViewModel.ShowTiles, Mode=OneWay}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <ctcontrols:WrapPanel HorizontalSpacing="10" VerticalSpacing="10"/>
@@ -118,21 +119,34 @@
         <StackPanel Grid.Row="2" Spacing="12">
         <!-- A catch the game just saved: without it a new catch only moved a card
              off screen and nudged the count (2026-10-21). -->
-        <InfoBar x:Name="CatchBar" Severity="Success" IsOpen="False" IsClosable="True"
+        <InfoBar x:Name="CatchBar" Severity="Success" IsClosable="True" IsOpen="{x:Bind ViewModel.CatchBarOpen, Mode=TwoWay}"
+                 Title="{x:Bind ViewModel.CatchBarTitle, Mode=OneWay}" Message="{x:Bind ViewModel.CatchBarMessage, Mode=OneWay}"
                  AutomationProperties.LiveSetting="Polite"/>
         <ctcontrols:WrapPanel HorizontalSpacing="14" VerticalSpacing="10">
-            <ComboBox x:Name="PlanetTypeBox" Header="Planet type" Width="240" SelectionChanged="Filter_Changed"/>
-            <ComboBox x:Name="ShowBox" Header="Show" Width="200" SelectionChanged="Filter_Changed"/>
-            <ComboBox x:Name="TimeBox" Header="Time of day" Width="180" SelectionChanged="Filter_Changed"/>
-            <ComboBox x:Name="RarityBox" Header="Rarity" Width="170" SelectionChanged="Filter_Changed"/>
-            <TextBox x:Name="SearchBox" Header="Search" Width="220" PlaceholderText="Fish name" TextChanged="Search_TextChanged"/>
-            <CheckBox x:Name="AnywhereBox" Content="Include fish found on any planet" IsChecked="True" Click="Filter_Click" VerticalAlignment="Bottom"/>
+            <ComboBox x:Name="PlanetTypeBox" Header="Planet type" Width="240"
+                      ItemsSource="{x:Bind ViewModel.PlanetTypes}" SelectedItem="{x:Bind ViewModel.SelectedPlanetType, Mode=TwoWay}">
+                <!-- A template, not DisplayMemberPath: "Where I am (Lush)" renames itself in place, closed box included. -->
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="viewmodels:PlanetTypeOption">
+                        <TextBlock Text="{x:Bind Label, Mode=OneWay}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <ComboBox x:Name="ShowBox" Header="Show" Width="200" DisplayMemberPath="Label"
+                      ItemsSource="{x:Bind ViewModel.ShowOptions}" SelectedItem="{x:Bind ViewModel.SelectedShow, Mode=TwoWay}"/>
+            <ComboBox x:Name="TimeBox" Header="Time of day" Width="180" DisplayMemberPath="Label"
+                      ItemsSource="{x:Bind ViewModel.TimeOptions}" SelectedItem="{x:Bind ViewModel.SelectedTime, Mode=TwoWay}"/>
+            <ComboBox x:Name="RarityBox" Header="Rarity" Width="170" DisplayMemberPath="Label"
+                      ItemsSource="{x:Bind ViewModel.RarityOptions}" SelectedItem="{x:Bind ViewModel.SelectedRarity, Mode=TwoWay}"/>
+            <TextBox x:Name="SearchBox" Header="Search" Width="220" PlaceholderText="Fish name"
+                     Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            <CheckBox x:Name="AnywhereBox" Content="Include fish found on any planet" IsChecked="{x:Bind ViewModel.IncludeAnywhere, Mode=TwoWay}" VerticalAlignment="Bottom"/>
             <controls:HyperdriveRangeBox VerticalAlignment="Bottom"/>
             <Button x:Name="ExportBtn" Content="Export CSV" Click="ExportCsv_Click" VerticalAlignment="Bottom"
                     ToolTipService.ToolTip="Save the list as shown (with your filters) as a spreadsheet file"/>
-            <Button x:Name="ClearFiltersBtn" Content="Clear filters" Click="ClearFilters_Click" VerticalAlignment="Bottom" Visibility="Collapsed"
+            <Button x:Name="ClearFiltersBtn" Content="Clear filters" Click="ClearFilters_Click" VerticalAlignment="Bottom" Visibility="{x:Bind ViewModel.ShowClearFilters, Mode=OneWay}"
                     ToolTipService.ToolTip="Back to every fish for the planet you're on"/>
-            <TextBlock x:Name="CountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+            <TextBlock x:Name="CountTxt" Text="{x:Bind ViewModel.CountText, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
         </ctcontrols:WrapPanel>
         </StackPanel>
 
@@ -142,7 +156,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-        <GridView x:Name="FishList" SelectionMode="None" IsItemClickEnabled="True" ItemClick="FishList_ItemClick">
+        <GridView x:Name="FishList" ItemsSource="{x:Bind ViewModel.Cards, Mode=OneWay}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="FishList_ItemClick">
             <GridView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <ItemsWrapGrid Orientation="Horizontal" ItemWidth="300" ItemHeight="182"/>
@@ -213,7 +227,7 @@
         </GridView>
 
             <!-- Where to catch it: known planets of the clicked fish's types. -->
-            <Border Grid.Column="1" x:Name="WherePanel" Visibility="Collapsed" Width="440"
+            <Border Grid.Column="1" x:Name="WherePanel" Visibility="{x:Bind ViewModel.ShowWhere, Mode=OneWay}" Width="440"
                     BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
                     Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="14,12">
                 <Grid RowSpacing="8">
@@ -230,12 +244,12 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <Border Width="44" Height="44" Background="{ThemeResource ThemeVoidBrush}" VerticalAlignment="Top">
-                            <Image x:Name="WhereIcon" Width="40" Height="40"/>
+                            <Image x:Name="WhereIcon" Source="{x:Bind ViewModel.WhereIcon, Mode=OneWay}" Width="40" Height="40"/>
                         </Border>
                         <StackPanel Grid.Column="1" Spacing="1">
                             <TextBlock Text="WHERE TO CATCH" Style="{StaticResource ThemeEyebrowStyle}" FontSize="10"/>
-                            <TextBlock x:Name="WhereNameTxt" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap"/>
-                            <TextBlock x:Name="WhereHabitatTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="WhereNameTxt" Text="{x:Bind ViewModel.WhereName, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="WhereHabitatTxt" Text="{x:Bind ViewModel.WhereHabitat, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
                         </StackPanel>
                         <Button Grid.Column="2" Click="WhereClose_Click" Padding="6,4" Background="Transparent" BorderThickness="0"
                                 VerticalAlignment="Top" ToolTipService.ToolTip="Close" AutomationProperties.Name="Close">
@@ -243,11 +257,11 @@
                         </Button>
                     </Grid>
                     <StackPanel Grid.Row="1" Spacing="0">
-                        <CheckBox x:Name="OtherSlotsBox" Content="Include planets from my other save slots" IsChecked="True" Click="OtherSlots_Click"/>
-                        <CheckBox x:Name="ShowDryBox" Content="Show planets I marked as having no water" IsChecked="False" Click="ShowDry_Click"/>
+                        <CheckBox x:Name="OtherSlotsBox" Content="Include planets from my other save slots" IsChecked="{x:Bind ViewModel.IncludeOtherSlots, Mode=TwoWay}"/>
+                        <CheckBox x:Name="ShowDryBox" Content="Show planets I marked as having no water" IsChecked="{x:Bind ViewModel.ShowDry, Mode=TwoWay}"/>
                     </StackPanel>
-                    <TextBlock Grid.Row="2" x:Name="WhereCountTxt" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
-                    <ListView Grid.Row="3" x:Name="WhereList" SelectionMode="None" IsItemClickEnabled="False" Padding="0">
+                    <TextBlock Grid.Row="2" x:Name="WhereCountTxt" Text="{x:Bind ViewModel.WhereCountText, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                    <ListView Grid.Row="3" x:Name="WhereList" ItemsSource="{x:Bind ViewModel.WhereRows, Mode=OneWay}" SelectionMode="None" IsItemClickEnabled="False" Padding="0">
                         <ListView.ItemContainerStyle>
                             <Style TargetType="ListViewItem">
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
