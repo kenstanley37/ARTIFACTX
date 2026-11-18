@@ -58,6 +58,20 @@
                                     <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Grid.Column="2" Text="{Binding CopyButtonLabel}" SemanticProperties.Description="{Binding Name, StringFormat='Copy portal address for {0}'}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=CopyBodyPortalCodeCommand}"
                                             CommandParameter="{Binding .}" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" WidthRequest="110" />
                                 </Grid>
+                            <!-- What the planet is like, as the game's Discoveries page and scanner say it (SystemProfiles). -->
+                            <VerticalStackLayout IsVisible="{Binding HasProfile}" Spacing="3">
+                                <Label Text="{Binding TypeText}" FontSize="15" FontAttributes="Bold" TextColor="{DynamicResource ThemeAccentColor}" />
+                                <Label Text="{Binding WeatherText, StringFormat='Weather: {0}'}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}" />
+                                <Label Text="{Binding SentinelsText}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding HasAggressiveSentinels}" Value="True">
+                                            <Setter Property="TextColor" Value="{DynamicResource ThemeWarningColor}" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                                <Label Text="{Binding LifeText}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}" />
+                                <Label Text="{Binding ResourcesText, StringFormat='Resources: {0}'}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}" />
+                            </VerticalStackLayout>
                             <!-- The glyphs that open a portal to this body - each one's first glyph is its own. -->
                             <VerticalStackLayout Spacing="4">
                                 <Label Text="PORTAL GLYPHS · TAP TO ENLARGE" Style="{StaticResource ThemeEyebrowStyle}" />

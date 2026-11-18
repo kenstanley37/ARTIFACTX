@@ -132,8 +132,33 @@ public sealed partial class SystemFromGlyphsViewModel : ObservableObject
             ShipsTabTitle = $"Ships ({_allShips.Count})";
             int totalTools = readout.MultiToolPools.Sum(p => p.Tools.Count);
             MultiToolsTabTitle = totalTools > 0 ? $"Multi-tools ({totalTools})" : "Multi-tools";
+            _ = LoadProfilesAsync(readout);
         }
         finally { IsLoading = false; }
+    }
+
+    /// <summary>Each body's weather, sentinels, life and resources (Core SystemProfiles, the desktop's generator) from the
+    /// rules file, worked out after the system is on screen; bodies stay without them when the rules are missing.</summary>
+    private async Task LoadProfilesAsync(PortalSystemReadout readout)
+    {
+        if (await GameRulesService.GetAsync() is not { Biomes: { } biomes, Profiles: { } tables } rules) return;
+        var (portal, galaxy) = SystemProfiles.PortalOf(readout.PackedAddress);
+        var result = await Task.Run(() =>
+        {
+            try { return (Profiles: SystemProfiles.Generate(readout.PackedAddress, biomes, tables), Types: PlanetGenerator.Generate(portal, galaxy, biomes)); }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IndexOutOfRangeException)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SystemDetails] profiles: {ex}");
+                return (Profiles: Array.Empty<PlanetProfile?>(), Types: Array.Empty<PlanetType>());
+            }
+        });
+        if (PortalCode != readout.PortalCode || _galaxyNumber != readout.GalaxyNumber) return;   // another system opened meanwhile
+        foreach (var body in Bodies)
+        {
+            int i = body.Body.BodyIndex - 1;
+            if (i >= 0 && i < result.Profiles.Length && result.Profiles[i] is { } profile)
+                body.ApplyProfile(profile, i < result.Types.Length ? result.Types[i] : null, rules);
+        }
     }
 
     [RelayCommand]

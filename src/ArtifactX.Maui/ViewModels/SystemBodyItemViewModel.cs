@@ -39,6 +39,30 @@ public sealed partial class SystemBodyItemViewModel : ObservableObject
     public bool IsDialedBody => Body.IsDialedBody;
     public bool HasRings => Body.HasRings;
 
+    // ---------------------------------------------------------------- planet details (SystemProfiles, from the rules file)
+
+    [ObservableProperty] public partial bool HasProfile { get; private set; }
+    /// <summary>The game's word for the planet's type ("Paradise", "Frozen"), as its Discoveries page shows.</summary>
+    [ObservableProperty] public partial string TypeText { get; private set; } = "";
+    [ObservableProperty] public partial string WeatherText { get; private set; } = "";
+    [ObservableProperty] public partial string SentinelsText { get; private set; } = "";
+    [ObservableProperty] public partial bool HasAggressiveSentinels { get; private set; }
+    [ObservableProperty] public partial string LifeText { get; private set; } = "";
+    [ObservableProperty] public partial string ResourcesText { get; private set; } = "";
+
+    /// <summary>Fills the planet's weather, sentinels, life and resources (Core PlanetProfileText, the desktop's words).</summary>
+    public void ApplyProfile(PlanetProfile profile, PlanetType? type, GameRules rules)
+    {
+        TypeText = profile.Descriptor;
+        WeatherText = PlanetProfileText.Weather(profile, type);
+        string sentinels = PlanetProfileText.Sentinels(profile);
+        SentinelsText = $"{sentinels} sentinels";
+        HasAggressiveSentinels = sentinels is "Aggressive" or "Corrupted";
+        LifeText = $"Flora: {PlanetProfileText.Flora(profile)} · Fauna: {PlanetProfileText.Fauna(profile)}";
+        ResourcesText = string.Join(", ", PlanetProfileText.Resources(profile, rules.ItemName, rules.Profiles?.HintNames));
+        HasProfile = true;
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CopyButtonLabel))]
     public partial bool IsCopied { get; set; }

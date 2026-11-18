@@ -201,104 +201,26 @@ public static class PlanetText
     }
 
     // ---------------------------------------------------------------- Generated profiles
+    // The words are Core PlanetProfileText, shared with the phone.
 
-    /// <summary>Weather types in GcWeatherOptions order, worded plainly (the game picks one
-    /// of several flowery words per type - "Frost", "Icy Blasts" - in its text step).</summary>
-    private static readonly string[] WeatherTypes =
-    {
-        "Clear", "Dusty", "Humid", "Snowy", "Toxic", "Scorching", "Radioactive", "Exotic", "Exotic", "Exotic",
-        "Swampy", "Volcanic", "Bubbling", "Anomalous", "Burning", "Cold", "Gas giant",
-    };
-
-    /// <summary>The game's weather word families (PlanetProfileGenerator.WeatherWordFamily), worded plainly.
-    /// Waterworlds have their own words for every kind of weather, so they keep the type's word.</summary>
-    private static string? FamilyWord(string family) => family switch
-    {
-        "LUSH" => "Humid",
-        "SWAMP" => "Swampy",
-        "TOXIC" => "Toxic",
-        "RADIO" => "Radioactive",
-        "COLD" => "Snowy",
-        "HEAT" => "Scorching",
-        "BARREN" => "Dusty",
-        "DEAD" => "Clear",
-        "GLITCH" => "Anomalous",
-        "RED" or "GREEN" or "BLUE" => "Exotic",
-        "LAVA" => "Volcanic",
-        "GASGIANT" => "Gas giant",
-        _ => null,
-    };
-
-    /// <summary>"Extreme toxic · frequent storms" for a generated profile. The kind is the one the game's words
-    /// show, not the weather type: a lush world with corrupted sentinels has the Weird type but humid words.</summary>
+    /// <summary>"Extreme toxic · frequent storms" for a generated profile (PlanetProfileText.Weather).</summary>
     public static string Weather(Core.Universe.PlanetProfile profile, ulong system, int planetIndex)
     {
         var types = PlanetTypesService.For(system);
-        string? family = planetIndex >= 1 && planetIndex <= types.Length
-            ? FamilyWord(Core.Universe.PlanetProfileGenerator.WeatherWordFamily(types[planetIndex - 1].Biome, types[planetIndex - 1].SubType, profile.WeatherType))
-            : null;
-        string type = family ?? (profile.WeatherType >= 0 && profile.WeatherType < WeatherTypes.Length ? WeatherTypes[profile.WeatherType] : "Unknown");
-        string weather = profile.Extreme ? $"Extreme {type.ToLowerInvariant()}" : type;
-        return profile.Storms switch
-        {
-            1 => $"{weather} · occasional storms",
-            2 => $"{weather} · frequent storms",
-            _ => weather,
-        };
+        return Core.Universe.PlanetProfileText.Weather(profile,
+            planetIndex >= 1 && planetIndex <= types.Length ? types[planetIndex - 1] : null);
     }
 
-    /// <summary>The sentinel level at normal difficulty, worded like the game's Discoveries
-    /// quick view: nothing shown there is "Low", level 1 is "High Sentinel Activity" (its
-    /// scanner words "Frequent", "Observant"...), 2 "Aggressive Sentinels", 3 the dissonant,
-    /// corrupted kind (checked against 800 recorded words, 2026-10-22).</summary>
-    public static string Sentinels(Core.Universe.PlanetProfile profile) =>
-        (profile.Sentinels.Length > NormalDifficulty ? profile.Sentinels[NormalDifficulty] : 1) switch
-        {
-            0 => "Low",
-            2 => "Aggressive",
-            3 => "Corrupted",
-            _ => "High",
-        };
+    public static string Sentinels(Core.Universe.PlanetProfile profile) => Core.Universe.PlanetProfileText.Sentinels(profile);
 
-    /// <summary>GcCombatTimerDifficultyOption Normal - the slot the game uses unless the save's
-    /// sentinel difficulty is changed.</summary>
-    private const int NormalDifficulty = 2;
+    public static string Flora(Core.Universe.PlanetProfile profile) => Core.Universe.PlanetProfileText.Flora(profile);
 
-    /// <summary>The flora level plainly worded ("None", "Low", "Medium", "High").</summary>
-    public static string Flora(Core.Universe.PlanetProfile profile) => profile.Flora switch
-    {
-        0 => "None",
-        1 => "Low",
-        2 => "Medium",
-        3 => "High",
-        _ => "None",
-    };
+    public static string Fauna(Core.Universe.PlanetProfile profile) => Core.Universe.PlanetProfileText.Fauna(profile);
 
-    /// <summary>The fauna summary ("None", "1 species", "N species", or by life level).</summary>
-    public static string Fauna(Core.Universe.PlanetProfile profile)
-    {
-        if (profile.FaunaCount is int count)
-            return count == 0 ? "None" : count == 1 ? "1 species" : $"{count} species";
-        return profile.Fauna switch
-        {
-            0 => "None",
-            1 => "Low",
-            2 => "Medium",
-            3 => "High",
-            _ => "None",
-        };
-    }
-
-    /// <summary>What the scanner lists, in its order: the planet's plant, the three mined
-    /// resources (most common first), then other hints ("Cactus Flesh, Copper, Pyrite, Salt").</summary>
-    public static IReadOnlyList<string> Resources(Core.Universe.PlanetProfile profile, IReadOnlyDictionary<string, string> itemNames)
-    {
-        string Hint(string id) => PlanetTypesService.HintName(id) ?? ItemName(id, itemNames);
-        var plants = profile.Hints.Where(h => itemNames.ContainsKey(h)).Select(h => ItemName(h, itemNames));
-        var mined = new[] { profile.Common, profile.Uncommon, profile.Rare }.Where(id => id.Length > 0).Select(id => ItemName(id, itemNames));
-        var others = profile.Hints.Where(h => !itemNames.ContainsKey(h)).Select(Hint);
-        return plants.Concat(mined).Concat(others).Distinct().ToList();
-    }
+    /// <summary>What the scanner lists, in its order (PlanetProfileText.Resources).</summary>
+    public static IReadOnlyList<string> Resources(Core.Universe.PlanetProfile profile, IReadOnlyDictionary<string, string> itemNames) =>
+        Core.Universe.PlanetProfileText.Resources(profile, id => itemNames.ContainsKey(id) ? ItemName(id, itemNames) : null,
+            PlanetTypesService.ProfileTables?.HintNames);
 }
 
 /// <summary>"Coblat isn't one of the game's resources - did you mean Cobalt?": the closest of
