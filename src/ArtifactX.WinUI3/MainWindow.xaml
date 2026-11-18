@@ -39,7 +39,7 @@
 
         <Border x:Name="GameRunningBanner" Grid.Row="1"
                 Background="{ThemeResource ThemeChromeBrush}" BorderBrush="{ThemeResource ThemeWarningBrush}"
-                BorderThickness="0,0,0,2" Padding="12,4" Visibility="Collapsed">
+                BorderThickness="0,0,0,2" Padding="12,4" Visibility="{x:Bind ViewModel.IsGameRunning, Mode=OneWay}">
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                 <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="{ThemeResource ThemeWarningBrush}"/>
                 <TextBlock Text="No Man's Sky is currently running - saving is disabled to prevent data loss."
@@ -62,7 +62,7 @@
                      accountdata.hg), grouped so someone only using Tools can collapse it.
                      Pure folder like Tools/Milestones; starts OPEN (user choice 2026-10-11),
                      unlike the other folders. Children keep their own visibility rules. -->
-                <NavigationViewItem x:Name="SaveEditorNavItem" Content="Save Editor" SelectsOnInvoked="False" IsExpanded="True" Visibility="Collapsed">
+                <NavigationViewItem x:Name="SaveEditorNavItem" Content="Save Editor" SelectsOnInvoked="False" IsExpanded="True" Visibility="{x:Bind ViewModel.HasPlatform, Mode=OneWay}">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE70F;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
@@ -81,7 +81,7 @@
                          original account-wide unlock list, previously reachable by
                          clicking "Account Data" itself) is now its own explicit child
                          alongside Guide, both equally-weighted subpages. -->
-                    <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="AccountDataNavItem" Content="Account Data" SelectsOnInvoked="False" IsExpanded="False" Visibility="{x:Bind ViewModel.HasPlatform, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets"/>
                         </NavigationViewItem.Icon>
@@ -114,51 +114,57 @@
                     <!-- Exosuit, Starship, Multi-Tool, etc. nav items go here once built,
                          gated behind SaveSessionManager.IsSaveLoaded the same way the
                          removed SaveHub/Inventory items were. -->
-                    <NavigationViewItem x:Name="GeneralNavItem" Content="General" Tag="General" Visibility="Collapsed" Icon="Setting"/>
+                    <NavigationViewItem x:Name="GeneralNavItem" Content="General" Tag="General" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Icon="Setting"/>
 
-                    <NavigationViewItem x:Name="ExosuitNavItem" Content="Exosuit" Tag="Exosuit" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="ExosuitNavItem" Content="Exosuit" Tag="Exosuit" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="ExosuitPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="MultiToolNavItem" Content="Multi-Tool" Tag="MultiTool" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="MultiToolNavItem" Content="Multi-Tool" Tag="MultiTool" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind ViewModel.NewMultiToolsTip, Mode=OneWay}">
+                        <NavigationViewItem.InfoBadge>
+                            <InfoBadge Value="{x:Bind ViewModel.NewMultiTools, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasNewMultiTools, Mode=OneWay}"/>
+                        </NavigationViewItem.InfoBadge>
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="MultiToolPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="ShipsNavItem" Content="Starships" Tag="Ships" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="ShipsNavItem" Content="Starships" Tag="Ships" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind ViewModel.NewShipsTip, Mode=OneWay}">
+                        <NavigationViewItem.InfoBadge>
+                            <InfoBadge Value="{x:Bind ViewModel.NewShips, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasNewShips, Mode=OneWay}"/>
+                        </NavigationViewItem.InfoBadge>
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="StarshipsPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="ShipDesignerNavItem" Content="Ship Designer" Tag="ShipDesigner" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="ShipDesignerNavItem" Content="Ship Designer" Tag="ShipDesigner" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <FontIcon Glyph="&#xE790;"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="FreighterNavItem" Content="Freighter" Tag="Freighter" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="FreighterNavItem" Content="Freighter" Tag="Freighter" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="FreighterPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="FreighterUpgradesNavItem" Content="Freighter Upgrades" Tag="FreighterUpgrades" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="FreighterUpgradesNavItem" Content="Freighter Upgrades" Tag="FreighterUpgrades" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="FreighterUpgradesPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="FrigateNavItem" Content="Frigates" Tag="Frigate" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="FrigateNavItem" Content="Frigates" Tag="Frigate" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="FrigatesPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="SquadronNavItem" Content="Squadron" Tag="Squadron" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="SquadronNavItem" Content="Squadron" Tag="Squadron" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="SquadronPathIcon"/>
                         </NavigationViewItem.Icon>
@@ -169,37 +175,40 @@
                          shape as MilestonesPage, not a nav parent with 7 children
                          (2026-08-06 user correction: "We just need the tech area
                          and the cargo area for each one on one page"). -->
-                    <NavigationViewItem x:Name="ExocraftNavItem" Content="Exocraft" Tag="Exocraft" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="ExocraftNavItem" Content="Exocraft" Tag="Exocraft" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="ExocraftPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="BasesNavItem" Content="Bases and Parts" Tag="Bases" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="BasesNavItem" Content="Bases and Parts" Tag="Bases" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <FontIcon Glyph="&#xE80F;" FontFamily="Segoe MDL2 Assets"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="CargoNavItem" Content="Cargo" Tag="Cargo" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="CargoNavItem" Content="Cargo" Tag="Cargo" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind ViewModel.CacheTip, Mode=OneWay}">
+                        <NavigationViewItem.InfoBadge>
+                            <InfoBadge Value="{x:Bind ViewModel.CacheItems, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasCacheItems, Mode=OneWay}"/>
+                        </NavigationViewItem.InfoBadge>
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="CargoPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="CompanionsNavItem" Content="Companions" Tag="Companions" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="CompanionsNavItem" Content="Companions" Tag="Companions" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="CompanionsPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="SettlementNavItem" Content="Settlements" Tag="Settlement" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="SettlementNavItem" Content="Settlements" Tag="Settlement" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="SettlementsPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="SpaceStationsNavItem" Content="Space Stations" Tag="SpaceStations" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="SpaceStationsNavItem" Content="Space Stations" Tag="SpaceStations" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="SpaceStationsPathIcon"/>
                         </NavigationViewItem.Icon>
@@ -217,7 +226,7 @@
                          restructure as Account Data's own Catalog/Guide split. Atlas
                          isn't a race, just a smaller special vocabulary pool sharing
                          the same save array - see NmsLanguagePaths. -->
-                    <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="MilestonesNavItem" Content="Milestones" SelectsOnInvoked="False" IsExpanded="False" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="MilestonesPathIcon"/>
                         </NavigationViewItem.Icon>
@@ -252,13 +261,13 @@
                         </NavigationViewItem.MenuItems>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="GameCatalogNavItem" Content="Catalog" Tag="GameCatalog" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="GameCatalogNavItem" Content="Catalog" Tag="GameCatalog" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="GameCatalogPathIcon"/>
                         </NavigationViewItem.Icon>
                     </NavigationViewItem>
 
-                    <NavigationViewItem x:Name="FishingRecordsNavItem" Content="Fishing Records" Tag="FishingRecords" Visibility="Collapsed">
+                    <NavigationViewItem x:Name="FishingRecordsNavItem" Content="Fishing Records" Tag="FishingRecords" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}">
                         <NavigationViewItem.Icon>
                             <PathIcon x:Name="FishingRecordsPathIcon"/>
                         </NavigationViewItem.Icon>
@@ -267,38 +276,38 @@
                 </NavigationViewItem>
 
                 <!-- Explore: your journey - pages that follow your game and know your discoveries, never change the save (2026-10-15, split from "Tools"). Pure folder, same pattern as Milestones/Account Data. -->
-                <NavigationViewItemSeparator x:Name="ExploreSeparator" Visibility="Collapsed"/>
-                <NavigationViewItem x:Name="ExploreNavItem" Content="Explore" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
+                <NavigationViewItemSeparator x:Name="ExploreSeparator"/>
+                <NavigationViewItem x:Name="ExploreNavItem" Content="Explore" SelectsOnInvoked="False" IsExpanded="False">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE909;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.MenuItems>
-                        <NavigationViewItem x:Name="PlanetsNavItem" Content="Current System" Tag="Planets">
+                        <NavigationViewItem x:Name="PlanetsNavItem" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Content="Current System" Tag="Planets">
                             <NavigationViewItem.Icon>
                                 <PathIcon x:Name="PlanetsPathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
-                        <NavigationViewItem x:Name="CrashedShipsNavItem" Content="Crashed Ships" Tag="CrashedShips">
+                        <NavigationViewItem x:Name="CrashedShipsNavItem" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Content="Crashed Ships" Tag="CrashedShips">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xEB9D;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
-                        <NavigationViewItem x:Name="CabinetMultiToolsNavItem" Content="Cabinet Multi-Tools" Tag="CabinetMultiTools">
+                        <NavigationViewItem x:Name="CabinetMultiToolsNavItem" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Content="Cabinet Multi-Tools" Tag="CabinetMultiTools">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xEDA3;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
-                        <NavigationViewItem x:Name="PlanetFinderNavItem" Content="Planet Finder" Tag="PlanetFinder">
+                        <NavigationViewItem x:Name="PlanetFinderNavItem" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Content="Planet Finder" Tag="PlanetFinder">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE721;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
-                        <NavigationViewItem x:Name="CreatureFinderNavItem" Content="Creature Finder" Tag="CreatureFinder">
+                        <NavigationViewItem x:Name="CreatureFinderNavItem" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Content="Creature Finder" Tag="CreatureFinder">
                             <NavigationViewItem.Icon>
                                 <PathIcon x:Name="CreatureFinderPathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
-                        <NavigationViewItem x:Name="MultiToolFinderNavItem" Content="Multi-Tool Finder" Tag="MultiToolFinder">
+                        <NavigationViewItem x:Name="MultiToolFinderNavItem" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Content="Multi-Tool Finder" Tag="MultiToolFinder">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xEDA3;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
@@ -313,17 +322,17 @@
                                 <PathIcon x:Name="FishingPathIcon"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
-                        <NavigationViewItem x:Name="NearCoreNavItem" Content="Near Core" Tag="NearCore">
+                        <NavigationViewItem x:Name="NearCoreNavItem" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Content="Near Core" Tag="NearCore">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE7B7;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
-                        <NavigationViewItem x:Name="GalaxyTransferNavItem" Content="Galaxy Transfer" Tag="GalaxyTransfer">
+                        <NavigationViewItem x:Name="GalaxyTransferNavItem" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Content="Galaxy Transfer" Tag="GalaxyTransfer">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE774;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
-                        <NavigationViewItem x:Name="RegionsNavItem" Content="Regions" Tag="Regions">
+                        <NavigationViewItem x:Name="RegionsNavItem" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Content="Regions" Tag="Regions">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE81E;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
@@ -332,8 +341,8 @@
                 </NavigationViewItem>
 
                 <!-- Reference: game knowledge, the same for everyone (2026-10-15, split from "Tools"). -->
-                <NavigationViewItemSeparator x:Name="ReferenceSeparator" Visibility="Collapsed"/>
-                <NavigationViewItem x:Name="ReferenceNavItem" Content="Reference" SelectsOnInvoked="False" IsExpanded="False" Visibility="Collapsed">
+                <NavigationViewItemSeparator x:Name="ReferenceSeparator"/>
+                <NavigationViewItem x:Name="ReferenceNavItem" Content="Reference" SelectsOnInvoked="False" IsExpanded="False">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
@@ -413,35 +422,43 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <!-- Game data: first-run build, "the game updated", progress
-                     (GameDataService; set up in MainWindow.GameData.cs). Both bars
+                     (GameDataService; GameDataBarViewModel). Both bars
                      are collapsed while closed - a closed InfoBar keeps its margin,
                      which left a 16 px grey strip above every page (2026-10-15). -->
-                <InfoBar x:Name="GameDataBar" IsOpen="False" Margin="16,8,16,0" Visibility="{x:Bind GameDataBar.IsOpen, Mode=OneWay}" CloseButtonClick="GameDataBar_Closed">
+                <InfoBar x:Name="GameDataBar" Margin="16,8,16,0" Visibility="{x:Bind GameDataBar.IsOpen, Mode=OneWay}" CloseButtonClick="GameDataBar_Closed"
+                         IsOpen="{x:Bind ViewModel.GameData.IsOpen, Mode=TwoWay}" IsClosable="{x:Bind ViewModel.GameData.IsClosable, Mode=OneWay}"
+                         Severity="{x:Bind ViewModel.GameData.Severity, Mode=OneWay}" Title="{x:Bind ViewModel.GameData.Title, Mode=OneWay}"
+                         Message="{x:Bind ViewModel.GameData.Message, Mode=OneWay}">
                     <InfoBar.Content>
-                        <ProgressBar x:Name="GameDataProgress" Margin="0,0,0,12" Visibility="Collapsed"/>
+                        <ProgressBar x:Name="GameDataProgress" Margin="0,0,0,12" Maximum="100" Visibility="{x:Bind ViewModel.GameData.ShowProgress, Mode=OneWay}"
+                                     Value="{x:Bind ViewModel.GameData.ProgressValue, Mode=OneWay}" IsIndeterminate="{x:Bind ViewModel.GameData.ProgressIndeterminate, Mode=OneWay}"/>
                     </InfoBar.Content>
                     <InfoBar.ActionButton>
-                        <Button x:Name="GameDataButton" Click="GameDataButton_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                        <Button x:Name="GameDataButton" Click="GameDataButton_Click" Style="{x:Bind ViewModel.GameData.ButtonStyle, Mode=OneWay}"
+                                Content="{x:Bind ViewModel.GameData.ButtonText, Mode=OneWay}" Visibility="{x:Bind ViewModel.GameData.ShowButton, Mode=OneWay}"/>
                     </InfoBar.ActionButton>
                 </InfoBar>
                 <!-- The game is playing a different slot than the one loaded
                      (SaveFolderWatchService.GameSavedOtherSlot). -->
-                <InfoBar x:Name="SlotSwitchBar" Grid.Row="1" Severity="Informational" IsOpen="False" Margin="16,8,16,0" Visibility="{x:Bind SlotSwitchBar.IsOpen, Mode=OneWay}"
+                <InfoBar x:Name="SlotSwitchBar" Grid.Row="1" Severity="Informational" Margin="16,8,16,0"
+                         IsOpen="{x:Bind ViewModel.SlotSwitchOpen, Mode=TwoWay}" Message="{x:Bind ViewModel.SlotSwitchMessage, Mode=OneWay}" Visibility="{x:Bind SlotSwitchBar.IsOpen, Mode=OneWay}"
                          Title="You've switched saves in No Man's Sky" CloseButtonClick="SlotSwitchBar_Closed">
                     <InfoBar.ActionButton>
-                        <Button x:Name="SlotSwitchButton" Click="SlotSwitch_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                        <Button x:Name="SlotSwitchButton" Click="SlotSwitch_Click" Content="{x:Bind ViewModel.SlotSwitchButtonText, Mode=OneWay}" Style="{StaticResource ThemeAccentButtonStyle}"/>
                     </InfoBar.ActionButton>
                 </InfoBar>
                 <!-- The game moved the loaded save between its expedition and the
                      main game (SaveSessionManager.GameSavedLoadedSlot). Shares the
                      row: at most one of these is ever relevant at a time. -->
-                <InfoBar x:Name="ContextSwitchBar" Grid.Row="1" Severity="Informational" IsOpen="False" Margin="16,8,16,0" Visibility="{x:Bind ContextSwitchBar.IsOpen, Mode=OneWay}"
+                <InfoBar x:Name="ContextSwitchBar" Grid.Row="1" Severity="Informational" Margin="16,8,16,0"
+                         IsOpen="{x:Bind ViewModel.ContextOpen, Mode=TwoWay}" Title="{x:Bind ViewModel.ContextTitle, Mode=OneWay}"
+                         Message="{x:Bind ViewModel.ContextMessage, Mode=OneWay}" Visibility="{x:Bind ContextSwitchBar.IsOpen, Mode=OneWay}"
                          CloseButtonClick="ContextSwitchBar_Closed">
                     <InfoBar.OpacityTransition>
                         <ScalarTransition Duration="0:0:0.6"/>
                     </InfoBar.OpacityTransition>
                     <InfoBar.ActionButton>
-                        <Button x:Name="ContextSwitchButton" Content="Reload" Click="ContextSwitchReload_Click" Style="{StaticResource ThemeAccentButtonStyle}"/>
+                        <Button x:Name="ContextSwitchButton" Content="Reload" Click="ContextSwitchReload_Click" Visibility="{x:Bind ViewModel.ContextOffersReload, Mode=OneWay}" Style="{StaticResource ThemeAccentButtonStyle}"/>
                     </InfoBar.ActionButton>
                 </InfoBar>
                 <Frame x:Name="ContentFrame" Grid.Row="2" Navigated="ContentFrame_Navigated"/>
