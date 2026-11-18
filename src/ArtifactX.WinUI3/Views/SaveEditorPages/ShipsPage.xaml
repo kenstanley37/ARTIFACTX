@@ -70,7 +70,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="STARSHIPS" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
                     <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Starship Changes" Click="PageResetBtn_Click"
-                            Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+                            Visibility="{x:Bind ViewModel.HasPageEdits, Mode=OneWay}" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
                 </Grid>
 
                 <StackPanel x:Name="MainColumn" Grid.Row="1" Grid.Column="0" Spacing="22">
@@ -80,14 +80,14 @@
                                 <Grid>
                                     <TextBlock Text="OWNED STARSHIPS" Style="{StaticResource ThemeBandTextStyle}"/>
                                     <!-- "7 OF 12 SLOTS USED" (2026-10-17, the user's idea). -->
-                                    <TextBlock x:Name="ShipSlotsTxt" Style="{StaticResource ThemeBandTextStyle}" Opacity="0.75"
+                                    <TextBlock x:Name="ShipSlotsTxt" Text="{x:Bind ViewModel.SlotsText, Mode=OneWay}" Style="{StaticResource ThemeBandTextStyle}" Opacity="0.75"
                                                HorizontalAlignment="Right"/>
                                 </Grid>
                             </Border>
                             <!-- Bounded/scrollable so a save with many ships stays usable. -->
                             <ScrollViewer MaxHeight="120" Padding="18,14,18,16" VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-                                <controls:EquipmentStrip x:Name="ShipStrip" ChipClicked="ShipStrip_ChipClicked"/>
+                                <controls:EquipmentStrip x:Name="ShipStrip" Items="{x:Bind ViewModel.Chips, Mode=OneWay}" ChipClicked="ShipStrip_ChipClicked"/>
                             </ScrollViewer>
                         </StackPanel>
                     </Border>
@@ -97,12 +97,12 @@
                          Wide and short - three groups that wrap on narrow windows - and
                          collapsible (FoldingCard, remembered). -->
                     <Border x:Name="ShipInfoBorder" Style="{StaticResource ThemeCardStyle}">
-                        <controls:FoldingCard x:Name="DetailsCard" Title="SHIP DETAILS" SettingKey="StarshipsDetailsCollapsed">
+                        <controls:FoldingCard x:Name="DetailsCard" Title="SHIP DETAILS" SettingKey="StarshipsDetailsCollapsed" FoldedName="{x:Bind ViewModel.FoldedName, Mode=OneWay}">
                             <StackPanel Padding="18,14,18,18" Spacing="16">
                                 <!-- Shown for corvettes: their build lives apart from the ship (ShipBaseService). -->
-                                <Border x:Name="CorvetteNote" Visibility="Collapsed" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
+                                <Border x:Name="CorvetteNote" Visibility="{x:Bind ViewModel.ShowCorvetteNote, Mode=OneWay}" BorderBrush="{ThemeResource ThemeAccentBrush}" BorderThickness="1"
                                         CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="12,8">
-                                    <TextBlock x:Name="CorvetteNoteTxt" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                    <TextBlock x:Name="CorvetteNoteTxt" Text="{x:Bind ViewModel.CorvetteNoteText, Mode=OneWay}" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource ThemeTextBrush}"/>
                                 </Border>
 
                                 <!-- Who/seed then stats on the left, the preview beside the whole block
@@ -116,18 +116,22 @@
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
                                                     <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" LostFocus="NameEditBox_LostFocus" GotFocus="NameEditBox_GotFocus"
-                                                             TextChanged="NameEditBox_TextChanged" KeyDown="NameEditBox_KeyDown"/>
-                                                    <HyperlinkButton x:Name="NameUpdateLink" Content="Update game data now" Padding="0" Visibility="Collapsed" Click="NameUpdateLink_Click"/>
+                                                             TextChanged="NameEditBox_TextChanged" KeyDown="NameEditBox_KeyDown"
+                                                             Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             PlaceholderText="{x:Bind ViewModel.NamePlaceholder, Mode=OneWay}"/>
+                                                    <HyperlinkButton x:Name="NameUpdateLink" Content="Update game data now" Padding="0" Visibility="{x:Bind ViewModel.ShowNameUpdateLink, Mode=OneWay}" Click="NameUpdateLink_Click"/>
                                                 </StackPanel>
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                    <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"/>
+                                                    <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"
+                                                                  SelectedClass="{x:Bind ViewModel.ClassLetter, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasClass, Mode=OneWay}"/>
                                                 </StackPanel>
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
                                                     <ComboBox x:Name="TypeComboBox" AutomationProperties.Name="Type" HorizontalAlignment="Stretch"
                                                               DisplayMemberPath="DisplayName"
-                                                              SelectionChanged="TypeComboBox_SelectionChanged"
+                                                              ItemsSource="{x:Bind ViewModel.TypeOptions, Mode=OneWay}"
+                                                              SelectedItem="{x:Bind ViewModel.SelectedType, Mode=TwoWay}"
                                                               ToolTipService.ToolTip="The ship's model. Changing it swaps the hull you fly in-game."/>
                                                 </StackPanel>
                                             </StackPanel>
@@ -180,7 +184,7 @@
                     <controls:InventoryLayout x:Name="TechLayout" ListTitle="TECHNOLOGY FOR THIS SHIP">
                         <controls:InventoryLayout.Inventories>
                             <StackPanel Spacing="22">
-                                <controls:InventoryCard x:Name="TechCard" Title="TECHNOLOGY" Kind="Technology" CollapsedHeight="232" SettingKey="ShipsTechExpanded" Edited="Inventory_Edited">
+                                <controls:InventoryCard x:Name="TechCard" Title="{x:Bind ViewModel.TechTitle, Mode=OneWay}" Kind="Technology" CollapsedHeight="232" SettingKey="ShipsTechExpanded" Edited="Inventory_Edited">
                                     <controls:InventoryCard.ExtraActions>
                                         <Button Content="Copy Tech Stack..." Click="CopyTechStackBtn_Click"/>
                                     </controls:InventoryCard.ExtraActions>
