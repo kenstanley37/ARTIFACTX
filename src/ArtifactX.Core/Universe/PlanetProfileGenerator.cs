@@ -80,9 +80,10 @@ public static partial class PlanetProfileGenerator
 {
     private const ulong Multiplier = 0x5A76F899;
     private const double Fraction = 2.3283064370807974e-10;
-    private const int Lush = 0, Barren = 5, Dead = 6, Weird = 7, Swamp = 12, Lava = 13, Waterworld = 14, GasGiant = 15;
+    private const int Lush = BiomeType.Lush, Barren = BiomeType.Barren, Dead = BiomeType.Dead, Weird = BiomeType.Weird, Swamp = BiomeType.Swamp,
+        Lava = BiomeType.Lava, Waterworld = BiomeType.Waterworld, GasGiant = BiomeType.GasGiant;
     private const int DustWeather = 1, HumidWeather = 2, ScorchedWeather = 5, WeirdWeather = 13;
-    private const int SwampSub = 0x19, LavaSub = 0x1A;
+    private const int SwampSub = BiomeSubType.Swamp, LavaSub = BiomeSubType.Lava;
 
     private struct Rng
     {
@@ -199,7 +200,7 @@ public static partial class PlanetProfileGenerator
         return new PlanetBasics(common, uncommon, t.MiningRare[rareIndex], weather, extreme, storms, flora, fauna, sentinels, scrap, descriptor);
     }
 
-    private const int Infested = 0x18;
+    private const int Infested = BiomeSubType.Infested;
 
     /// <summary>The life step (0x1416956c0): flora, fauna, a resource draw, then sentinels.</summary>
     private static (int Flora, int Fauna, int[] Sentinels, bool Scrap) Life(Rng rng, int planetIndex, int biome, int subType, int planetClass,

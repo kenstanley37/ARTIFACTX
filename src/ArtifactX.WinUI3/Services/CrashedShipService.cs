@@ -48,7 +48,9 @@ public sealed record CrashedShipsOfClass(IReadOnlyList<CrashedShipSite> Nearest,
 /// </summary>
 public static class CrashedShipService
 {
-    private const int DistressSignal = 20, WaterDistressSignal = 32, SentinelDistressSignal = 52;
+    private const int DistressSignal = ArtifactX.Core.Universe.BuildingClass.DistressSignal,
+        WaterDistressSignal = ArtifactX.Core.Universe.BuildingClass.WaterDistressSignal,
+        SentinelDistressSignal = ArtifactX.Core.Universe.BuildingClass.SentinelDistressSignal;
 
     /// <summary>Claimable wrecks: land (20), underwater (32) and crashed Sentinel Interceptors (52, only on planets with
     /// corrupted sentinels - the building table's RequiresCorruptSentinels).</summary>

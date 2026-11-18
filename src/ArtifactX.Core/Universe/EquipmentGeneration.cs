@@ -129,6 +129,8 @@ public static class EquipmentGeneration
         [new("SHIP_DAMAGE", 15f, 30f), new("SHIP_SHIELD", 95f, 125f), new("SHIP_HYPERDRIVE", 45f, 58f), new("SHIP_AGILE", 10f, 15f)],
     ];
 
+    /// <summary>Fallbacks only, for catalogs without the inventory table's S-class MaxCargoSlots / MaxTechSlots per ship
+    /// class (GcInventoryLayoutGenerationDataEntry); the catalog's values (tables.ShipSClassMaxCargo/MaxTech) win.</summary>
     private static readonly int[] DefaultShipMaxCargo = [120, 120, 105, 110, 110, 0, 105, 120, 105, 120, 120];
     private static readonly int[] DefaultShipMaxTech = [60, 60, 60, 60, 60, 0, 60, 60, 60, 60, 60];
 

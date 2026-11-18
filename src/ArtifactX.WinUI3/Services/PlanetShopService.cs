@@ -37,7 +37,7 @@ public sealed record ShopsOfPlanet(
 /// </summary>
 public static class PlanetShopService
 {
-    private const int BuildingClassShop = 5;
+    private const int BuildingClassShop = ArtifactX.Core.Universe.BuildingClass.Shop;
 
     private static readonly ConcurrentDictionary<ulong, Task<AllShopsOnPlanet?>> All = new();
 

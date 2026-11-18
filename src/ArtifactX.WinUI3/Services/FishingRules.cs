@@ -24,7 +24,7 @@ public sealed record FishBait(string Id, double[] Rarity, double Day, double Nig
 /// </summary>
 public sealed class FishingRules
 {
-    private const int Waterworld = 14, GasGiant = 15;
+    private const int Waterworld = ArtifactX.Core.Universe.BiomeType.Waterworld, GasGiant = ArtifactX.Core.Universe.BiomeType.GasGiant;
 
     public FishingRules(IReadOnlyList<FishDepthRule> depths, IReadOnlyList<FishBait> baits)
     {

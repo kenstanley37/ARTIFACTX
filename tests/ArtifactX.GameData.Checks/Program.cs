@@ -462,6 +462,18 @@ if (args.Length == 4 && args[0] == "--building-layout-check")
     return;
 }
 
+if (args.Length == 1 && args[0] == "--enum-check")
+{
+    GameEnumChecks.Run();
+    return;
+}
+
+if (args.Length == 2 && args[0] == "--system-chances-check")
+{
+    SystemChanceChecks.Run(args[1]);
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--gas-giant-layout-check")
 {
     GasGiantLayoutChecks.Run(args[1]);

@@ -44,7 +44,8 @@ public static class PlanetGenerator
 {
     private const ulong Multiplier = 0x5A76F899;
     private const double Tiny = 2.3283064365386963e-10;
-    private const int Dead = 6, Weird = 7, Waterworld = 14, GasGiant = 15, BiomeCount = 17, Infested = 0x18;
+    private const int Dead = BiomeType.Dead, Weird = BiomeType.Weird, Waterworld = BiomeType.Waterworld, GasGiant = BiomeType.GasGiant,
+        BiomeCount = BiomeType.All + 1, Infested = BiomeSubType.Infested;
 
     /// <summary>Galaxy type by galaxy number mod 20 (code data in NMS.exe at 0x144a33d10):
     /// 1 harsh, 2 empty, 3 lush, 4 normal.</summary>
