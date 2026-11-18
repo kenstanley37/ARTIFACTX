@@ -730,7 +730,9 @@ public sealed partial class MainWindow : Window
             GameDataProgress.IsIndeterminate = p is null;
             bar.IsClosable = false;
             Show(InfoBarSeverity.Informational, "Reading your game files",
-                p is null ? "Starting..." : $"Step {p.Step} of {p.Steps}: {p.Label}. You can keep using ArtifactX - item names and icons update when it's done.",
+                (p is null ? "Starting..." : $"Step {p.Step} of {p.Steps}: {p.Label}.")
+                    + (GameDataService.BuildElapsed is { } running ? $" {GameDataService.FormatElapsed(running)} so far." : "")
+                    + " You can keep using ArtifactX - item names and icons update when it's done.",
                 "Cancel");
             return;
         }
