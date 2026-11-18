@@ -7,6 +7,7 @@ public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
     {
+        Services.AppStore.Current = new Services.PreferencesStore();
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()

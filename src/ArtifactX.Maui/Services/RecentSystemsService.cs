@@ -5,7 +5,7 @@ using ArtifactX.Maui.Models;
 namespace ArtifactX.Maui.Services;
 
 /// <summary>
-/// The player's recently opened systems, shown on Home, kept on the phone (Preferences) so a restart doesn't lose them.
+/// The player's recently opened systems, shown on Home, kept on the phone (AppStore) so a restart doesn't lose them.
 /// Opening a system also makes its galaxy the one being viewed (GalaxyService).
 /// </summary>
 public static class RecentSystemsService
@@ -16,10 +16,10 @@ public static class RecentSystemsService
     // A plain list, not one pages bind to: Android can close the app's window and keep the process, and a closed page
     // still attached to a shared collection threw ObjectDisposedException when the list changed - opening a system from
     // Recent systems then failed (seen on the Pixel 2026-11-18). Pages copy it when they appear (HomeViewModel).
-    private static readonly List<RecentSystemSummary> _items = Load();
+    private static List<RecentSystemSummary>? _items;
 
-    /// <summary>Newest first, at most ten.</summary>
-    public static IReadOnlyList<RecentSystemSummary> Items => _items;
+    /// <summary>Newest first, at most ten. Read on first use, after MauiProgram has set the store.</summary>
+    public static IReadOnlyList<RecentSystemSummary> Items => _items ??= Load();
 
 
     public static void Record(PortalSystemReadout readout)
@@ -31,11 +31,12 @@ public static class RecentSystemsService
             readout.GalaxyName,
             readout.GalaxyNumber);
 
-        _items.RemoveAll(i => i.GalaxyNumber == summary.GalaxyNumber
+        var items = _items ??= Load();
+        items.RemoveAll(i => i.GalaxyNumber == summary.GalaxyNumber
             && string.Equals(i.PortalCode[1..], summary.PortalCode[1..], StringComparison.OrdinalIgnoreCase));
-        _items.Insert(0, summary);
-        if (_items.Count > MaxItems) _items.RemoveRange(MaxItems, _items.Count - MaxItems);
-        Save();
+        items.Insert(0, summary);
+        if (items.Count > MaxItems) items.RemoveRange(MaxItems, items.Count - MaxItems);
+        AppStore.Current.Set(ItemsKey, JsonSerializer.Serialize(items));
 
         GalaxyService.Set(readout.GalaxyNumber);
     }
@@ -44,8 +45,7 @@ public static class RecentSystemsService
     {
         try
         {
-            string json = Preferences.Default.Get(ItemsKey, "");
-            if (json.Length > 0 && JsonSerializer.Deserialize<List<RecentSystemSummary>>(json) is { } saved)
+            if (AppStore.Current.Get(ItemsKey) is { Length: > 0 } json && JsonSerializer.Deserialize<List<RecentSystemSummary>>(json) is { } saved)
                 return saved.Take(MaxItems).ToList();
         }
         catch (JsonException)
@@ -55,5 +55,4 @@ public static class RecentSystemsService
         return [];
     }
 
-    private static void Save() => Preferences.Default.Set(ItemsKey, JsonSerializer.Serialize(_items));
 }
