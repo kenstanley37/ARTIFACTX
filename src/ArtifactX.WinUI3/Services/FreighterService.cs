@@ -120,4 +120,112 @@ public static class FreighterService
         if (clear) SaveSessionManager.StageEdit(new JArray(), CustomColoursPath);
         else SaveSessionManager.RevertEdit(CustomColoursPath);
     }
+
+    // ------------------------------------------------------------ the Freighter page's fields
+
+    private static string? Text(string[] path) => SaveSessionManager.GetValue(path)?.Value<string>();
+
+    public static string Name() => Text(NmsInventoryContainer.FreighterNamePath) ?? "";
+    public static string? TypeScene() => Text(NmsInventoryContainer.FreighterTypePath);
+    public static string? CrewRaceScene() => Text(NmsInventoryContainer.FreighterCrewRacePath);
+    public static string? ModelSeed() => Text(NmsInventoryContainer.FreighterModelSeedPath);
+    public static string? HomeSeed() => Text(NmsInventoryContainer.FreighterHomeSeedPath);
+    public static string? CrewSeed() => Text(NmsInventoryContainer.FreighterCrewSeedPath);
+    public static string EngineFlare() => Text(NmsInventoryContainer.FreighterEngineEffectPath) ?? "";
+
+    /// <summary>Stages a new name; false when it's empty or unchanged (a LostFocus mustn't stage the same value).</summary>
+    public static bool Rename(string? name)
+    {
+        string trimmed = name?.Trim() ?? "";
+        if (trimmed.Length == 0 || trimmed == Name()) return false;
+        SaveSessionManager.StageEdit(trimmed, NmsInventoryContainer.FreighterNamePath);
+        return true;
+    }
+
+    /// <summary>The real class lives on the Cargo container (FreighterClassPath), not Technology's.</summary>
+    public static void SetClass(string letter) => SaveSessionManager.StageEdit(letter, NmsInventoryContainer.FreighterClassPath);
+    public static void SetType(string scenePath) => SaveSessionManager.StageEdit(scenePath, NmsInventoryContainer.FreighterTypePath);
+    public static void SetCrewRace(string scenePath) => SaveSessionManager.StageEdit(scenePath, NmsInventoryContainer.FreighterCrewRacePath);
+
+    /// <summary>Stages an engine flare; false when it's the current one.</summary>
+    public static bool SetEngineFlare(string value)
+    {
+        if (string.Equals(value, EngineFlare(), StringComparison.Ordinal)) return false;
+        SaveSessionManager.StageEdit(value, NmsInventoryContainer.FreighterEngineEffectPath);
+        return true;
+    }
+
+    /// <summary>The whole freighter as a Full Build template: tech, every unlocked slot (a Tech Stack template keeps only
+    /// the ones holding tech, so it never unlocks extra slots), stats, Type, Model Seed (the hull's own look; never the
+    /// Crew Seed, see NmsLoadoutTemplate.Seed) and furnished interior.</summary>
+    public static NmsLoadoutTemplate CaptureFullBuild(ViewModels.InventoryGridViewModel tech, string templateName)
+    {
+        var template = tech.ExtractTemplate(templateName, DisplayName(), "Freighter");
+        template.Scope = "FullBuild";
+        template.Stats = StatBonusService.ReadAll(NmsInventoryContainer.FreighterStatBonusesPath);
+        template.Seed = ModelSeed();
+        template.TypeScenePath = TypeScene();
+        FreighterBuildService.Capture(template);
+        template.UnlockedPositions = tech.Cells.Where(c => c.State != ViewModels.InventorySlotState.Locked)
+            .Select(c => new NmsLoadoutPosition { X = c.X, Y = c.Y }).ToList();
+        return template;
+    }
+
+    public static NmsLoadoutTemplate CaptureTechStack(ViewModels.InventoryGridViewModel tech, string templateName) =>
+        tech.ExtractTemplate(templateName, DisplayName(), "Freighter");
+
+    /// <summary>The name a template records for the freighter ("Freighter" when it has none).</summary>
+    public static string DisplayName() => Name().Trim() is { Length: > 0 } n ? n : "Freighter";
+
+    /// <summary>Applies a Tech Stack template. The grid's own class write lands on the Technology container (inert for
+    /// a freighter's class, see FreighterClassPath), so the real class is written here when asked.</summary>
+    public static void ApplyTechStack(ViewModels.InventoryGridViewModel tech, NmsLoadoutTemplate template, bool alsoMatchClass)
+    {
+        tech.ApplyTemplate(template, alsoMatchClass);
+        if (alsoMatchClass && !string.IsNullOrEmpty(template.SourceClass)) SetClass(template.SourceClass);
+    }
+
+    /// <summary>Applies a Full Build template: tech (and class when asked), interior, stats, Model Seed and Type.</summary>
+    public static void ApplyFullBuild(ViewModels.InventoryGridViewModel tech, NmsLoadoutTemplate template, bool alsoMatchClass)
+    {
+        ApplyTechStack(tech, template, alsoMatchClass);
+        FreighterBuildService.ApplyInterior(template);
+        StatBonusService.WriteAll(NmsInventoryContainer.FreighterStatBonusesPath, template.Stats);
+        if (!string.IsNullOrEmpty(template.Seed)) SaveSessionManager.StageEdit(template.Seed, NmsInventoryContainer.FreighterModelSeedPath);
+        if (!string.IsNullOrEmpty(template.TypeScenePath)) SetType(template.TypeScenePath);
+    }
+
+    /// <summary>What deleting the freighter takes with it, for the confirmation.</summary>
+    public static string DeleteSummary(int cargoStacks)
+    {
+        int frigates = (SaveSessionManager.GetValue(NmsFrigatePaths.FrigateArrayPath) as JArray)?.Count ?? 0;
+        return "its tech, its furnished interior"
+            + (cargoStacks > 0 ? $", the {cargoStacks} stacks in its cargo" : "")
+            + " and its look. What you've learned (blueprints, known tech) stays"
+            + (frigates > 0 ? $", and your {frigates} frigate{(frigates == 1 ? "" : "s")} stay as they are" : "");
+    }
+
+    /// <summary>The apply confirmation's summary line.</summary>
+    public static string ApplySummary(string sourceLabel, bool includesStatsAndSeed, bool replacesInterior) =>
+        includesStatsAndSeed && replacesInterior
+            ? $"This replaces your freighter's entire tech loadout, base stats, Type, appearance seed and interior (every room and furnishing) with {sourceLabel}. "
+                + "Items in your storage containers aren't affected."
+            : includesStatsAndSeed
+            ? $"This replaces your freighter's entire tech loadout, base stats, Type, and appearance seed with {sourceLabel}."
+            : $"This replaces your freighter's entire tech loadout with {sourceLabel}.";
+
+    /// <summary>The confirmation text for adding a freighter from a template (a starter hull when <paramref name="fresh"/>).</summary>
+    public static (string Title, string Body) AddFreighterText(NmsLoadoutTemplate template)
+    {
+        bool fresh = template.TechItems.Count <= 2 && !FreighterBuildService.HasInterior(template);
+        return fresh
+            ? ($"Add a new {template.Name.ToLowerInvariant()}?",
+                "A brand-new one, just as the game hands it over: C class, a hyperdrive and scanner, the starter interior and a random look, "
+                + "parked in the system you're in, with a new Gek captain (change the race under Crew Race). Nothing is written to your save until you Save.")
+            : ($"Add \"{template.Name}\" as your freighter?",
+                "It arrives with this template's model, look, tech, class, stats and "
+                + (FreighterBuildService.HasInterior(template) ? "furnished interior" : "the standard starter interior")
+                + ", parked in the system you're in. Its cargo starts empty and it gets a new Gek captain (change the race under Crew Race). "
+                + "Nothing is written to your save until you Save.");
+    }
 }
