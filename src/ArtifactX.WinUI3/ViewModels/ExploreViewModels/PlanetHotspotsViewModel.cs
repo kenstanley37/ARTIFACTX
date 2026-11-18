@@ -128,7 +128,8 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
         double centerLon,
         bool isHere,
         double? portalLat = null,
-        double? portalLon = null)
+        double? portalLon = null,
+        PortalLocation? portal = null)
     {
         // Calculate distance shifted to avoid scrambling cards while walking locally (< 300 meters)
         double movedMeters = double.MaxValue;
@@ -204,7 +205,7 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
             _allClusters.Clear();
             foreach (var c in data.Clusters)
             {
-                var item = new PlanetHotspotClusterItemViewModel(c, OnClusterPinnedChanged)
+                var item = new PlanetHotspotClusterItemViewModel(c, OnClusterPinnedChanged, data.BaseReach)
                 {
                     IsPinned = _pinnedClusterKeys.Contains(c.ClusterKey)
                 };
@@ -213,7 +214,7 @@ public sealed partial class PlanetHotspotsViewModel : ObservableObject
 
             _allPortalSites.Clear();
             foreach (var c in data.PortalSites ?? [])
-                _allPortalSites.Add(new PlanetHotspotClusterItemViewModel(c, OnClusterPinnedChanged)
+                _allPortalSites.Add(new PlanetHotspotClusterItemViewModel(c, OnClusterPinnedChanged, data.BaseReach, portal)
                 {
                     IsPinned = _pinnedClusterKeys.Contains(c.ClusterKey)
                 });

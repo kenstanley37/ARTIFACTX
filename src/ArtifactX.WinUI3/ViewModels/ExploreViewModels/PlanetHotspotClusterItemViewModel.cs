@@ -25,11 +25,23 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
 
     /// <summary>The card's hotspot rows: each with its distance from this card's base computer and from the portal.</summary>
     public IReadOnlyList<ClusterHotspotRow> Rows { get; }
+
+    /// <summary>The planet's portal is known, so the From Portal column and the base computer's distance show.</summary>
+    public bool HasPortalColumn { get; }
+
+    /// <summary>How forgiving the spot is: the farthest thing it must reach against a new base's boundary.</summary>
+    public string SpareText { get; }
+
+    /// <summary>Green with room to spare, yellow when tight - a base computer placed a little off could miss something.</summary>
+    public Brush SpareBrush { get; }
+
+    /// <summary>Near Portal cards also mark the portal with the beacon (the visor finds the hotspots from there).</summary>
+    public bool MarksPortal => _portal is not null && Cluster.IncludesPortal;
     public double MaxRadius => Cluster.MaxRadius;
     public double MaxSpan => Cluster.MaxSpan;
     public string BaseCoordinates => Cluster.BaseCoordinates;
     public string ReachDescription => Cluster.ReachDescription;
-    public string? PortalDistanceLabel => Cluster.PortalDistance is { } portal ? $"{Distance(portal)} from the base computer" : null;
+    public string? PortalDistanceLabel => Cluster.PortalDistance is { } portal ? $"{Distance(portal)} from the portal" : null;
     public string ComboGlyph => Cluster.ComboGlyph;
 
     public Brush BadgeBrush => ThemeResources.Brush(Cluster.ComboBadgeKey);
@@ -73,15 +85,35 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
     [ObservableProperty] public partial bool IsMarked { get; private set; }
     [ObservableProperty] public partial bool IsCopied { get; private set; }
 
-    public PlanetHotspotClusterItemViewModel(PlanetHotspotCluster cluster, Action<PlanetHotspotClusterItemViewModel>? onPinnedChanged = null)
+    private readonly PortalLocation? _portal;
+    private bool _addedPortalMarker;
+
+    /// <summary>Less room than this between the farthest site and the base boundary reads as tight (yellow). A display
+    /// choice, not game data: about the error of placing a base computer by eye at a beacon.</summary>
+    private const double TightMargin = 50;
+
+    public PlanetHotspotClusterItemViewModel(PlanetHotspotCluster cluster, Action<PlanetHotspotClusterItemViewModel>? onPinnedChanged = null,
+        float baseReach = 0f, PortalLocation? portal = null)
     {
         Cluster = cluster;
         _onPinnedChanged = onPinnedChanged;
+        _portal = portal;
         Hotspots = cluster.Hotspots.Select(h => new PlanetHotspotItemViewModel(h)).ToList();
         float planetRadius = cluster.BaseLocalPosition.Length();
         Rows = Hotspots.Select(h => new ClusterHotspotRow(h,
-            $"{Distance(PlanetHotspotCluster.GroundDistance(cluster.BaseLocalPosition, h.Hotspot.LocalPosition, planetRadius))} from the base computer"
-            + (h.Hotspot.PortalDistance is { } portal ? $" · {Distance(portal)} from the portal" : ""))).ToList();
+            h.Kind == "Power" ? $"{Math.Round(h.Strength)} kP" : $"{h.YieldPercent}%",
+            Distance(PlanetHotspotCluster.GroundDistance(cluster.BaseLocalPosition, h.Hotspot.LocalPosition, planetRadius)),
+            h.Hotspot.PortalDistance is { } fromPortal ? Distance(fromPortal) : "",
+            $"{h.ResourceName}, class {h.Class}: {h.YieldLabel}")).ToList();
+        HasPortalColumn = cluster.PortalDistance is not null;
+        string what = cluster.IncludesPortal
+            ? (Hotspots.Count == 1 ? "the portal and the hotspot" : $"the portal and all {Hotspots.Count} hotspots")
+            : $"all {Hotspots.Count} hotspots";
+        double spare = baseReach - cluster.MaxRadius;
+        SpareText = baseReach > 0
+            ? $"Reaches {what} - the farthest is {Math.Round(cluster.MaxRadius)}u of {Math.Round(baseReach)}u ({Math.Max(0, Math.Round(spare))}u to spare)"
+            : cluster.ReachDescription;
+        SpareBrush = ThemeResources.Brush(baseReach > 0 && spare < TightMargin ? "ThemeWarningBrush" : "ThemeDoneBrush");
         Refresh();
     }
 
@@ -96,14 +128,18 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
         CanUndoMarker = marked;
         CanRemoveMarker = SaveBeaconService.CanRemove;
         RemoveButtonText = unsaved ? "Undo" : "Remove";
-        AddMarkerText = marked ? "Save Beacon placed ✓" : "Place Save Beacon at site";
+        AddMarkerText = marked ? (MarksPortal ? "Beacon placed, portal marked ✓" : "Save Beacon placed ✓")
+            : MarksPortal ? "Place Save Beacon and mark the portal" : "Place Save Beacon at site";
 
-        MarkerStatus = unsaved ? "Save Beacon placed at optimal site. Save your changes to write to your save."
+        MarkerStatus = unsaved
+            ? (MarksPortal ? "Save Beacon placed where the base computer goes, and the portal marked. Save your changes to write them to your save."
+                : "Save Beacon placed at optimal site. Save your changes to write to your save.")
             : !SaveSessionManager.IsSaveLoaded ? "Load a save to place a Save Beacon."
             : marked && GameProcessMonitorService.IsGameRunning
                 ? "Save Beacon placed in save. Close No Man's Sky to remove."
             : marked ? "Save Beacon placed in save. Click Remove to take it out."
             : GameProcessMonitorService.IsGameRunning ? "Close No Man's Sky to place a Save Beacon."
+            : MarksPortal ? "Places a Save Beacon where the base computer goes and marks the portal. Use your visor to find the hotspots from there."
             : "Places an in-game Save Beacon at the optimal Base Computer location.";
     }
 
@@ -118,6 +154,12 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
     public void AddMarker()
     {
         SaveBeaconService.Add(Cluster.PlanetAddress, Cluster.BaseLocalPosition);
+        // The same portal marker Planet Details adds (ScanMarkerService, table 3) - unless one is already waiting to save.
+        if (MarksPortal && _portal is { } portal && !ScanMarkerService.IsUnsaved(portal.Key))
+        {
+            ScanMarkerService.Add(portal.PlanetAddress, portal.Key, portal.X, portal.Y, portal.Z, 3, "PORTAL", "Portal");
+            _addedPortalMarker = true;
+        }
         IsPinned = true;
         _onPinnedChanged?.Invoke(this);
         Refresh();
@@ -127,6 +169,9 @@ public sealed partial class PlanetHotspotClusterItemViewModel : ObservableObject
     public void UndoMarker()
     {
         SaveBeaconService.Remove(Cluster.PlanetAddress, Cluster.BaseLocalPosition);
+        // Only the portal marker this card added, and only while it's still unsaved (Undo puts back what it replaced).
+        if (_addedPortalMarker && _portal is { } portal && ScanMarkerService.IsUnsaved(portal.Key)) ScanMarkerService.Remove(portal.Key);
+        _addedPortalMarker = false;
         Refresh();
     }
 

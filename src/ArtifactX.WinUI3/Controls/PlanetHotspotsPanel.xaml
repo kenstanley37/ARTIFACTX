@@ -192,7 +192,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="explore:PlanetHotspotClusterItemViewModel">
-                            <Border Width="460" MinHeight="265" Padding="16,14" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
+                            <Border Width="460" Padding="16,14" CornerRadius="{ThemeResource ThemeCardCornerRadius}"
                                     Background="{x:Bind CardBackground, Mode=OneWay}"
                                     BorderBrush="{x:Bind CardBorderBrush, Mode=OneWay}"
                                     BorderThickness="{x:Bind CardBorderThickness, Mode=OneWay}">
@@ -204,118 +204,107 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Header: Combo Badge, Glyph, Base Coords, Pin, Copy -->
+                                    <!-- Header: what this spot reaches, and Pin -->
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-
-                                        <!-- Combo Title Badge -->
-                                        <Border Background="{ThemeResource ThemePanelAltBrush}"
-                                                BorderBrush="{x:Bind BadgeBrush}"
-                                                BorderThickness="1" Padding="8,3"
+                                        <Border Background="{ThemeResource ThemePanelAltBrush}" BorderBrush="{x:Bind BadgeBrush}"
+                                                BorderThickness="1" Padding="8,3" HorizontalAlignment="Left"
                                                 CornerRadius="{ThemeResource ThemeCardCornerRadius}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <FontIcon Glyph="{x:Bind ComboGlyph}" FontSize="12" Foreground="{x:Bind BadgeBrush}"/>
-                                                <TextBlock Text="{x:Bind Title}" FontSize="11" FontWeight="Bold"
-                                                           Foreground="{x:Bind BadgeBrush}"/>
+                                                <TextBlock Text="{x:Bind Title}" FontSize="12" FontWeight="Bold" Foreground="{x:Bind BadgeBrush}"/>
                                             </StackPanel>
                                         </Border>
-
-                                        <!-- Optimal Base Coordinates + Pin + Copy -->
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                            <!-- Pin Button -->
-                                            <Button Command="{x:Bind TogglePinCommand}" Padding="6,2" FontSize="11"
-                                                    Background="{x:Bind PinButtonBackground, Mode=OneWay}"
-                                                    BorderBrush="{x:Bind PinButtonBorderBrush, Mode=OneWay}"
-                                                    BorderThickness="1"
-                                                    ToolTipService.ToolTip="{x:Bind PinTooltip, Mode=OneWay}"
-                                                    AutomationProperties.Name="{x:Bind PinTooltip, Mode=OneWay}">
-                                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <FontIcon Glyph="&#xE718;" FontSize="11" Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
-                                                    <TextBlock Text="{x:Bind PinButtonText, Mode=OneWay}" FontSize="11"
-                                                               Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
-                                                </StackPanel>
-                                            </Button>
-
-                                            <FontIcon Glyph="&#xE7F4;" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{x:Bind BaseCoordinates}" FontSize="12" FontWeight="Bold"
-                                                       FontFamily="{ThemeResource ThemeDisplayFont}"
-                                                       Foreground="{ThemeResource ThemeAccentBrush}"
-                                                       VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
-                                            <controls:CopyCodeButton Code="{x:Bind BaseCoordinates}" Padding="6,2" Content="Copy" FontSize="11"/>
-                                        </StackPanel>
+                                        <Button Grid.Column="1" Command="{x:Bind TogglePinCommand}" Padding="8,3" FontSize="12"
+                                                Background="{x:Bind PinButtonBackground, Mode=OneWay}"
+                                                BorderBrush="{x:Bind PinButtonBorderBrush, Mode=OneWay}" BorderThickness="1"
+                                                ToolTipService.ToolTip="{x:Bind PinTooltip, Mode=OneWay}"
+                                                AutomationProperties.Name="{x:Bind PinTooltip, Mode=OneWay}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <FontIcon Glyph="&#xE718;" FontSize="12" Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
+                                                <TextBlock Text="{x:Bind PinButtonText, Mode=OneWay}" FontSize="12" Foreground="{x:Bind PinForeground, Mode=OneWay}"/>
+                                            </StackPanel>
+                                        </Button>
                                     </Grid>
 
-                                    <StackPanel Grid.Row="1" Spacing="2" MinHeight="84" VerticalAlignment="Top">
-                                    <!-- The portal first, when known: how far it is from this card's base computer -->
-                                    <Grid Padding="0,3" ColumnSpacing="8" Visibility="{x:Bind HasPortalDistance, Mode=OneWay}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <FontIcon Glyph="&#xE707;" FontSize="12" Foreground="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="Portal" FontSize="13" FontWeight="SemiBold"
-                                                   Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="2" Text="{x:Bind PortalDistanceLabel}" FontSize="12"
-                                                   Foreground="{ThemeResource ThemeDoneBrush}" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <!-- Hotspot Rows in this Combo: resource, then where it sits from this card's base computer and the portal -->
-                                    <ItemsControl ItemsSource="{x:Bind Rows}" VerticalAlignment="Top">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="explore:ClusterHotspotRow">
-                                                <Grid Padding="0,3" ColumnSpacing="8" RowSpacing="1">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
-
-                                                    <!-- Class Badge -->
-                                                    <Border Background="{x:Bind Hotspot.ClassBrush}" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
-                                                        <TextBlock Text="{x:Bind Hotspot.ClassBadgeText}" FontSize="10" FontWeight="Bold" Foreground="White"
-                                                                   FontFamily="{ThemeResource ThemeDisplayFont}"/>
-                                                    </Border>
-
-                                                    <!-- Kind Glyph -->
-                                                    <FontIcon Grid.Column="1" Glyph="{x:Bind Hotspot.KindGlyph}" FontSize="12"
-                                                              Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
-
-                                                    <!-- Resource Name -->
-                                                    <TextBlock Grid.Column="2" Text="{x:Bind Hotspot.ResourceName}" FontSize="13" FontWeight="SemiBold"
-                                                               Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"/>
-
-                                                    <!-- Yield / Details -->
-                                                    <TextBlock Grid.Column="3" Text="{x:Bind Hotspot.YieldLabel}" FontSize="11"
-                                                               Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"/>
-
-                                                    <!-- Where it sits from this card's base computer and the portal -->
-                                                    <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Text="{x:Bind Where}" FontSize="12"
-                                                               Foreground="{ThemeResource ThemeTextDimBrush}" TextWrapping="Wrap"/>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                    <!-- The hotspots as a table: name on the left; yield and distances in columns on the right.
+                                         Fixed column widths keep the numbers lined up from row to row. -->
+                                    <StackPanel Grid.Row="1" Spacing="4" VerticalAlignment="Top">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="72"/>
+                                                <ColumnDefinition Width="80"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="HOTSPOT" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12"/>
+                                            <TextBlock Grid.Column="1" Text="YIELD" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12" HorizontalAlignment="Right"/>
+                                            <TextBlock Grid.Column="2" Text="FROM BASE" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12" HorizontalAlignment="Right"/>
+                                            <TextBlock Grid.Column="3" Text="FROM PORTAL" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12" HorizontalAlignment="Right"
+                                                       Visibility="{x:Bind HasPortalColumn}"/>
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{x:Bind Rows}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="explore:ClusterHotspotRow">
+                                                    <Grid Padding="0,4" ColumnSpacing="8" ToolTipService.ToolTip="{x:Bind Details}">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="64"/>
+                                                            <ColumnDefinition Width="72"/>
+                                                            <ColumnDefinition Width="80"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                                            <Border Background="{x:Bind Hotspot.ClassBrush}" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
+                                                                <TextBlock Text="{x:Bind Hotspot.ClassBadgeText}" FontSize="11" FontWeight="Bold" Foreground="White"
+                                                                           FontFamily="{ThemeResource ThemeDisplayFont}"/>
+                                                            </Border>
+                                                            <FontIcon Glyph="{x:Bind Hotspot.KindGlyph}" FontSize="13"
+                                                                      Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{x:Bind Hotspot.ResourceName}" FontSize="13" FontWeight="SemiBold"
+                                                                       Foreground="{ThemeResource ThemeTextBrush}" VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Text="{x:Bind Yield}" FontSize="13" FontWeight="SemiBold"
+                                                                   Foreground="{ThemeResource ThemeTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="2" Text="{x:Bind FromBase}" FontSize="13" FontWeight="SemiBold"
+                                                                   Foreground="{ThemeResource ThemeTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="3" Text="{x:Bind FromPortal}" FontSize="13" FontWeight="SemiBold"
+                                                                   Foreground="{ThemeResource ThemeTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
 
-                                    <!-- Optimal Base Computer Site Summary Box -->
+                                    <!-- Where to build: the base computer spot (the Save Beacon goes here), and how far it is from the portal -->
                                     <Border Grid.Row="2" Background="{ThemeResource ThemePanelAltBrush}"
                                             BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                                            Padding="10,8" CornerRadius="4" MinHeight="54">
-                                        <StackPanel Spacing="3" VerticalAlignment="Center">
-                                            <TextBlock Text="{x:Bind ReachDescription}" FontSize="11"
-                                                       Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
+                                            Padding="12,10" CornerRadius="4">
+                                        <StackPanel Spacing="6">
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="BASE COMPUTER" Style="{StaticResource ThemeEyebrowStyle}" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{x:Bind BaseCoordinates}" FontSize="14" FontWeight="Bold"
+                                                           FontFamily="{ThemeResource ThemeDisplayFont}" Foreground="{ThemeResource ThemeAccentBrush}"
+                                                           VerticalAlignment="Center" IsTextSelectionEnabled="True"/>
+                                                <controls:CopyCodeButton Grid.Column="2" Code="{x:Bind BaseCoordinates}" Padding="8,2" Content="Copy" FontSize="12"/>
+                                                <TextBlock Grid.Column="3" Text="{x:Bind PortalDistanceLabel}" FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource ThemeTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Visibility="{x:Bind HasPortalDistance, Mode=OneWay}"/>
+                                            </Grid>
+                                            <TextBlock Text="{x:Bind SpareText}" FontSize="13" Foreground="{x:Bind SpareBrush}" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- Actions Row: Add Base Marker / Undo -->
+                                    <!-- Actions: Save Beacon at the base computer spot (near the portal, also a portal marker) / Undo -->
                                     <Grid Grid.Row="3" ColumnSpacing="8" VerticalAlignment="Bottom">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -326,7 +315,7 @@
                                                 IsEnabled="{x:Bind CanAddMarker, Mode=OneWay}"
                                                 HorizontalAlignment="Stretch"
                                                 ToolTipService.ToolTip="{x:Bind MarkerStatus, Mode=OneWay}"
-                                                AutomationProperties.Name="Place Save Beacon at optimal base computer site"/>
+                                                AutomationProperties.Name="{x:Bind AddMarkerText, Mode=OneWay}"/>
                                         <Button Grid.Column="1" Content="{x:Bind RemoveButtonText, Mode=OneWay}"
                                                 Command="{x:Bind UndoMarkerCommand}"
                                                 Visibility="{x:Bind CanUndoMarker, Mode=OneWay}"
