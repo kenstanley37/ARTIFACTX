@@ -749,7 +749,8 @@ public sealed partial class MainWindow : Window
         if (_gameDataJustBuilt)
         {
             Show(InfoBarSeverity.Success, "Game data ready",
-                $"Read from your No Man's Sky{(game is null ? "" : $" ({game.BuildLabel})")}.", null);
+                $"Read from your No Man's Sky{(game is null ? "" : $" ({game.BuildLabel})")}"
+                + (GameDataService.LastBuildDuration is { } took ? $" in {GameDataService.FormatElapsed(took)}." : "."), null);
             return;
         }
 

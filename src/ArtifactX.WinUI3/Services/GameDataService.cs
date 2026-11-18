@@ -128,6 +128,9 @@ public static class GameDataService
     /// own Elapsed only moves when a step reports, so it froze during long steps). Null when no build runs.</summary>
     public static TimeSpan? BuildElapsed => IsBuilding ? BuildClock.Elapsed : null;
 
+    /// <summary>How long the last finished build took (shown on "Game data ready"); null before one finishes.</summary>
+    public static TimeSpan? LastBuildDuration { get; private set; }
+
     /// <summary>"45s", "3m 07s".</summary>
     public static string FormatElapsed(TimeSpan t) =>
         t.TotalMinutes >= 1 ? $"{(int)t.TotalMinutes}m {t.Seconds:00}s" : $"{t.Seconds}s";
@@ -192,6 +195,7 @@ public static class GameDataService
             LogService.Close(); // so "Open build log" can read all of it
             _tick?.Dispose();
             _tick = null;
+            LastBuildDuration = BuildClock.Elapsed;
             Progress = null;
             // The builder holds every decoded table while it runs; give that back.
             GC.Collect();

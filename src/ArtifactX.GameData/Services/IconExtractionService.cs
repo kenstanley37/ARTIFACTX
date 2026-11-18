@@ -32,11 +32,45 @@ public class IconExtractionService
         });
     }
 
-    public IconExtractionService(ExtractionService extractor, GlobalFileIndexService index, int targetSize = 128)
+    public IconExtractionService(ExtractionService extractor, GlobalFileIndexService index, int targetSize = 128,
+        string? diskCacheFolder = null)
     {
         _extractor = extractor;
         _index = index;
         _targetSize = targetSize;
+        _diskCache = diskCacheFolder;
+        if (_diskCache is not null)
+        {
+            try { Directory.CreateDirectory(_diskCache); }
+            catch (Exception ex) { LogService.Write($"  Icon cache unavailable ({ex.Message}); converting every icon."); _diskCache = null; }
+        }
+    }
+
+    /// <summary>
+    /// Converted icons kept between builds, one PNG per source texture content: the file name is the SHA-256 of the
+    /// texture's bytes and the target size, so an icon a game update didn't touch is read back instead of decoded,
+    /// resized and encoded again (converting all ~4,300 was 64 of a 3m16s build, 2026-11-17), and one it changed gets a
+    /// new name. The same pipeline wrote them, so the catalog's bytes are unchanged. Null: no cache.
+    /// </summary>
+    private readonly string? _diskCache;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _usedCacheFiles = new(StringComparer.OrdinalIgnoreCase);
+    private int _cacheHits;
+
+    /// <summary>Icons read back from the disk cache this run.</summary>
+    public int CacheHits => _cacheHits;
+
+    /// <summary>Deletes cached icons this run didn't use (textures the game no longer has, or replaced), so the cache
+    /// never outgrows one build's icons. Call once, after converting everything the build references.</summary>
+    public void PruneDiskCache()
+    {
+        if (_diskCache is null) return;
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(_diskCache, "*.png"))
+                if (!_usedCacheFiles.ContainsKey(Path.GetFileName(file)))
+                    try { File.Delete(file); } catch (IOException) { }
+        }
+        catch (Exception ex) { LogService.Write($"  Icon cache clean-up skipped: {ex.Message}"); }
     }
 
     /// <summary>
@@ -67,6 +101,23 @@ public class IconExtractionService
             return null;
         }
 
+        string? cacheFile = null;
+        if (_diskCache is not null)
+        {
+            string name = $"{Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(sourceBytes))}_{_targetSize}.png";
+            _usedCacheFiles[name] = 0;
+            cacheFile = Path.Combine(_diskCache, name);
+            try
+            {
+                if (File.Exists(cacheFile) && File.ReadAllBytes(cacheFile) is { Length: > 0 } stored)
+                {
+                    Interlocked.Increment(ref _cacheHits);
+                    return stored;
+                }
+            }
+            catch (IOException) { /* unreadable: convert again below */ }
+        }
+
         try
         {
             using SKBitmap bitmap = texturePath.EndsWith(".PNG", StringComparison.OrdinalIgnoreCase)
@@ -83,7 +134,10 @@ public class IconExtractionService
             // correct regardless; only the resize call's parameter type may need a tweak.
             using SKData data = image.Encode(SKEncodedImageFormat.Png, 100);
 
-            return data.ToArray();
+            byte[] png = data.ToArray();
+            if (cacheFile is not null)
+                try { File.WriteAllBytes(cacheFile, png); } catch (IOException) { /* still converted; cached next time */ }
+            return png;
         }
         catch (Exception ex)
         {

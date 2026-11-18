@@ -32,6 +32,7 @@ public static partial class CatalogSteps
             _cachedIndex = null;
             _cachedMergedEnglish = null;
         }
+        Services.PakReaderService.ClearMemo();
     }
 
     private static IReadOnlyList<(string PakPath, PakHeader Header, IReadOnlyList<PakEntry> Entries)> GetPakEntries(string pcbanksPath)
