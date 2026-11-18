@@ -44,6 +44,23 @@ public sealed record VoxelAttributes(int GuideStarCount, int BlackHoleCount, int
 public sealed record SystemBodies(ulong[] PlanetSeeds, int PlanetCount, int MoonCount, int[] Sizes, int[] Hosts)
 {
     public bool IsMoon(int body) => body >= 1 && body <= Hosts.Length && Hosts[body - 1] > 0;
+
+    /// <summary>Size class (GcPlanetSize: 0 Large, 1 Medium, 2 Small, 3 Moon, 4 Giant) of each of the system's
+    /// <paramref name="count"/> bodies (index 0 = body 1), or -1 where the rolled sizes run out. A moon is 3; in a
+    /// gas-giant system body 1 is 4 whether or not it rolled <see cref="SystemAttributes.GasGiantPlanet"/> (without it
+    /// body 1 is a size-4 world of an ordinary biome: Roquist XVIII, galaxy 219, all six centres and biomes matched the
+    /// save 2026-11-17); every other planet takes the next rolled size. The one rule <see cref="PlanetGenerator"/>,
+    /// <see cref="SolarLayoutGeneration"/> and the portal readout share.</summary>
+    public int[] SizeClasses(SystemAttributes attributes, int count)
+    {
+        var classes = new int[Math.Max(count, 0)];
+        int next = 0;
+        for (int i = 0; i < classes.Length; i++)
+            classes[i] = i < Hosts.Length && Hosts[i] > 0 ? 3
+                : attributes.GasGiant && i == 0 ? 4
+                : next < Sizes.Length ? Sizes[next++] : -1;
+        return classes;
+    }
 }
 
 /// <summary>Per-star-type chances (GcGalaxyStarTypes order: Yellow, Green, Blue, Red, Purple) that a system is abandoned,

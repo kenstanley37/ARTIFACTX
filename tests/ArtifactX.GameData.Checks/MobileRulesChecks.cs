@@ -91,6 +91,13 @@ static class MobileRulesChecks
             else Console.WriteLine($"Uwaiimor XIII: portal {portal.Coordinates}, base computer {spot!.BaseCoordinates} with power C and Dioxite A - matches the game.");
         }
 
+        // Uwaiimor XIII is body 1 of a gas-giant system without the GasGiantPlanet roll: a size-4 Giant, not a
+        // true gas giant (radius 523264 read from the game, 2026-11-17). The phone once called it "Medium".
+        string uwaiimorCode = ((1UL << 44) | (0x3EFUL << 32) | 0xFBFFB004).ToString("X12");
+        var readoutBody = PortalSystemReadout.Generate(uwaiimorCode, 219).Bodies.FirstOrDefault();
+        if (readoutBody?.SizeLabel != "Giant") Fail($"Uwaiimor XIII: phone size label {readoutBody?.SizeLabel ?? "none"}, expected Giant");
+        else Console.WriteLine($"Uwaiimor XIII: phone readout says {readoutBody.Name} is a Giant.");
+
         Console.WriteLine(failures == 0 ? "PASS: the rules file gives the phone the desktop's portals, hotspots and base spots." : $"{failures} failures.");
         if (failures > 0) Environment.ExitCode = 1;
     }
