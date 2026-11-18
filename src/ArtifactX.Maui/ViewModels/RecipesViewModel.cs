@@ -38,6 +38,8 @@ public sealed partial class RecipesViewModel : ObservableObject
     public string SearchPlaceholder => IsCooking ? "Search foods and ingredients" : "Search materials";
 
     [ObservableProperty] public partial string Search { get; set; } = "";
+    [ObservableProperty] public partial string CookingLabel { get; private set; } = "Cooking";
+    [ObservableProperty] public partial string RefinerLabel { get; private set; } = "Refiner";
     [ObservableProperty] public partial IReadOnlyList<RecipeEffectOption> Effects { get; private set; } = [];
     [ObservableProperty] public partial RecipeEffectOption? SelectedEffect { get; set; }
     [ObservableProperty] public partial IReadOnlyList<RecipeRowViewModel> Results { get; private set; } = [];
@@ -83,23 +85,35 @@ public sealed partial class RecipesViewModel : ObservableObject
     partial void OnSearchChanged(string value) => Filter();
     partial void OnSelectedEffectChanged(RecipeEffectOption? value) => Filter();
 
-    private void Filter()
+    /// <summary>The rows a tab shows for the search: one per thing made - the first recipe for it, or with a search for
+    /// an ingredient, the first that uses it - and how many recipes make each.</summary>
+    private static (RequirementRecipe[] Makes, RequirementRecipe[] Uses, Dictionary<string, int> Ways) Match(
+        RecipeBook book, string kind, string text, string effect)
     {
-        if (_book is not { } book) return;
-        string kind = IsCooking ? "Cooking" : "Refiner";
-        string text = Search.Trim();
-        string effect = IsCooking ? SelectedEffect?.Id ?? "" : "";
         var ofKind = book.Recipes.Where(r => r.Kind == kind)
             .Where(r => effect.Length == 0 || book.Food(r.ResultId)?.Food.Effect == effect).ToArray();
         var ways = ofKind.GroupBy(r => r.ResultId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
         bool Has(string id) => book.Name(id).Contains(text, StringComparison.CurrentCultureIgnoreCase);
-
-        // One row per thing made: the first recipe for it, or with a search for an ingredient, the first that uses it.
         var makes = ofKind.Where(r => text.Length == 0 || Has(r.ResultId))
-            .GroupBy(r => r.ResultId, StringComparer.OrdinalIgnoreCase).Select(g => g.First());
-        var uses = text.Length == 0 ? Array.Empty<RequirementRecipe>() : ofKind.Where(r => !Has(r.ResultId) && r.Ingredients.Any(i => Has(i.Id)))
             .GroupBy(r => r.ResultId, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToArray();
+        var uses = text.Length == 0 ? [] : ofKind.Where(r => !Has(r.ResultId) && r.Ingredients.Any(i => Has(i.Id)))
+            .GroupBy(r => r.ResultId, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToArray();
+        return (makes, uses, ways);
+    }
+
+    private void Filter()
+    {
+        if (_book is not { } book) return;
+        string text = Search.Trim();
+        string cookingEffect = SelectedEffect?.Id ?? "";
+        var cooking = Match(book, "Cooking", text, cookingEffect);
+        var refiner = Match(book, "Refiner", text, "");
+        // Each button counts what its tab holds for this search, so a search with little in one tab points to the other.
+        CookingLabel = $"Cooking ({cooking.Makes.Length + cooking.Uses.Length:N0})";
+        RefinerLabel = $"Refiner ({refiner.Makes.Length + refiner.Uses.Length:N0})";
+        string effect = IsCooking ? cookingEffect : "";
+        var (makes, uses, ways) = IsCooking ? cooking : refiner;
 
         IEnumerable<RequirementRecipe> Order(IEnumerable<RequirementRecipe> recipes) => effect.Length == 0
             ? recipes.OrderBy(r => book.Name(r.ResultId), StringComparer.CurrentCultureIgnoreCase)

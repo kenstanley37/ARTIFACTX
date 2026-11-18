@@ -17,9 +17,9 @@
             <VerticalStackLayout IsVisible="{Binding IsReady}" Spacing="10">
                 <!-- Cooking or refining; the chosen one is filled. -->
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                    <Button Text="Cooking" Command="{Binding ShowCookingCommand}" BorderWidth="1" BorderColor="{DynamicResource ThemeLineColor}"
+                    <Button Text="{Binding CookingLabel}" Command="{Binding ShowCookingCommand}" BorderWidth="1" BorderColor="{DynamicResource ThemeLineColor}"
                             TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}"
-                            SemanticProperties.Description="Show cooking recipes">
+                            SemanticProperties.Description="{Binding CookingLabel, StringFormat='Show cooking recipes: {0}'}">
                         <Button.Triggers>
                             <DataTrigger TargetType="Button" Binding="{Binding IsCooking}" Value="True">
                                 <Setter Property="BackgroundColor" Value="{DynamicResource ThemeAccentColor}" />
@@ -27,9 +27,9 @@
                             </DataTrigger>
                         </Button.Triggers>
                     </Button>
-                    <Button Grid.Column="1" Text="Refiner" Command="{Binding ShowRefinerCommand}" BorderWidth="1" BorderColor="{DynamicResource ThemeLineColor}"
+                    <Button Grid.Column="1" Text="{Binding RefinerLabel}" Command="{Binding ShowRefinerCommand}" BorderWidth="1" BorderColor="{DynamicResource ThemeLineColor}"
                             TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}"
-                            SemanticProperties.Description="Show refiner recipes">
+                            SemanticProperties.Description="{Binding RefinerLabel, StringFormat='Show refiner recipes: {0}'}">
                         <Button.Triggers>
                             <DataTrigger TargetType="Button" Binding="{Binding IsRefiner}" Value="True">
                                 <Setter Property="BackgroundColor" Value="{DynamicResource ThemeAccentColor}" />
