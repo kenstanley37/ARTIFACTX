@@ -29,14 +29,7 @@ public static partial class CatalogSteps
     /// </summary>
     private static Dictionary<string, (string Shop, string Type, string Tech)> CorvettePartSources(string pcbanksPath)
     {
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            if (pak.FullPath is not string path) continue;
-            try { index.Add(path, reader.ReadHeader(path), reader.Read(path)); }
-            catch (IOException) { /* Match the catalog's treatment of unreadable PAKs. */ }
-        }
+        var index = GetIndex(pcbanksPath); // shared, cached for the build
         var extraction = new ExtractionService();
         NMSTemplate? Decode(string file)
         {

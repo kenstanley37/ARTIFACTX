@@ -26,14 +26,7 @@ public static partial class CatalogSteps
     public static void AddProceduralProductNames(string catalogPath, string pcbanksPath)
     {
         const string tableFile = "METADATA/REALITY/TABLES/PROCEDURALPRODUCTTABLE.MBIN";
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            if (pak.FullPath is not string path) continue;
-            try { index.Add(path, reader.ReadHeader(path), reader.Read(path)); }
-            catch (IOException) { /* Match the catalog's treatment of unreadable PAKs. */ }
-        }
+        var index = GetIndex(pcbanksPath); // shared, cached for the build
         var extraction = new ExtractionService();
         if (!index.TryFind(tableFile, out var pakPath, out var entry, out var header))
             throw new InvalidDataException($"Procedural product table not found: {tableFile}");

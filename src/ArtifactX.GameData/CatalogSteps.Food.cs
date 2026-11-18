@@ -26,42 +26,9 @@ public static partial class CatalogSteps
             return;
         }
 
-        IPakReaderService reader = new PakReaderService();
-        var extraction = new ExtractionService();
-        GcProductTable? products = null;
-        GcSubstanceTable? substances = null;
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            if (products is not null && substances is not null) break;
-            PakHeader header;
-            IReadOnlyList<PakEntry> entries;
-            try
-            {
-                header = reader.ReadHeader(pak.FullPath);
-                entries = reader.Read(pak.FullPath);
-            }
-            catch { continue; }
-
-            foreach (var entry in entries.Where(e => !string.IsNullOrEmpty(e.FileName)
-                         && (e.FileName.EndsWith("nms_reality_gcproducttable.mbin", StringComparison.OrdinalIgnoreCase)
-                             || e.FileName.EndsWith("nms_reality_gcsubstancetable.mbin", StringComparison.OrdinalIgnoreCase))))
-            {
-                try
-                {
-                    var bytes = extraction.ExtractEntryBytes(pak.FullPath, entry, header);
-                    if (bytes is null || bytes.Length == 0) continue;
-                    using var ms = new MemoryStream(bytes);
-                    var mbin = new MBINFile(ms);
-                    mbin.Load();
-                    switch (mbin.GetData())
-                    {
-                        case GcProductTable p: products ??= p; break;
-                        case GcSubstanceTable t: substances ??= t; break;
-                    }
-                }
-                catch { }
-            }
-        }
+        // The shared, cached index (CatalogSteps.GetIndex) instead of a scan of every PAK.
+        var products = DecodeMbin(pcbanksPath, "METADATA/REALITY/TABLES/NMS_REALITY_GCPRODUCTTABLE.MBIN") as GcProductTable;
+        var substances = DecodeMbin(pcbanksPath, "METADATA/REALITY/TABLES/NMS_REALITY_GCSUBSTANCETABLE.MBIN") as GcSubstanceTable;
         if (products?.Table is null || substances?.Table is null)
         {
             ConsoleStyle.Error("Could not find the product and substance tables.");

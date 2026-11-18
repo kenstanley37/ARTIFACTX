@@ -17,14 +17,7 @@ public static partial class CatalogSteps
     public static void AddIndustrialCleanup(string catalogPath, string pcbanksPath)
     {
         const string file = "METADATA/SIMULATION/MISSIONS/TABLES/TUTORIALMISSIONTABLE.MBIN";
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            if (pak.FullPath is not string path) continue;
-            try { index.Add(path, reader.ReadHeader(path), reader.Read(path)); }
-            catch (IOException) { }
-        }
+        var index = GetIndex(pcbanksPath); // shared, cached for the build
         if (!index.TryFind(file, out var source, out var entry, out var header))
             throw new InvalidDataException("Industrial cleanup mission definitions were not found.");
         var extraction = new ExtractionService();
