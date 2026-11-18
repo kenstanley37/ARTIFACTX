@@ -39,7 +39,12 @@ public static class IngredientFinderService
             return null;
         var hunt = CreatureProduceSearch.HuntIds(itemId,
             (rules.CreatureSources ?? []).Where(s => s.Method == "Hunt").Select(s => (s.ItemId, s.CreatureId)));
+        // The species name the game gives a creature once scanned, from its seeds and the "CRE" name roots
+        // (Core SpeciesNames.Predicted, as the desktop).
+        var roots = rules.Words("CRE");
+        Func<PredictedCreature, ulong, string?>? names = roots is null ? null
+            : (creature, planetAddress) => ArtifactX.Core.Procedural.SpeciesNames.Predicted(creature, planetAddress, roots);
         return await Task.Run(() => IngredientSearch.Find(start, itemId, settings, biomes, tables,
-            rules.Fish.GetValueOrDefault(itemId), hunt, null, null, cancel), cancel);
+            rules.Fish.GetValueOrDefault(itemId), hunt, names, null, cancel), cancel);
     }
 }
