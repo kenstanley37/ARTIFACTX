@@ -4,7 +4,11 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Added
+- Planetary Hotspots: a new "Near Portal" view lists base computer spots whose base reaches the portal and the hotspots around it, power first, so you can build at the portal without a field of solar panels. Each spot has its coordinates and a Save Beacon button. When no hotspot is close enough for one base, it names the nearest power hotspot and how far it is from the portal. Update your game data once to get this.
+
 ### Fixed
+- Planetary Hotspots: Base Combo cards said a base reached its hotspots "within 0u", and hotspots closer than about 350u showed wrong distances. Combos now use the game's own base size (300u from the base computer) instead of 375u, so a few pairs that can't share one base no longer show.
 - Giant-size planets you can land on (like the anomaly world in some purple systems) now get their portal, hotspots, crashed ships and shops on Planet Details and Current System. Before, they showed none, because the app didn't know how big a Giant planet is. True gas giants still show none, since you can't land on them.
 
 ### Changed

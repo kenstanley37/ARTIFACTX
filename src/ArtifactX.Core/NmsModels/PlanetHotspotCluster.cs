@@ -15,6 +15,7 @@ public enum HotspotComboType
     DualMineral,    // Two distinct minerals
     DualPower,      // Two power hotspots
     OtherTriple,    // 3 hotspots of other combinations
+    Single,         // One hotspot (a base at the portal reaching one site: PortalBaseSites)
 }
 
 /// <summary>
@@ -35,7 +36,8 @@ public sealed record PlanetHotspotCluster(
     Vector3 BaseLocalPosition,
     double? PortalDistance,
     string? PortalDistanceLabel,
-    ulong ClusterKey)
+    ulong ClusterKey,
+    bool IncludesPortal = false)
 {
     public string ComboBadgeKey => ComboType switch
     {
@@ -53,8 +55,9 @@ public sealed record PlanetHotspotCluster(
         _ => "\uE80F"                                // Mining
     };
 
-    public string ReachDescription =>
-        $"Base Computer placed here reaches all {Hotspots.Count} hotspots within {Math.Round(MaxRadius)}u (sites span {Math.Round(MaxSpan)}u apart).";
+    public string ReachDescription => IncludesPortal
+        ? $"Base Computer placed here reaches the portal and {(Hotspots.Count == 1 ? "the hotspot" : $"all {Hotspots.Count} hotspots")} within {Math.Round(MaxRadius)}u."
+        : $"Base Computer placed here reaches all {Hotspots.Count} hotspots within {Math.Round(MaxRadius)}u (sites span {Math.Round(MaxSpan)}u apart).";
 
     /// <summary>
     /// Finds multi-hotspot clusters (pairs and triplets) within base building range.
@@ -258,11 +261,16 @@ public sealed record PlanetHotspotCluster(
             .ToList();
     }
 
-    private static double SurfaceDistance(Vector3 dir1, Vector3 pos2, float radius)
+    private static double SurfaceDistance(Vector3 dir1, Vector3 pos2, float radius) => GroundDistance(dir1, pos2, radius);
+
+    /// <summary>Distance along the ground between two directions (any lengths) on a planet of this radius. In doubles,
+    /// from atan2(|a x b|, a . b): acos of a float dot product is blind below ~350 m on a 100 km planet (the cosine is
+    /// within a float step of 1), which made cards say a base reached its hotspots "within 0u".</summary>
+    public static double GroundDistance(Vector3 a, Vector3 b, double radius)
     {
-        Vector3 dir2 = Vector3.Normalize(pos2);
-        float dot = Math.Clamp(Vector3.Dot(dir1, dir2), -1f, 1f);
-        return Math.Acos(dot) * radius;
+        double ax = a.X, ay = a.Y, az = a.Z, bx = b.X, by = b.Y, bz = b.Z;
+        double cx = ay * bz - az * by, cy = az * bx - ax * bz, cz = ax * by - ay * bx;
+        return Math.Atan2(Math.Sqrt(cx * cx + cy * cy + cz * cz), ax * bx + ay * by + az * bz) * radius;
     }
 
     private static (Vector3 Center, double Radius) MinEnclosingCircle(Vector3 p1, Vector3 p2)
@@ -301,7 +309,7 @@ public sealed record PlanetHotspotCluster(
         return (p1 + offset, offset.Length());
     }
 
-    private static HotspotComboType Classify(IReadOnlyList<PlanetHotspot> list)
+    internal static HotspotComboType Classify(IReadOnlyList<PlanetHotspot> list)
     {
         bool hasPower = list.Any(h => h.Kind == "Power");
         bool hasMin = list.Any(h => h.Kind == "Mineral");

@@ -1,6 +1,7 @@
 using ArtifactX.Core.Recipes;
 using libMBIN;
 using libMBIN.NMS.GameComponents;
+using libMBIN.NMS.Globals;
 
 namespace ArtifactX.GameData;
 
@@ -29,7 +30,11 @@ public static partial class CatalogSteps
                 return new ExtractionNetworkRule(b.ID.Value, grid.DependsOnHotspots.ToString(), grid.Rate, grid.Storage,
                     connection.NetworkMask, connection.NetworkSubGroup, connection.ConnectionDistance, connection.UseMinDistance);
             }).ToArray();
+        // A new base's boundary: MinRadiusForBases (300 in 7.14). MaxRadiusForPlanetBases (1000) and BaseRadiusExtension
+        // (50) look like growth limits; not used until how a base grows is confirmed in game.
+        float? baseRadius = (decode("GCBUILDINGGLOBALS.GLOBAL.MBIN") as GcBuildingGlobals)?.MinRadiusForBases;
         return new(new(hotspots.RegionHotspotsPoleSpacing, hotspots.RegionHotspotsPerPoleMin, hotspots.RegionHotspotsPerPoleMax,
-            hotspots.RegionHotspotsMinSameCategorySpacing, hotspots.RegionHotspotsMaxDifferentCategoryOverlap), categories, gases, yields, networks);
+            hotspots.RegionHotspotsMinSameCategorySpacing, hotspots.RegionHotspotsMaxDifferentCategoryOverlap), categories, gases, yields, networks,
+            baseRadius is > 0f ? baseRadius : null);
     }
 }

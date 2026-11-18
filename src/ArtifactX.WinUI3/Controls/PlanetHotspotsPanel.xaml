@@ -35,11 +35,11 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- View Mode Selector: All Sites vs Base Clusters -->
+                    <!-- View Mode Selector: All Sites, Base Combos, Near Portal (base spots that also reach the portal) -->
                     <RadioButtons ItemsSource="{x:Bind ViewModel.ViewModeChoices}"
                                   SelectedIndex="{x:Bind ViewModel.SelectedViewModeIndex, Mode=TwoWay}"
-                                  MaxColumns="2" VerticalAlignment="Center"
-                                  AutomationProperties.Name="Switch between individual sites and multi-hotspot base clusters"/>
+                                  MaxColumns="3" VerticalAlignment="Center"
+                                  AutomationProperties.Name="Show all hotspots, multi-hotspot base combos, or base spots near the portal"/>
 
                     <!-- Search Box -->
                     <TextBox Grid.Column="1" PlaceholderText="Search resources (e.g. Indium, Oxygen, Power...)"
@@ -70,7 +70,7 @@
 
                 <TextBlock Text="{x:Bind ViewModel.ClusterCountLabel, Mode=OneWay}"
                            Visibility="{x:Bind ViewModel.IsClustersView, Mode=OneWay}"
-                           FontSize="12" Foreground="{ThemeResource ThemeTextBrush}"/>
+                           FontSize="12" Foreground="{ThemeResource ThemeTextBrush}" TextWrapping="Wrap"/>
 
                 <!-- 1. Single Hotspot Cards Grid -->
                 <ItemsControl ItemsSource="{x:Bind ViewModel.Hotspots, Mode=OneWay}"
