@@ -110,7 +110,7 @@ public static partial class CatalogSteps
                 if (details.Objects is { } objects)
                 {
                     var keys = objects.Groups.SelectMany(g => g.Files).Select(f => f.Hint).Where(h => h.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                    details = details with { HintNames = EnglishTexts(index, extraction, keys) };
+                    details = details with { HintNames = DisplayTexts(pcbanksPath, keys) };
                 }
             }
             if (details is null) ConsoleStyle.Warning("Planet detail tables not found - planet resources and weather left out.");

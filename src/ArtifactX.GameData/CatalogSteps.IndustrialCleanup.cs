@@ -35,7 +35,7 @@ public static partial class CatalogSteps
         string[] fixedKeys = ["UI_HAUL_LOOP_TITLE", "UI_HAUL_LOOP_DESC", "UI_HAUL_LOOP_OBJ1_TIP", "UI_GUIDE_TOPIC_SCRAP", "UI_GUIDE_BODY_SCRAP"];
         var keys = fixedKeys.Concat(instructions.SelectMany(g => new[] { g.ObjectiveID.Value, g.ObjectiveTipID.Value }))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var texts = EnglishTexts(index, extraction, keys);
+        var texts = DisplayTexts(pcbanksPath, keys);
         string Text(string key) => texts.TryGetValue(key, out var text) && text.Length > 0 ? text
             : throw new InvalidDataException($"Missing Industrial Cleanup localization: {key}");
         var tip = Text("UI_HAUL_LOOP_OBJ1_TIP");

@@ -5,6 +5,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Changed
+- Ship Designer, corvette parts, titles, catalog sections, the Egg Sequencer and Industrial Cleanup now use US English like the rest of ArtifactX ("Color", "Stabilized", "Gray"). Update your game data once to get this.
 - Game data: "Game data ready" now says how long reading your game files took. Updates after the first are a little faster: icons the game update didn't change are reused instead of converted again, and the game's files are listed once per update instead of a dozen times.
 
 ## 1.2.0 — 2026-11-17

@@ -42,7 +42,7 @@ public static partial class CatalogSteps
         var textures = (GcCustomisationTextureOptions)Decode(prefix + "CHARACTERCUSTOMISATIONTEXTUREOPTIONDATA.MBIN");
         var options = VehicleOptions(ui, descriptors, textures);
         foreach (var option in options) { keys.Add(option.Group); keys.Add(option.Name); }
-        var texts = EnglishTexts(index, extraction, keys);
+        var texts = DisplayTexts(pcbanksPath, keys);
         // Missing localization stays empty; raw localization ids must never reach players.
         string Text(string key) => texts.GetValueOrDefault(key, "");
         var rules = titles.Select(t => new TitleUnlockRule(t.ID.Value, Text(t.Title.Value),
