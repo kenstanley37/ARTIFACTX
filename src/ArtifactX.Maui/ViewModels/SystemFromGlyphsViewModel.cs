@@ -72,11 +72,18 @@ public sealed partial class SystemFromGlyphsViewModel : ObservableObject
     [ObservableProperty]
     public partial string MultiToolOddsSummary { get; set; } = "";
 
+    /// <summary>Why a system's cabinets has no tools to show, or a note on what is shown.</summary>
     [ObservableProperty]
-    public partial string MultiToolExplanation { get; set; } = "";
+    public partial string MultiToolNote { get; set; } = "";
 
     [ObservableProperty]
-    public partial bool HasMultiToolPools { get; set; }
+    public partial bool HasMultiToolPlaces { get; set; }
+
+    [ObservableProperty]
+    public partial IReadOnlyList<MultiToolPlaceViewModel> MultiToolPlaces { get; set; } = [];
+
+    /// <summary>How rolling a cabinet works, numbered (Core SystemCabinets.RollSteps, the desktop's words).</summary>
+    public IReadOnlyList<string> MultiToolSteps { get; } = SystemCabinets.RollSteps.Select((step, i) => $"{i + 1}. {step}").ToArray();
 
     [ObservableProperty]
     public partial string CopyBannerText { get; set; } = "";
@@ -87,7 +94,6 @@ public sealed partial class SystemFromGlyphsViewModel : ObservableObject
     public ObservableCollection<SystemBodyItemViewModel> Bodies { get; } = [];
     public ObservableCollection<ShipFilterPillViewModel> ShipFilterOptions { get; } = [];
     public ObservableCollection<SystemShipItemViewModel> FilteredShips { get; } = [];
-    public ObservableCollection<GeneratedMultiToolLoadPool> MultiToolPools { get; } = [];
 
     public async Task LoadSystemAsync(string portalCode, int galaxyNumber)
     {
@@ -121,20 +127,54 @@ public sealed partial class SystemFromGlyphsViewModel : ObservableObject
             RebuildShipFilters();
             ApplyShipFilter();
 
-            MultiToolOddsSummary = readout.MultiToolOddsSummary;
-            MultiToolExplanation = readout.MultiToolExplanation;
-            MultiToolPools.Clear();
-            foreach (var pool in readout.MultiToolPools)
-                MultiToolPools.Add(pool);
-            HasMultiToolPools = MultiToolPools.Count > 0;
+            MultiToolOddsSummary = "";
+            MultiToolNote = "Working out the cabinets...";
+            MultiToolPlaces = [];
+            HasMultiToolPlaces = false;
 
             PlanetsTabTitle = $"Planets ({Bodies.Count})";
             ShipsTabTitle = $"Ships ({_allShips.Count})";
-            int totalTools = readout.MultiToolPools.Sum(p => p.Tools.Count);
-            MultiToolsTabTitle = totalTools > 0 ? $"Multi-tools ({totalTools})" : "Multi-tools";
+            MultiToolsTabTitle = "Multi-tools";
             _ = LoadProfilesAsync(readout);
+            _ = LoadCabinetsAsync(readout);
         }
         finally { IsLoading = false; }
+    }
+
+    private static Task<MultiToolKindClassifier?>? _kinds;
+
+    /// <summary>What the cabinets sell for every place the game can be loaded at (Core SystemCabinets), with the
+    /// system's class chances.</summary>
+    private async Task LoadCabinetsAsync(PortalSystemReadout readout)
+    {
+        var rules = await GameRulesService.GetAsync();
+        if (rules is not { Stations: { } stations, Inventory: { } inventory, MultiToolModel: { } model })
+        {
+            MultiToolNote = "Multi-tools need the game rules, which this copy of the app doesn't have.";
+            return;
+        }
+        // The model's part tree is parsed once for the whole app (it names a tool's kind: Rifle, Pistol, Alien...).
+        _kinds ??= Task.Run(() => (MultiToolKindClassifier?)new MultiToolKindClassifier(model));
+        var kinds = await _kinds;
+        if (kinds is null) return;
+        var names = readout.Bodies.OrderBy(b => b.BodyIndex).Select(b => b.Name).ToArray();
+        var places = await Task.Run(() => SystemCabinets.ForSystem(readout.PackedAddress, names, stations, inventory, kinds, rules.Words));
+        if (PortalCode != readout.PortalCode || _galaxyNumber != readout.GalaxyNumber) return;
+        var attrs = readout.Attributes;
+        if (places.Count == 0)
+        {
+            MultiToolOddsSummary = "";
+            MultiToolNote = attrs.Uncharted || attrs.Abandoned
+                ? "This system has no working multi-tool cabinets." : "The cabinets of this system can't be worked out.";
+            return;
+        }
+        var (c, b, a, s) = EquipmentGeneration.GetClassProbabilities(attrs.Wealth, attrs.Pirate, inventory);
+        MultiToolOddsSummary = $"Cabinet class chances here: S {s:0}% · A {a:0}% · B {b:0}% · C {c:0}%";
+        MultiToolNote = places.All(p => p.Station.Count == 0)
+            ? "The station's cabinets can't be worked out for this station; the planet shop lists below still apply."
+            : "";
+        MultiToolPlaces = places.Select(p => new MultiToolPlaceViewModel(p)).ToArray();
+        HasMultiToolPlaces = true;
     }
 
     /// <summary>Each body's weather, sentinels, life and resources (Core SystemProfiles, the desktop's generator) from the
@@ -203,14 +243,6 @@ public sealed partial class SystemFromGlyphsViewModel : ObservableObject
         ship.IsCopied = true;
         await ShowTemporaryBannerAsync($"Copied seed {ship.SeedHex} ({ship.Name}).");
         ship.IsCopied = false;
-    }
-
-    [RelayCommand]
-    private async Task CopyMultiToolSeedAsync(GeneratedSystemMultiTool? tool)
-    {
-        if (tool is null) return;
-        await Clipboard.Default.SetTextAsync(tool.SeedHex);
-        await ShowTemporaryBannerAsync($"Copied Multi-Tool seed {tool.SeedHex} ({tool.Name}).");
     }
 
     [RelayCommand]

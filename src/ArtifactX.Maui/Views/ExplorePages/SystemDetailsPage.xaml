@@ -195,8 +195,53 @@
                     </VerticalStackLayout>
                 </VerticalStackLayout>
                 <VerticalStackLayout IsVisible="{Binding IsMultiToolsTabSelected}" Spacing="10">
-                    <Label Text="{Binding MultiToolOddsSummary}" Style="{StaticResource ThemeSectionHeaderStyle}" />
-                    <Label Text="{Binding MultiToolExplanation}" Style="{StaticResource ThemeBodyTextStyle}" />
+                    <Label Text="Multi-tools" Style="{StaticResource ThemeSectionHeaderStyle}" />
+                    <!-- How rolling works first: the lists below only make sense with it (owner, 2026-11-18). -->
+                    <Border Style="{StaticResource ThemeCardStyle}" Padding="14">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="HOW TO GET THE TOOL YOU WANT" Style="{StaticResource ThemeEyebrowStyle}" />
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding MultiToolSteps}" Spacing="6">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Label Text="{Binding .}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="15" />
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+                    <Label Text="{Binding MultiToolOddsSummary}" Style="{StaticResource ThemeBodyTextStyle}" FontAttributes="Bold" />
+                    <Label Text="{Binding MultiToolNote}" Style="{StaticResource ThemeBodyTextStyle}" />
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding MultiToolPlaces}" Spacing="10" IsVisible="{Binding HasMultiToolPlaces}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MultiToolPlaceViewModel">
+                                <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12">
+                                    <VerticalStackLayout Spacing="6">
+                                        <Label Text="{Binding Heading}" Style="{StaticResource ThemeEyebrowStyle}" />
+                                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Station}" Spacing="6" IsVisible="{Binding HasStation}">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:CabinetToolRow">
+                                                    <VerticalStackLayout Spacing="1" SemanticProperties.Description="{Binding AccessibleName}">
+                                                        <Label Text="{Binding Title}" FontSize="13" TextColor="{DynamicResource ThemeTextDimColor}">
+                                                            <Label.Triggers>
+                                                                <DataTrigger TargetType="Label" Binding="{Binding IsSClass}" Value="True">
+                                                                    <Setter Property="TextColor" Value="{DynamicResource ThemeDoneColor}" />
+                                                                    <Setter Property="FontAttributes" Value="Bold" />
+                                                                </DataTrigger>
+                                                            </Label.Triggers>
+                                                        </Label>
+                                                        <Label Text="{Binding ToolLine}" FontSize="15" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" />
+                                                    </VerticalStackLayout>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </VerticalStackLayout>
+                                        <Label Text="{Binding ShopsLine}" IsVisible="{Binding HasShops}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                    <Label Text="A planet shop cabinet's class depends on exactly where it stands, which the app can't pin down yet, so only its list is shown."
+                           IsVisible="{Binding HasMultiToolPlaces}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
                 </VerticalStackLayout>
             </VerticalStackLayout>
         </ScrollView>

@@ -81,6 +81,19 @@ public static class MobileRulesExportService
             }
         }
 
+        // Multi-tool name words, as the desktop reads them (CatalogService.GetProceduralNameWordsAsync).
+        var words = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                WHERE c.TemplateType = 'MultiToolNameWords' AND i.DescriptionEnglish IS NOT NULL
+                """;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+                if (JsonSerializer.Deserialize<List<string>>(reader.GetString(1)) is { } list) words[reader.GetString(0)] = list;
+        }
+
         if (rows.Count == 0) throw new InvalidDataException("The catalog has no generation tables. Update the game data first.");
         return new GameRules
         {
@@ -92,6 +105,7 @@ public static class MobileRulesExportService
             ItemNames = names,
             Recipes = recipes,
             ItemValues = values,
+            NameWords = words,
         };
     }
 
