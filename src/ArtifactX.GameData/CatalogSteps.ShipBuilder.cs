@@ -98,7 +98,7 @@ public static partial class CatalogSteps
         }
         foreach (var style in styles) foreach (var tip in style.Tips) wanted.Add(S(tip));
         foreach (var set in swatches) foreach (var tip in set.ExtraData?.TipText ?? new()) wanted.Add(S(tip));
-        var english = EnglishTexts(index, extraction, wanted);
+        var english = DisplayTexts(pcbanksPath, wanted);
         string Text(object? key) => english.GetValueOrDefault(S(key)) ?? S(key);
 
         var rows = new List<CatalogItem>();

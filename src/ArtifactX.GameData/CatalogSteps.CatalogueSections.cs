@@ -110,7 +110,7 @@ public static partial class CatalogSteps
         var keys = wikis.SelectMany(w => w.Wiki.Categories.Select(c => c.CategoryID.Value).Append(w.Key).Append(w.Key + "_SUB"))
             .Concat(recordNames.Values.SelectMany(n => n)).Concat(fossils.Select(f => f.Name.Value))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var texts = EnglishTexts(index, extraction, keys);
+        var texts = DisplayTexts(pcbanksPath, keys);
         // Missing localization stays empty; raw localization ids must never reach players.
         string Text(string key) => texts.GetValueOrDefault(key, "");
         var result = wikis.Select(w => new CatalogueSection(w.Key, Text(w.Key), Text(w.Key + "_SUB"),

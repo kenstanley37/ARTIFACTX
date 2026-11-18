@@ -79,7 +79,7 @@ public static partial class CatalogSteps
             globals.PetEggAccessoryChanceModifier, globals.PetEggMaxAccessoriesChangeChance,
             globals.PetEggColourChanceModifier, globals.PetEggMaxColourChangeChance,
             globals.PetEggOverdosageModifier, globals.PetEggMaxOverdosage, globals.PetEggMaxTopDescriptorChangeChance,
-            globals.PetEggModificationItemLimit, ingredients, EnglishTexts(index, extraction, EggScreenTextKeys.ToHashSet()), species);
+            globals.PetEggModificationItemLimit, ingredients, DisplayTexts(pcbanksPath, EggScreenTextKeys), species);
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "EggSequencer", "GcPetEggTraitModifierOverrideTable", tableFile.ToLowerInvariant(), new List<CatalogItem>

@@ -48,18 +48,8 @@ public static partial class CatalogSteps
         var basic = reality.TradeSettings.BiggsBasicShop.AlwaysPresentProducts.Select(p => p.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var barter = reality.TradeSettings.BiggsBarterShop.AlwaysPresentProducts.Select(p => p.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // Subtitles live across the language files, update files included.
-        var loc = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var path in index.Paths.Where(p => p.StartsWith("LANGUAGE/", StringComparison.OrdinalIgnoreCase)
-                     && p.EndsWith("_ENGLISH.MBIN", StringComparison.OrdinalIgnoreCase)).ToList())
-        {
-            try
-            {
-                if (Decode(path) is not { } template) continue;
-                foreach (var (key, text) in LocalisationService.BuildEnglishLookup(template)) loc.TryAdd(key, text);
-            }
-            catch (Exception ex) { ConsoleStyle.Warning($"Couldn't read {path}: {ex.Message}"); }
-        }
+        // Subtitles: the shared English text (US over UK, as the rest of the catalog), cached for the build.
+        var loc = GetMergedEnglishLookup(pcbanksPath);
 
         foreach (string table in new[] { "METADATA/REALITY/TABLES/NMS_BASEPARTPRODUCTS.MBIN", "METADATA/REALITY/TABLES/NMS_REALITY_GCPRODUCTTABLE.MBIN" })
         {
