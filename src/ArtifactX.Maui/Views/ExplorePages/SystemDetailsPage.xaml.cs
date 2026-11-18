@@ -29,8 +29,9 @@ public partial class SystemDetailsPage : ContentPage, IQueryAttributable
             if (_code is null) throw new ArgumentException();
             await ViewModel.LoadSystemAsync(_code, _galaxy);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[SystemDetails] {_code} galaxy {_galaxy}: {ex}");
             ViewModel.CopyBannerText = "The system could not be loaded. Go back and check the address and galaxy.";
             ViewModel.HasCopyBanner = true;
         }

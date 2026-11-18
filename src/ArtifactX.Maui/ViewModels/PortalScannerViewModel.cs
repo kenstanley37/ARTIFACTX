@@ -22,8 +22,26 @@ public sealed partial class PortalScannerViewModel(IPortalPhotoScanService scann
     public IReadOnlyList<PortalGalaxyOption> Galaxies { get; } = NmsGalaxyInfo.AllGalaxies
         .Select(g => new PortalGalaxyOption(g.Number, g.Name)).ToArray();
 
+    /// <summary>Starts in the galaxy the player was last in (RecentSystemsService), and follows it when a system is
+    /// opened in another galaxy (a scan, the recent list); a galaxy picked here by hand stays until then.</summary>
     [ObservableProperty]
-    public partial PortalGalaxyOption SelectedGalaxy { get; set; } = new(1, "Euclid");
+    public partial PortalGalaxyOption SelectedGalaxy { get; set; } = GalaxyOption(RecentSystemsService.LastGalaxy);
+
+    // The last galaxy as this page last saw it.
+    private int _followedGalaxy = RecentSystemsService.LastGalaxy;
+
+    private static PortalGalaxyOption GalaxyOption(int number) =>
+        NmsGalaxyInfo.AllGalaxies.FirstOrDefault(g => g.Number == number) is { } g ? new(g.Number, g.Name) : new(1, "Euclid");
+
+    /// <summary>When the page appears (Systems keeps it alive across visits): moves to the galaxy of a system opened
+    /// elsewhere since.</summary>
+    public void FollowLastGalaxy()
+    {
+        int last = RecentSystemsService.LastGalaxy;
+        if (last == _followedGalaxy) return;
+        _followedGalaxy = last;
+        SelectedGalaxy = GalaxyOption(last);
+    }
     [ObservableProperty]
     public partial string AddressInput { get; set; } = "";
     [ObservableProperty]

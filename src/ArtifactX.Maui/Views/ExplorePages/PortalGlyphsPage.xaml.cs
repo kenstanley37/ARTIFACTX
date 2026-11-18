@@ -9,4 +9,10 @@ public partial class PortalGlyphsPage : ContentPage
         InitializeComponent();
         BindingContext = viewModel;
     }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        ((PortalScannerViewModel)BindingContext).FollowLastGalaxy();
+    }
 }

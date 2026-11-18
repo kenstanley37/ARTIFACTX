@@ -12,7 +12,15 @@ public sealed partial class HomeViewModel : ObservableObject
     [ObservableProperty]
     public partial string ActiveThemeLabel { get; set; } = GetThemeDisplayName();
 
-    public ObservableCollection<RecentSystemSummary> RecentSystems => RecentSystemsService.Items;
+    /// <summary>This page's own copy of Recent systems (RecentSystemsService), refreshed each time Home appears.</summary>
+    public ObservableCollection<RecentSystemSummary> RecentSystems { get; } = [];
+
+    public void RefreshRecentSystems()
+    {
+        if (RecentSystems.SequenceEqual(RecentSystemsService.Items)) return;
+        RecentSystems.Clear();
+        foreach (var system in RecentSystemsService.Items) RecentSystems.Add(system);
+    }
 
     [RelayCommand]
     private static async Task OpenPortalGlyphsAsync()
