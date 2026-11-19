@@ -178,9 +178,15 @@
                                     </StackPanel>
                                 </Border>
                                 <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Discoveries.IsVisible, Mode=OneWay}">
-                                    <Button Content="Discover everything" Command="{x:Bind ViewModel.Discoveries.DiscoverCommand}"
+                                    <Button Command="{x:Bind ViewModel.Discoveries.DiscoverCommand}"
                                             Visibility="{x:Bind ViewModel.Discoveries.IsNotStaged, Mode=OneWay}"
-                                            AutomationProperties.Name="Discover every planet, creature, plant and mineral in this system"/>
+                                            AutomationProperties.Name="{x:Bind ViewModel.Discoveries.ButtonName, Mode=OneWay}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource ThemeDoneBrush}"
+                                                      Visibility="{x:Bind ViewModel.Discoveries.IsAllDiscovered, Mode=OneWay}"/>
+                                            <TextBlock Text="{x:Bind ViewModel.Discoveries.ButtonLabel, Mode=OneWay}"/>
+                                        </StackPanel>
+                                    </Button>
                                     <Button Content="Undo discoveries" Command="{x:Bind ViewModel.Discoveries.UndoCommand}"
                                             Visibility="{x:Bind ViewModel.Discoveries.IsStaged, Mode=OneWay}"
                                             AutomationProperties.Name="Undo the staged discoveries for this system"/>

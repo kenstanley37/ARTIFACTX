@@ -40,6 +40,13 @@ public sealed partial class SystemDiscoveriesViewModel : ObservableObject
     public string Info => Summary.Length == 0 ? Note : Summary + Environment.NewLine + Environment.NewLine + Note;
     partial void OnSummaryChanged(string value) => OnPropertyChanged(nameof(Info));
 
+    /// <summary>Nothing in the loaded save's system is left to discover (by the button or by playing).</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ButtonLabel), nameof(ButtonName))] public partial bool IsAllDiscovered { get; private set; }
+
+    public string ButtonLabel => IsAllDiscovered ? "Everything discovered" : "Discover everything";
+    public string ButtonName => IsAllDiscovered ? "Everything in this system is already discovered"
+        : "Discover every planet, creature, plant and mineral in this system";
+
     public bool IsNotStaged => !IsStaged;
     partial void OnIsStagedChanged(bool value) => OnPropertyChanged(nameof(IsNotStaged));
 
@@ -63,6 +70,7 @@ public sealed partial class SystemDiscoveriesViewModel : ObservableObject
         // (owner, 2026-11-19).
         bool gameRunning = GameProcessMonitorService.IsGameRunning;
         CanDiscover = plan is { Total: > 0 } && !gameRunning;
+        IsAllDiscovered = plan is { Total: 0 };
         Note = PlanetTypesService.ProfileTables?.Objects?.Spawn is null
             ? "Plants and minerals need up-to-date game data: rebuild it in Settings to include them."
             : "Marks every planet, creature, plant and mineral here as discovered. They're added as discoveries you haven't uploaded yet: upload them in game from the Discoveries page. Nothing is written until you save.";
