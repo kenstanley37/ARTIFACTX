@@ -24,7 +24,7 @@ public sealed record FinderRowViewModel(string Title, string Place, string Actio
 /// where you are) for space station cabinets selling a kind and class of multi-tool (MultiToolFinderService, the
 /// desktop's Multi-Tool Finder), best class first then nearest, with the place to load the game for each; or for the
 /// planets that give an ingredient, creature produce or a fish (IngredientFinderService, the desktop's Ingredient
-/// Finder).
+/// Finder); or for claimable crashed ships of a class and type (ShipFinderService, the desktop's crashed-ship rules).
 /// </summary>
 public sealed partial class FinderViewModel : ObservableObject
 {
@@ -37,15 +37,29 @@ public sealed partial class FinderViewModel : ObservableObject
     /// <summary>The start region's stars (RegionStarPositions), for galaxy-map light-years inside it; null when unknown.</summary>
     private IReadOnlyList<RegionStar>? _stars;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsIngredients), nameof(Title), nameof(Intro))]
-    public partial bool IsMultiTools { get; set; } = true;
+    private const string MultiToolsMode = "MultiTools", IngredientsMode = "Ingredients", ShipsMode = "Ships";
 
-    public bool IsIngredients => !IsMultiTools;
-    public string Title => IsMultiTools ? "Find multi-tools" : "Find ingredients";
-    public string Intro => IsMultiTools
-        ? "Station cabinets selling the kind and class of multi-tool you want, in the systems around one you've opened."
-        : "The nearest systems whose planets give a plant, mineral, creature produce or fish you need.";
+    /// <summary>What the tab finds: multi-tools, ingredients or crashed ships.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMultiTools), nameof(IsIngredients), nameof(IsShips), nameof(HasClass), nameof(Title), nameof(Intro))]
+    public partial string Mode { get; set; } = MultiToolsMode;
+
+    public bool IsMultiTools => Mode == MultiToolsMode;
+    public bool IsIngredients => Mode == IngredientsMode;
+    public bool IsShips => Mode == ShipsMode;
+    public bool HasClass => !IsIngredients;
+    public string Title => Mode switch { IngredientsMode => "Find ingredients", ShipsMode => "Find crashed ships", _ => "Find multi-tools" };
+    public string Intro => Mode switch
+    {
+        IngredientsMode => "The nearest systems whose planets give a plant, mineral, creature produce or fish you need.",
+        ShipsMode => "Crashed ships you can claim, of the class and type you want, on the planets of the nearest systems.",
+        _ => "Station cabinets selling the kind and class of multi-tool you want, in the systems around one you've opened.",
+    };
+
+    /// <summary>The ship types a wreck can be (no Living Ships or freighters crash).</summary>
+    public IReadOnlyList<FinderChoice> ShipTypes { get; } = (FinderChoice[])[new("Any type", ""), new("Fighter", "Fighter"),
+        new("Hauler", "Hauler"), new("Explorer", "Explorer"), new("Shuttle", "Shuttle"), new("Exotic", "Exotic"), new("Solar", "Solar")];
+    [ObservableProperty] public partial FinderChoice? ShipType { get; set; }
 
     /// <summary>What the player types to find an ingredient; suggestions follow it.</summary>
     [ObservableProperty] public partial string IngredientText { get; set; } = "";
@@ -95,29 +109,96 @@ public sealed partial class FinderViewModel : ObservableObject
         Area ??= Areas[0];
         Class ??= Classes[0];
         Kind ??= Kinds[0];
+        ShipType ??= ShipTypes[0];
         if (!HasStarts) Status = "Open a system on the Systems tab first: the search starts from your recent systems.";
     }
 
-    partial void OnStartChanged(RecentSystemSummary? value) { if (IsMultiTools) _ = SearchAsync(); else _ = FindIngredientAsync(); }
+    partial void OnStartChanged(RecentSystemSummary? value) => Run();
 
-    partial void OnIsMultiToolsChanged(bool value)
+    partial void OnModeChanged(string value)
     {
         _cancel?.Cancel();
         IsSearching = false;
         Results = [];
         Status = "";
-        if (value) { _searchedFor = null; _ = SearchAsync(); }
-        else
+        _searchedFor = null;
+        if (IsIngredients)
         {
-            if (_ingredient is not null) _ = FindIngredientAsync();
-            else Status = "Type what you need, then pick it from the list.";
+            if (_ingredient is null) Status = "Type what you need, then pick it from the list.";
             _ = LoadFindableAsync();
         }
+        Run();
     }
 
-    [RelayCommand] private void ShowMultiTools() => IsMultiTools = true;
+    /// <summary>Searches again for the current mode.</summary>
+    private void Run()
+    {
+        if (IsMultiTools) _ = SearchAsync();
+        else if (IsIngredients) _ = FindIngredientAsync();
+        else _ = FindShipsAsync();
+    }
 
-    [RelayCommand] private void ShowIngredients() => IsMultiTools = false;
+    [RelayCommand] private void ShowMultiTools() => Mode = MultiToolsMode;
+
+    [RelayCommand] private void ShowIngredients() => Mode = IngredientsMode;
+
+    [RelayCommand] private void ShowShips() => Mode = ShipsMode;
+
+    partial void OnShipTypeChanged(FinderChoice? value) { if (IsShips) _ = FindShipsAsync(); }
+
+    /// <summary>Crashed ships of the chosen class and type, nearest systems first; finds appear system by system.</summary>
+    private async Task FindShipsAsync()
+    {
+        if (Start is not { } start || Class is null || ShipType is null) return;
+        ulong from = NmsPortalCode.ToAddress(start.PortalCode, start.GalaxyNumber) & ~(0xFUL << 52);
+        int minClass = int.Parse(Class.Value);
+        string type = ShipType.Value;
+        string grade = minClass switch { 3 => "S-class", 2 => "A-class or better", 1 => "B-class or better", _ => "" };
+        string what = $"{grade} {(type.Length > 0 ? type : "ship")}".Trim();
+        _cancel?.Cancel();
+        var cancel = _cancel = new CancellationTokenSource();
+        IsSearching = true;
+        Results = [];
+        Status = $"Looking for a crashed {what} around {start.Name}...";
+        // Progress reaches the screen after a delay, so a late one must not overwrite the finished message.
+        bool finished = false;
+        var progress = new Progress<(int Systems, IReadOnlyList<ShipFind> Found)>(p =>
+        {
+            if (cancel.IsCancellationRequested || finished) return;
+            ShowShipFinds(p.Found);
+            Status = $"Searched {p.Systems} of the nearest systems: {p.Found.Count} found so far...";
+        });
+        try
+        {
+            var search = await ShipFinderService.FindAsync(from, minClass, type, progress, cancel.Token);
+            finished = true;
+            if (cancel.IsCancellationRequested) return;
+            if (search is null) { Status = "The finder needs the game rules, which this copy of the app doesn't have."; return; }
+            ShowShipFinds(search.Found);
+            string systems = search.Systems == 1 ? "the start system" : $"the {search.Systems} nearest systems";
+            Status = search.Found.Count == 0 ? $"Done: no crashed {what} in {systems}."
+                : $"Done: found {search.Found.Count} in {systems}, nearest first. Tap one to open its system; the coordinates are for the Analysis Visor.";
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            finished = true;
+            System.Diagnostics.Debug.WriteLine($"[Finder] ships: {ex}");
+            Status = "The search hit a problem and stopped. The ships found so far are shown.";
+        }
+        finally { if (!cancel.IsCancellationRequested) IsSearching = false; }
+    }
+
+    private void ShowShipFinds(IReadOnlyList<ShipFind> found) => Results = found.Select(f =>
+    {
+        var (portal, galaxy) = SystemProfiles.PortalOf(f.SystemAddress);
+        string letter = f.ClassIndex switch { 3 => "S", 2 => "A", 1 => "B", _ => "C" };
+        string distance = f.SystemLy == 0 ? "the start system" : f.SystemLy < double.MaxValue ? $"{f.SystemLy:N0} ly away" : "in the same region";
+        string where = (f.Underwater ? "Underwater at " : "At ") + f.Coordinates
+            + (f.PortalKm is double km ? $" · {km:N1} km from the portal" : "");
+        return new FinderRowViewModel($"{letter}-class {f.TypeLabel}: {f.ShipName}", $"{f.SystemName} · {f.PlanetName} · {distance}",
+            where, $"1{portal & 0xFFFFFFFFFFF:X11}", galaxy + 1, f.ClassIndex == 3);
+    }).ToArray();
 
     private async Task LoadFindableAsync()
     {
@@ -173,10 +254,15 @@ public sealed partial class FinderViewModel : ObservableObject
                 : $"The nearest systems with {item.Name}. Tap one to open it.";
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Finder] ingredients: {ex}");
+            Status = "The search hit a problem and stopped. Try again, or search from another system.";
+        }
         finally { if (!cancel.IsCancellationRequested) IsSearching = false; }
     }
     partial void OnAreaChanged(FinderChoice? value) { if (IsMultiTools) _ = SearchAsync(); }
-    partial void OnClassChanged(FinderChoice? value) => Apply();
+    partial void OnClassChanged(FinderChoice? value) { if (IsShips) _ = FindShipsAsync(); else Apply(); }
     partial void OnKindChanged(FinderChoice? value) => Apply();
 
     [RelayCommand]
@@ -197,10 +283,12 @@ public sealed partial class FinderViewModel : ObservableObject
         IsSearching = true;
         Results = [];
         Status = radius == 0 ? $"Searching the star systems in the region of {start.Name}..." : "Searching the star systems around you...";
-        var progress = new Progress<int>(n => { if (!cancel.IsCancellationRequested) Status = $"Searching star systems: {n:N0} done..."; });
+        bool finished = false;   // a late progress report must not overwrite the result
+        var progress = new Progress<int>(n => { if (!cancel.IsCancellationRequested && !finished) Status = $"Searching star systems: {n:N0} done..."; });
         try
         {
             var found = await MultiToolFinderService.FindAsync(_start, radius, progress, cancel.Token);
+            finished = true;
             if (cancel.IsCancellationRequested) return;
             if (found is null)
             {
@@ -219,12 +307,18 @@ public sealed partial class FinderViewModel : ObservableObject
             Apply();
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            finished = true;
+            System.Diagnostics.Debug.WriteLine($"[Finder] multi-tools: {ex}");
+            Status = "The search hit a problem and stopped. Try again, or search from another system.";
+        }
         finally { if (!cancel.IsCancellationRequested) IsSearching = false; }
     }
 
     private void Apply()
     {
-        if (_searchedFor is null || Class is null) return;
+        if (!IsMultiTools || _searchedFor is null || Class is null) return;
         int minClass = int.Parse(Class.Value);
         string kind = Kind?.Value ?? "";
         var shown = _found.Where(f => f.ClassIndex >= minClass && (kind.Length == 0 || f.Kind == kind))
