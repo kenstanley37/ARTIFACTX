@@ -7,6 +7,7 @@ public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
     {
+        Services.AppStore.Current = new Services.PreferencesStore();
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
@@ -39,6 +40,8 @@ public static class MauiProgram
         builder.Services.AddTransient<Views.ExplorePages.PortalGlyphsPage>();
         builder.Services.AddTransient<ViewModels.SystemFromGlyphsViewModel>();
         builder.Services.AddTransient<Views.ExplorePages.SystemDetailsPage>();
+        builder.Services.AddTransient<ViewModels.RecipeDetailsViewModel>();
+        builder.Services.AddTransient<Views.ReferencePages.RecipeDetailsPage>();
         return builder.Build();
     }
 }

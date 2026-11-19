@@ -1,3 +1,4 @@
+using ArtifactX.Almanac.Starship;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.Core.Procedural;
 using ArtifactX.WinUI3.Controls;
@@ -5,6 +6,7 @@ using ArtifactX.WinUI3.Models;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -120,6 +122,158 @@ public static class StarshipService
         "CORVETTE TECHNOLOGY" => Array.Empty<string>(),
         _ => new[] { "UP_HYP", "UP_LAUN", "UP_PULSE", "UP_SGUN", "UP_SLASR", "UP_SMINI", "UP_SSHOT", "UP_S_SHL", "UP_SBLOB" },
     };
+
+    // ------------------------------------------------------------ the Starships page
+
+    private static string I(int index) => index.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>A ship's whole save entry: name, seed, class, stats, tech and cargo.</summary>
+    public static string[] ShipPath(int index) => NmsInventoryContainer.ShipArrayPath.Append(I(index)).ToArray();
+
+    /// <summary>Its model scene (NTx.93M).</summary>
+    public static string? Scene(int index) =>
+        index < 0 ? null : SaveSessionManager.GetValue("vLc", "6f=", "@Cs", I(index), "NTx", "93M")?.Value<string>();
+
+    // The game's names for unnamed ships, by (seed, model) - worked out once, off the list build. Emptied when the game
+    // data changes: names worked out before an update (none, without the word lists) stayed cached as none afterwards
+    // (2026-10-16).
+    private static readonly Dictionary<(ulong, string), string?> GameNames = new();
+    private static DateTime? _gameNamesStamp;
+    private static bool _namingShips;
+
+    private static (ulong Seed, string Scene) NameKey(int index)
+    {
+        ShipPartsService.TryParseSeed(SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(index))?.Value<string>(), out ulong seed);
+        return (seed, Scene(index) ?? "");
+    }
+
+    /// <summary>
+    /// The owned ships, in save order. A slot is owned when it has a model scene (NTx.93M), NOT a name (NKm): a new
+    /// save's starter ship is owned but has no name yet, and filtering on NKm dropped every ship on a fresh save (found
+    /// 2026-08-10 on a save that hadn't left the starting planet). The ship being flown is a plain index (aBE,
+    /// NmsInventoryContainer.ActiveShipIndexPath), confirmed against 15 real saves across 3 characters. Unnamed ships
+    /// carry the game's name once WorkOutGameNamesAsync has it.
+    /// </summary>
+    public static IReadOnlyList<OwnedShip> ReadShips()
+    {
+        if (SaveSessionManager.GetValue(NmsInventoryContainer.ShipArrayPath) is not JArray array) return [];
+        int active = SaveSessionManager.GetValue(NmsInventoryContainer.ActiveShipIndexPath)?.Value<int>() ?? -1;
+        var builds = ShipBaseService.BuildsBySlot();
+        if (GameDataService.Info?.BuiltAtUtc != _gameNamesStamp) { GameNames.Clear(); _gameNamesStamp = GameDataService.Info?.BuiltAtUtc; }
+        var ships = new List<OwnedShip>();
+        for (int i = 0; i < array.Count; i++)
+        {
+            string scene = array[i]?["NTx"]?["93M"]?.Value<string>() ?? "";
+            if (scene.Length == 0) continue;
+            string name = array[i]?["NKm"]?.Value<string>() ?? "";
+            bool unnamed = name.Length == 0;
+            string? gameName = unnamed ? GameNames.GetValueOrDefault(NameKey(i)) : null;
+            if (unnamed) name = gameName ?? $"Starship {i + 1}";
+            int parts = builds.GetValueOrDefault(i);
+            ships.Add(new OwnedShip(i, name, i == active, parts > 0 || ShipBaseService.IsCorvetteModel(scene), parts, unnamed, gameName));
+        }
+        return ships;
+    }
+
+    /// <summary>Works out the game's names for unnamed ships not tried yet (ShipNameAsync). True when one was found,
+    /// so the list is worth reading again.</summary>
+    public static async Task<bool> WorkOutGameNamesAsync(IReadOnlyList<OwnedShip> ships)
+    {
+        var missing = ships.Where(s => s.IsUnnamed).Select(s => NameKey(s.Index)).Where(k => !GameNames.ContainsKey(k)).Distinct().ToList();
+        if (missing.Count == 0 || _namingShips) return false;
+        _namingShips = true;
+        try
+        {
+            foreach (var (seed, scene) in missing)
+                GameNames[(seed, scene)] = await ShipNameAsync(seed, scene);
+        }
+        finally { _namingShips = false; }
+        return missing.Any(m => GameNames.GetValueOrDefault(m) is not null);
+    }
+
+    /// <summary>Stages a typed name. Nothing when it's empty or what the box already showed (the player's name, or the
+    /// game's for an unnamed ship), so the game's name never becomes a saved custom name by accident.</summary>
+    public static bool Rename(OwnedShip ship, string? text)
+    {
+        string name = text?.Trim() ?? "";
+        if (name.Length == 0 || name == (ship.IsUnnamed ? ship.GameName : ship.Name)) return false;
+        SaveSessionManager.StageEdit(name, "vLc", "6f=", "@Cs", I(ship.Index), "NKm");
+        return true;
+    }
+
+    /// <summary>Stages the model scene (NTx.93M): the hull flown in game. Added 2026-08-12 - nothing on the page could
+    /// write it, so a Full Build captured from a reward ship (Golden Vector) never restored its look.</summary>
+    public static void SetType(int index, string scenePath) =>
+        SaveSessionManager.StageEdit(scenePath, "vLc", "6f=", "@Cs", I(index), "NTx", "93M");
+
+    public static bool HasEdits(int index) => index >= 0 && SaveSessionManager.HasStagedEditsUnder(ShipPath(index));
+
+    /// <summary>Undoes every staged change to one ship - its inventories and also its name, seed and stats.</summary>
+    public static void RevertShip(int index)
+    {
+        if (index >= 0) SaveSessionManager.RevertEditsUnder(ShipPath(index));
+    }
+
+    /// <summary>Label of the stand-in Type choice for a model outside StarshipTypes.All.</summary>
+    public const string UnlistedTypeLabel = "(Current - not in known list)";
+
+    /// <summary>The Type choices for a ship (StarshipTypes.All, a small list in code) and the one it has. Real saves
+    /// often hold ships outside the known list (see StarshipTypes), so an unlisted model gets a stand-in choice, first,
+    /// that keeps it shown and selected without overwriting it. A new list each call, so the ComboBox always sees a
+    /// change.</summary>
+    public static (IReadOnlyList<StarshipTypeInfo> Options, StarshipTypeInfo? Selected) TypeOptions(int index)
+    {
+        var options = StarshipTypes.All.ToList();
+        string? scene = Scene(index);
+        var matched = options.FirstOrDefault(t => string.Equals(t.ScenePath, scene, StringComparison.OrdinalIgnoreCase));
+        if (matched is null && !string.IsNullOrEmpty(scene))
+        {
+            matched = new StarshipTypeInfo(UnlistedTypeLabel, scene);
+            options.Insert(0, matched);
+        }
+        return (options, matched);
+    }
+
+    /// <summary>A ship as a Full Build template (Save Current, and "save it first" before deleting).</summary>
+    public static NmsLoadoutTemplate CaptureFullBuild(ViewModels.InventoryGridViewModel tech, string templateName, OwnedShip ship)
+    {
+        var template = tech.ExtractTemplate(templateName, ship.Name, "Ship");
+        template.Scope = "FullBuild";
+        template.Stats = StatBonusService.ReadAll(NmsInventoryContainer.ShipStatBonusesPath(ship.Index));
+        template.Seed = SaveSessionManager.GetValue(NmsInventoryContainer.ShipModelSeedPath(ship.Index))?.Value<string>();
+        template.TypeScenePath = Scene(ship.Index);
+        NewFromTemplateService.CaptureShip(template, ship.Index);
+        return template;
+    }
+
+    public static NmsLoadoutTemplate CaptureTechStack(ViewModels.InventoryGridViewModel tech, string templateName, OwnedShip ship) =>
+        tech.ExtractTemplate(templateName, ship.Name, "Ship");
+
+    /// <summary>What a delete takes with the ship, for the confirmation.</summary>
+    public static string DeleteContents(OwnedShip ship) =>
+        "its tech, everything in its cargo, its paint" + (ship.BuildParts > 0 ? $" and its corvette build ({ship.BuildParts} parts)" : "");
+
+    /// <summary>The Details note on a corvette: its build lives apart from the ship (ShipBaseService).</summary>
+    public static string CorvetteNote(OwnedShip ship) => ship.BuildParts > 0
+        ? $"This is a corvette. What you built onto it - {ship.BuildParts} parts: cockpit, habitat, wings, engines and the rest - is stored apart from the ship. Full Build templates include it."
+        : "This is a corvette with no build of its own yet, so the game shows the default one.";
+
+    /// <summary>"N OF M SLOTS USED" over the strip; empty when the slot count is unknown.</summary>
+    public static string SlotsUsedText()
+    {
+        int total = NewFromTemplateService.ShipSlotCount, free = NewFromTemplateService.FreeShipSlots;
+        return total > 0 ? $"{total - free} OF {total} SLOTS USED" : "";
+    }
+
+    /// <summary>Why a Full Build can't be added as a new ship: no ship yet, or every slot in use.</summary>
+    public static string NoRoomText(bool hasShip) => !hasShip
+        ? "This save doesn't have a Starship yet. Get one in game first, then add builds here."
+        : $"All {NewFromTemplateService.ShipSlotCount} Starship slots are in use. Sell or scrap one in game, then try again.";
+
+    public static (string Title, string Body) AddAsNewText(NmsLoadoutTemplate template, int slot) =>
+        ($"Add \"{template.Name}\" as a new Starship?",
+            $"It goes in empty slot {slot + 1} of {NewFromTemplateService.ShipSlotCount} with this build's tech, class, stats and look. "
+            + "Your other Starships aren't changed. Nothing is written to your save until you Save.");
 
     /// <summary>A ship's name as the game shows it: the player's name (NKm), else the
     /// game's generated name (ShipNameAsync), else "Starship N".</summary>

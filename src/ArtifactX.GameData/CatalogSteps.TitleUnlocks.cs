@@ -17,14 +17,7 @@ public static partial class CatalogSteps
     public static void AddTitleUnlocks(string catalogPath, string pcbanksPath)
     {
         const string file = "METADATA/GAMESTATE/PLAYERDATA/PLAYERTITLEDATA.MBIN";
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            if (pak.FullPath is not string pakPath) continue;
-            try { index.Add(pakPath, reader.ReadHeader(pakPath), reader.Read(pakPath)); }
-            catch (IOException) { /* Match the catalog's treatment of unreadable PAKs. */ }
-        }
+        var index = GetIndex(pcbanksPath); // shared, cached for the build
         if (!index.TryFind(file, out var path, out var entry, out var header))
             throw new InvalidDataException("Player title definitions were not found.");
         var extraction = new ExtractionService();
@@ -49,7 +42,7 @@ public static partial class CatalogSteps
         var textures = (GcCustomisationTextureOptions)Decode(prefix + "CHARACTERCUSTOMISATIONTEXTUREOPTIONDATA.MBIN");
         var options = VehicleOptions(ui, descriptors, textures);
         foreach (var option in options) { keys.Add(option.Group); keys.Add(option.Name); }
-        var texts = EnglishTexts(index, extraction, keys);
+        var texts = DisplayTexts(pcbanksPath, keys);
         // Missing localization stays empty; raw localization ids must never reach players.
         string Text(string key) => texts.GetValueOrDefault(key, "");
         var rules = titles.Select(t => new TitleUnlockRule(t.ID.Value, Text(t.Title.Value),

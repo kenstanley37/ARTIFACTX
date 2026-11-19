@@ -54,13 +54,7 @@ public static partial class CatalogSteps
     public static void AddPlanetGeneration(string catalogPath, string pcbanksPath)
     {
         if (!File.Exists(catalogPath)) { ConsoleStyle.Error($"Target catalog DB not found: {catalogPath}"); return; }
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            try { index.Add(pak.FullPath, reader.ReadHeader(pak.FullPath), reader.Read(pak.FullPath)); }
-            catch { /* unreadable PAK - skip */ }
-        }
+        var index = GetIndex(pcbanksPath); // shared, cached for the build
         var extraction = new ExtractionService();
         NMSTemplate? Decode(string path)
         {
@@ -116,7 +110,7 @@ public static partial class CatalogSteps
                 if (details.Objects is { } objects)
                 {
                     var keys = objects.Groups.SelectMany(g => g.Files).Select(f => f.Hint).Where(h => h.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                    details = details with { HintNames = EnglishTexts(index, extraction, keys) };
+                    details = details with { HintNames = DisplayTexts(pcbanksPath, keys) };
                 }
             }
             if (details is null) ConsoleStyle.Warning("Planet detail tables not found - planet resources and weather left out.");
@@ -143,6 +137,8 @@ public static partial class CatalogSteps
             rows.Add(new CatalogItem { GameId = "MULTITOOLTECHNOLOGY", NameEnglish = "MultiToolTechnologyTables", DescriptionEnglish = JsonSerializer.Serialize(technology) });
         if (MultiToolModel(Decode) is { } multiToolModel)
             rows.Add(new CatalogItem { GameId = "MULTITOOLMODEL", NameEnglish = "MultiToolModelTables", DescriptionEnglish = JsonSerializer.Serialize(multiToolModel) });
+        if (SystemChances(Decode) is { } systemChances)
+            rows.Add(new CatalogItem { GameId = "SYSTEMCHANCES", NameEnglish = "SystemChanceTables", DescriptionEnglish = JsonSerializer.Serialize(systemChances) });
         if (GalaxyGeneration(Decode) is { } galaxyGeneration)
             rows.Add(new CatalogItem { GameId = "GALAXYGENERATION", NameEnglish = "GalaxyGenerationSettings", DescriptionEnglish = JsonSerializer.Serialize(galaxyGeneration) });
         if (GalaxyPlacement(Decode) is { } galaxyPlacement)

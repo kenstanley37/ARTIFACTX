@@ -44,7 +44,8 @@ public static class PlanetGenerator
 {
     private const ulong Multiplier = 0x5A76F899;
     private const double Tiny = 2.3283064365386963e-10;
-    private const int Dead = 6, Weird = 7, Waterworld = 14, GasGiant = 15, BiomeCount = 17, Infested = 0x18;
+    private const int Dead = BiomeType.Dead, Weird = BiomeType.Weird, Waterworld = BiomeType.Waterworld, GasGiant = BiomeType.GasGiant,
+        BiomeCount = BiomeType.All + 1, Infested = BiomeSubType.Infested;
 
     /// <summary>Galaxy type by galaxy number mod 20 (code data in NMS.exe at 0x144a33d10):
     /// 1 harsh, 2 empty, 3 lush, 4 normal.</summary>
@@ -82,12 +83,12 @@ public static class PlanetGenerator
         // Body classes as the game keeps them: size 0-2, 3 moon, 4 giant; parent of a moon.
         var cls = new int[total];
         var parent = new int[total];
-        int size = 0;
+        int[] sizeClasses = bodies.SizeClasses(attributes, total);
         for (int i = 0; i < total; i++)
         {
             int host = i < bodies.Hosts.Length ? bodies.Hosts[i] : 0;
             parent[i] = host > 0 ? host - 1 : -1;
-            cls[i] = host > 0 ? 3 : attributes.GasGiant && i == 0 ? 4 : size < bodies.Sizes.Length ? bodies.Sizes[size++] : 0;
+            cls[i] = Math.Max(sizeClasses[i], 0);
         }
 
         ulong address = ((portalCode >> 32) & 0xFFF) << 40 | (ulong)(galaxy & 0xFF) << 32 | (portalCode & 0xFFFFFFFF);

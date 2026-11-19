@@ -23,6 +23,15 @@ public static partial class CatalogSteps
             g.BaseTurbulenceLac, g.BaseTurbulenceScale, g.SpiralFormChance, gameplay.GoalGapVoxelDist);
     }
 
+    /// <summary>Per-star-type abandoned, empty and pirate system chances for <see cref="SystemGenerator"/>.</summary>
+    private static SystemChanceTables? SystemChances(Func<string, NMSTemplate?> decode)
+    {
+        if (decode("GCSOLARGENERATIONGLOBALS.GLOBAL.MBIN") is not GcSolarGenerationGlobals solar) return null;
+        var tables = new SystemChanceTables(solar.AbandonedSystemProbability.ToArray(), solar.EmptySystemProbability.ToArray(),
+            solar.PirateSystemProbability.ToArray());
+        return tables.IsValid ? tables : null;
+    }
+
     /// <summary>Star-placement fields of the same <c>DefaultGeneration</c> block, for <see cref="RegionStarPositions"/>.</summary>
     private static GalaxyPlacementSettings? GalaxyPlacement(Func<string, NMSTemplate?> decode)
     {

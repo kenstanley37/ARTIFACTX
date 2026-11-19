@@ -46,30 +46,6 @@ public sealed record GeneratedSystemShip(
 }
 
 /// <summary>
-/// A native multi-tool in a reload body's cabinet pool.
-/// </summary>
-public sealed record GeneratedSystemMultiTool(
-    int Index,
-    string Name,
-    string KindLabel,
-    ulong Seed,
-    string SourceLabel,
-    MultiToolSClassStats SClassStats)
-{
-    public string SeedHex => $"0x{Seed:X16}";
-    public string StatsLine => $"S-Class base: {SClassStats.CompactStatsSummary} · {SClassStats.MaxTechSlots} Tech";
-}
-
-/// <summary>
-/// The multi-tools offered by system cabinets when the game is loaded at a specific body (0 = Space Station, 1..N = Planet/Moon).
-/// </summary>
-public sealed record GeneratedMultiToolLoadPool(
-    int BodyIndex,
-    string PlaceTitle,
-    string ReloadInstruction,
-    IReadOnlyList<GeneratedSystemMultiTool> Tools);
-
-/// <summary>
 /// Complete address-derived readout for a star system from its 12-character portal glyph code and 1-based galaxy number.
 /// Works entirely from <see cref="ArtifactX.Core"/> procedural maths without needing game files or a save file.
 /// </summary>
@@ -95,10 +71,7 @@ public sealed record PortalSystemReadout(
     IReadOnlyList<PortalGlyphVector> GlyphVectors,
     IReadOnlyList<GeneratedSystemBody> Bodies,
     string ShipRulesSummary,
-    IReadOnlyList<GeneratedSystemShip> Ships,
-    string MultiToolOddsSummary,
-    string MultiToolExplanation,
-    IReadOnlyList<GeneratedMultiToolLoadPool> MultiToolPools)
+    IReadOnlyList<GeneratedSystemShip> Ships)
 {
     public static bool TryGenerate(string? input, int galaxyNumber, out PortalSystemReadout? readout, out string error)
     {
@@ -210,7 +183,7 @@ public sealed record PortalSystemReadout(
         int totalBodies = bodies.PlanetSeeds.Length;
         string[] rawNames = Array.ConvertAll(bodies.PlanetSeeds, SystemGenerator.PlanetName);
         var bodyList = new List<GeneratedSystemBody>(totalBodies);
-        int sizeCursor = 0;
+        int[] sizeClasses = bodies.SizeClasses(attrs, totalBodies);
         int planetNumber = 0;
 
         for (int i = 0; i < totalBodies; i++)
@@ -222,23 +195,17 @@ public sealed record PortalSystemReadout(
             int hostIndex = i < bodies.Hosts.Length ? bodies.Hosts[i] : 0;
             string hostName = hostIndex >= 1 && hostIndex <= rawNames.Length ? rawNames[hostIndex - 1] : $"Planet {hostIndex}";
 
-            int rawSize = isMoon
-                ? 3
-                : attrs.GasGiantPlanet && i == 0
-                    ? 4
-                    : sizeCursor < bodies.Sizes.Length
-                        ? bodies.Sizes[sizeCursor++]
-                        : 1;
-
             if (!isMoon) planetNumber++;
 
-            string sizeLabel = rawSize switch
+            // Size 4 is a true gas giant only with the GasGiantPlanet roll; otherwise an ordinary-biome Giant.
+            string sizeLabel = sizeClasses[i] switch
             {
-                4 => "Gas Giant",
+                4 => attrs.GasGiantPlanet ? "Gas Giant" : "Giant",
                 3 => "Moon",
                 0 => "Large",
                 1 => "Medium",
-                _ => "Small",
+                2 => "Small",
+                _ => "Unknown size",
             };
 
             bool hasRings = !isMoon && PlanetRings.HasRings(codeValue, galaxy0, bodyIndex);
@@ -250,7 +217,9 @@ public sealed record PortalSystemReadout(
             const string swatchHex = "#5CE1E6";
             string primaryLine = isMoon ? $"Moon of {hostName}" : $"Planet {planetNumber} \u00b7 {sizeLabel}";
             if (hasRings) primaryLine += " \u00b7 Planetary rings";
-            string secondaryLine = $"Portal address {bodyPortalCode}";
+            // The body's own address is shown as glyphs (players dial glyphs, not hex - owner 2026-11-18); nothing more
+            // to say here yet.
+            string secondaryLine = "";
 
             bodyList.Add(new GeneratedSystemBody(
                 bodyIndex,
@@ -300,10 +269,6 @@ public sealed record PortalSystemReadout(
             })
             .ToArray();
 
-        const string mtOddsSummary = "Multi-tool details are unavailable.";
-        const string mtExplanation = "The mobile game tables needed for cabinet pools are not installed. A pool also does not identify the tool sold by a particular cabinet.";
-        GeneratedMultiToolLoadPool[] mtPools = [];
-
         return new PortalSystemReadout(
             normalizedCode,
             codeValue,
@@ -326,10 +291,7 @@ public sealed record PortalSystemReadout(
             glyphVectors,
             bodyList,
             shipRulesSummary,
-            orderedShips,
-            mtOddsSummary,
-            mtExplanation,
-            mtPools);
+            orderedShips);
     }
 
 }

@@ -103,11 +103,8 @@ public sealed partial class SystemMultiToolsViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<MultiToolLoadPlaceViewModel> Places { get; private set; } = [];
     [ObservableProperty] public partial string Odds { get; private set; } = "";
 
-    public string Explanation =>
-        "Every multi-tool cabinet in this system - the space station's and every planet's shops - sells from one list, "
-        + "picked by where your game was loaded. When you warp in, it's the station's list. To switch every cabinet to a "
-        + "planet's list: land on that planet, save, quit to the main menu and load that save. Each cabinet's class and "
-        + "stats come from where the cabinet stands, so they stay the same whichever list it sells from.";
+    /// <summary>How rolling a cabinet works (Core SystemCabinets.RollSteps, shared with the phone).</summary>
+    public string Explanation => string.Join(" ", SystemCabinets.RollSteps);
 
     /// <summary>Builds the lists once per system (off the UI thread) and marks the place the save loads at.</summary>
     public async Task LoadAsync(ulong system, SystemFacts facts, string stationName,

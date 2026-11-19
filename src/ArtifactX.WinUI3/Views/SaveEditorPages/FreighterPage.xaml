@@ -87,7 +87,7 @@
                  this the Tech/Cargo grids rendered anyway, reading a
                  structurally-always-present-but-unowned container (real bug
                  found 2026-08-10 on a save that hadn't left the starting planet). -->
-            <StackPanel x:Name="NoFreighterPanel" Spacing="18" MaxWidth="760" HorizontalAlignment="Left" Visibility="Collapsed">
+            <StackPanel x:Name="NoFreighterPanel" Spacing="18" MaxWidth="760" HorizontalAlignment="Left" Visibility="{x:Bind ViewModel.ShowNoFreighter, Mode=OneWay}">
                 <TextBlock Text="FREIGHTER" Style="{StaticResource ThemePageTitleStyle}"/>
                 <TextBlock Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap">
                     <Run Text="You don't own a freighter yet. Start fresh with a basic one, or add one from a Full Build template - it arrives with that freighter's look, tech and furnished interior. Either way it's parked in the system you're in."/>
@@ -135,7 +135,7 @@
                  content row), matching ShipsPage's structure - column 0
                  (Technology+Cargo) and column 1 (Templates+Freighter details)
                  both live in the SAME Grid row. -->
-            <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="22">
+            <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="22" Visibility="{x:Bind ViewModel.ShowDetails, Mode=OneWay}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" MinWidth="320"/>
                     <ColumnDefinition Width="Auto"/>
@@ -154,7 +154,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="FREIGHTER" Style="{StaticResource ThemePageTitleStyle}" VerticalAlignment="Center"/>
                     <Button Grid.Column="2" x:Name="PageResetBtn" Content="Reset Freighter Changes" Click="PageResetBtn_Click"
-                            Visibility="Collapsed" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
+                            Visibility="{x:Bind ViewModel.HasPageEdits, Mode=OneWay}" Style="{StaticResource DangerButtonStyle}" VerticalAlignment="Center"/>
                 </Grid>
 
                 <StackPanel x:Name="MainColumn" Grid.Row="1" Grid.Column="0" Spacing="22">
@@ -163,7 +163,7 @@
                          scene-path swaps (bIR.93M / Sjw.93M); Model Seed and Crew Seed are
                          the matching @EL seeds. -->
                     <Border x:Name="FreighterInfoBorder" Style="{StaticResource ThemeCardStyle}">
-                        <controls:FoldingCard x:Name="DetailsCard" Title="FREIGHTER DETAILS" SettingKey="FreighterDetailsCollapsed">
+                        <controls:FoldingCard x:Name="DetailsCard" Title="FREIGHTER DETAILS" SettingKey="FreighterDetailsCollapsed" FoldedName="{x:Bind ViewModel.Name, Mode=OneWay}">
                             <StackPanel Padding="18,14,18,18" Spacing="16">
                                 <!-- Details on the left, the preview with the hull seeds pinned to the card's right edge (owner, 2026-11-15:
                                      "when I close the nav the preview and seed should be to the far right"). Crew race and seed are one group -
@@ -183,22 +183,25 @@
                                             <StackPanel Width="240" Spacing="12">
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="NAME" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                    <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" LostFocus="NameEditBox_LostFocus"/>
+                                                    <TextBox x:Name="NameEditBox" AutomationProperties.Name="Name" Text="{x:Bind ViewModel.Name, Mode=OneWay}" LostFocus="NameEditBox_LostFocus"/>
                                                 </StackPanel>
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="CLASS" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                                    <controls:ClassPicker x:Name="ClassPicker" ClassChosen="ClassPicker_ClassChosen"/>
+                                                    <controls:ClassPicker x:Name="ClassPicker" SelectedClass="{x:Bind ViewModel.ClassLetter, Mode=OneWay}" ClassChosen="ClassPicker_ClassChosen"/>
                                                 </StackPanel>
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
                                                     <ComboBox x:Name="TypeComboBox" AutomationProperties.Name="Type" HorizontalAlignment="Stretch"
                                                               DisplayMemberPath="DisplayName"
-                                                              SelectionChanged="TypeComboBox_SelectionChanged"/>
+                                                              ItemsSource="{x:Bind ViewModel.TypeOptions, Mode=OneWay}"
+                                                              SelectedItem="{x:Bind ViewModel.SelectedType, Mode=TwoWay}"/>
                                                 </StackPanel>
                                                 <StackPanel Spacing="6">
                                                     <TextBlock Text="ENGINE FLARE" Style="{StaticResource ThemeEyebrowStyle}"/>
                                                     <ComboBox x:Name="EngineFlareBox" AutomationProperties.Name="Engine flare" HorizontalAlignment="Stretch"
-                                                              DisplayMemberPath="Name" SelectionChanged="EngineFlareBox_SelectionChanged"
+                                                              DisplayMemberPath="Name"
+                                                              ItemsSource="{x:Bind ViewModel.EngineFlares}"
+                                                              SelectedItem="{x:Bind ViewModel.SelectedFlare, Mode=TwoWay}"
                                                               ToolTipService.ToolTip="The colour of the freighter's engine glow, as Customisation sets it in game."/>
                                                 </StackPanel>
                                             </StackPanel>
@@ -208,7 +211,8 @@
                                                     <TextBlock Text="CREW RACE" Style="{StaticResource ThemeEyebrowStyle}"/>
                                                     <ComboBox x:Name="CrewRaceComboBox" AutomationProperties.Name="Crew race" HorizontalAlignment="Stretch"
                                                               DisplayMemberPath="DisplayName"
-                                                              SelectionChanged="CrewRaceComboBox_SelectionChanged"/>
+                                                              ItemsSource="{x:Bind ViewModel.CrewRaceOptions, Mode=OneWay}"
+                                                              SelectedItem="{x:Bind ViewModel.SelectedCrewRace, Mode=TwoWay}"/>
                                                 </StackPanel>
                                                 <StackPanel Spacing="6">
                                                     <StackPanel Orientation="Horizontal" Spacing="6">
@@ -253,7 +257,10 @@
                                                 <!-- Shown while the save has custom freighter colours (l:j entry 15): they win over the
                                                      Home Seed (#69, Slot 8 2026-11-17: 40 backups, all custom). A new Home Seed clears
                                                      them (FreighterService.SyncCustomColoursWithHomeSeed); the note says which. -->
-                                                <TextBlock x:Name="HomeSeedCustomNote" Visibility="Collapsed" TextWrapping="Wrap" MaxWidth="360" FontSize="12"/>
+                                                <TextBlock x:Name="HomeSeedCustomNote" TextWrapping="Wrap" MaxWidth="360" FontSize="12"
+                                                           Visibility="{x:Bind ViewModel.HasHomeSeedNote, Mode=OneWay}"
+                                                           Text="{x:Bind ViewModel.HomeSeedNote, Mode=OneWay}"
+                                                           Foreground="{x:Bind ViewModel.HomeSeedNoteBrush, Mode=OneWay}"/>
                                             </StackPanel>
                                             <StackPanel Spacing="6">
                                                 <StackPanel Orientation="Horizontal" Spacing="6">

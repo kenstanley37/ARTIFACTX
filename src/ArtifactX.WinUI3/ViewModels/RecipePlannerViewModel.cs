@@ -144,13 +144,8 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     private string Buff(string id)
     {
         if (!IsCooking) return "";
-        if (!_buffs.TryGetValue(id, out var value)) return "";
-        double seconds = Math.Max(0, (_catalog?.Food?.BaseDuration ?? 0) * value.Food.CookingValue);
-        // The game's own amount (FoodIngestorDisplay); stats whose amount depends on the
-        // player's equipment show the effect alone rather than a made-up number.
-        string effect = FoodIngestorDisplay.Text(value.Food.Stat, value.Bonus) is { } amount
-            ? $"{amount} {EffectName(value.Food.Effect)}" : $"Boosts {EffectName(value.Food.Effect).ToLowerInvariant()}";
-        return $"{effect} · {TimeSpan.FromSeconds(seconds):m\\:ss} per item";
+        return _buffs.TryGetValue(id, out var value)
+            ? FoodIngestorDisplay.Summary(value.Food, value.Bonus, _catalog?.Food?.BaseDuration ?? 0) : "";
     }
 
     private void Filter()
@@ -256,22 +251,7 @@ public sealed partial class RecipePlannerViewModel : ObservableObject
     }
 
     private string Station(RecipeInfo r) => _catalog?.Names.GetValueOrDefault(MachineId(r)) ?? "Required equipment";
-    private static string MachineId(RecipeInfo r) => r.Kind == "Cooking" ? "COOKER" : "BUILD_REFINER" + Math.Clamp(r.Ingredients.Count, 1, 3);
+    private static string MachineId(RecipeInfo r) => RecipeStations.MachineId(r.Kind, r.Ingredients.Count);
 
-    private static string EffectName(string effect) => effect switch
-    {
-        "Weapon_Scan_Discovery_Creature" => "Fauna analysis rewards", "Weapon_Scan_Discovery_Flora" => "Flora analysis rewards",
-        "Weapon_Scan_Discovery_Mineral" => "Mineral analysis rewards", "Weapon_Laser_MiningBonus" => "Resources mined",
-        "Weapon_Laser_Mining_Speed" => "Mining speed", "Suit_Protection" => "Hazard protection battery",
-        "Suit_Armour_Shield_Strength" => "Shield strength", "Suit_Energy" => "Life support tanks",
-        "Suit_Energy_Regen" => "Solar panel power",
-        "Suit_Stamina_Strength" => "Sprint distance", "Suit_Stamina_Recovery" => "Sprint recovery time",
-        "Suit_Jetpack_Tank" => "Jetpack tanks", "Suit_AutoTranslator" => "Words translated",
-        "Suit_Protection_WaterDrain" => "Breathing efficiency", "Suit_Protection_Cold" => "Cold resistance",
-        "Suit_Protection_Heat" => "Heat resistance", "Suit_Protection_Toxic" => "Toxic resistance",
-        "Suit_Protection_Radiation" => "Radiation resistance", "Weapon_Scan_Recharge_Time" => "Recharge time",
-        "Suit_Protection_HeatDrain" => "Heat resistance", "Suit_Protection_ColdDrain" => "Cold resistance",
-        "Suit_Protection_ToxDrain" => "Toxic resistance", "Suit_Protection_RadDrain" => "Radiation resistance",
-        _ => "Other Ingestor effect"
-    };
+    private static string EffectName(string effect) => FoodIngestorDisplay.EffectName(effect);
 }

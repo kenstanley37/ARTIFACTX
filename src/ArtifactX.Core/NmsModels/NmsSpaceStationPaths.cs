@@ -79,6 +79,10 @@ public static class NmsSpaceStationPaths
     public const string MercenariesGuildStatId = "^WGUILD_STAND";
     public const string SalvageContractsStatId = "^SP_POI_MISSIONS";
 
+    /// <summary>The station takeover's requirements as the game's own screen lists them (claim tests 2026-10-09 on
+    /// Higashi Junction, Asbesla and Africa Cycler; the race and guild vary per station, the amounts don't). Not in any
+    /// globals file (searched 2026-11-17): they likely live in the takeover mission's conditions. The game also takes
+    /// the units; ArtifactX doesn't (owner decision 2026-10-09).</summary>
     public const int RaceStandingRequired = 30;
     public const int GuildStandingRequired = 15;
     public const int SalvageContractsRequired = 5;

@@ -167,7 +167,7 @@ public static class PlanetShopCabinetGenerator
             Math.Floor(rawCentre.Y / 1000.0) * 1000.0,
             Math.Floor(rawCentre.Z / 1000.0) * 1000.0);
 
-        const int shopClass = 5;
+        const int shopClass = BuildingClass.Shop;
         int raceIndex = attrs.Race switch
         {
             SystemRace.Gek => 0,

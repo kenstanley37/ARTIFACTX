@@ -76,6 +76,8 @@ public partial class App : Application
         // The construction limit the player's own game uses (read from NMS.exe by the catalog).
         ConstructionLimitService.Start();
         InventoryStackLimitService.Start();
+        // Game numbers shared by Core generators (system chances), from the catalog.
+        GameRulesService.Start();
 
         // The day's automatic backup of the player's own data (Settings page).
         _ = Task.Run(() =>

@@ -2,16 +2,68 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
     x:Class="ArtifactX.Maui.Views.ReferencePages.RecipesPage"
+    x:DataType="vm:RecipesViewModel"
     Shell.NavBarIsVisible="False"
-    Background="{DynamicResource ThemePageBackdropBrush}">
-
-    <VerticalStackLayout Padding="20,24" Spacing="14">
-        <Label
-            Text="Recipes"
-            Style="{StaticResource ThemePageTitleStyle}" />
-        <Label
-            Text="Find an item to make or an ingredient you have."
-            Style="{StaticResource ThemeDimTextStyle}" />
-    </VerticalStackLayout>
+    Background="{DynamicResource ThemePageBackdropBrush}"
+    xmlns:controls="clr-namespace:ArtifactX.Maui.Controls">
+    <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
+    <Grid RowDefinitions="Auto,Auto,*">
+        <controls:GalaxyBar />
+        <VerticalStackLayout Grid.Row="1" Padding="20,20,20,8" Spacing="10" MaximumWidthRequest="720" HorizontalOptions="Fill">
+            <Label Text="Recipes" Style="{StaticResource ThemePageTitleStyle}" />
+            <Label Text="{Binding Status}" IsVisible="{Binding IsNotReady}" Style="{StaticResource ThemeBodyTextStyle}" />
+            <VerticalStackLayout IsVisible="{Binding IsReady}" Spacing="10">
+                <!-- Cooking or refining; the chosen one is filled. -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Button Text="{Binding CookingLabel}" Command="{Binding ShowCookingCommand}" BorderWidth="1" BorderColor="{DynamicResource ThemeLineColor}"
+                            TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}"
+                            SemanticProperties.Description="{Binding CookingLabel, StringFormat='Show cooking recipes: {0}'}">
+                        <Button.Triggers>
+                            <DataTrigger TargetType="Button" Binding="{Binding IsCooking}" Value="True">
+                                <Setter Property="BackgroundColor" Value="{DynamicResource ThemeAccentColor}" />
+                                <Setter Property="TextColor" Value="{DynamicResource ThemeOnAccentColor}" />
+                            </DataTrigger>
+                        </Button.Triggers>
+                    </Button>
+                    <Button Grid.Column="1" Text="{Binding RefinerLabel}" Command="{Binding ShowRefinerCommand}" BorderWidth="1" BorderColor="{DynamicResource ThemeLineColor}"
+                            TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}"
+                            SemanticProperties.Description="{Binding RefinerLabel, StringFormat='Show refiner recipes: {0}'}">
+                        <Button.Triggers>
+                            <DataTrigger TargetType="Button" Binding="{Binding IsRefiner}" Value="True">
+                                <Setter Property="BackgroundColor" Value="{DynamicResource ThemeAccentColor}" />
+                                <Setter Property="TextColor" Value="{DynamicResource ThemeOnAccentColor}" />
+                            </DataTrigger>
+                        </Button.Triggers>
+                    </Button>
+                </Grid>
+                <Entry Text="{Binding Search}" Placeholder="{Binding SearchPlaceholder}" ClearButtonVisibility="WhileEditing"
+                       TextColor="{DynamicResource ThemeTextColor}" PlaceholderColor="{DynamicResource ThemeTextDimColor}"
+                       SemanticProperties.Description="Search by what a recipe makes or an ingredient it uses" />
+                <Picker ItemsSource="{Binding Effects}" SelectedItem="{Binding SelectedEffect}" IsVisible="{Binding IsCooking}" Title="Nutrient Ingestor effect"
+                        ItemDisplayBinding="{Binding Label, x:DataType='vm:RecipeEffectOption'}"
+                        TextColor="{DynamicResource ThemeTextColor}" SemanticProperties.Description="Show foods by their Nutrient Ingestor effect" />
+                <Label Text="{Binding Status}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+        <CollectionView Grid.Row="2" ItemsSource="{Binding Results}" SelectionMode="None" IsVisible="{Binding IsReady}"
+                        MaximumWidthRequest="720" HorizontalOptions="Fill" Margin="20,0,20,0">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:RecipeRowViewModel">
+                    <controls:TapCard Margin="0,0,0,8" AccessibleName="{Binding AccessibleName}" CommandParameter="{Binding .}"
+                                      Command="{Binding Source={RelativeSource AncestorType={x:Type vm:RecipesViewModel}}, Path=OpenCommand}">
+                    <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12,10">
+                        <VerticalStackLayout Spacing="3">
+                            <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="16" TextColor="{DynamicResource ThemeTextColor}" />
+                            <Label Text="{Binding Formula}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}" />
+                            <Label Text="{Binding Buff}" IsVisible="{Binding HasBuff}" FontSize="14" TextColor="{DynamicResource ThemeDoneColor}" />
+                            <Label Text="{Binding StationLine}" FontSize="13" TextColor="{DynamicResource ThemeTextDimColor}" />
+                        </VerticalStackLayout>
+                    </Border>
+                    </controls:TapCard>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
 </ContentPage>

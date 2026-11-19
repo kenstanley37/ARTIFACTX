@@ -12,7 +12,7 @@ public sealed record FishFind(ulong PlanetAddress, int PlanetIndex, PlanetType B
 /// </summary>
 public static class FishSearch
 {
-    public const int AnyPlanet = 16, GasGiant = 15;
+    public const int AnyPlanet = 16, GasGiant = BiomeType.GasGiant;
 
     /// <summary>The bodies of <paramref name="systemAddress"/> where a fish of <paramref name="biomes"/> bites, from the
     /// system's bodies and profiles already generated.</summary>

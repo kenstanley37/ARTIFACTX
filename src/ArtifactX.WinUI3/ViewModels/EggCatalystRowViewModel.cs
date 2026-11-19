@@ -1,60 +1,40 @@
-using System;
 using ArtifactX.Core.Companions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>One item card on the Egg Sequencer page, worded for the selected slot.</summary>
+/// <summary>One item card on the Egg Sequencer page, worded for the selected slot (Core EggSequencerText.Label,
+/// shared with the phone).</summary>
 public sealed partial class EggCatalystRowViewModel : ObservableObject
 {
-    /// <summary>The words the game shows for a trait above / below 0 (0x1407875f4).</summary>
-    internal static readonly string[] PositiveKeys = ["UI_PET_HELPFUL_RATING", "UI_PET_AGGRESSION_RATING", "UI_PET_INDEPENDENCE_RATING"];
-    internal static readonly string[] NegativeKeys = ["UI_PET_PLAYFUL_RATING", "UI_PET_GENTLENESS_RATING", "UI_PET_ATTACHMENT_RATING"];
-
-    public EggCatalystRowViewModel(string id, string name, bool isSubstance, long value, EggCatalystEffect effect,
-        EggCatalystSlot slot, int itemLimit, Func<string, string> text, long owned = 0)
+    public EggCatalystRowViewModel(EggCatalyst item, EggCatalystSlot slot, EggSequencerRules rules, long owned = 0)
     {
-        Owned = owned;
-        Id = id;
-        Name = name;
-        IsSubstance = isSubstance;
-        Value = value;
-        Effect = effect;
+        Item = item;
         Slot = slot;
-        TraitWord = text((effect.TraitIncreases ? PositiveKeys : NegativeKeys)[(int)effect.Trait]);
-        OppositeTraitWord = text((effect.TraitIncreases ? NegativeKeys : PositiveKeys)[(int)effect.Trait]);
-        EffectText = slot switch
-        {
-            EggCatalystSlot.GrowthHormone => effect.Grows ? "▲ Bigger" : "▼ Smaller",
-            EggCatalystSlot.GeneSplitter => "Remixes anatomy",
-            EggCatalystSlot.DyeInjector => "Its own colours",
-            _ => $"Toward {TraitWord}",
-        };
-        ReachesFull = HasEffect && Needed <= itemLimit;
-        string what = slot is EggCatalystSlot.GeneSplitter or EggCatalystSlot.DyeInjector ? "Certain with" : "Full dose:";
-        AmountText = !HasEffect ? "No value, so no effect"
-            : Needed > itemLimit ? $"Never a full effect: a slot holds {itemLimit:N0}"
-            : $"{what} {Needed:N0}";
+        Owned = owned;
+        Label = EggSequencerText.Label(item, slot, rules);
     }
 
-    public string Id { get; }
-    public string Name { get; }
-    public bool IsSubstance { get; }
-    public long Value { get; }
-    public EggCatalystEffect Effect { get; }
+    public EggCatalyst Item { get; }
+    public EggCatalystLabel Label { get; }
+    public string Id => Item.Id;
+    public string Name => Item.Name;
+    public bool IsSubstance => Item.IsSubstance;
+    public long Value => Item.Value;
+    public EggCatalystEffect Effect => Item.Effect;
     public EggCatalystSlot Slot { get; }
-    public bool HasEffect => Effect.FullDoseCount > 0;
-    public string TraitWord { get; }
-    public string OppositeTraitWord { get; }
-    public string EffectText { get; }
-    public string AmountText { get; }
+    public bool HasEffect => Label.HasEffect;
+    public string TraitWord => Label.TraitWord;
+    public string OppositeTraitWord => Label.OppositeTraitWord;
+    public string EffectText => Label.EffectText;
+    public string AmountText => Label.AmountText;
 
     /// <summary>How many the loaded save carries across its inventories.</summary>
     public long Owned { get; }
     public bool HasOwned => Owned > 0;
     /// <summary>A slot can hold enough of it for the full effect (100%).</summary>
-    public bool ReachesFull { get; }
+    public bool ReachesFull => Label.ReachesFull;
     /// <summary>What you carry and, when it's short of a full dose, how many more you need.</summary>
     public string OwnedText => Owned <= 0 ? ""
         : ReachesFull && Owned < Needed ? $"You have {Owned:N0} · {Needed - Owned:N0} more needed" : $"You have {Owned:N0}";
@@ -62,7 +42,7 @@ public sealed partial class EggCatalystRowViewModel : ObservableObject
     public bool OwnsEnough => Owned >= Needed;
 
     /// <summary>How many give the slot's full effect, for sorting.</summary>
-    public int Needed => Slot is EggCatalystSlot.GeneSplitter or EggCatalystSlot.DyeInjector ? Effect.CertainChangeCount : Effect.FullDoseCount;
+    public int Needed => Label.Needed;
 
     [ObservableProperty] public partial ImageSource? Icon { get; set; }
 

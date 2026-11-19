@@ -27,14 +27,7 @@ public static partial class CatalogSteps
             ("CATALOGUERECIPES", "UI_PORTAL_CAT_RECIPES"),
             ("CATALOGUEWONDERS", "UI_PORTAL_CAT_COLLECTION"),
         ];
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            if (pak.FullPath is not string path) continue;
-            try { index.Add(path, reader.ReadHeader(path), reader.Read(path)); }
-            catch (IOException) { /* Match the catalog's treatment of unreadable PAKs. */ }
-        }
+        var index = GetIndex(pcbanksPath); // shared, cached for the build
         var extraction = new ExtractionService();
         var wikis = new List<(string Key, GcWiki Wiki)>();
         foreach (var (file, key) in sections)
@@ -117,7 +110,7 @@ public static partial class CatalogSteps
         var keys = wikis.SelectMany(w => w.Wiki.Categories.Select(c => c.CategoryID.Value).Append(w.Key).Append(w.Key + "_SUB"))
             .Concat(recordNames.Values.SelectMany(n => n)).Concat(fossils.Select(f => f.Name.Value))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var texts = EnglishTexts(index, extraction, keys);
+        var texts = DisplayTexts(pcbanksPath, keys);
         // Missing localization stays empty; raw localization ids must never reach players.
         string Text(string key) => texts.GetValueOrDefault(key, "");
         var result = wikis.Select(w => new CatalogueSection(w.Key, Text(w.Key), Text(w.Key + "_SUB"),

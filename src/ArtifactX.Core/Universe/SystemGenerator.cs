@@ -44,21 +44,56 @@ public sealed record VoxelAttributes(int GuideStarCount, int BlackHoleCount, int
 public sealed record SystemBodies(ulong[] PlanetSeeds, int PlanetCount, int MoonCount, int[] Sizes, int[] Hosts)
 {
     public bool IsMoon(int body) => body >= 1 && body <= Hosts.Length && Hosts[body - 1] > 0;
+
+    /// <summary>Size class (GcPlanetSize: 0 Large, 1 Medium, 2 Small, 3 Moon, 4 Giant) of each of the system's
+    /// <paramref name="count"/> bodies (index 0 = body 1), or -1 where the rolled sizes run out. A moon is 3; in a
+    /// gas-giant system body 1 is 4 whether or not it rolled <see cref="SystemAttributes.GasGiantPlanet"/> (without it
+    /// body 1 is a size-4 world of an ordinary biome: Roquist XVIII, galaxy 219, all six centres and biomes matched the
+    /// save 2026-11-17); every other planet takes the next rolled size. The one rule <see cref="PlanetGenerator"/>,
+    /// <see cref="SolarLayoutGeneration"/> and the portal readout share.</summary>
+    public int[] SizeClasses(SystemAttributes attributes, int count)
+    {
+        var classes = new int[Math.Max(count, 0)];
+        int next = 0;
+        for (int i = 0; i < classes.Length; i++)
+            classes[i] = i < Hosts.Length && Hosts[i] > 0 ? 3
+                : attributes.GasGiant && i == 0 ? 4
+                : next < Sizes.Length ? Sizes[next++] : -1;
+        return classes;
+    }
+}
+
+/// <summary>Per-star-type chances (GcGalaxyStarTypes order: Yellow, Green, Blue, Red, Purple) that a system is abandoned,
+/// empty (uncharted) or pirate: GcSolarGenerationGlobals AbandonedSystemProbability, EmptySystemProbability and
+/// PirateSystemProbability (catalog row SYSTEMCHANCES, format 106).</summary>
+public sealed record SystemChanceTables(float[] Abandoned, float[] Empty, float[] Pirate)
+{
+    public bool IsValid => Abandoned is { Length: 5 } && Empty is { Length: 5 } && Pirate is { Length: 5 };
 }
 
 public static class SystemGenerator
 {
-    /// <summary>The fixed purple-system address range used by the generator.</summary>
-    public static bool IsPurpleSystemId(long systemId) => systemId > 0x3E7 && systemId < 0x429;
+    /// <summary>The fixed purple-system address range used by the generator (<see cref="PurpleSystems"/>).</summary>
+    public static bool IsPurpleSystemId(long systemId) => PurpleSystems.Contains(systemId);
 
     private const ulong ConstA = 0x64DD81482CBD31D7;
     private const ulong ConstB = 0xE36AA5C613612997;
     private const double TinyDouble = 2.3283064370807974e-10;
 
-    // Per-star-type probability tables, as the exact 32-bit floats the game holds.
-    private static readonly double[] AbandonedThreshold = { 0.0, 0.10000000149011612, 0.10000000149011612, 0.0, 0.3499999940395355 };
-    private static readonly double[] EmptyThreshold = { 0.0, 0.4000000059604645, 0.4000000059604645, 0.949999988079071, 0.20000000298023224 };
-    private static readonly double[] PirateThreshold = { 0.25, 0.15000000596046448, 0.15000000596046448, 0.5, 0.05000000074505806 };
+    /// <summary>The values of NMS 7.14 (build 185034) gcsolargenerationglobals.global.mbin, used until the catalog's are
+    /// loaded (and by the checks, which run without game data). GameData.Checks --system-chances-check compares the
+    /// installed game's against these, so a game update that changes them shows up there; the app uses the game's.</summary>
+    public static readonly SystemChanceTables Defaults = new(
+        [0f, 0.1f, 0.1f, 0f, 0.35f], [0f, 0.4f, 0.4f, 0.95f, 0.2f], [0.25f, 0.15f, 0.15f, 0.5f, 0.05f]);
+
+    /// <summary>The chances in use: the installed game's once the catalog is loaded (GameRulesService).</summary>
+    public static SystemChanceTables Chances { get; private set; } = Defaults;
+
+    /// <summary>Uses the catalog's chances; ignores a missing or malformed table.</summary>
+    public static void UseChances(SystemChanceTables? tables)
+    {
+        if (tables is { IsValid: true }) Chances = tables;
+    }
 
     private static readonly string[] RegionAdornments =
     {
@@ -183,13 +218,14 @@ public static class SystemGenerator
             starType = 4; // purple
 
         rng.Step();
-        bool abandoned = Probability(rng.Seed) < AbandonedThreshold[starType];
+        var chances = Chances;
+        bool abandoned = Probability(rng.Seed) < chances.Abandoned[starType];
 
         bool uncharted = false;
         if (!abandoned)
         {
             rng.Step();
-            uncharted = Probability(rng.Seed) < EmptyThreshold[starType];
+            uncharted = Probability(rng.Seed) < chances.Empty[starType];
         }
         if (uncharted) race = 0;
         if (abandoned)
@@ -224,7 +260,7 @@ public static class SystemGenerator
         {
             var peek = new UniverseRandom(rng.Seed);
             peek.Step();
-            pirate = Probability(peek.Seed) < PirateThreshold[starType];
+            pirate = Probability(peek.Seed) < chances.Pirate[starType];
         }
 
         return new SystemAttributes(planetCount, primeCount, safeStart, gasGiant, (StarColour)starType,

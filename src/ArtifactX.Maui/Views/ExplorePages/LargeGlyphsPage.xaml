@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- A portal address shown large (LargeGlyphsViewModel), opened by tapping any glyph row. -->
+<ContentPage
+    x:Class="ArtifactX.Maui.Views.ExplorePages.LargeGlyphsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
+    xmlns:helpers="clr-namespace:ArtifactX.Maui.Helpers.PortalGlyphs"
+    x:DataType="vm:LargeGlyphsViewModel"
+    Shell.NavBarIsVisible="False"
+    Background="{DynamicResource ThemePageBackdropBrush}">
+    <ContentPage.Resources>
+        <helpers:PortalGlyphGeometryConverter x:Key="GlyphGeometryConverter" />
+    </ContentPage.Resources>
+    <Grid RowDefinitions="Auto,*,Auto" Padding="20,28,20,24" RowSpacing="16">
+        <VerticalStackLayout Spacing="4">
+            <Label Text="PORTAL GLYPHS" Style="{StaticResource ThemeEyebrowStyle}" />
+            <Label Text="{Binding Caption}" Style="{StaticResource ThemePageTitleStyle}" />
+            <Label Text="{Binding GalaxyLine}" IsVisible="{Binding HasGalaxy}" TextColor="{DynamicResource ThemeAccentColor}" FontSize="18" FontAttributes="Bold" />
+            <Label Text="{Binding Hint}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="16" />
+        </VerticalStackLayout>
+        <!-- 3 across, 4 down: the biggest glyphs a phone in portrait fits, numbered so the place isn't lost. -->
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Glyphs}" SelectionMode="None" VerticalOptions="Center">
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="10" VerticalItemSpacing="10" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:LargeGlyphItem">
+                    <Border Style="{StaticResource ThemeCardStyle}" Padding="8" HeightRequest="118"
+                            SemanticProperties.Description="{Binding Description}">
+                        <Grid RowDefinitions="Auto,*">
+                            <Label Text="{Binding PositionLabel}" TextColor="{DynamicResource ThemeAccentColor}" FontSize="18" FontAttributes="Bold" />
+                            <Path Grid.Row="1" Data="{Binding Glyph.PathData, Converter={StaticResource GlyphGeometryConverter}}"
+                                  Fill="{DynamicResource ThemeTextBrush}" Aspect="Uniform" HeightRequest="72" WidthRequest="72"
+                                  HorizontalOptions="Center" VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <Button Grid.Row="2" Text="Close" Clicked="Close_Clicked" FontSize="18" Padding="16,12"
+                BackgroundColor="{DynamicResource ThemeAccentColor}" TextColor="{DynamicResource ThemeOnAccentColor}" />
+    </Grid>
+</ContentPage>

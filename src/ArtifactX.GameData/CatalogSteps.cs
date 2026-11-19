@@ -32,6 +32,7 @@ public static partial class CatalogSteps
             _cachedIndex = null;
             _cachedMergedEnglish = null;
         }
+        Services.PakReaderService.ClearMemo();
     }
 
     private static IReadOnlyList<(string PakPath, PakHeader Header, IReadOnlyList<PakEntry> Entries)> GetPakEntries(string pcbanksPath)
@@ -126,7 +127,21 @@ public static partial class CatalogSteps
     /// game's US English text (<c>nms_*_usenglish.mbin</c>) taking over wherever it has an entry - the text a US player
     /// sees ("Vectorized", not "Vectorised"; owner's choice 2026-11-12, catalog format 81; issue #64 for other languages). Cached for
     /// the current <paramref name="pcbanksPath"/>.</summary>
-    private static IReadOnlyDictionary<string, string> GetMergedEnglishLookup(string pcbanksPath)
+    private static IReadOnlyDictionary<string, string> GetMergedEnglishLookup(string pcbanksPath) => MergedEnglish(pcbanksPath);
+
+    /// <summary>Text the app shows for these keys, from <see cref="GetMergedEnglishLookup"/> (US over UK, like the rest of
+    /// the catalog). Words the name generators and planet descriptors match against the game still come from the UK files
+    /// (EnglishTexts, MultiToolNames) until a US/UK difference there is checked in game.</summary>
+    private static Dictionary<string, string> DisplayTexts(string pcbanksPath, IEnumerable<string> keys)
+    {
+        var lookup = GetMergedEnglishLookup(pcbanksPath);
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in keys)
+            if (lookup.TryGetValue(key, out var text)) result[key] = text;
+        return result;
+    }
+
+    private static IReadOnlyDictionary<string, string> MergedEnglish(string pcbanksPath)
     {
         lock (CacheLock)
         {

@@ -28,7 +28,7 @@ public sealed record BuildingSiteLocation(ulong PlanetAddress, ulong Key, double
 /// </summary>
 public static class BuildingSiteService
 {
-    private const int BuildingClassShop = 5;
+    private const int BuildingClassShop = ArtifactX.Core.Universe.BuildingClass.Shop;
 
     /// <summary>The <paramref name="count"/> sites of <paramref name="buildingClass"/> nearest a point on the planet;
     /// empty when the planet can't be worked out yet or the system has no race (no shops are built there).</summary>
@@ -66,7 +66,7 @@ public static class BuildingSiteService
                 .Select(site =>
                 {
                     var (lat, lon) = site.Coordinates;
-                    double angle = Math.Acos(Math.Clamp(Vector3.Dot(Vector3.Normalize(site.Point), dir), -1f, 1f));
+                    double angle = ArtifactX.Core.NmsModels.PlanetHotspotCluster.GroundDistance(site.Point, dir, 1.0);
                     var cabinet = shopContext is null ? null
                         : PlanetShopCabinetGenerator.ForShopSite(shopContext, site.Key, (site.Point.X, site.Point.Y, site.Point.Z));
                     return new BuildingSiteLocation(planetAddress, site.Key, c.X + site.Point.X, c.Y + site.Point.Y,

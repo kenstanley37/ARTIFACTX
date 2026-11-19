@@ -17,14 +17,7 @@ public static partial class CatalogSteps
     public static void AddIndustrialCleanup(string catalogPath, string pcbanksPath)
     {
         const string file = "METADATA/SIMULATION/MISSIONS/TABLES/TUTORIALMISSIONTABLE.MBIN";
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            if (pak.FullPath is not string path) continue;
-            try { index.Add(path, reader.ReadHeader(path), reader.Read(path)); }
-            catch (IOException) { }
-        }
+        var index = GetIndex(pcbanksPath); // shared, cached for the build
         if (!index.TryFind(file, out var source, out var entry, out var header))
             throw new InvalidDataException("Industrial cleanup mission definitions were not found.");
         var extraction = new ExtractionService();
@@ -42,7 +35,7 @@ public static partial class CatalogSteps
         string[] fixedKeys = ["UI_HAUL_LOOP_TITLE", "UI_HAUL_LOOP_DESC", "UI_HAUL_LOOP_OBJ1_TIP", "UI_GUIDE_TOPIC_SCRAP", "UI_GUIDE_BODY_SCRAP"];
         var keys = fixedKeys.Concat(instructions.SelectMany(g => new[] { g.ObjectiveID.Value, g.ObjectiveTipID.Value }))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var texts = EnglishTexts(index, extraction, keys);
+        var texts = DisplayTexts(pcbanksPath, keys);
         string Text(string key) => texts.TryGetValue(key, out var text) && text.Length > 0 ? text
             : throw new InvalidDataException($"Missing Industrial Cleanup localization: {key}");
         var tip = Text("UI_HAUL_LOOP_OBJ1_TIP");

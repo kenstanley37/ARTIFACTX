@@ -1,4 +1,3 @@
-using ArtifactX.GameData;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
@@ -10,6 +9,7 @@ using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Resources;
 using ArtifactX.WinUI3.Services;
+using ArtifactX.WinUI3.ViewModels;
 using ArtifactX.WinUI3.Views.AppPages;
 using ArtifactX.WinUI3.Views.SaveEditorPages;
 using ArtifactX.WinUI3.Views.ExplorePages;
@@ -24,8 +24,15 @@ using WinRT.Interop;
 
 namespace ArtifactX.WinUI3;
 
+/// <summary>
+/// The main window: the title bar, the nav and the page frame. Its state - which nav items show, the badges, the
+/// game-data bar and the "the game moved" notices - is <see cref="ViewModel"/> (MainWindowViewModel). This class wires
+/// the app-wide services up at start, shows the startup, close and switch dialogs, reloads pages and animates.
+/// </summary>
 public sealed partial class MainWindow : Window
 {
+    public MainWindowViewModel ViewModel { get; } = new();
+
     private AppWindow _appWindow = null!;
 
     // Set right before a programmatic re-Close() following user confirmation,
@@ -108,22 +115,16 @@ public sealed partial class MainWindow : Window
         // awaited properly with its own try/catch instead of discarded.
         ((FrameworkElement)Content).Loaded += MainWindow_ContentLoaded;
 
-        SaveSessionManager.ActiveSessionChanged += (_, _) =>
-        {
-            UpdateNavAvailability();
-            SlotSwitchBar.IsOpen = false; // a save was opened or closed - nothing to offer
-            ContextSwitchBar.IsOpen = false;
-        };
-        UpdateNavAvailability();
-        SaveFolderWatchService.GameSavedOtherSlot += OfferSlotSwitch;
+        SaveSessionManager.ActiveSessionChanged += (_, _) => ViewModel.SessionChanged();
+        ViewModel.RefreshNav();
+        SaveFolderWatchService.GameSavedOtherSlot += ViewModel.OfferSlotSwitch;
         SaveSessionManager.GameSavedLoadedSlot += OnGameSavedLoadedSlot;
         LiveItemsService.Start();
-        LiveItemsService.Changed += _ => UpdateLiveBadges();
+        LiveItemsService.Changed += _ => ViewModel.RefreshLiveBadges();
         InitGameData();
 
         GameProcessMonitorService.RunningStateChanged += (_, isRunning) =>
-            DispatcherQueue.TryEnqueue(() =>
-                GameRunningBanner.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed);
+            DispatcherQueue.TryEnqueue(() => ViewModel.IsGameRunning = isRunning);
 
         // Start() calls Poll() synchronously before returning - if ArtifactX is already
         // running, the state flips false->true and the event fires *during* this
@@ -136,7 +137,7 @@ public sealed partial class MainWindow : Window
         FishCatchRecorder.Start(DispatcherQueue);
         // Off unless turned on in Settings (GitHub #18, step 1).
         ScreenCaptureLogService.Start();
-        GameRunningBanner.Visibility = GameProcessMonitorService.IsGameRunning ? Visibility.Visible : Visibility.Collapsed;
+        ViewModel.IsGameRunning = GameProcessMonitorService.IsGameRunning;
 
         _ = RunStartupUpdateCheckAsync();
 
@@ -404,99 +405,11 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// Toggles visibility of save-scoped nav items (Exosuit, Starship, etc., once
-    /// they exist) based on whether a save is actively loaded in SaveSessionManager.
-    /// Account Data is the one exception - it edits accountdata.hg, which lives
-    /// once per platform-account folder rather than per save slot, so it only
-    /// needs a platform chosen (SaveSessionManager.HasActivePlatform), not a
-    /// specific slot loaded; a loaded slot still counts too, since that implies
-    /// a platform was chosen along the way.
-    /// </summary>
-    private void UpdateNavAvailability()
-    {
-        GeneralNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        ExosuitNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        MultiToolNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        ShipsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        ShipDesignerNavItem.Visibility = ShipsNavItem.Visibility;
-        FreighterNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        FreighterUpgradesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        FrigateNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        SquadronNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        CargoNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        // A reminder: how many different items are waiting in the cache (easy to
-        // forget, user 2026-10-15) - kinds of item, not quantities.
-        int cacheItems = SaveSessionManager.GetValue(ArtifactX.Core.NmsModels.NmsInventoryContainer.BaseItemCachePath)?[":No"] is Newtonsoft.Json.Linq.JArray cached ? cached.Count : 0;
-        CargoNavItem.InfoBadge = cacheItems > 0 ? new InfoBadge { Value = cacheItems } : null;
-        ToolTipService.SetToolTip(CargoNavItem, cacheItems > 0
-            ? $"{cacheItems} item{(cacheItems == 1 ? "" : "s")} waiting from a dismantled base" : null);
-        CompanionsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        SettlementNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        SpaceStationsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        // Explore and Reference work from ArtifactX's own game data and the
-        // player's notes, so they're always there (looking up a recipe shouldn't
-        // need a save open); only the pages that read the loaded save hide without one.
-        ExploreNavItem.Visibility = Visibility.Visible;
-        ReferenceNavItem.Visibility = Visibility.Visible;
-        PlanetsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        CrashedShipsNavItem.Visibility = PlanetsNavItem.Visibility;
-        CabinetMultiToolsNavItem.Visibility = PlanetsNavItem.Visibility;
-        PlanetFinderNavItem.Visibility = PlanetsNavItem.Visibility;
-        CreatureFinderNavItem.Visibility = PlanetsNavItem.Visibility;
-        MultiToolFinderNavItem.Visibility = PlanetsNavItem.Visibility;
-        NearCoreNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        GalaxyTransferNavItem.Visibility = NearCoreNavItem.Visibility;
-        RegionsNavItem.Visibility = NearCoreNavItem.Visibility;
-        BasesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        SaveEditorNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
-            ? Visibility.Visible : Visibility.Collapsed;
-        ExploreSeparator.Visibility = ExploreNavItem.Visibility;
-        ReferenceSeparator.Visibility = ReferenceNavItem.Visibility;
-        MilestonesNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        GameCatalogNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        FishingRecordsNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-        ExocraftNavItem.Visibility = SaveSessionManager.IsSaveLoaded ? Visibility.Visible : Visibility.Collapsed;
-
-        // Guide nests under AccountDataNavItem as a child (see that item's own
-        // XAML comment) - hiding the parent already hides it, same as
-        // Milestones' language children never getting their own individual
-        // Visibility toggle here.
-        AccountDataNavItem.Visibility = SaveSessionManager.IsSaveLoaded || SaveSessionManager.HasActivePlatform
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-    }
-
-    // The slot the game moved to, and one the player said no to (not offered
-    // again on every autosave - only once the game moves somewhere else).
-    private SaveSlotGroup? _offeredSlot;
-    private (string? Folder, int SlotId)? _declinedSlot;
-
-    /// <summary>The game saved a different slot of this account than the one
-    /// loaded: offer to follow it, rather than switching on our own - the
-    /// loaded save may have edits waiting (user request 2026-10-14).</summary>
-    private void OfferSlotSwitch(SaveSlotGroup slot)
-    {
-        string? folder = Path.GetDirectoryName(slot.PrimaryFile.FullPath);
-        if (_declinedSlot is { } no && no.SlotId == slot.SlotId && string.Equals(no.Folder, folder, StringComparison.OrdinalIgnoreCase)) return;
-        _declinedSlot = null;
-        _offeredSlot = slot;
-        string loaded = SaveSessionManager.ActiveSlot is { } a ? $"{a.SlotLabel} ({a.PrimaryFile.SaveName})" : "another save";
-        SlotSwitchBar.Message = $"The game is now saving to {slot.SlotLabel} ({slot.PrimaryFile.SaveName}). ArtifactX is showing {loaded}.";
-        SlotSwitchButton.Content = $"Switch to {slot.SlotLabel}";
-        SlotSwitchBar.IsOpen = true;
-    }
-
-    private void SlotSwitchBar_Closed(InfoBar sender, object args)
-    {
-        if (_offeredSlot is { } slot)
-            _declinedSlot = (Path.GetDirectoryName(slot.PrimaryFile.FullPath), slot.SlotId);
-        _offeredSlot = null;
-    }
+    private void SlotSwitchBar_Closed(InfoBar sender, object args) => ViewModel.SlotSwitchDeclined();
 
     private async void SlotSwitch_Click(object sender, RoutedEventArgs e)
     {
-        if (_offeredSlot is not { } slot) return;
+        if (ViewModel.OfferedSlot is not { } slot) return;
         if (SaveSessionManager.HasUnsavedChanges)
         {
             var confirm = new ContentDialog
@@ -511,73 +424,30 @@ public sealed partial class MainWindow : Window
             if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
         }
 
-        SlotSwitchBar.IsOpen = false;
-        _offeredSlot = null;
+        ViewModel.TakeSlotSwitch();
         await SaveSessionManager.LoadAsync(slot);
         // Rebuild the page on screen from the new save (pages read it as they open).
         if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
             ReloadCurrentPage();
     }
 
-    /// <summary>"New" counts on Multi-Tool and Starships for what the game added
-    /// while it played (LiveItemsService), until each one is clicked.</summary>
-    private void UpdateLiveBadges()
-    {
-        SetNewBadge(MultiToolNavItem, LiveItemsService.NewCount(LiveCollection.MultiTools), "multi-tool");
-        SetNewBadge(ShipsNavItem, LiveItemsService.NewCount(LiveCollection.Ships), "starship");
-    }
-
-    private static void SetNewBadge(NavigationViewItem item, int count, string noun)
-    {
-        item.InfoBadge = count > 0 ? new InfoBadge { Value = count } : null;
-        ToolTipService.SetToolTip(item, count > 0 ? $"{count} new {noun}{(count == 1 ? "" : "s")} in your game" : null);
-    }
-
-    // The context the player chose to keep editing despite the game moving
-    // away from it - not offered again on every autosave.
-    private bool? _declinedContextIsExpedition;
     private DispatcherQueueTimer? _contextBarFade;
 
-    /// <summary>The game saved the loaded slot. Ordinary autosaves change
-    /// nothing on screen (user rule 2026-10-16); only a move between the
-    /// expedition and the main game does, since every page would otherwise
-    /// show a character the game is no longer playing.</summary>
+    /// <summary>The game moved the loaded save between an expedition and the main game (MainWindowViewModel decides):
+    /// reload and say so, or offer the reload when there are edits.</summary>
     private async void OnGameSavedLoadedSlot(JObject disk)
     {
-        bool nowExpedition = SaveSessionManager.IsMidExpedition(disk);
-        if (nowExpedition == SaveSessionManager.IsExpeditionActive)
-        {
-            _declinedContextIsExpedition = null;
-            return;
-        }
-        if (_declinedContextIsExpedition == SaveSessionManager.IsExpeditionActive) return;
-
-        string now = nowExpedition ? "You started an expedition" : "You left the expedition";
-        if (!SaveSessionManager.HasUnsavedChanges)
-        {
-            await ReloadSaveInPlaceAsync();
-            ShowContextBar(now, nowExpedition
-                ? "ArtifactX is now showing your expedition character."
-                : "ArtifactX is now showing your main game.", offerReload: false);
-            return;
-        }
-
-        int count = SaveSessionManager.PendingEditCount;
-        string was = SaveSessionManager.IsExpeditionActive ? "the expedition" : "your main game";
-        ShowContextBar($"{now} in No Man's Sky",
-            $"Your {count} unsaved {(count == 1 ? "change was" : "changes were")} made to {was}, which the game is no longer playing. " +
-            "Reload to see what the game is playing now.", offerReload: true);
+        if (ViewModel.OnGameSavedLoadedSlot(disk) is not { } change) return;
+        if (change.ReloadFirst) await ReloadSaveInPlaceAsync();
+        ShowContextBar(change);
     }
 
-    private void ShowContextBar(string title, string message, bool offerReload)
+    private void ShowContextBar(ContextChange change)
     {
         _contextBarFade?.Stop();
-        ContextSwitchBar.Title = title;
-        ContextSwitchBar.Message = message;
-        ContextSwitchButton.Visibility = offerReload ? Visibility.Visible : Visibility.Collapsed;
         ContextSwitchBar.Opacity = 1;
-        ContextSwitchBar.IsOpen = true;
-        if (offerReload) return;
+        ViewModel.ShowContext(change);
+        if (change.OfferReload) return;
 
         // A notice, not a question: it fades out on its own.
         if (_contextBarFade is null)
@@ -594,15 +464,14 @@ public sealed partial class MainWindow : Window
     {
         ContextSwitchBar.Opacity = 0; // OpacityTransition animates it
         await Task.Delay(600);
-        if (ContextSwitchBar.Opacity == 0) ContextSwitchBar.IsOpen = false;
+        if (ContextSwitchBar.Opacity == 0) ViewModel.ContextOpen = false;
         ContextSwitchBar.Opacity = 1;
     }
 
     private void ContextSwitchBar_Closed(InfoBar sender, object args)
     {
         _contextBarFade?.Stop();
-        if (ContextSwitchButton.Visibility == Visibility.Visible)
-            _declinedContextIsExpedition = SaveSessionManager.IsExpeditionActive;
+        ViewModel.ContextClosed();
     }
 
     private async void ContextSwitchReload_Click(object sender, RoutedEventArgs e)
@@ -620,7 +489,7 @@ public sealed partial class MainWindow : Window
             };
             if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
         }
-        ContextSwitchBar.IsOpen = false;
+        ViewModel.ContextOpen = false;
         await ReloadSaveInPlaceAsync();
     }
 
@@ -628,7 +497,7 @@ public sealed partial class MainWindow : Window
     /// screen from it, keeping the player where they are.</summary>
     private async Task ReloadSaveInPlaceAsync()
     {
-        _declinedContextIsExpedition = null;
+        ViewModel.ContextReloaded();
         await SaveSessionManager.ReloadFromDiskAsync();
         if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
             ReloadCurrentPage();
@@ -658,23 +527,14 @@ public sealed partial class MainWindow : Window
     // No Man's Sky files via GameDataService, never blocking save editing).
     // -----------------------------------------------------------------------
 
-    // An offer the player closed stays closed for this session.
-    private bool _gameDataOfferClosed;
-    private string? _gameDataError;
-    private bool _gameDataCancelled;
-    private bool _gameDataJustBuilt;
-    // Kept in a field: a timer held only by a local can be collected before it
-    // fires, which left "Game data ready" up for good (2026-10-14).
-    private DispatcherQueueTimer? _gameDataReadyTimer;
-    // The offer last pulsed: each new offer draws the eye once, not on every refresh.
-    private string? _pulsedOffer;
-
     private void InitGameData()
     {
-        GameDataService.ProgressChanged += _ => DispatcherQueue.TryEnqueue(ShowGameData);
+        ViewModel.GameData.IsOnSetupPage = () => ContentFrame.CurrentSourcePageType == typeof(GameDataSetupPage);
+        ViewModel.GameData.OfferShown += PulseGameDataButton;
+        GameDataService.ProgressChanged += _ => DispatcherQueue.TryEnqueue(() => ViewModel.GameData.Refresh());
         GameDataService.BuildFinished += error => DispatcherQueue.TryEnqueue(() => OnGameDataBuilt(error));
-        GameDataService.StateChanged += (_, _) => DispatcherQueue.TryEnqueue(ShowGameData);
-        ShowGameData();
+        GameDataService.StateChanged += (_, _) => DispatcherQueue.TryEnqueue(() => ViewModel.GameData.Refresh());
+        ViewModel.GameData.Refresh();
     }
 
     /// <summary>The setup page, with the menu hidden so nothing else can be
@@ -691,97 +551,6 @@ public sealed partial class MainWindow : Window
         ContentFrame.Navigate(typeof(SaveFolderSelectPage));
         var item = NavigationService.FindNavItemByTag(RootNav.MenuItems, "SaveFolderSelect");
         if (item != null) RootNav.SelectedItem = item;
-    }
-
-    private void ShowGameData()
-    {
-        var bar = GameDataBar;
-        var game = GameDataService.Game;
-        GameDataProgress.Visibility = Visibility.Collapsed;
-        GameDataButton.Visibility = Visibility.Visible;
-        bar.IsClosable = true;
-
-        void Show(InfoBarSeverity severity, string title, string message, string? button, bool offer = false)
-        {
-            bar.Severity = severity;
-            bar.Title = title;
-            bar.Message = message;
-            if (button is null) GameDataButton.Visibility = Visibility.Collapsed;
-            else GameDataButton.Content = button;
-            // Offers get the warm attention colour; Cancel and Try again keep the accent.
-            GameDataButton.Style = (Style)Application.Current.Resources[offer ? "ThemeAttentionButtonStyle" : "ThemeAccentButtonStyle"];
-            bar.IsOpen = true;
-            if (offer && _pulsedOffer != title) { _pulsedOffer = title; PulseGameDataButton(); }
-        }
-
-        // The setup page shows all of this itself.
-        if (ContentFrame.CurrentSourcePageType == typeof(GameDataSetupPage) || GameDataService.NeedsSetup && !GameDataService.IsBuilding)
-        {
-            bar.IsOpen = false;
-            return;
-        }
-
-        if (GameDataService.IsBuilding)
-        {
-            var p = GameDataService.Progress;
-            GameDataProgress.Visibility = Visibility.Visible;
-            GameDataProgress.Maximum = 100;
-            GameDataProgress.Value = (p?.Fraction ?? 0) * 100;
-            GameDataProgress.IsIndeterminate = p is null;
-            bar.IsClosable = false;
-            Show(InfoBarSeverity.Informational, "Reading your game files",
-                (p is null ? "Starting..." : $"Step {p.Step} of {p.Steps}: {p.Label}.")
-                    + (GameDataService.BuildElapsed is { } running ? $" {GameDataService.FormatElapsed(running)} so far." : "")
-                    + " You can keep using ArtifactX - item names and icons update when it's done.",
-                "Cancel");
-            return;
-        }
-        if (_gameDataCancelled)
-        {
-            Show(InfoBarSeverity.Informational, "Cancelled", "Your game data wasn't changed.", "Start again");
-            return;
-        }
-        if (_gameDataError is { } error)
-        {
-            Show(InfoBarSeverity.Error, "Game data wasn't updated", error, "Try again");
-            return;
-        }
-        if (_gameDataJustBuilt)
-        {
-            Show(InfoBarSeverity.Success, "Game data ready",
-                $"Read from your No Man's Sky{(game is null ? "" : $" ({game.BuildLabel})")}.", null);
-            return;
-        }
-
-        if (_gameDataOfferClosed) { bar.IsOpen = false; return; }
-        switch (GameDataService.State)
-        {
-            case GameDataState.NotBuilt when game is null:
-            case GameDataState.NoGameFound when !File.Exists(GameDataService.CatalogPath):
-                Show(InfoBarSeverity.Warning, "No Man's Sky wasn't found",
-                    "ArtifactX reads item names, icons and recipes from your own copy of the game. Choose the folder No Man's Sky is installed in.",
-                    "Choose folder", offer: true);
-                break;
-            case GameDataState.NotBuilt:
-                Show(InfoBarSeverity.Informational, "Set up ArtifactX for your game",
-                    "ArtifactX reads item names, icons, recipes and more from your own copy of No Man's Sky - nothing from the game comes with ArtifactX. "
-                    + "It takes a minute or two, once.",
-                    "Read my game files", offer: true);
-                break;
-            case GameDataState.GameUpdated:
-                Show(InfoBarSeverity.Informational, "No Man's Sky has updated",
-                    $"Your game is now {game?.BuildLabel}. Update ArtifactX's game data so new items and changes show up - it takes a minute or two and ArtifactX stays usable.",
-                    "Update game data", offer: true);
-                break;
-            case GameDataState.BuilderUpdated:
-                Show(InfoBarSeverity.Informational, "Update your game data",
-                    "This version of ArtifactX reads more from your game files. Update the game data to get it - it takes a minute or two and ArtifactX stays usable.",
-                    "Update game data", offer: true);
-                break;
-            default:
-                bar.IsOpen = false;
-                break;
-        }
     }
 
     /// <summary>Three gentle pulses of the bar's button when a new offer appears
@@ -826,12 +595,7 @@ public sealed partial class MainWindow : Window
             return;
         }
         if (GameDataService.Game is null && !await PickGameFolderAsync()) return;
-
-        _gameDataError = null;
-        _gameDataCancelled = false;
-        _gameDataJustBuilt = false;
-        GameDataService.StartBuild();
-        ShowGameData();
+        ViewModel.GameData.StartBuild();
     }
 
     /// <summary>Asks for the game's folder. False when the player cancelled or
@@ -844,41 +608,24 @@ public sealed partial class MainWindow : Window
         var folder = await picker.PickSingleFolderAsync();
         if (folder is null) return false;
         if (GameDataService.ChooseGameFolder(folder.Path)) return true;
-        _gameDataError = $"\"{folder.Path}\" isn't a No Man's Sky folder. Choose the folder the game is installed in (the one with GAMEDATA and Binaries in it).";
-        ShowGameData();
+        ViewModel.GameData.NotAGameFolder(folder.Path);
         return false;
     }
 
-    private void GameDataBar_Closed(InfoBar sender, object args)
-    {
-        _gameDataOfferClosed = true;
-        _gameDataError = null;
-        _gameDataCancelled = false;
-        _gameDataJustBuilt = false;
-    }
+    private void GameDataBar_Closed(InfoBar sender, object args) => ViewModel.GameData.Closed();
 
+    /// <summary>A build ended. Done: the catalog is re-read; first run goes on to the saves, otherwise the page on
+    /// screen re-opens, since pages read the catalog as they open.</summary>
     private void OnGameDataBuilt(string? error)
     {
-        _gameDataCancelled = error is not null && error.StartsWith("Cancelled", StringComparison.Ordinal);
-        _gameDataError = _gameDataCancelled ? null : error;
-        _gameDataJustBuilt = error is null;
         if (error is null)
         {
             CatalogService.Reload();
-            // First run done: on to the saves. Otherwise pages read the catalog
-            // as they open, so re-open the current one.
             if (ContentFrame.CurrentSourcePageType == typeof(GameDataSetupPage))
                 ShowSaveSelection();
             else if (ContentFrame.CurrentSourcePageType is Type page && page != typeof(SaveFolderSelectPage))
                 ReloadCurrentPage();
-            // The "ready" note goes away on its own.
-            _gameDataReadyTimer?.Stop();
-            _gameDataReadyTimer = DispatcherQueue.CreateTimer();
-            _gameDataReadyTimer.Interval = TimeSpan.FromSeconds(8);
-            _gameDataReadyTimer.IsRepeating = false;
-            _gameDataReadyTimer.Tick += (_, _) => { _gameDataJustBuilt = false; ShowGameData(); };
-            _gameDataReadyTimer.Start();
         }
-        ShowGameData();
+        ViewModel.GameData.Built(error);
     }
 }

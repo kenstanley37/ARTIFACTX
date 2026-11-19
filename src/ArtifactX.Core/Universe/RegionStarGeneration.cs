@@ -28,7 +28,7 @@ public sealed record RegionSystemCount(int Ordinary, int Purple);
 public static class RegionStarGeneration
 {
     /// <summary>Executable constants of build 180836, not game-file data.</summary>
-    private const int FixedStars = 122, PurpleSystems = 65, GridCells = 19;
+    private const int FixedStars = 122, GridCells = 19;
     private const float RegionScale = 0.1f;               // 0x144B2812C
     private const float SpiralThresholdFactor = 1.2f;     // 0x144B298A8
     private const float NearStep = 5f, FarStep = 10f;     // TransitPopulationDistanceRange (0x14132AD38)
@@ -86,7 +86,7 @@ public static class RegionStarGeneration
                 }
             }
         }
-        return new RegionSystemCount(FixedStars + stars, PurpleSystems);
+        return new RegionSystemCount(FixedStars + stars, PurpleSystems.Count);
     }
 
     /// <summary>The region holding a packed system address (galaxy, X, Y, Z bits; system and planet ignored).</summary>

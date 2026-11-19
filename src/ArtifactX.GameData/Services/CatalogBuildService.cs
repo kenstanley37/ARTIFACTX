@@ -38,6 +38,9 @@ public class CatalogBuildService
         ["Cooking"] = "Cooking Products",
     };
 
+    /// <summary>Where converted icons are kept between builds (IconExtractionService); null converts every icon.</summary>
+    public string? IconCacheFolder { get; init; }
+
     public CatalogBuildService(IPakDiscoveryService discovery, IPakReaderService pakReader, ExtractionService extraction)
     {
         _discovery = discovery;
@@ -134,7 +137,7 @@ public class CatalogBuildService
         // itself - it technically matches our own "has a List<T> with an Id
         // field" heuristic, but it isn't a gameplay catalog.
         // -------------------------------------------------------------
-        var iconService = new IconExtractionService(_extraction, fileIndex, iconTargetSize);
+        var iconService = new IconExtractionService(_extraction, fileIndex, iconTargetSize, IconCacheFolder);
         var iconBlobCache = new Dictionary<string, IconBlob>(StringComparer.OrdinalIgnoreCase);
         var categories = new List<CatalogCategory>();
         int totalRows = 0, totalIcons = 0;
@@ -1066,7 +1069,8 @@ public class CatalogBuildService
                 it.Icons.RemoveAll(a => a.IconBlob is { PngData.Length: 0 });
                 totalIcons += it.Icons.Count;
             }
-        LogService.Write($"CatalogBuild: converted {iconBlobCache.Count} icons ({totalIcons} references) in {iconClock.Elapsed.TotalSeconds:0}s.");
+        iconService.PruneDiskCache();
+        LogService.Write($"CatalogBuild: converted {iconBlobCache.Count} icons ({totalIcons} references, {iconService.CacheHits} from the icon cache) in {iconClock.Elapsed.TotalSeconds:0}s.");
 
         // -------------------------------------------------------------
         // Phase 2.5: procedural upgrade modules (GcProceduralTechnologyTable -

@@ -96,6 +96,10 @@ public static partial class CatalogService
 
     /// <summary>Region star-generation settings (catalog "PlanetGeneration", row "GALAXYGENERATION");
     /// null on game data built before catalog format 44.</summary>
+    /// <summary>Per-star-type abandoned / empty / pirate chances (row SYSTEMCHANCES); null before catalog format 106.</summary>
+    public static Task<ArtifactX.Core.Universe.SystemChanceTables?> GetSystemChanceTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.SystemChanceTables>("SYSTEMCHANCES");
+
     public static Task<ArtifactX.Core.Universe.GalaxyGenerationSettings?> GetGalaxyGenerationSettingsAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.GalaxyGenerationSettings>("GALAXYGENERATION");
 

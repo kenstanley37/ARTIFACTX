@@ -4,6 +4,16 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+## 1.2.1 — 2026-11-18
+
+### Changed
+- Ship Designer, corvette parts, titles, catalog sections, the Egg Sequencer and Industrial Cleanup now use US English like the rest of ArtifactX ("Color", "Stabilized", "Gray"). Update your game data once to get this.
+- Game data: "Game data ready" now says how long reading your game files took. Updates after the first are a little faster: icons the game update didn't change are reused instead of converted again, and the game's files are listed once per update instead of a dozen times.
+- Current System: the multi-tool cabinets section explains rolling step by step: where you last loaded your game decides every cabinet's list, how to switch to a planet's list and back, and why a cabinet's class stays the same.
+
+### Fixed
+- A rare error in placing a planet's fixed buildings (the portal and similar) could stop portal, hotspot and crashed-ship results for an odd system. It no longer does.
+
 ## 1.2.0 — 2026-11-17
 
 ### Added

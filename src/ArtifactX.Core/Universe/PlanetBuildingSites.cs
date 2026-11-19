@@ -54,7 +54,8 @@ public static class PlanetBuildingSites
 {
     private const ulong Multiplier = 0x5A76F899;
     private const ulong HashMultiplier = 0x9DDFEA08EB382D69UL;
-    private const int Weird = 7, Dead = 6, Waterworld = 14, GasGiant = 15, Infested = 0x18, Structure = 3;
+    private const int Weird = BiomeType.Weird, Dead = BiomeType.Dead, Waterworld = BiomeType.Waterworld, GasGiant = BiomeType.GasGiant,
+        Infested = BiomeSubType.Infested, Structure = BiomeSubType.Structure;
 
     /// <summary>Planet radius by GcPlanetSize (Large, Medium, Small, Moon, Giant) as read from the running game (5 planets
     /// 2026-10-28). Giant read 2026-11-17 (build 185034, read-only memory scan of GcPlanetBuildingData: PlanetUA at +0x30,

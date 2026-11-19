@@ -3,6 +3,7 @@ using ArtifactX.Core.Universe;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
@@ -15,14 +16,11 @@ public sealed record PortalLocation(ulong PlanetAddress, ulong Key, double X, do
 }
 
 /// <summary>
-/// Where each planet's portal stands, worked out from the address with the game's own placement rules
-/// (<see cref="PlanetOverridePlacement.ForSystem"/>, catalog format 48). A whole system at a time, off the UI thread,
-/// cached per system. Null for bodies it can't place (gas-giant systems, older game data). Checked 2026-10-28 against
-/// the game's records on 12 bodies; markers made from it led to the portal on 5 planets in game.
+/// Where each planet's portal stands (PortalPositions.ForSystem, shared with the mobile app), a whole system at a time,
+/// off the UI thread, cached per system. Null for bodies it can't place (gas-giant systems, older game data).
 /// </summary>
 public static class PortalLocationService
 {
-    private const int PortalClass = 16;
     private static readonly ConcurrentDictionary<ulong, Task<IReadOnlyDictionary<int, PortalLocation>?>> Systems = new();
 
     // A rebuilt catalog may change the rules; results worked out before it are dropped.
@@ -56,27 +54,13 @@ public static class PortalLocationService
 
     private static async Task<IReadOnlyDictionary<int, PortalLocation>?> ForSystemAsync(ulong system)
     {
-        var result = new Dictionary<int, PortalLocation>();
         var biomes = await CatalogService.GetBiomeTablesAsync();
         var profiles = await CatalogService.GetPlanetProfileTablesAsync();
         var stations = await CatalogService.GetStationEquipmentTablesAsync();
         var rules = await CatalogService.GetBuildingOverrideRulesAsync();
         if (biomes is null || profiles is null || stations is null || rules is null) return null;
-        var (code, galaxy) = UniverseInfo.Generator(system);
-        var bodies = await Task.Run(() => PlanetOverridePlacement.ForSystem(code, galaxy, biomes, profiles, stations.SolarLayout, rules));
-        for (int i = 0; i < bodies.Length; i++)
-        {
-            if (bodies[i] is not { } buildings) continue;
-            foreach (var b in buildings)
-            {
-                if (b.Class != PortalClass || !b.Placed) continue;
-                ulong address = system | ((ulong)(i + 1) << 52);
-                if (await PlanetCentreService.GetAsync(address) is not { } centre
-                    || NmsPlanetCoordinates.From((b.Position.X, b.Position.Y, b.Position.Z), centre) is not { } at) break;
-                result[i + 1] = new PortalLocation(address, b.Key, b.Position.X, b.Position.Y, b.Position.Z, at.Latitude, at.Longitude);
-                break;
-            }
-        }
-        return result;
+        var portals = await Task.Run(() => PortalPositions.ForSystem(system, biomes, profiles, stations, rules));
+        return portals.ToDictionary(p => p.Key, p => new PortalLocation(system | ((ulong)p.Key << 52), p.Value.Key,
+            p.Value.X, p.Value.Y, p.Value.Z, p.Value.Latitude, p.Value.Longitude));
     }
 }

@@ -36,14 +36,7 @@ public static partial class CatalogSteps
     public static void AddEggSequencer(string catalogPath, string pcbanksPath)
     {
         const string tableFile = "METADATA/SIMULATION/ECOSYSTEM/PETEGGTRAITMODIFIEROVERRIDETABLE.MBIN";
-        var reader = new PakReaderService();
-        var index = new GlobalFileIndexService();
-        foreach (var pak in new PakDiscoveryService().Discover(pcbanksPath))
-        {
-            if (pak.FullPath is not string path) continue;
-            try { index.Add(path, reader.ReadHeader(path), reader.Read(path)); }
-            catch (IOException) { /* Match the catalog's treatment of unreadable PAKs. */ }
-        }
+        var index = GetIndex(pcbanksPath); // shared, cached for the build
         var extraction = new ExtractionService();
         NMSTemplate? Decode(string file)
         {
@@ -86,7 +79,7 @@ public static partial class CatalogSteps
             globals.PetEggAccessoryChanceModifier, globals.PetEggMaxAccessoriesChangeChance,
             globals.PetEggColourChanceModifier, globals.PetEggMaxColourChangeChance,
             globals.PetEggOverdosageModifier, globals.PetEggMaxOverdosage, globals.PetEggMaxTopDescriptorChangeChance,
-            globals.PetEggModificationItemLimit, ingredients, EnglishTexts(index, extraction, EggScreenTextKeys.ToHashSet()), species);
+            globals.PetEggModificationItemLimit, ingredients, DisplayTexts(pcbanksPath, EggScreenTextKeys), species);
 
         using var db = new CatalogDbContext(catalogPath);
         Replace(db, "EggSequencer", "GcPetEggTraitModifierOverrideTable", tableFile.ToLowerInvariant(), new List<CatalogItem>
