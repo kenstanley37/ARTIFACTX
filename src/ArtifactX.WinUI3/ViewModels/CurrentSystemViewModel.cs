@@ -228,6 +228,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         _snapshot = snapshot;
         _planets = planets;
         SystemAddress = system;
+        Discoveries.SetShownSystem(system);
         CurrentPlanet = planet;
         _ = StationTools.UpdateAsync(system, snapshot);
         _counts = NmsPlanets.CountDiscoveries(snapshot.Discoveries);

@@ -16,6 +16,18 @@ public sealed partial class SystemDiscoveriesViewModel : ObservableObject
 {
     private SystemDiscoveryService.Plan? _plan;
     private int _version;
+    private ulong? _shownSystem;
+
+    /// <summary>The system the page shows (it follows the game live). The button acts on the loaded save, which
+    /// can be older: after a warp the page shows the new system while the save still holds the last one
+    /// (owner, 2026-11-19). The game must close and the save be reloaded before the new system can be discovered.</summary>
+    public void SetShownSystem(ulong? system)
+    {
+        system = system is ulong address ? ArtifactX.Core.NmsModels.NmsSpaceStationPaths.ToSystemAddress(address) : null;
+        if (system == _shownSystem) return;
+        _shownSystem = system;
+        _ = RefreshAsync();
+    }
 
     [ObservableProperty] public partial bool IsVisible { get; private set; }
     [ObservableProperty] public partial bool IsBusy { get; private set; }
@@ -42,15 +54,19 @@ public sealed partial class SystemDiscoveriesViewModel : ObservableObject
         catch (Exception ex) { plan = null; System.Diagnostics.Debug.WriteLine($"[SystemDiscoveries] Plan failed: {ex}"); }
         if (version != _version) return;
         IsBusy = false;
+        bool otherSystem = !staged && plan is not null && _shownSystem is ulong shown && shown != plan.SystemAddress;
+        if (otherSystem) plan = null;
         _plan = plan;
         IsStaged = staged;
-        IsVisible = staged || plan is not null;
+        IsVisible = staged || plan is not null || otherSystem;
         CanDiscover = plan is { Total: > 0 };
         Note = PlanetTypesService.ProfileTables?.Objects?.Spawn is null
             ? "Plants and minerals need up-to-date game data: rebuild it in Settings to include them."
             : "Marks every planet, creature, plant and mineral here as discovered. They're added as discoveries you haven't uploaded yet: upload them in game from the Discoveries page. Nothing is written until you save.";
         Summary = staged
             ? "Discoveries staged for this system. Save to write them, or Undo."
+            : otherSystem
+            ? "Your loaded save was made in another system. Close No Man's Sky and reload the save (ArtifactX offers to when the game closes) to discover this one."
             : plan is null ? ""
             : plan.Total == 0 ? "Everything in this system is already discovered."
             : "Not yet discovered here: " + Counts(plan) + ".";
