@@ -6,8 +6,18 @@ namespace ArtifactX.Core.Universe;
 /// <param name="Options">How many model files it picks from (one more draw when placed).</param>
 /// <param name="Hint">ResourceHint, the scanner line it adds (PLANT_LUSH, UI_BONES_HINT...), or "".</param>
 /// <param name="Files">The spawn files (GcExternalObjectList) it picks from, upper case; null in catalogs before format 93.</param>
+/// <param name="LifeLevel">ChooseUsingLifeLevel (catalog format 108): the planet's flora level picks the file (the
+/// biome MAIN lists' dead / low / mid / full files), not the list's draw - which is still made (NMS.exe 184271
+/// 0x1416d1fd0, the +0x52 flag).</param>
 public sealed record ObjectList(string Name, int Order, float Probability, int TileType, int Options, string Hint = "",
-    string[]? Files = null);
+    string[]? Files = null, bool LifeLevel = false);
+
+/// <summary>One object of a spawn file (GcObjectSpawnData), as far as discovery seeds go (catalog format 108).</summary>
+/// <param name="Model">Its scene (Resource), upper case with forward slashes.</param>
+/// <param name="Alts">Its AltResources' scenes; each takes a seed of its own after the object's.</param>
+/// <param name="Priority">PlacementPriority (Low 0, Normal 1, High 2).</param>
+/// <param name="RandomColour">SwapPrimaryForRandomColour: its colour swap takes 66 draws of the seed stream.</param>
+public sealed record SpawnObject(string Model, string[] Alts, int Order, int Priority, bool RandomColour);
 
 /// <summary>An item a spawn file's objects give when picked or broken (catalog format 93): a placed object's
 /// GcSimpleInteractionComponentData reward id, looked up in rewardtable.mbin; or, from format 94, what it gives when
@@ -66,8 +76,13 @@ public sealed record TerrainChoice(int SettingIndex, int DrawsBeforeLayers, floa
 /// <param name="BiomeFiles">[biome][subtype], null where the game has no file for that subtype.</param>
 /// <param name="Harvest">What each spawn file (upper-case path, as in <see cref="ObjectList.Files"/>) gives; null in
 /// catalogs before format 93.</param>
+/// <param name="Spawn">Each spawn file's objects by category - Landmarks, Objects, DetailObjects, DistantObjects -
+/// in file order; null in catalogs before format 108.</param>
+/// <param name="DiscoveryKinds">The discovery kinds ("Flora", "Mineral") each placed scene can be scanned as (its
+/// GcEncyclopediaComponentData entities, its own and those of scenes it references); null before format 108.</param>
 public sealed record ObjectTables(BiomeObjects?[][] BiomeFiles, ObjectList[] Common, ObjectGroup[] Groups, TerrainTables Terrain,
-    Dictionary<string, HarvestItem[]>? Harvest = null);
+    Dictionary<string, HarvestItem[]>? Harvest = null, Dictionary<string, SpawnObject[][]>? Spawn = null,
+    Dictionary<string, string[]>? DiscoveryKinds = null);
 
 public static partial class PlanetProfileGenerator
 {
@@ -176,9 +191,11 @@ public static partial class PlanetProfileGenerator
     /// chance leaves the total, so a 2-of-2 group gets both). Underwater and
     /// liquid lists need a sea, cave lists caves. Bones, scrap and bugs matched a real save's
     /// records on 776 of 808 planets (2026-10-22; most misses are records of another planet).
-    /// Also returns every list it placed (what <see cref="Harvest"/> reads).
+    /// Also returns every list it placed (what <see cref="Harvest"/> reads) and, for each, the file its model draw
+    /// picks ((draw * Options) &gt;&gt; 32, NMS.exe 184271 0x1416d1fd0; a <see cref="ObjectList.LifeLevel"/> list's
+    /// file is the flora level instead, which <see cref="FloraAndMinerals"/> applies).
     /// </summary>
-    private static (string[] Hints, List<ObjectList> Placed) PlacedObjects(Rng main, BiomeObjects b, ObjectTables t, PlanetFacts p)
+    private static (string[] Hints, List<ObjectList> Placed, List<int> Picks) PlacedObjects(Rng main, BiomeObjects b, ObjectTables t, PlanetFacts p)
     {
         ulong lo = main.Next(), hi = main.Next();
         var own = Rng.Start(Mix64((hi << 32) | lo));
@@ -196,7 +213,9 @@ public static partial class PlanetProfileGenerator
 
         var placed = new HashSet<string>(StringComparer.Ordinal);
         var placedLists = new List<ObjectList>();
+        var picks = new List<int>();
         var hints = new List<string>();
+        static int Pick(uint w, int options) => (int)(((ulong)w * (ulong)Math.Max(0, options)) >> 32);
         foreach (var (list, group, _) in sorted)
         {
             if (list is not null)
@@ -204,7 +223,7 @@ public static partial class PlanetProfileGenerator
                 if (hasUltra && list.Name == "MAIN") continue;
                 float f = own.NextFraction();
                 if (Blocked(list) || f > list.Probability) continue;
-                own.Next();
+                picks.Add(Pick(own.Next(), list.Options));
                 placed.Add(list.Name);
                 placedLists.Add(list);
                 continue;
@@ -226,7 +245,7 @@ public static partial class PlanetProfileGenerator
                     if (placed.Contains(file.Name) || Blocked(file) || 1f > file.Probability) continue;
                     if (!(target < cum) && cum + file.Probability >= target)
                     {
-                        main.Next();
+                        picks.Add(Pick(main.Next(), file.Options));
                         placed.Add(file.Name);
                         placedLists.Add(file);
                         total -= file.Probability;
@@ -237,7 +256,7 @@ public static partial class PlanetProfileGenerator
                 }
             }
         }
-        return (hints.ToArray(), placedLists);
+        return (hints.ToArray(), placedLists, picks);
     }
 
     /// <summary>

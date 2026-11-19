@@ -92,6 +92,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     public StationMarketViewModel Market { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
     public SystemStarshipsViewModel Starships { get; } = new();
+    public SystemDiscoveriesViewModel Discoveries { get; } = new();
 
     [ObservableProperty] public partial ulong? SystemAddress { get; private set; }
     [ObservableProperty] public partial int CurrentPlanet { get; private set; }
@@ -227,6 +228,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         _snapshot = snapshot;
         _planets = planets;
         SystemAddress = system;
+        Discoveries.SetShownSystem(system);
         CurrentPlanet = planet;
         _ = StationTools.UpdateAsync(system, snapshot);
         _counts = NmsPlanets.CountDiscoveries(snapshot.Discoveries);

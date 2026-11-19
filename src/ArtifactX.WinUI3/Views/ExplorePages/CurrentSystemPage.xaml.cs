@@ -55,7 +55,7 @@ public sealed partial class CurrentSystemPage : Page
             SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
             _bannerStoryboard?.Stop();
         };
-        if (SaveSessionManager.IsSaveLoaded) _ = ViewModel.LoadAsync();
+        if (SaveSessionManager.IsSaveLoaded) { _ = ViewModel.LoadAsync(); _ = ViewModel.Discoveries.RefreshAsync(); }
         _ = PlanetTypesService.EnsureLoadedAsync();
     }
 
@@ -65,13 +65,29 @@ public sealed partial class CurrentSystemPage : Page
     private void LocationPanel_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateSummary();
     private void UpdateSummary() => Summary.IsShown = PinnedHeader.IsScrolledAway(Scroller, LocationPanel);
 
-    private void OnPlanetTypesLoaded() => DispatcherQueue.TryEnqueue(() => ViewModel.Refresh(notes: false));
+    private void OnPlanetTypesLoaded() => DispatcherQueue.TryEnqueue(() =>
+    {
+        ViewModel.Refresh(notes: false);
+        _ = ViewModel.Discoveries.RefreshAsync();
+    });
 
     /// <summary>The game started or stopped, or a marker was staged or saved: the planet cards' marker buttons follow.</summary>
-    private void OnGameRunningChanged(object? sender, bool running) => DispatcherQueue.TryEnqueue(() => ViewModel.RefreshMarkers());
-    private void OnPendingEditsChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => ViewModel.RefreshMarkers());
+    private void OnGameRunningChanged(object? sender, bool running) => DispatcherQueue.TryEnqueue(() =>
+    {
+        ViewModel.RefreshMarkers();
+        _ = ViewModel.Discoveries.RefreshAsync();
+    });
+    private void OnPendingEditsChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
+    {
+        ViewModel.RefreshMarkers();
+        ViewModel.Discoveries.RefreshIfStagingChanged();
+    });
 
-    private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = ViewModel.LoadAsync());
+    private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
+    {
+        _ = ViewModel.LoadAsync();
+        _ = ViewModel.Discoveries.RefreshAsync();
+    });
 
     private void OnSnapshotSeen(PlanetSnapshot snapshot) => DispatcherQueue.TryEnqueue(() =>
     {
