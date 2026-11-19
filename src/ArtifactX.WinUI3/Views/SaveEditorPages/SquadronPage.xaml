@@ -17,10 +17,22 @@
             <VisualStateGroup>
                 <VisualState x:Name="DetailsSideBySide">
                     <VisualState.StateTriggers>
-                        <AdaptiveTrigger MinWindowWidth="1500"/>
+                        <AdaptiveTrigger MinWindowWidth="1700"/>
                     </VisualState.StateTriggers>
                 </VisualState>
+                <!-- The previews go under the form, still side by side. -->
                 <VisualState x:Name="DetailsStacked">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="1150"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="PreviewGroup.(Grid.Column)" Value="0"/>
+                        <Setter Target="PreviewGroup.(Grid.Row)" Value="1"/>
+                        <Setter Target="PreviewGroup.HorizontalAlignment" Value="Left"/>
+                    </VisualState.Setters>
+                </VisualState>
+                <!-- Narrow window: the ship goes under the pilot too. -->
+                <VisualState x:Name="DetailsNarrow">
                     <VisualState.StateTriggers>
                         <AdaptiveTrigger MinWindowWidth="0"/>
                     </VisualState.StateTriggers>
@@ -28,6 +40,8 @@
                         <Setter Target="PreviewGroup.(Grid.Column)" Value="0"/>
                         <Setter Target="PreviewGroup.(Grid.Row)" Value="1"/>
                         <Setter Target="PreviewGroup.HorizontalAlignment" Value="Left"/>
+                        <Setter Target="ShipColumn.(Grid.Column)" Value="0"/>
+                        <Setter Target="ShipColumn.(Grid.Row)" Value="1"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -215,17 +229,26 @@
                         </StackPanel>
 
                         <!-- The pilot (its race's NPC scene; the appearance seed's first child seed picks the parts, as for a
-                             freighter captain - a shape scan, colours unknown) above the ship. -->
-                        <StackPanel x:Name="PreviewGroup" Grid.Column="1" Width="420" Spacing="18" VerticalAlignment="Top"
-                                    Visibility="{x:Bind ViewModel.ShowPreviews, Mode=OneWay}">
+                             freighter captain - a shape scan, colours unknown) beside its ship, the same height so they line up;
+                             the ship's name sits under its preview. -->
+                        <Grid x:Name="PreviewGroup" Grid.Column="1" ColumnSpacing="18" RowSpacing="18" VerticalAlignment="Top"
+                              Visibility="{x:Bind ViewModel.ShowPreviews, Mode=OneWay}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="360"/>
+                                <ColumnDefinition Width="360"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
                             <controls:ModelPreviewPanel x:Name="PilotPreview" Subject="pilot" Heading="PILOT"
-                                                        PreviewHeight="260" StartYawOffset="2.65" StartPitchOffset="0.45"/>
-                            <StackPanel Spacing="8">
+                                                        PreviewHeight="300" StartYawOffset="2.65" StartPitchOffset="0.45"/>
+                            <StackPanel x:Name="ShipColumn" Grid.Column="1" Spacing="8">
+                                <controls:ModelPreviewPanel x:Name="ShipPreview" Subject="ship" Heading="SHIP" PreviewHeight="300"/>
                                 <TextBlock Text="{x:Bind ViewModel.ShipName, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
                                            FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
-                                <controls:ModelPreviewPanel x:Name="ShipPreview" Subject="ship"/>
                             </StackPanel>
-                        </StackPanel>
+                        </Grid>
                     </Grid>
                 </StackPanel>
             </Border>
