@@ -8,6 +8,7 @@ What changed in each ArtifactX release, written for players. The newest release 
 - Current System: **Discover everything** (under System Data) marks every planet, creature, plant and mineral of the system your save is in as discovered, with the names the game gives them; it reads "Everything discovered" once nothing is left. They're added as discoveries you haven't uploaded yet, so you can still upload them in game from the Discoveries page. Update your game data once to include plants and minerals.
 
 ### Changed
+- Squadron: each pilot now has a 3D preview of the pilot themselves above their ship, and the page is laid out like the Frigates page, with the seed explanations moved into (i) tips.
 - Frigates: the selected frigate's details are laid out as a tidy form, with a 3D preview of its hull beside them and the model and home seeds under it. Organic frigates show the parts their model seed picks. Update your game data once to see the previews.
 - The update window is easier to read: the new version's changes show as headings and bullet points in a larger size instead of raw text, with a clearer progress bar while it downloads. It stays open until the update finishes, and Settings > Updates opens the same window.
 
