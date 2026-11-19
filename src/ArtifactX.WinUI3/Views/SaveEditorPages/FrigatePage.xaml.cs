@@ -50,14 +50,16 @@ public sealed partial class FrigatePage : Page
     private string? _previewKey;
 
     /// <summary>The selected frigate's hull: its class's model (FrigatesViewModel.PreviewScene) and, for organic
-    /// frigates, the parts its model seed picks. Rebuilt only when either changed.</summary>
+    /// frigates, the parts its model seed picks. Rebuilt only when either changed. A shape scan: the ships' seed paint
+    /// gave pink, yellow and blue hulls where the game shows the owner's frigates dark navy and grey (2026-11-19), so
+    /// frigate colours follow some other rule, not found yet.</summary>
     private void ShowPreview()
     {
         string? scene = ViewModel.PreviewScene, seed = ViewModel.ModelSeedText;
         string key = $"{scene}|{seed}";
         if (key == _previewKey) return;
         _previewKey = key;
-        _ = FrigatePreview.ShowAsync(scene, seed);
+        _ = FrigatePreview.ShowAsync(scene, seed, shapeOnly: true);
     }
 
     /// <summary>An edit (here or the title bar's Reset): refresh the cards, not the details being typed in.</summary>

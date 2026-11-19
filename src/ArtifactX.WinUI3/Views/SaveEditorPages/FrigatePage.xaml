@@ -183,7 +183,7 @@
                                 <!-- The frigate's own hull (catalog format 109: its class's model at LOD 1; an organic frigate's
                                      parts from its model seed), with the two hull seeds under it at the preview's width. -->
                                 <StackPanel x:Name="PreviewGroup" Grid.Column="1" Width="420" Spacing="16" VerticalAlignment="Top">
-                                    <controls:ModelPreviewPanel x:Name="FrigatePreview" Subject="frigate" StartYawOffset="3.14159"/>
+                                    <controls:ModelPreviewPanel x:Name="FrigatePreview" Subject="frigate" StartYawOffset="1.5708"/>
                                     <StackPanel Spacing="6">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <TextBlock Text="MODEL SEED" Style="{StaticResource ThemeEyebrowStyle}"/>
