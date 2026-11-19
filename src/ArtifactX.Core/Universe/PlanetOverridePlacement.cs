@@ -242,7 +242,12 @@ public static class PlanetOverridePlacement
             if (pv[ax] * Sign[face] <= 0) continue;
             int o1 = ax == 0 ? 1 : 0, o2 = ax == 2 ? 1 : 2;
             float axis = MathF.Abs(pv[ax]);
-            int f1 = (int)MathF.Floor(pv[o1] / axis * half), f2 = (int)MathF.Floor(pv[o2] / axis * half);
+            float q1 = MathF.Floor(pv[o1] / axis * half), q2 = MathF.Floor(pv[o2] / axis * half);
+            // A face the point barely leans toward projects it far off the face (or to NaN): no cell within two steps
+            // can be on it, and the int cast would wrap to int.MinValue, whose Math.Abs throws. Seen 2026-11-18 on
+            // system 41DA7BFFF6EF (galaxy 219), which stopped the phone's crashed-ship search.
+            if (!(MathF.Abs(q1) <= half + 2) || !(MathF.Abs(q2) <= half + 2)) continue;
+            int f1 = (int)q1, f2 = (int)q2;
             for (int du = -2; du <= 2; du++)
                 for (int dv = -2; dv <= 2; dv++)
                 {

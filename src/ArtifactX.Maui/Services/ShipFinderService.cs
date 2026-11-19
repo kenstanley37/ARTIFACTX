@@ -8,6 +8,9 @@ namespace ArtifactX.Maui.Services;
 public sealed record ShipFind(ulong SystemAddress, string SystemName, string PlanetName, int ClassIndex, string TypeLabel,
     string ShipName, string Coordinates, double? PortalKm, bool Underwater, double SystemLy);
 
+/// <summary>A finished crashed-ship search: the finds and how many systems were searched.</summary>
+public sealed record ShipSearch(IReadOnlyList<ShipFind> Found, int Systems);
+
 /// <summary>
 /// The phone's crashed-ship finder: claimable wrecks of a class (and ship type) on the planets of the systems around a
 /// start, nearest systems first, stopping once enough are found. The rules are the desktop's (Core CrashedShipSites,
@@ -24,7 +27,7 @@ public static class ShipFinderService
     /// <summary>Wrecks of <paramref name="minClass"/> or better (C=0 .. S=3; Exotics are S) and type
     /// <paramref name="type"/> ("" any), nearest systems to <paramref name="start"/> first. Each system's finds are
     /// reported as they come; null without the rules file.</summary>
-    public static async Task<IReadOnlyList<ShipFind>?> FindAsync(ulong start, int minClass, string type,
+    public static async Task<ShipSearch?> FindAsync(ulong start, int minClass, string type,
         IProgress<(int Systems, IReadOnlyList<ShipFind> Found)>? progress, CancellationToken cancel)
     {
         if (await GameRulesService.GetAsync() is not { GalaxySettings: { } settings, Biomes: { } biomes, Profiles: { } profiles,
@@ -51,12 +54,17 @@ public static class ShipFinderService
             foreach (ulong system in systems)
             {
                 cancel.ThrowIfCancellationRequested();
-                found.AddRange(InSystem(system, minClass, type, Ly(system), biomes, profiles, placement, overrides, stations, rules, cancel));
+                try { found.AddRange(InSystem(system, minClass, type, Ly(system), biomes, profiles, placement, overrides, stations, rules, cancel)); }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // One system the generators can't work out mustn't stop the search; it is skipped.
+                    System.Diagnostics.Debug.WriteLine($"[ShipFinder] {system:X} skipped: {ex}");
+                }
                 done++;
                 progress?.Report((done, found.ToArray()));
                 if (found.Count >= Wanted) break;
             }
-            return (IReadOnlyList<ShipFind>)found;
+            return new ShipSearch(found, done);
         }, cancel);
     }
 

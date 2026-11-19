@@ -160,22 +160,32 @@ public sealed partial class FinderViewModel : ObservableObject
         IsSearching = true;
         Results = [];
         Status = $"Looking for a crashed {what} around {start.Name}...";
+        // Progress reaches the screen after a delay, so a late one must not overwrite the finished message.
+        bool finished = false;
         var progress = new Progress<(int Systems, IReadOnlyList<ShipFind> Found)>(p =>
         {
-            if (cancel.IsCancellationRequested) return;
+            if (cancel.IsCancellationRequested || finished) return;
             ShowShipFinds(p.Found);
             Status = $"Searched {p.Systems} of the nearest systems: {p.Found.Count} found so far...";
         });
         try
         {
-            var found = await ShipFinderService.FindAsync(from, minClass, type, progress, cancel.Token);
+            var search = await ShipFinderService.FindAsync(from, minClass, type, progress, cancel.Token);
+            finished = true;
             if (cancel.IsCancellationRequested) return;
-            if (found is null) { Status = "The finder needs the game rules, which this copy of the app doesn't have."; return; }
-            ShowShipFinds(found);
-            Status = found.Count == 0 ? $"No crashed {what} in the {ShipFinderService.MaxSystems} systems nearest {start.Name}."
-                : "Crashed ships nearest you, best first. Tap one to open its system; the coordinates are for the Analysis Visor.";
+            if (search is null) { Status = "The finder needs the game rules, which this copy of the app doesn't have."; return; }
+            ShowShipFinds(search.Found);
+            string systems = search.Systems == 1 ? "the start system" : $"the {search.Systems} nearest systems";
+            Status = search.Found.Count == 0 ? $"Done: no crashed {what} in {systems}."
+                : $"Done: found {search.Found.Count} in {systems}, nearest first. Tap one to open its system; the coordinates are for the Analysis Visor.";
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            finished = true;
+            System.Diagnostics.Debug.WriteLine($"[Finder] ships: {ex}");
+            Status = "The search hit a problem and stopped. The ships found so far are shown.";
+        }
         finally { if (!cancel.IsCancellationRequested) IsSearching = false; }
     }
 
@@ -244,6 +254,11 @@ public sealed partial class FinderViewModel : ObservableObject
                 : $"The nearest systems with {item.Name}. Tap one to open it.";
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Finder] ingredients: {ex}");
+            Status = "The search hit a problem and stopped. Try again, or search from another system.";
+        }
         finally { if (!cancel.IsCancellationRequested) IsSearching = false; }
     }
     partial void OnAreaChanged(FinderChoice? value) { if (IsMultiTools) _ = SearchAsync(); }
@@ -268,10 +283,12 @@ public sealed partial class FinderViewModel : ObservableObject
         IsSearching = true;
         Results = [];
         Status = radius == 0 ? $"Searching the star systems in the region of {start.Name}..." : "Searching the star systems around you...";
-        var progress = new Progress<int>(n => { if (!cancel.IsCancellationRequested) Status = $"Searching star systems: {n:N0} done..."; });
+        bool finished = false;   // a late progress report must not overwrite the result
+        var progress = new Progress<int>(n => { if (!cancel.IsCancellationRequested && !finished) Status = $"Searching star systems: {n:N0} done..."; });
         try
         {
             var found = await MultiToolFinderService.FindAsync(_start, radius, progress, cancel.Token);
+            finished = true;
             if (cancel.IsCancellationRequested) return;
             if (found is null)
             {
@@ -290,6 +307,12 @@ public sealed partial class FinderViewModel : ObservableObject
             Apply();
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            finished = true;
+            System.Diagnostics.Debug.WriteLine($"[Finder] multi-tools: {ex}");
+            Status = "The search hit a problem and stopped. Try again, or search from another system.";
+        }
         finally { if (!cancel.IsCancellationRequested) IsSearching = false; }
     }
 

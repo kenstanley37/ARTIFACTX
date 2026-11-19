@@ -60,4 +60,38 @@ static class CrashedShipClassChecks
         Console.WriteLine(failures == 0 ? "PASS: the class search finds exactly the full pass's wrecks." : $"{failures} failures.");
         if (failures > 0) Environment.ExitCode = 1;
     }
+
+    /// <summary>Every planet of every system in the region of a portal code (galaxy 1-based) through the phone finder's
+    /// steps (PortalPositions, CrashedShipSites.Prepare and OfClass), reporting any that throws.</summary>
+    public static void Region(string catalogPath, string portalCode, int galaxy)
+    {
+        var rules = MobileRulesExportService.Read(catalogPath);
+        ulong start = ArtifactX.Core.NmsModels.NmsPortalCode.ToAddress(portalCode, galaxy) & ~(0xFUL << 52);
+        var systems = NearbySystems.Around(start, 0, rules.GalaxySettings!).Select(s => s.SystemAddress & ~(0xFUL << 52)).Distinct().ToList();
+        int failures = 0, planets = 0;
+        foreach (ulong system in systems)
+        {
+            try
+            {
+                var centres = PortalPositions.Centres(system, rules.Stations!.SolarLayout);
+                if (centres is null) continue;
+                var portals = PortalPositions.ForSystem(system, rules.Biomes!, rules.Profiles!, rules.Stations, rules.BuildingOverrides!);
+                for (int index = 1; index <= centres.Length; index++)
+                {
+                    var context = CrashedShipSites.Prepare(system | ((ulong)index << 52), centres[index - 1], rules.Biomes!, rules.Profiles!,
+                        rules.BuildingPlacement!, rules.BuildingOverrides, rules.Stations.SolarLayout, rules.Words, rules.Inventory, null);
+                    if (context is null) continue;
+                    planets++;
+                    CrashedShipSites.OfClass(context, 3);
+                }
+            }
+            catch (Exception ex)
+            {
+                failures++;
+                Console.WriteLine($"FAIL: {system:X}: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace?.Split('\n').FirstOrDefault()}");
+            }
+        }
+        Console.WriteLine(failures == 0 ? $"PASS: {systems.Count} systems, {planets} planets, no errors." : $"{failures} of {systems.Count} systems failed.");
+        if (failures > 0) Environment.ExitCode = 1;
+    }
 }
