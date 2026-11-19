@@ -226,9 +226,10 @@ public sealed partial class SquadronViewModel : ObservableObject
         if (SelectedIndex != slot) return;
         TraitsSeedFound?.Invoke($"0x{found.Seed:X16}");
         string best = rules.Word($"UI_SQUADRON_FACT_GRADE{ArtifactX.Core.Squadron.SquadronTraitSearch.BestGrade(rank, ranges)}").Text;
-        SearchStatus = found.IsBest
-            ? $"The best a {rankText} pilot can have: {best} on three traits (the rank's limit) and Unrivaled on the fourth."
-            : $"The best of {found.Tried:N0} seeds tried. Search again for another try.";
+        string unrivaled = rules.Word("UI_SQUADRON_FACT_GRADE1").Text;
+        SearchStatus = !found.IsBest ? $"The best of {found.Tried:N0} seeds tried. Search again for another try."
+            : best == unrivaled ? $"The best a {rankText} pilot can have: {unrivaled} on all four traits."
+            : $"The best a {rankText} pilot can have: {best} on three traits (the rank's limit) and {unrivaled} on the fourth.";
     }
 
     /// <summary>The game's grade colours: TRADEABLE green (Good, Excellent), COMMODITY gold (Outstanding, Unrivaled).</summary>
