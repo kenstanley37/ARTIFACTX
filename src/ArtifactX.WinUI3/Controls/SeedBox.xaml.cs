@@ -74,8 +74,13 @@ public sealed partial class SeedBox : UserControl
         UpdateButtons();
     }
 
-    /// <summary>Puts a seed in the box and stages it, as if typed.</summary>
-    public void Set(string seed) => Stage(seed, generated: false);
+    /// <summary>Puts a seed in the box and stages it, as if typed. It joins the Previous/Next history, so Previous goes
+    /// back to the seed it replaced.</summary>
+    public void Set(string seed)
+    {
+        Remember(seed);
+        Stage(seed, generated: false);
+    }
 
     private void Box_LostFocus(object sender, RoutedEventArgs e)
     {
@@ -86,6 +91,14 @@ public sealed partial class SeedBox : UserControl
     }
 
     private void Generate_Click(object sender, RoutedEventArgs e)
+    {
+        string newSeed = NmsSeedGenerator.GenerateRandom();
+        Remember(newSeed);
+        Stage(newSeed, generated: true);
+    }
+
+    /// <summary>Adds a seed after the current one in the history (dropping any forward steps), keeping the last 30.</summary>
+    private void Remember(string newSeed)
     {
         string current = Box.Text?.Trim() ?? "";
         if (_history.Count == 0 && current.Length > 0)
@@ -100,7 +113,6 @@ public sealed partial class SeedBox : UserControl
             _history.RemoveRange(_historyIndex + 1, _history.Count - (_historyIndex + 1));
         }
 
-        string newSeed = NmsSeedGenerator.GenerateRandom();
         _history.Add(newSeed);
         if (_history.Count > 30)
         {
@@ -109,7 +121,6 @@ public sealed partial class SeedBox : UserControl
         _historyIndex = _history.Count - 1;
 
         UpdateButtons();
-        Stage(newSeed, generated: true);
     }
 
     private void Undo_Click(object sender, RoutedEventArgs e)

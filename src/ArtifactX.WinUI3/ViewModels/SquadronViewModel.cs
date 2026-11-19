@@ -2,6 +2,7 @@ using ArtifactX.Almanac.Starship;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using System;
@@ -68,6 +69,16 @@ public sealed partial class SquadronViewModel : ObservableObject
     [ObservableProperty] public partial string PilotName { get; private set; } = "";
     public bool HasFacts => Facts.Count > 0;
 
+    /// <summary>"Find best traits" is running (SquadronTraitSearch, a few seconds on every core).</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SearchButtonText))] public partial bool IsSearching { get; private set; }
+    public string SearchButtonText => IsSearching ? "Searching..." : "Find Best Traits";
+
+    /// <summary>What the last search found, for the line under the button; "" until one ran for this pilot.</summary>
+    [ObservableProperty] public partial string SearchStatus { get; private set; } = "";
+
+    /// <summary>A search found a traits seed: the page puts it in the traits seed box, which stages it.</summary>
+    public event Action<string>? TraitsSeedFound;
+
     /// <summary>GcPlayerSquadronConfig.RandomPilotNPCResources (NmsSquadronPaths.NpcRaceOptions).</summary>
     public IReadOnlyList<SquadronChoice> Races { get; } = NmsSquadronPaths.NpcRaceOptions.Select(o => new SquadronChoice(o.DisplayName, o.Filename)).ToList();
 
@@ -124,6 +135,7 @@ public sealed partial class SquadronViewModel : ObservableObject
     public void Select(int index)
     {
         SelectedIndex = index;
+        SearchStatus = "";
         foreach (var slot in Slots)
         {
             slot.Label = SlotLabel(slot.Index);
@@ -196,6 +208,27 @@ public sealed partial class SquadronViewModel : ObservableObject
         }).ToList();
         Kills = facts.Kills.ToString("N0");
         Notes = rules.Word(facts.NoteKey).Text;
+    }
+
+    /// <summary>Looks for the traits seed with the best stat card this pilot's rank allows and puts it in the traits seed
+    /// box (staged like a typed seed; the box's Previous button or Reset brings the old one back).</summary>
+    [RelayCommand]
+    private async Task FindBestTraitsAsync()
+    {
+        if (!HasSelection || _factRules is not { } rules || IsSearching) return;
+        int slot = SelectedIndex, rank = (int)SquadronService.Rank(slot);
+        string rankText = RankLetter;
+        IsSearching = true;
+        SearchStatus = "";
+        var ranges = rules.Ranges;
+        var found = await Task.Run(() => ArtifactX.Core.Squadron.SquadronTraitSearch.Find(rank, ranges, TimeSpan.FromSeconds(30)));
+        IsSearching = false;
+        if (SelectedIndex != slot) return;
+        TraitsSeedFound?.Invoke($"0x{found.Seed:X16}");
+        string best = rules.Word($"UI_SQUADRON_FACT_GRADE{ArtifactX.Core.Squadron.SquadronTraitSearch.BestGrade(rank, ranges)}").Text;
+        SearchStatus = found.IsBest
+            ? $"The best a {rankText} pilot can have: {best} on three traits (the rank's limit) and Unrivaled on the fourth."
+            : $"The best of {found.Tried:N0} seeds tried. Search again for another try.";
     }
 
     /// <summary>The game's grade colours: TRADEABLE green (Good, Excellent), COMMODITY gold (Outstanding, Unrivaled).</summary>
