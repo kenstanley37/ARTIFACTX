@@ -64,6 +64,8 @@
 
   <ItemGroup>
     <Content Include="Assets\AppIconMark.png" />
+    <!-- Also loose next to the app: MainWindow sets it as the window's taskbar icon (AppWindow.SetIcon). -->
+    <Content Include="Assets\AppIcon.ico" />
     <!-- Open Font License fonts for the visual themes (licences alongside). -->
     <Content Include="Assets\Fonts\*.ttf" />
     <Content Include="Assets\Fonts\*.txt" />

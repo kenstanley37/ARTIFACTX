@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The update window (2026-11-18, owner: the old one showed raw markdown in a small clipped box): the version waiting,
+     its release notes as headings and bullets in a readable size, and a clear progress bar while it downloads. -->
+<ContentDialog
+    x:Class="ArtifactX.WinUI3.Controls.UpdateDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:core="using:ArtifactX.Core"
+    Title="Update ArtifactX"
+    SecondaryButtonText="Release page"
+    CloseButtonText="Later"
+    DefaultButton="Primary">
+
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">720</x:Double>
+    </ContentDialog.Resources>
+
+    <StackPanel Spacing="14" Width="560">
+        <StackPanel Spacing="4">
+            <TextBlock Text="{x:Bind ViewModel.Headline}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"
+                       Foreground="{ThemeResource ThemeAccentBrush}"/>
+            <TextBlock Text="{x:Bind ViewModel.VersionLine}" FontSize="14" TextWrapping="Wrap"
+                       Foreground="{ThemeResource ThemeTextBrush}"/>
+        </StackPanel>
+
+        <Border Visibility="{x:Bind ViewModel.HasNotes}" Background="{ThemeResource ThemePanelAltBrush}"
+                BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1" CornerRadius="6">
+            <ScrollViewer MaxHeight="300" AutomationProperties.Name="What's new in this version">
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Sections}" Margin="16,12,20,14">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="core:ReleaseNoteSection">
+                            <StackPanel Spacing="6" Margin="0,0,0,12">
+                                <TextBlock Text="{x:Bind Heading}" FontSize="15" FontWeight="SemiBold"
+                                           Foreground="{ThemeResource ThemeTextBrush}"/>
+                                <ItemsControl ItemsSource="{x:Bind Items}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Grid ColumnSpacing="8" Margin="0,0,0,6">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="•" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                                <TextBlock Grid.Column="1" Text="{x:Bind}" FontSize="14" TextWrapping="Wrap"
+                                                           IsTextSelectionEnabled="True" Foreground="{ThemeResource ThemeTextBrush}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Spacing="8">
+            <ProgressBar Value="{x:Bind ViewModel.Progress, Mode=OneWay}" Minimum="0" Maximum="100" Height="8"
+                         Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+                         AutomationProperties.Name="Update download progress"/>
+            <TextBlock x:Name="StatusTxt" Text="{x:Bind ViewModel.Status, Mode=OneWay}" FontSize="14" TextWrapping="Wrap"
+                       Foreground="{ThemeResource ThemeTextBrush}" AutomationProperties.LiveSetting="Polite"/>
+        </StackPanel>
+    </StackPanel>
+</ContentDialog>
