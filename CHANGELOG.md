@@ -4,6 +4,9 @@ What changed in each ArtifactX release, written for players. The newest release 
 
 ## Unreleased
 
+### Changed
+- The update window is easier to read: the new version's changes show as headings and bullet points in a larger size instead of raw text, with a clearer progress bar while it downloads. It stays open until the update finishes, and Settings > Updates opens the same window.
+
 ## 1.2.1 — 2026-11-18
 
 ### Changed

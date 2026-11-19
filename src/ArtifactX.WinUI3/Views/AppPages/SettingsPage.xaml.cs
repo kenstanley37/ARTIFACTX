@@ -1,3 +1,4 @@
+using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
 using Microsoft.UI.Text;
@@ -31,6 +32,9 @@ public sealed partial class SettingsPage : Page
         InitializeComponent();
         UpdateCheckService.Changed += OnUpdateCheckChanged;
         Unloaded += (_, _) => UpdateCheckService.Changed -= OnUpdateCheckChanged;
+#if DEBUG
+        PreviewUpdateBtn.Visibility = Visibility.Visible;
+#endif
 
         DailyBackupSwitch.IsOn = UserDatabase.DailyBackups;
         CaptureLogSwitch.IsOn = ScreenCaptureLogService.Enabled;
@@ -451,36 +455,30 @@ public sealed partial class SettingsPage : Page
 
         if (hasUpdate)
         {
-            UpdateAndRestartBtn.Content = UpdateCheckService.IsInstalled ? "Update and restart" : "Download update on GitHub";
+            UpdateAndRestartBtn.Content = "See what's new and update";
         }
     }
 
     private async void UpdateAndRestart_Click(object sender, RoutedEventArgs e)
     {
-        if (!UpdateCheckService.IsInstalled)
+        if (UpdateCheckService.LastResult is { } result)
+            await UpdateDialog.ShowAsync(XamlRoot, result);
+    }
+
+    /// <summary>Debug builds only: the update window with the newest published release and a pretend download,
+    /// to check how it looks without a real update.</summary>
+    private async void PreviewUpdateWindow_Click(object sender, RoutedEventArgs e)
+    {
+        PreviewUpdateBtn.IsEnabled = false;
+        try
         {
-            if (UpdateCheckService.LastResult?.ReleaseUrl is string url)
-                await Launcher.LaunchUriAsync(new Uri(url));
-            return;
+            var result = await UpdateCheckService.PreviewAsync();
+            if (result.Status == UpdateCheckStatus.UpdateAvailable)
+                await UpdateDialog.ShowAsync(XamlRoot, result, isPreview: true);
+            else
+                UpdateStatusTxt.Text = result.Message;
         }
-
-        UpdateAndRestartBtn.IsEnabled = false;
-        CheckForUpdatesBtn.IsEnabled = false;
-        UpdateProgressBar.Visibility = Visibility.Visible;
-        UpdateProgressBar.Value = 0;
-
-        await UpdateCheckService.DownloadAndRestartAsync(status =>
-        {
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                UpdateStatusTxt.Text = status;
-                UpdateProgressBar.Value = UpdateCheckService.DownloadProgress;
-            });
-        });
-
-        UpdateAndRestartBtn.IsEnabled = true;
-        CheckForUpdatesBtn.IsEnabled = true;
-        UpdateProgressBar.Visibility = Visibility.Collapsed;
+        finally { PreviewUpdateBtn.IsEnabled = true; }
     }
 
     private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)

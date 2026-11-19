@@ -72,7 +72,11 @@ public static class UpdateCheckService
         Changed?.Invoke(null, EventArgs.Empty);
     }
 
-    private static async Task<UpdateCheckResult> CheckAsync()
+    /// <summary>The newest published release as if it were an update, even when it is the version running, so
+    /// the update window can be tried without a real update (Settings, Debug builds). LastResult is untouched.</summary>
+    public static Task<UpdateCheckResult> PreviewAsync() => CheckAsync(preview: true);
+
+    private static async Task<UpdateCheckResult> CheckAsync(bool preview = false)
     {
         try
         {
@@ -109,7 +113,7 @@ public static class UpdateCheckService
             if (newest is null)
                 return new UpdateCheckResult { Status = UpdateCheckStatus.NoReleasesYet, Message = "No releases published yet." };
 
-            if (newest > current)
+            if (newest > current || preview)
             {
                 return new UpdateCheckResult
                 {
