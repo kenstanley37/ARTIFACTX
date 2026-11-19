@@ -62,6 +62,10 @@ public sealed partial class SquadronViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasFacts))] public partial IReadOnlyList<PilotFactRow> Facts { get; private set; } = [];
     [ObservableProperty] public partial string Kills { get; private set; } = "";
     [ObservableProperty] public partial string Notes { get; private set; } = "";
+
+    /// <summary>The pilot's name as the game shows it ("Liquidator Uduoh": Core NpcNames from the pilot-and-ship name
+    /// seed and the race of the pilot's NPC scene; catalog format 111). "" until the game data has it.</summary>
+    [ObservableProperty] public partial string PilotName { get; private set; } = "";
     public bool HasFacts => Facts.Count > 0;
 
     /// <summary>GcPlayerSquadronConfig.RandomPilotNPCResources (NmsSquadronPaths.NpcRaceOptions).</summary>
@@ -171,9 +175,11 @@ public sealed partial class SquadronViewModel : ObservableObject
         PreviewChanged?.Invoke();
     }
 
-    /// <summary>Works the stat card out again from the traits seed and rank (after either changed).</summary>
+    /// <summary>Works the pilot's name and stat card out again (after a seed, the race or the rank changed).</summary>
     public void RefreshFacts()
     {
+        PilotName = HasSelection && _factRules is { } nameRules && NmsSeedGenerator.TryParse(ShipSeed, out ulong nameSeed)
+            ? nameRules.PilotName(nameSeed, PilotScene) : "";
         if (!HasSelection || _factRules is not { } rules
             || !NmsSeedGenerator.TryParse(SquadronService.TraitsSeed(SelectedIndex), out ulong seed))
         {

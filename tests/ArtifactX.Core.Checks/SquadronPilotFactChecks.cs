@@ -1,4 +1,5 @@
 using ArtifactX.Core.Squadron;
+using ArtifactX.Core.Universe;
 
 internal static class SquadronPilotFactChecks
 {
@@ -27,5 +28,23 @@ internal static class SquadronPilotFactChecks
                 throw new InvalidOperationException($"Squadron pilot {seed:X16}: {actual}, expected {expected}.");
         }
         Console.WriteLine($"PASS: squadron pilot stat cards ({pilots.Length} in-game pilots).");
+
+        // The same pilots' names from their pilot-and-ship name seeds; all four are Vy'keen (GcAlienRace Warriors = 1).
+        // WAR_TITLE_20 Liquidator, 4 Captain, 29 Scout, 16 Recruit.
+        (ulong Seed, string Expected)[] names =
+        [
+            (0xAB87F8A10DB2B4CF, "WAR_TITLE_20 Uduoh"),
+            (0x441316044221C4DC, "WAR_TITLE_4 Yongomord"),
+            (0x125DA81C641DA997, "WAR_TITLE_29 Ribxi"),
+            (0xFF4EE721EEF1E2AD, "WAR_TITLE_16 Gangolag"),
+        ];
+        foreach (var (seed, expected) in names)
+        {
+            var name = NpcNames.Generate(seed, 1);
+            string actual = name is null ? "(none)" : $"{name.TitleKey} {name.Name}";
+            if (actual != expected)
+                throw new InvalidOperationException($"Squadron pilot name {seed:X16}: {actual}, expected {expected}.");
+        }
+        Console.WriteLine($"PASS: squadron pilot names ({names.Length} in-game pilots).");
     }
 }

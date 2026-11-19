@@ -230,7 +230,7 @@
 
                         <!-- The pilot (its race's NPC scene; the appearance seed's first child seed picks the parts, as for a
                              freighter captain - a shape scan, colours unknown) beside its ship, the same height so they line up;
-                             the ship's name sits under its preview. -->
+                             each one's name sits under its preview. -->
                         <Grid x:Name="PreviewGroup" Grid.Column="1" ColumnSpacing="18" RowSpacing="18" VerticalAlignment="Top"
                               Visibility="{x:Bind ViewModel.ShowPreviews, Mode=OneWay}">
                             <Grid.ColumnDefinitions>
@@ -241,8 +241,12 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <controls:ModelPreviewPanel x:Name="PilotPreview" Subject="pilot" Heading="PILOT"
-                                                        PreviewHeight="300" StartYawOffset="2.65" StartPitchOffset="0.45"/>
+                            <StackPanel Spacing="8">
+                                <controls:ModelPreviewPanel x:Name="PilotPreview" Subject="pilot" Heading="PILOT"
+                                                            PreviewHeight="300" StartYawOffset="2.65" StartPitchOffset="0.45"/>
+                                <TextBlock Text="{x:Bind ViewModel.PilotName, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
+                                           FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                            </StackPanel>
                             <StackPanel x:Name="ShipColumn" Grid.Column="1" Spacing="8">
                                 <controls:ModelPreviewPanel x:Name="ShipPreview" Subject="ship" Heading="SHIP" PreviewHeight="300"/>
                                 <TextBlock Text="{x:Bind ViewModel.ShipName, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
