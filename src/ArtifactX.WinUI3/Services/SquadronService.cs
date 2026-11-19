@@ -16,6 +16,8 @@ public static class SquadronService
     public static string NpcSeed(int slot) => Text(NmsSquadronPaths.NpcSeedPath(slot));
     public static string ShipScene(int slot) => Text(NmsSquadronPaths.ShipFilenamePath(slot));
     public static string ShipSeed(int slot) => Text(NmsSquadronPaths.ShipSeedPath(slot));
+    /// <summary>The traits seed (=bJ: a plain ulong, not a GcSeed pair - see NmsSquadronPaths).</summary>
+    public static string TraitsSeed(int slot) => SaveSessionManager.GetValue(NmsSquadronPaths.TraitsSeedPath(slot))?.ToString() ?? "";
     public static double Rank(int slot) => SaveSessionManager.GetValue(NmsSquadronPaths.PilotRankPath(slot))?.Value<double>() ?? 0;
 
     public static void SetUnlocked(int slot, bool unlocked) => SaveSessionManager.StageEdit(unlocked, NmsSquadronPaths.UnlockedPath(slot));

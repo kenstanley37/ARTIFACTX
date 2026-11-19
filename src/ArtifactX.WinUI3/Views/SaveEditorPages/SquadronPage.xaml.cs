@@ -29,10 +29,10 @@ public sealed partial class SquadronPage : Page
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             SaveSessionManager.PendingEditsChanged -= OnEditsChanged;
         };
-        ViewModel.Load();
+        _ = ViewModel.LoadAsync();
     }
 
-    private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(ViewModel.Load);
+    private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = ViewModel.LoadAsync());
 
     private void OnEditsChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(ViewModel.RefreshState);
 

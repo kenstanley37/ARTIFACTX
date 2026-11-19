@@ -19,6 +19,14 @@ public sealed record SquadronChoice(string Label, string Value, bool Listed = tr
     public override string ToString() => Label;
 }
 
+/// <summary>One line of the pilot's stat card: the skill and its grade in the game's words and colour.</summary>
+public sealed record PilotFactRow(string Skill, string Grade, Brush GradeBrush, bool Flying)
+{
+    /// <summary>The game's icons: a ship for the flying skills, a speech mark for personality.</summary>
+    public string Glyph => Flying ? "\uE709" : "\uE8BD";
+    public string AccessibleName => $"{Skill}: {Grade}";
+}
+
 /// <summary>One of the four slot buttons.</summary>
 public sealed partial class SquadronSlotViewModel : ObservableObject
 {
@@ -45,8 +53,16 @@ public sealed partial class SquadronSlotViewModel : ObservableObject
 public sealed partial class SquadronViewModel : ObservableObject
 {
     private bool _loading;
+    private ArtifactX.Core.Squadron.SquadronFactRules? _factRules;
 
     public ObservableCollection<SquadronSlotViewModel> Slots { get; } = new();
+
+    /// <summary>The selected pilot's stat card as the game's Squadron Pilots screen shows it (Core SquadronPilotFacts,
+    /// from the traits seed and rank; catalog format 110).</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasFacts))] public partial IReadOnlyList<PilotFactRow> Facts { get; private set; } = [];
+    [ObservableProperty] public partial string Kills { get; private set; } = "";
+    [ObservableProperty] public partial string Notes { get; private set; } = "";
+    public bool HasFacts => Facts.Count > 0;
 
     /// <summary>GcPlayerSquadronConfig.RandomPilotNPCResources (NmsSquadronPaths.NpcRaceOptions).</summary>
     public IReadOnlyList<SquadronChoice> Races { get; } = NmsSquadronPaths.NpcRaceOptions.Select(o => new SquadronChoice(o.DisplayName, o.Filename)).ToList();
@@ -76,6 +92,12 @@ public sealed partial class SquadronViewModel : ObservableObject
     public string ShipSeed => HasSelection ? SquadronService.ShipSeed(SelectedIndex) : "";
 
     /// <summary>The slots and the selected pilot, from the loaded save.</summary>
+    public async System.Threading.Tasks.Task LoadAsync()
+    {
+        _factRules ??= await CatalogService.GetSquadronFactRulesAsync();
+        Load();
+    }
+
     public void Load()
     {
         int count = SaveSessionManager.IsSaveLoaded ? SquadronService.SlotCount() : 0;
@@ -140,12 +162,42 @@ public sealed partial class SquadronViewModel : ObservableObject
             if (double.IsNaN(field.Value)) return;
             SquadronService.SetRank(SelectedIndex, (int)field.Value);
             HasEdits = true;
+            RefreshFacts();
         });
         RankLetter = RankLetterFor(rank);
         HasEdits = SquadronService.HasEdits(index);
         _loading = false;
+        RefreshFacts();
         PreviewChanged?.Invoke();
     }
+
+    /// <summary>Works the stat card out again from the traits seed and rank (after either changed).</summary>
+    public void RefreshFacts()
+    {
+        if (!HasSelection || _factRules is not { } rules
+            || !NmsSeedGenerator.TryParse(SquadronService.TraitsSeed(SelectedIndex), out ulong seed))
+        {
+            Facts = [];
+            Kills = Notes = "";
+            return;
+        }
+        var facts = ArtifactX.Core.Squadron.SquadronPilotFacts.Generate(seed, (int)SquadronService.Rank(SelectedIndex), rules.Ranges);
+        Facts = facts.Skills.Select((f, i) =>
+        {
+            var (grade, tag) = rules.Word(f.GradeKey);
+            return new PilotFactRow(rules.Word(f.Key).Text, grade, GradeBrush(tag), Flying: i < 2);
+        }).ToList();
+        Kills = facts.Kills.ToString("N0");
+        Notes = rules.Word(facts.NoteKey).Text;
+    }
+
+    /// <summary>The game's grade colours: TRADEABLE green (Good, Excellent), COMMODITY gold (Outstanding, Unrivaled).</summary>
+    private static Brush GradeBrush(string tag) => tag.ToUpperInvariant() switch
+    {
+        "TRADEABLE" => ThemeResources.LevelBrush(0),
+        "COMMODITY" => ThemeResources.LevelBrush(1),
+        _ => ThemeResources.Brush("ThemeTextBrush"),
+    };
 
     partial void OnIsUnlockedChanged(bool value)
     {
@@ -172,6 +224,7 @@ public sealed partial class SquadronViewModel : ObservableObject
     public void Edited()
     {
         HasEdits = true;
+        RefreshFacts();
         PreviewChanged?.Invoke();
     }
 
