@@ -22,4 +22,13 @@ public static class DiscoveryKeys
         foreach (char c in name) hash = hash * 33 + (byte)c;
         return hash;
     }
+
+    /// <summary>The 64-bit mixer (the planet generator's Mix64) an Animal record keeps of its role seed in bEr[4]
+    /// (checked on the 2026-11-18 Slot 8 diff's bird).</summary>
+    public static ulong Mix64(ulong v)
+    {
+        v = (v ^ (v >> 33)) * 0x64DD81482CBD31D7UL;
+        v = (v ^ (v >> 33)) * 0xE36AA5C613612997UL;
+        return v ^ (v >> 33);
+    }
 }
