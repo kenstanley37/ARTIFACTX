@@ -76,7 +76,7 @@ public sealed class SaveEditSession
         string prefix = key + PathSeparator;
         var inside = _pendingEdits.Where(kv => kv.Key.StartsWith(prefix, StringComparison.Ordinal))
             .Select(kv => (Path: kv.Key[prefix.Length..].Split(PathSeparator), kv.Value))
-            .OrderBy(e => e.Path.Length)
+            .OrderBy(e => e.Path.Length).ThenBy(e => ArrayIndex(e.Path))
             .ToList();
         if (inside.Count == 0) return result;
 
@@ -166,8 +166,10 @@ public sealed class SaveEditSession
     public async Task CommitAsync(IEnumerable<string> targetHgFilePaths)
     {
         // Containers before the edits inside them (a field edited on a newly
-        // staged entry must land on that entry, not be overwritten by it).
-        foreach (var (path, value) in _pendingEdits.Select(kv => (Path: kv.Key.Split(PathSeparator), kv.Value)).OrderBy(e => e.Path.Length).ToList())
+        // staged entry must land on that entry, not be overwritten by it);
+        // entries of one array in index order, so appends (index == Count) land in turn.
+        foreach (var (path, value) in _pendingEdits.Select(kv => (Path: kv.Key.Split(PathSeparator), kv.Value))
+                     .OrderBy(e => e.Path.Length).ThenBy(e => ArrayIndex(e.Path)).ToList())
             Apply(Root, path, value);
 
         string editedJson = Root.ToString(Newtonsoft.Json.Formatting.None);
@@ -197,6 +199,9 @@ public sealed class SaveEditSession
         }
         return current;
     }
+
+    /// <summary>A path's last segment as an array index (-1 when it's a field name).</summary>
+    private static int ArrayIndex(string[] path) => int.TryParse(path[^1], out int index) ? index : -1;
 
     private static void Apply(JToken root, string[] path, JToken? value)
     {
