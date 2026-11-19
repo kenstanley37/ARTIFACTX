@@ -4,14 +4,18 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     x:Class="ArtifactX.Maui.Views.ReferencePages.RecipesPage"
     Shell.NavBarIsVisible="False"
-    Background="{DynamicResource ThemePageBackdropBrush}">
-
-    <VerticalStackLayout Padding="20,24" Spacing="14">
-        <Label
-            Text="Recipes"
-            Style="{StaticResource ThemePageTitleStyle}" />
-        <Label
-            Text="Find an item to make or an ingredient you have."
-            Style="{StaticResource ThemeDimTextStyle}" />
-    </VerticalStackLayout>
+    Background="{DynamicResource ThemePageBackdropBrush}"
+    xmlns:controls="clr-namespace:ArtifactX.Maui.Controls">
+    <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
+    <Grid RowDefinitions="Auto,*">
+        <controls:GalaxyBar />
+        <VerticalStackLayout Grid.Row="1" Padding="20,24" Spacing="14">
+            <Label
+                Text="Recipes"
+                Style="{StaticResource ThemePageTitleStyle}" />
+            <Label
+                Text="Find an item to make or an ingredient you have."
+                Style="{StaticResource ThemeDimTextStyle}" />
+        </VerticalStackLayout>
+    </Grid>
 </ContentPage>

@@ -11,4 +11,10 @@ public partial class HomePage : ContentPage
         InitializeComponent();
         BindingContext = ViewModel;
     }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        ViewModel.RefreshRecentSystems();
+    }
 }

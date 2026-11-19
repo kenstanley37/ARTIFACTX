@@ -71,8 +71,7 @@ public static class UniverseInfo
     private static ulong SystemKey(ulong address) => address & ~(0xFUL << 52);
 
     /// <summary>Portal code (planet digit 0) and 0-based galaxy for the generator.</summary>
-    public static (ulong Code, int Galaxy) Generator(ulong address, int planet = 0) =>
-        (((ulong)(planet & 0xF) << 44) | (((address >> 40) & 0xFFF) << 32) | (address & 0xFFFFFFFF), (int)((address >> 32) & 0xFF));
+    public static (ulong Code, int Galaxy) Generator(ulong address, int planet = 0) => PortalPositions.Generator(address, planet);
 
     /// <summary>Portal code numeric value for an address.</summary>
     public static ulong PortalCode(ulong address, int planet = 0) => Generator(address, planet).Code;

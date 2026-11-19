@@ -67,10 +67,14 @@ internal static class ReviewStateChecks
         RecentSystemsService.Record(ArtifactX.Core.Universe.PortalSystemReadout.Generate("11FA016452DB", 2));
         Require(RecentSystemsService.Items.Count == 2 && RecentSystemsService.Items[0].GalaxyNumber == 2,
             "Recent systems merged different galaxies or lost ordering.");
+        Require(GalaxyService.Current == 2, "Opening a system didn't make its galaxy the one being viewed.");
+        GalaxyService.Set(5);
+        vm.FollowGalaxy();
+        Require(vm.SelectedGalaxy.Number == 5, "The Galaxy box didn't follow a galaxy changed elsewhere.");
         for (int i = 0; i < 12; i++)
             RecentSystemsService.Record(ArtifactX.Core.Universe.PortalSystemReadout.Generate($"11FA01645{i:X3}", 1));
         Require(RecentSystemsService.Items.Count == 10, "Recent systems did not enforce the history limit.");
-        Console.WriteLine("PASS: navigation validation, galaxy handoff, recent system identity and history limit.");
+        Console.WriteLine("PASS: navigation validation, galaxy handoff, shared galaxy, recent system identity and history limit.");
         Console.WriteLine("PASS: review/accept/discard, incomplete input, failure/exception preservation, concurrency, cancellation, manual correction.");
     }
 

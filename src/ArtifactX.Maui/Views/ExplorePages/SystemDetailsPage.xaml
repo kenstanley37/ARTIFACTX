@@ -8,115 +8,185 @@
     x:Class="ArtifactX.Maui.Views.ExplorePages.SystemDetailsPage"
     x:DataType="vm:SystemFromGlyphsViewModel"
     Shell.NavBarIsVisible="False"
-    Background="{DynamicResource ThemePageBackdropBrush}">
-    <ContentPage.Resources>
-        <helpers:PortalGlyphGeometryConverter x:Key="GlyphGeometryConverter" />
-    </ContentPage.Resources>
-    <Grid>
-    <ScrollView>
-        <VerticalStackLayout Padding="20,20,20,28" Spacing="16" MaximumWidthRequest="720" HorizontalOptions="Fill">
-            <Button Text="Back" Command="{Binding GoBackCommand}" HorizontalOptions="Start" />
-            <Label Text="{Binding CopyBannerText}" IsVisible="{Binding HasCopyBanner}" Style="{StaticResource ThemeBodyTextStyle}" />
-            <Label Text="{Binding SystemName}" Style="{StaticResource ThemePageTitleStyle}" />
-            <Label Text="{Binding RegionAndGalaxySubtitle}" Style="{StaticResource ThemeBodyTextStyle}" />
-            <Label Text="{Binding CoordinatesAndDistanceText}" Style="{StaticResource ThemeBodyTextStyle}" />
-            <!-- The address as glyph pictures, in the order they are dialled at a portal. -->
-            <Border Style="{StaticResource ThemeCardAltStyle}" Padding="10,8"
-                    SemanticProperties.Description="{Binding GlyphsDescription}">
-                <FlexLayout BindableLayout.ItemsSource="{Binding GlyphVectors}" Wrap="NoWrap" JustifyContent="SpaceBetween">
+    Background="{DynamicResource ThemePageBackdropBrush}"
+    xmlns:controls="clr-namespace:ArtifactX.Maui.Controls">
+    <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
+    <Grid RowDefinitions="Auto,*">
+        <controls:GalaxyBar />
+        <Grid Grid.Row="1">
+        <ScrollView>
+            <VerticalStackLayout Padding="20,20,20,28" Spacing="16" MaximumWidthRequest="720" HorizontalOptions="Fill">
+                <Button Text="Back" Command="{Binding GoBackCommand}" HorizontalOptions="Start" />
+                <Label Text="{Binding CopyBannerText}" IsVisible="{Binding HasCopyBanner}" Style="{StaticResource ThemeBodyTextStyle}" />
+                <Label Text="{Binding SystemName}" Style="{StaticResource ThemePageTitleStyle}" />
+                <Label Text="{Binding RegionAndGalaxySubtitle}" Style="{StaticResource ThemeBodyTextStyle}" />
+                <Label Text="{Binding CoordinatesAndDistanceText}" Style="{StaticResource ThemeBodyTextStyle}" />
+                <!-- The address as glyph pictures, in the order they are dialled at a portal. -->
+                    <Border Style="{StaticResource ThemeCardAltStyle}" Padding="10,8">
+                        <controls:GlyphRow Code="{Binding PortalCode}" Caption="{Binding SystemName}" />
+                    </Border>
+                <Label Text="Tap the glyphs to see them larger. Generated names may differ from names chosen by players." Style="{StaticResource ThemeDimTextStyle}" />
+                <Label Text="{Binding StarPill}" Style="{StaticResource ThemeBodyTextStyle}" />
+                <Label Text="{Binding RacePill}" Style="{StaticResource ThemeBodyTextStyle}" />
+                <Label Text="{Binding EconomyWealthPill}" Style="{StaticResource ThemeBodyTextStyle}" />
+                <Label Text="{Binding ConflictPill}" Style="{StaticResource ThemeBodyTextStyle}" />
+                <Label Text="This address requires access to purple star systems." IsVisible="{Binding RequiresPurpleStarAccess}" TextColor="{DynamicResource ThemeAccentColor}" />
+                <Button Text="Copy portal address" Command="{Binding CopyPortalCodeCommand}" />
+                <Border Style="{StaticResource ThemeCardStyle}" Padding="12">
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="4">
+                        <Button Grid.Column="0" Text="{Binding PlanetsTabTitle}" Command="{Binding SelectTabCommand}" CommandParameter="Planets"
+                                TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                        <Button Grid.Column="1" Text="{Binding ShipsTabTitle}" Command="{Binding SelectTabCommand}" CommandParameter="Ships"
+                                TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                        <Button Grid.Column="2" Text="{Binding MultiToolsTabTitle}" Command="{Binding SelectTabCommand}" CommandParameter="MultiTools"
+                                TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+                    </Grid>
+                </Border>
+                <VerticalStackLayout IsVisible="{Binding IsPlanetsTabSelected}" Spacing="10">
+                    <Label Text="Planets &amp; moons" Style="{StaticResource ThemeSectionHeaderStyle}" />
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Bodies}">
                     <BindableLayout.ItemTemplate>
-                        <DataTemplate x:DataType="art:PortalGlyphVector">
-                            <Path Data="{Binding PathData, Converter={StaticResource GlyphGeometryConverter}}"
-                                  Fill="{DynamicResource ThemeTextBrush}" Aspect="Uniform"
-                                  WidthRequest="24" HeightRequest="24" FlexLayout.Shrink="1" />
+                        <DataTemplate x:DataType="vm:SystemBodyItemViewModel">
+                            <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12" Margin="0,0,0,8">
+                                <VerticalStackLayout Spacing="10">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                    <BoxView Grid.Column="0" WidthRequest="10" HeightRequest="10" CornerRadius="5" Color="{Binding SwatchColor}" VerticalOptions="Center" Margin="0,0,8,0" />
+                                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                        <Label Text="{Binding Name}" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" />
+                                        <Label Text="{Binding PrimaryLine}" Style="{StaticResource ThemeBodyTextStyle}" TextColor="{DynamicResource ThemeTextDimColor}" FontSize="13" />
+</VerticalStackLayout>
+                                    <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Grid.Column="2" Text="{Binding CopyButtonLabel}" SemanticProperties.Description="{Binding Name, StringFormat='Copy portal address for {0}'}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=CopyBodyPortalCodeCommand}"
+                                            CommandParameter="{Binding .}" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" WidthRequest="110" />
+                                </Grid>
+                            <!-- The glyphs that open a portal to this body - each one's first glyph is its own. -->
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="PORTAL GLYPHS · TAP TO ENLARGE" Style="{StaticResource ThemeEyebrowStyle}" />
+                                <Border Style="{StaticResource ThemeCardStyle}" Padding="8,6">
+                                    <controls:GlyphRow Code="{Binding BodyPortalCode}" Caption="{Binding Name}" GlyphSize="22" />
+                                </Border>
+                            </VerticalStackLayout>
+                            <!-- Portal survey (PortalSurvey, from the rules file): Analysis Visor coordinates for the portal,
+                                     base computer spots near it that reach deep-level hotspots, and the hotspots around it. -->
+                                <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Text="{Binding SurveyButtonLabel}" Command="{Binding ToggleSurveyCommand}" HorizontalOptions="Start"
+                                        SemanticProperties.Description="{Binding Name, StringFormat='Portal and base spots on {0}'}"
+                                        TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="12" Padding="10,6" />
+                                <VerticalStackLayout IsVisible="{Binding IsSurveyOpen}" Spacing="8">
+                                    <ActivityIndicator IsRunning="{Binding IsSurveying}" IsVisible="{Binding IsSurveying}" Color="{DynamicResource ThemeAccentColor}" HorizontalOptions="Start" />
+                                    <Label Text="{Binding SurveyNote}" IsVisible="{Binding HasSurveyNote}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" />
+                                    <Grid IsVisible="{Binding HasPortal}" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                        <VerticalStackLayout Spacing="2">
+                                            <Label Text="PORTAL" Style="{StaticResource ThemeEyebrowStyle}" />
+                                            <Label Text="{Binding PortalCoordinates}" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" FontSize="15" />
+                                        </VerticalStackLayout>
+                                        <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Grid.Column="1" Text="{Binding PortalCopyLabel}" Command="{Binding CopyPortalCoordinatesCommand}" VerticalOptions="Center"
+                                                SemanticProperties.Description="{Binding Name, StringFormat='Copy portal coordinates on {0}'}"
+                                                TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" />
+                                    </Grid>
+                                    <Label Text="BASE SPOTS NEAR THE PORTAL" IsVisible="{Binding HasBaseSpots}" Style="{StaticResource ThemeEyebrowStyle}" Margin="0,4,0,0" />
+                                    <Label Text="Stand at these coordinates and place the base computer: the base reaches the portal and every hotspot listed."
+                                           IsVisible="{Binding HasBaseSpots}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" />
+                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding BaseSpots}" Spacing="8">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:BaseSpotItemViewModel">
+                                                <Border Style="{StaticResource ThemeCardStyle}" Padding="10">
+                                                    <VerticalStackLayout Spacing="4">
+                                                        <Label Text="{Binding Title}" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" />
+                                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                            <Label Text="{Binding Coordinates, StringFormat='Base computer: {0}'}" TextColor="{DynamicResource ThemeAccentColor}" FontSize="15" FontAttributes="Bold" VerticalOptions="Center" />
+                                                            <Button Grid.Column="1" Text="{Binding CopyLabel}" Command="{Binding CopyCommand}" SemanticProperties.Description="{Binding CopyDescription}"
+                                                                    TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" />
+                                                        </Grid>
+                                                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Lines}">
+                                                            <BindableLayout.ItemTemplate>
+                                                                <DataTemplate x:DataType="x:String">
+                                                                    <Label Text="{Binding .}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" />
+                                                                </DataTemplate>
+                                                            </BindableLayout.ItemTemplate>
+                                                        </VerticalStackLayout>
+                                                        <Label Text="{Binding SpareText}" FontSize="12" TextColor="{DynamicResource ThemeDoneColor}">
+                                                            <Label.Triggers>
+                                                                <DataTrigger TargetType="Label" Binding="{Binding IsTight}" Value="True">
+                                                                    <Setter Property="TextColor" Value="{DynamicResource ThemeWarningColor}" />
+                                                                </DataTrigger>
+                                                            </Label.Triggers>
+                                                        </Label>
+                                                    </VerticalStackLayout>
+                                                </Border>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
+                                    <Button Text="{Binding MoreSpotsLabel}" Command="{Binding ShowMoreSpotsCommand}" IsVisible="{Binding HasMoreSpots}" HorizontalOptions="Start"
+                                            BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="12" Padding="10,6" />
+                                    <Label Text="HOTSPOTS NEAR THE PORTAL" IsVisible="{Binding HasNearbyHotspots}" Style="{StaticResource ThemeEyebrowStyle}" Margin="0,4,0,0" />
+                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding NearbyHotspots}" Spacing="6">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:NearbyHotspotViewModel">
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                    <VerticalStackLayout Spacing="1">
+                                                        <Label Text="{Binding Title}" TextColor="{DynamicResource ThemeTextColor}" FontSize="13" FontAttributes="Bold" />
+                                                        <Label Text="{Binding Coordinates}" TextColor="{DynamicResource ThemeAccentColor}" FontSize="13" />
+                                                        <Label Text="{Binding Detail}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" />
+                                                    </VerticalStackLayout>
+                                                    <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Grid.Column="1" Text="{Binding CopyLabel}" Command="{Binding CopyCommand}" SemanticProperties.Description="{Binding CopyDescription}"
+                                                            VerticalOptions="Center" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
+                                </VerticalStackLayout>
+                                </VerticalStackLayout>
+                            </Border>
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
-                </FlexLayout>
-            </Border>
-            <Label Text="Generated names may differ from names chosen by players." Style="{StaticResource ThemeDimTextStyle}" />
-            <Label Text="{Binding StarPill}" Style="{StaticResource ThemeBodyTextStyle}" />
-            <Label Text="{Binding RacePill}" Style="{StaticResource ThemeBodyTextStyle}" />
-            <Label Text="{Binding EconomyWealthPill}" Style="{StaticResource ThemeBodyTextStyle}" />
-            <Label Text="{Binding ConflictPill}" Style="{StaticResource ThemeBodyTextStyle}" />
-            <Label Text="This address requires access to purple star systems." IsVisible="{Binding RequiresPurpleStarAccess}" TextColor="{DynamicResource ThemeAccentColor}" />
-            <Button Text="Copy portal address" Command="{Binding CopyPortalCodeCommand}" />
-            <Border Style="{StaticResource ThemeCardStyle}" Padding="12">
-                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="4">
-                    <Button Grid.Column="0" Text="{Binding PlanetsTabTitle}" Command="{Binding SelectTabCommand}" CommandParameter="Planets"
-                            TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
-                    <Button Grid.Column="1" Text="{Binding ShipsTabTitle}" Command="{Binding SelectTabCommand}" CommandParameter="Ships"
-                            TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
-                    <Button Grid.Column="2" Text="{Binding MultiToolsTabTitle}" Command="{Binding SelectTabCommand}" CommandParameter="MultiTools"
-                            TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
-                </Grid>
-            </Border>
-            <VerticalStackLayout IsVisible="{Binding IsPlanetsTabSelected}" Spacing="10">
-                <Label Text="Planets &amp; moons" Style="{StaticResource ThemeSectionHeaderStyle}" />
-                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Bodies}">
-                <BindableLayout.ItemTemplate>
-                    <DataTemplate x:DataType="vm:SystemBodyItemViewModel">
-                        <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12" Margin="0,0,0,8">
-                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                                <BoxView Grid.Column="0" WidthRequest="10" HeightRequest="10" CornerRadius="5" Color="{Binding SwatchColor}" VerticalOptions="Center" Margin="0,0,8,0" />
-                                <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                    <Label Text="{Binding Name}" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" />
-                                    <Label Text="{Binding PrimaryLine}" Style="{StaticResource ThemeBodyTextStyle}" TextColor="{DynamicResource ThemeTextDimColor}" FontSize="13" />
-                                    <Label Text="{Binding SecondaryLine}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" />
-                                </VerticalStackLayout>
-                                <Button Grid.Column="2" Text="{Binding CopyButtonLabel}" SemanticProperties.Description="{Binding Name, StringFormat='Copy portal address for {0}'}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=CopyBodyPortalCodeCommand}"
-                                        CommandParameter="{Binding .}" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" WidthRequest="110" />
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
                 </VerticalStackLayout>
-            </VerticalStackLayout>
-            <VerticalStackLayout IsVisible="{Binding IsShipsTabSelected}" Spacing="10">
-                <Label Text="Starships" Style="{StaticResource ThemeSectionHeaderStyle}" />
-                <Label Text="{Binding ShipRulesSummary}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
-                <FlexLayout BindableLayout.ItemsSource="{Binding ShipFilterOptions}" Wrap="Wrap">
+                <VerticalStackLayout IsVisible="{Binding IsShipsTabSelected}" Spacing="10">
+                    <Label Text="Starships" Style="{StaticResource ThemeSectionHeaderStyle}" />
+                    <Label Text="{Binding ShipRulesSummary}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
+                    <FlexLayout BindableLayout.ItemsSource="{Binding ShipFilterOptions}" Wrap="Wrap">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ShipFilterPillViewModel">
+                                <Button Text="{Binding Label}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=SelectShipFilterCommand}"
+                                        CommandParameter="{Binding .}" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="12" Padding="8,6" Margin="0,0,6,6">
+                                    <Button.Triggers>
+                                        <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
+                                            <Setter Property="BackgroundColor" Value="{DynamicResource ThemeAccentColor}" />
+                                            <Setter Property="TextColor" Value="{DynamicResource ThemeOnAccentColor}" />
+                                        </DataTrigger>
+                                    </Button.Triggers>
+                                </Button>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </FlexLayout>
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding FilteredShips}">
                     <BindableLayout.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ShipFilterPillViewModel">
-                            <Button Text="{Binding Label}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=SelectShipFilterCommand}"
-                                    CommandParameter="{Binding .}" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="12" Padding="8,6" Margin="0,0,6,6">
-                                <Button.Triggers>
-                                    <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
-                                        <Setter Property="BackgroundColor" Value="{DynamicResource ThemeAccentColor}" />
-                                        <Setter Property="TextColor" Value="{DynamicResource ThemeOnAccentColor}" />
-                                    </DataTrigger>
-                                </Button.Triggers>
-                            </Button>
+                        <DataTemplate x:DataType="vm:SystemShipItemViewModel">
+                            <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                    <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                                        <Label Text="{Binding IndexLabel}" FontAttributes="Bold" TextColor="{DynamicResource ThemeAccentColor}" FontSize="14" />
+                                        <Label Text="{Binding TypeLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" />
+                                    </VerticalStackLayout>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                        <Label Text="{Binding Name}" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" />
+                                        <Label Text="{Binding StatsLine}" Style="{StaticResource ThemeBodyTextStyle}" TextColor="{DynamicResource ThemeTextDimColor}" FontSize="13" />
+                                        <Label Text="{Binding SlotsLine}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" />
+                                    </VerticalStackLayout>
+                                    <Button Grid.Column="2" Text="{Binding CopyLabel}" SemanticProperties.Description="{Binding Name, StringFormat='Copy seed for {0}'}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=CopyShipSeedCommand}"
+                                            CommandParameter="{Binding .}" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" WidthRequest="110" />
+                                </Grid>
+                            </Border>
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
-                </FlexLayout>
-                <VerticalStackLayout BindableLayout.ItemsSource="{Binding FilteredShips}">
-                <BindableLayout.ItemTemplate>
-                    <DataTemplate x:DataType="vm:SystemShipItemViewModel">
-                        <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12" Margin="0,0,0,8">
-                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                                <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
-                                    <Label Text="{Binding IndexLabel}" FontAttributes="Bold" TextColor="{DynamicResource ThemeAccentColor}" FontSize="14" />
-                                    <Label Text="{Binding TypeLabel}" Style="{StaticResource ThemeDimTextStyle}" FontSize="11" />
-                                </VerticalStackLayout>
-                                <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                    <Label Text="{Binding Name}" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" />
-                                    <Label Text="{Binding StatsLine}" Style="{StaticResource ThemeBodyTextStyle}" TextColor="{DynamicResource ThemeTextDimColor}" FontSize="13" />
-                                    <Label Text="{Binding SlotsLine}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" />
-                                </VerticalStackLayout>
-                                <Button Grid.Column="2" Text="{Binding CopyLabel}" SemanticProperties.Description="{Binding Name, StringFormat='Copy seed for {0}'}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=CopyShipSeedCommand}"
-                                        CommandParameter="{Binding .}" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" WidthRequest="110" />
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+                <VerticalStackLayout IsVisible="{Binding IsMultiToolsTabSelected}" Spacing="10">
+                    <Label Text="{Binding MultiToolOddsSummary}" Style="{StaticResource ThemeSectionHeaderStyle}" />
+                    <Label Text="{Binding MultiToolExplanation}" Style="{StaticResource ThemeBodyTextStyle}" />
                 </VerticalStackLayout>
             </VerticalStackLayout>
-            <VerticalStackLayout IsVisible="{Binding IsMultiToolsTabSelected}" Spacing="10">
-                <Label Text="{Binding MultiToolOddsSummary}" Style="{StaticResource ThemeSectionHeaderStyle}" />
-                <Label Text="{Binding MultiToolExplanation}" Style="{StaticResource ThemeBodyTextStyle}" />
-            </VerticalStackLayout>
-        </VerticalStackLayout>
-    </ScrollView>
-    <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" Color="{DynamicResource ThemeAccentColor}" HorizontalOptions="Center" VerticalOptions="Center" />
+        </ScrollView>
+        <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" Color="{DynamicResource ThemeAccentColor}" HorizontalOptions="Center" VerticalOptions="Center" />
+        </Grid>
     </Grid>
 </ContentPage>

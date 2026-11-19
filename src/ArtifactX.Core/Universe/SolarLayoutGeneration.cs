@@ -41,20 +41,11 @@ public static class SolarLayoutGeneration
         int primary = attributes.PlanetCount;
         int count = primary + attributes.PrimePlanetCount;
         if (count is < 1 or > 8 || primary < 0 || bodies.Hosts.Length < count) return null;
-        var sizes = new int[count];
+        int[] sizes = bodies.SizeClasses(attributes, count);
+        if (sizes.Contains(-1)) return null;
         var hosts = new int[count];
-        int sizeIndex = 0;
         for (int i = 0; i < count; i++)
-        {
             hosts[i] = bodies.Hosts[i] > 0 ? bodies.Hosts[i] - 1 : -1;
-            if (hosts[i] >= 0) sizes[i] = 3;
-            else if (attributes.GasGiant && i == 0) sizes[i] = 4;
-            else
-            {
-                if (sizeIndex >= bodies.Sizes.Length) return null;
-                sizes[i] = bodies.Sizes[sizeIndex++];
-            }
-        }
         ulong address = ((portalCode >> 32) & 0xFFF) << 40
             | (ulong)(uint)galaxy << 32 | (portalCode & 0xFFFFFFFF);
         var centers = Centers(address, sizes, hosts, primary, tables, placeMoons);

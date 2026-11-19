@@ -83,12 +83,12 @@ public static class PlanetGenerator
         // Body classes as the game keeps them: size 0-2, 3 moon, 4 giant; parent of a moon.
         var cls = new int[total];
         var parent = new int[total];
-        int size = 0;
+        int[] sizeClasses = bodies.SizeClasses(attributes, total);
         for (int i = 0; i < total; i++)
         {
             int host = i < bodies.Hosts.Length ? bodies.Hosts[i] : 0;
             parent[i] = host > 0 ? host - 1 : -1;
-            cls[i] = host > 0 ? 3 : attributes.GasGiant && i == 0 ? 4 : size < bodies.Sizes.Length ? bodies.Sizes[size++] : 0;
+            cls[i] = Math.Max(sizeClasses[i], 0);
         }
 
         ulong address = ((portalCode >> 32) & 0xFFF) << 40 | (ulong)(galaxy & 0xFF) << 32 | (portalCode & 0xFFFFFFFF);

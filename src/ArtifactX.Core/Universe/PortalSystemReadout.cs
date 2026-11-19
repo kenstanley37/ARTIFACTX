@@ -210,7 +210,7 @@ public sealed record PortalSystemReadout(
         int totalBodies = bodies.PlanetSeeds.Length;
         string[] rawNames = Array.ConvertAll(bodies.PlanetSeeds, SystemGenerator.PlanetName);
         var bodyList = new List<GeneratedSystemBody>(totalBodies);
-        int sizeCursor = 0;
+        int[] sizeClasses = bodies.SizeClasses(attrs, totalBodies);
         int planetNumber = 0;
 
         for (int i = 0; i < totalBodies; i++)
@@ -222,23 +222,17 @@ public sealed record PortalSystemReadout(
             int hostIndex = i < bodies.Hosts.Length ? bodies.Hosts[i] : 0;
             string hostName = hostIndex >= 1 && hostIndex <= rawNames.Length ? rawNames[hostIndex - 1] : $"Planet {hostIndex}";
 
-            int rawSize = isMoon
-                ? 3
-                : attrs.GasGiantPlanet && i == 0
-                    ? 4
-                    : sizeCursor < bodies.Sizes.Length
-                        ? bodies.Sizes[sizeCursor++]
-                        : 1;
-
             if (!isMoon) planetNumber++;
 
-            string sizeLabel = rawSize switch
+            // Size 4 is a true gas giant only with the GasGiantPlanet roll; otherwise an ordinary-biome Giant.
+            string sizeLabel = sizeClasses[i] switch
             {
-                4 => "Gas Giant",
+                4 => attrs.GasGiantPlanet ? "Gas Giant" : "Giant",
                 3 => "Moon",
                 0 => "Large",
                 1 => "Medium",
-                _ => "Small",
+                2 => "Small",
+                _ => "Unknown size",
             };
 
             bool hasRings = !isMoon && PlanetRings.HasRings(codeValue, galaxy0, bodyIndex);
@@ -250,7 +244,9 @@ public sealed record PortalSystemReadout(
             const string swatchHex = "#5CE1E6";
             string primaryLine = isMoon ? $"Moon of {hostName}" : $"Planet {planetNumber} \u00b7 {sizeLabel}";
             if (hasRings) primaryLine += " \u00b7 Planetary rings";
-            string secondaryLine = $"Portal address {bodyPortalCode}";
+            // The body's own address is shown as glyphs (players dial glyphs, not hex - owner 2026-11-18); nothing more
+            // to say here yet.
+            string secondaryLine = "";
 
             bodyList.Add(new GeneratedSystemBody(
                 bodyIndex,

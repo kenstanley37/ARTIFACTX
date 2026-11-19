@@ -98,3 +98,5 @@ __pycache__/
 docs/mockups/recipe-preview.local/
 # Generated, build-stamped recognition statistics; never commit local game-derived data.
 src/ArtifactX.Maui/Resources/Raw/portal-glyph-model.json
+# Generated, build-stamped game rules for the mobile app (numbers and text from the player's install); never commit.
+src/ArtifactX.Maui/Resources/Raw/game-rules.json.gz

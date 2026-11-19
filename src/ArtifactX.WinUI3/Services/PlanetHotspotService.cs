@@ -4,10 +4,8 @@ using ArtifactX.Core.Universe;
 using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -21,34 +19,6 @@ public static class PlanetHotspotService
 {
     private static ExtractionWorldTables? _tables;
     private static readonly object Lock = new();
-
-    private static readonly Dictionary<string, string> FallbackResourceNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["POWER"] = "Electromagnetic Power",
-        ["LUSH1"] = "Paraffinium",
-        ["TOXIC1"] = "Ammonia",
-        ["HOT1"] = "Phosphorus",
-        ["RADIO1"] = "Uranium",
-        ["COLD1"] = "Dioxite",
-        ["DUST1"] = "Pyrite",
-        ["YELLOW2"] = "Copper",
-        ["RED2"] = "Cadmium",
-        ["GREEN2"] = "Emeril",
-        ["BLUE2"] = "Indium",
-        ["ASTEROID1"] = "Silver",
-        ["ASTEROID2"] = "Gold",
-        ["ASTEROID3"] = "Platinum",
-        ["WATER1"] = "Salt",
-        ["OXYGEN"] = "Oxygen",
-        ["GAS1"] = "Sulphurine",
-        ["GAS2"] = "Radon",
-        ["GAS3"] = "Nitrogen",
-        ["GAS4"] = "Methane",
-        ["CATALYST1"] = "Sodium",
-        ["CAVE1"] = "Cobalt",
-        ["MAGNET"] = "Magnetised Ferrite",
-        ["LAND3"] = "Magnetised Ferrite",
-    };
 
     /// <summary>Loads extraction and profile tables from the game catalog.</summary>
     public static async Task<ExtractionWorldTables?> GetTablesAsync()
@@ -96,9 +66,8 @@ public static class PlanetHotspotService
     }
 
     /// <summary>
-    /// Predicts and returns hotspots around a specific latitude and longitude on the given planet.
-    /// Evaluates the 4 surrounding poles (and optional neighboring rings) to discover all Power, Mineral,
-    /// and Gas hotspots within analysis/survey range.
+    /// Predicts the hotspots around a point on a planet and the base computer spots that reach them, near the point and
+    /// near the portal (HotspotPlanner, shared with the mobile app). Resource names are the catalog's.
     /// </summary>
     public static async Task<PlanetHotspotData> GetHotspotDataAsync(
         ulong planetAddress,
@@ -109,227 +78,12 @@ public static class PlanetHotspotService
         double? portalLon = null)
     {
         var tables = await GetTablesAsync();
-        if (tables == null) return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
-
+        if (tables == null) return PlanetHotspotData.Empty;
         var itemNames = await CatalogService.GetItemNamesAsync();
-
-        return await Task.Run(() =>
-        {
-            int planet = (int)((planetAddress >> 52) & 15);
-            int galaxy = NmsSpaceStationPaths.GalaxyNumber(planetAddress) - 1;
-            if (planet <= 0) return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
-
-            ulong portalCode;
-            try
-            {
-                portalCode = ulong.Parse(NmsSpaceStationPaths.PortalAddress(planetAddress, planet), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-            }
-            catch
-            {
-                return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
-            }
-
-            var types = PlanetGenerator.Generate(portalCode, galaxy, tables.Biomes);
-            var bodies = SystemGenerator.Bodies(portalCode, galaxy);
-            int index = planet - 1;
-            if (index < 0 || index >= types.Length || index >= bodies.PlanetSeeds.Length)
-                return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
-
-            // No surface (a true gas giant) or an unmeasured size: no hotspots rather than a guessed radius.
-            if (PlanetBuildingSites.SurfaceRadius(types[index].BodyClass, types[index].Biome) is not { } radius)
-                return new PlanetHotspotData(Array.Empty<PlanetHotspot>(), Array.Empty<PlanetHotspotCluster>());
-            var system = SystemGenerator.Attributes(portalCode, galaxy);
-            var body = types[index];
-            var profile = PlanetProfileGenerator.Generate(bodies.PlanetSeeds[index], index, body, (int)system.Star,
-                PlanetGenerator.GalaxyType(galaxy), system.GasGiantPlanet, tables.Profiles with { Objects = null }, system.Uncharted, system.Abandoned);
-            var resources = tables.Extraction.ResourcesFor(profile, body.Biome);
-
-            var terrainTables = tables.Profiles.Objects?.Terrain;
-            var choice = terrainTables is null ? null : PlanetProfileGenerator.TerrainChoiceFor(bodies.PlanetSeeds[index], body, (int)system.Star, tables.Profiles);
-            var terrain = choice is null || choice.SettingIndex >= terrainTables!.Settings.Length ? null
-                : PlanetTerrain.Generate(bodies.PlanetSeeds[index], terrainTables.Settings[choice.SettingIndex], choice, terrainTables.SeaStandard,
-                    body.BodyClass == 3, body.DeadToWeird);
-
-            // Compute target 3D point from center (latitude, longitude)
-            double latRad = centerLat * Math.PI / 180.0;
-            double lonRad = centerLon * Math.PI / 180.0;
-            Vector3 targetDir = new(
-                (float)(Math.Cos(latRad) * Math.Sin(lonRad)),
-                (float)Math.Sin(latRad),
-                (float)(Math.Cos(latRad) * Math.Cos(lonRad))
-            );
-            Vector3 targetPoint = targetDir * radius;
-
-            Vector3? portalDir = null;
-            if (portalLat.HasValue && portalLon.HasValue)
-            {
-                double pLatRad = portalLat.Value * Math.PI / 180.0;
-                double pLonRad = portalLon.Value * Math.PI / 180.0;
-                portalDir = new Vector3(
-                    (float)(Math.Cos(pLatRad) * Math.Sin(pLonRad)),
-                    (float)Math.Sin(pLatRad),
-                    (float)(Math.Cos(pLatRad) * Math.Cos(pLonRad))
-                );
-            }
-
-            var categories = tables.Extraction.Hotspots.Select(h => h.Parameters).ToArray();
-            var candidates = new List<HotspotCandidate>();
-
-            Gather(targetPoint);
-            // Base spots near the portal need the hotspots around the portal, wherever the reference point is.
-            if (portalDir is { } portalAround) Gather(portalAround * radius);
-
-            void Gather(Vector3 point)
-            {
-                // 1. Immediate neighborhood (4 surrounding poles)
-                candidates.AddRange(HotspotNeighborhood.Around(planetAddress, point, radius, tables.Extraction.Rules, categories));
-
-                // 2. If expandSearch requested, query adjacent poles for a ~3-5km coverage area
-                if (expandSearch)
-                {
-                    var angles = HotspotOrientation.Inverse(HotspotOrientation.Direction(planetAddress), point);
-                    int divisions = (int)(radius * MathF.PI / tables.Extraction.Rules.Spacing + 0.5f);
-                    int latitude = (int)(divisions * angles.Latitude / MathF.PI);
-                    float circumference = radius * 6.2831855f;
-
-                    int[] poleLatitudes = { latitude - 1, latitude + 2 };
-                    foreach (int pLat in poleLatitudes)
-                    {
-                        if (pLat < 0 || pLat > divisions) continue;
-                        float ring = GameTrig.Sin(pLat * MathF.PI / divisions) * circumference;
-                        if (ring <= 0) continue;
-
-                        int maxB = (int)(ring / tables.Extraction.Rules.Spacing);
-                        if (maxB <= 0) continue;
-
-                        float scaled = ring * angles.Longitude / 6.2831855f / tables.Extraction.Rules.Spacing;
-                        int baseB = (int)scaled;
-
-                        for (int bOffset = -1; bOffset <= 2; bOffset++)
-                        {
-                            int pLon = (baseB + bOffset) % maxB;
-                            if (pLon < 0) pLon += maxB;
-                            candidates.AddRange(HotspotPole.Generate(planetAddress, radius, pLat, pLon, tables.Extraction.Rules, categories));
-                        }
-                    }
-                }
-            }
-
-            // Deduplicate candidates by spatial proximity
-            var unique = new List<HotspotCandidate>();
-            foreach (var c in candidates)
-            {
-                if (!unique.Any(u => Vector3.DistanceSquared(u.Direction, c.Direction) < 0.0000001f))
-                {
-                    unique.Add(c);
-                }
-            }
-
-            // Map candidates to PlanetHotspot records
-            var results = new List<PlanetHotspot>(unique.Count);
-            foreach (var c in unique)
-            {
-                double cLat = Math.Asin(Math.Clamp(c.Direction.Y, -1f, 1f)) * (180.0 / Math.PI);
-                double cLon = Math.Atan2(c.Direction.X, c.Direction.Z) * (180.0 / Math.PI);
-
-                double distanceMeters = PlanetHotspotCluster.GroundDistance(targetDir, c.Direction, radius);
-
-                string kind = c.Attributes.Flag == 1 ? "Power" : (c.Attributes.Flag & 14) != 0 ? "Mineral" : "Gas";
-                string resourceId = c.Attributes.Flag == 1 ? "POWER" : tables.Extraction.ResourceForFlag(resources, c.Attributes.Flag);
-                if (string.IsNullOrEmpty(resourceId)) resourceId = "UNKNOWN";
-
-                string resourceName = itemNames.TryGetValue(resourceId, out var catalogName) && !string.IsNullOrWhiteSpace(catalogName)
-                    ? catalogName
-                    : FallbackResourceNames.TryGetValue(resourceId, out var fallback) ? fallback : resourceId;
-
-                string grade = c.Attributes.Class switch
-                {
-                    3 => "S",
-                    2 => "A",
-                    1 => "B",
-                    _ => "C"
-                };
-
-                int yieldPercent = c.Attributes.Class switch
-                {
-                    3 => 100,
-                    2 => 80,
-                    1 => 60,
-                    _ => 40
-                };
-
-                string distanceLabel = distanceMeters < 1000
-                    ? $"{Math.Round(distanceMeters)}u away"
-                    : $"{distanceMeters / 1000.0:F1} km away";
-
-                double? portalDistance = null;
-                string? portalDistanceLabel = null;
-                if (portalDir.HasValue)
-                {
-                    double pDist = PlanetHotspotCluster.GroundDistance(portalDir.Value, c.Direction, radius);
-                    portalDistance = pDist;
-                    portalDistanceLabel = pDist < 1000
-                        ? $"{Math.Round(pDist)}u from portal"
-                        : $"{pDist / 1000.0:F1} km from portal";
-                }
-
-                ulong candidateKey = (ulong)c.Attributes.FinalSeed
-                    ^ ((ulong)Math.Round(Math.Abs(cLat) * 1000) << 32)
-                    ^ (ulong)Math.Round(Math.Abs(cLon) * 1000);
-
-                float h = terrain != null ? PlanetTerrain.SurfaceHeight(terrain, c.Direction.X * radius, c.Direction.Y * radius, c.Direction.Z * radius, radius) : 0f;
-                float surfaceRadius = radius + h;
-                Vector3 localPos = c.Direction * surfaceRadius;
-
-                results.Add(new PlanetHotspot(
-                    PlanetAddress: planetAddress,
-                    Kind: kind,
-                    ResourceId: resourceId,
-                    ResourceName: resourceName,
-                    Class: grade,
-                    ClassGrade: c.Attributes.Class,
-                    Strength: c.Attributes.Strength,
-                    YieldPercent: yieldPercent,
-                    Range: c.Attributes.Range,
-                    Latitude: cLat,
-                    Longitude: cLon,
-                    Coordinates: NmsPlanetCoordinates.Format(cLat, cLon),
-                    Distance: distanceMeters,
-                    DistanceLabel: distanceLabel,
-                    PortalDistance: portalDistance,
-                    PortalDistanceLabel: portalDistanceLabel,
-                    CandidateKey: candidateKey,
-                    LocalPosition: localPos
-                ));
-            }
-
-            // Sort nearest first
-            var sorted = (IReadOnlyList<PlanetHotspot>)results.OrderBy(r => r.Distance).ToList();
-            // A new base's boundary from the catalog (format 105); older catalogs keep the earlier 375 for combos.
-            float? reach = tables.Extraction.PlanetBaseRadius;
-            var clusters = PlanetHotspotCluster.Find(sorted, maxBaseRadius: reach ?? 375.0, maxSpan: 2 * (reach ?? 325.0),
-                portalLat, portalLon, terrain, radius);
-            IReadOnlyList<PlanetHotspotCluster> portalSites = Array.Empty<PlanetHotspotCluster>();
-            string? portalNote = null;
-            if (portalDir is { } toPortal)
-            {
-                if (reach is not { } baseReach)
-                    portalNote = "Update your game data (Settings) to find base spots near the portal.";
-                else
-                {
-                    portalSites = PortalBaseSites.Find(sorted, toPortal, baseReach, radius, terrain);
-                    if (portalSites.Count == 0)
-                        portalNote = PortalBaseSites.NearestPower(sorted, toPortal, radius) is { } power
-                            ? $"No hotspot is close enough to the portal for one base (a base reaches {baseReach:0}u from its computer). "
-                              + $"The nearest power hotspot is {FormatDistance(power.Distance)} from the portal, at {power.Hotspot.Coordinates}."
-                            : $"No hotspot is close enough to the portal for one base (a base reaches {baseReach:0}u from its computer).";
-                }
-            }
-            return new PlanetHotspotData(sorted, clusters, portalSites, portalNote, reach ?? 375f);
-        });
+        return await Task.Run(() => HotspotPlanner.Plan(planetAddress, centerLat, centerLon, tables,
+            id => itemNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : null,
+            expandSearch, portalLat, portalLon));
     }
-
-    private static string FormatDistance(double metres) => metres < 1000 ? $"{Math.Round(metres)}u" : $"{metres / 1000.0:F1} km";
 
     /// <summary>
     /// Predicts and returns hotspots around a specific latitude and longitude on the given planet.
@@ -358,13 +112,3 @@ public static class PlanetHotspotService
         double? portalLon = null) =>
         PlanetHotspotCluster.Find(hotspots, maxBaseRadius, maxSpan, portalLat, portalLon);
 }
-
-/// <summary>Predicted hotspots, multi-hotspot base clusters, and base spots that also reach the portal (#63) with a
-/// note when there are none (or the catalog predates the base radius).</summary>
-public sealed record PlanetHotspotData(
-    IReadOnlyList<PlanetHotspot> Hotspots,
-    IReadOnlyList<PlanetHotspotCluster> Clusters,
-    IReadOnlyList<PlanetHotspotCluster>? PortalSites = null,
-    string? PortalNote = null,
-    float BaseReach = 375f);
-
