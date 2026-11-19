@@ -43,6 +43,7 @@ public sealed partial class FrigatePage : Page
         if (!SaveSessionManager.IsSaveLoaded) return;
         await ViewModel.LoadAsync();
         ShowSeeds();
+        BringSelectedIntoView();
     }
 
     private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = LoadAsync());
@@ -86,6 +87,25 @@ public sealed partial class FrigatePage : Page
         if ((sender as FrameworkElement)?.DataContext is not FrigateCardViewModel card) return;
         ViewModel.Select(card.Index);
         ShowSeeds();
+    }
+
+    private void FleetToggle_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ToggleFleet();
+        BringSelectedIntoView();
+    }
+
+    /// <summary>In one-row view, scroll the selected frigate's card into sight.</summary>
+    private void BringSelectedIntoView()
+    {
+        if (!ViewModel.FleetCollapsed) return;
+        int position = -1;
+        for (int i = 0; i < ViewModel.Cards.Count; i++) if (ViewModel.Cards[i].IsSelected) { position = i; break; }
+        if (position < 0) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (FleetRowItems.ContainerFromIndex(position) is UIElement card) card.StartBringIntoView();
+        });
     }
 
     private void Name_LostFocus(object sender, RoutedEventArgs e) => ViewModel.CommitName();

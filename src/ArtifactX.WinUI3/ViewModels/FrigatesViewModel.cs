@@ -65,6 +65,22 @@ public sealed partial class FrigatesViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<FrigateTraitSlotViewModel> Traits { get; private set; } = [];
     [ObservableProperty] public partial bool HasEdits { get; private set; }
 
+    private const string FleetCollapsedKey = "FrigateFleetOneRow";
+
+    /// <summary>The fleet shows as one row that scrolls sideways (remembered).</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(FleetExpanded), nameof(FleetToggleLabel), nameof(FleetToggleName))]
+    public partial bool FleetCollapsed { get; private set; } = SettingsStore.Get(SettingsStore.Scope.Profile, FleetCollapsedKey) == "1";
+
+    public bool FleetExpanded => !FleetCollapsed;
+    public string FleetToggleLabel => FleetCollapsed ? "Show all" : "One row";
+    public string FleetToggleName => FleetCollapsed ? "Show every frigate in rows" : "Show the fleet as one row";
+
+    public void ToggleFleet()
+    {
+        FleetCollapsed = !FleetCollapsed;
+        SettingsStore.Set(SettingsStore.Scope.Profile, FleetCollapsedKey, FleetCollapsed ? "1" : "0");
+    }
+
     public bool NoFreighter => !HasFreighter;
     partial void OnHasFreighterChanged(bool value) => OnPropertyChanged(nameof(NoFreighter));
 
