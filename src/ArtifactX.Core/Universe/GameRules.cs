@@ -19,8 +19,9 @@ namespace ArtifactX.Core.Universe;
 /// </summary>
 public sealed class GameRules
 {
-    /// <summary>This file's layout; a phone refuses a newer one rather than misread it.</summary>
-    public const int CurrentFormat = 1;
+    /// <summary>This file's layout; a phone refuses a newer one rather than misread it. 2 (2026-11-18): recipes, item
+    /// values and the EGGSEQUENCER row.</summary>
+    public const int CurrentFormat = 2;
 
     public int Format { get; init; } = CurrentFormat;
 
@@ -41,6 +42,13 @@ public sealed class GameRules
     /// <summary>Products' and substances' display names by game id, as the catalog has them.</summary>
     public Dictionary<string, string> ItemNames { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Every refiner and cooking recipe (the catalog's "Recipes" rows), as the recipe planner takes them.</summary>
+    public List<Recipes.RequirementRecipe> Recipes { get; init; } = [];
+
+    /// <summary>Products' and substances' base values by game id (the catalog's "ItemValues" rows): the Egg
+    /// Sequencer's doses are worked out from them.</summary>
+    public Dictionary<string, ItemBaseValue> ItemValues { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
     // Parsed tables, once each (PLANETPROFILE alone is ~650 KB of JSON).
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, object?> _parsed = new(StringComparer.OrdinalIgnoreCase);
 
@@ -56,6 +64,8 @@ public sealed class GameRules
     public StationEquipmentTables? Stations => Row<StationEquipmentTables>("STATIONEQUIPMENT");
     public BuildingOverrideRule[]? BuildingOverrides => Row<BuildingOverrideRule[]>("BUILDINGOVERRIDES");
     public Recipes.ExtractionTables? Extraction => Row<Recipes.ExtractionTables>("EXTRACTIONTABLES");
+    public Recipes.FoodIngestorTables? Food => Row<Recipes.FoodIngestorTables>("FOODINGESTOR");
+    public Companions.EggSequencerRules? EggSequencer => Row<Companions.EggSequencerRules>("EGGSEQUENCER");
 
     /// <summary>Writes the file: gzip-compressed JSON (about a tenth of the raw ~2 MB).</summary>
     public void Write(Stream output)
@@ -82,6 +92,11 @@ public sealed class GameRules
             ExportedUtc = rules.ExportedUtc,
             Rows = new(rules.Rows, StringComparer.OrdinalIgnoreCase),
             ItemNames = new(rules.ItemNames, StringComparer.OrdinalIgnoreCase),
+            Recipes = rules.Recipes,
+            ItemValues = new(rules.ItemValues, StringComparer.OrdinalIgnoreCase),
         };
     }
 }
+
+/// <summary>An item's base value (GcProductData/GcRealitySubstanceData BaseValue) and whether it is a substance.</summary>
+public sealed record ItemBaseValue(long Value, bool IsSubstance);

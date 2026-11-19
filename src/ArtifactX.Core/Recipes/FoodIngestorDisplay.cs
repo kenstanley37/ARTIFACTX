@@ -49,4 +49,33 @@ public static class FoodIngestorDisplay
     /// <summary>"+65%", "-30%", or null (see Amount).</summary>
     public static string? Text(int stat, float bonus) =>
         Amount(stat, bonus) is int amount ? $"{(amount > 0 ? "+" : "")}{amount:N0}%" : null;
+
+    /// <summary>The plain name of a food's Ingestor effect ("Cold resistance", "Mining speed").</summary>
+    public static string EffectName(string effect) => effect switch
+    {
+        "Weapon_Scan_Discovery_Creature" => "Fauna analysis rewards", "Weapon_Scan_Discovery_Flora" => "Flora analysis rewards",
+        "Weapon_Scan_Discovery_Mineral" => "Mineral analysis rewards", "Weapon_Laser_MiningBonus" => "Resources mined",
+        "Weapon_Laser_Mining_Speed" => "Mining speed", "Suit_Protection" => "Hazard protection battery",
+        "Suit_Armour_Shield_Strength" => "Shield strength", "Suit_Energy" => "Life support tanks",
+        "Suit_Energy_Regen" => "Solar panel power",
+        "Suit_Stamina_Strength" => "Sprint distance", "Suit_Stamina_Recovery" => "Sprint recovery time",
+        "Suit_Jetpack_Tank" => "Jetpack tanks", "Suit_AutoTranslator" => "Words translated",
+        "Suit_Protection_WaterDrain" => "Breathing efficiency", "Suit_Protection_Cold" => "Cold resistance",
+        "Suit_Protection_Heat" => "Heat resistance", "Suit_Protection_Toxic" => "Toxic resistance",
+        "Suit_Protection_Radiation" => "Radiation resistance", "Weapon_Scan_Recharge_Time" => "Recharge time",
+        "Suit_Protection_HeatDrain" => "Heat resistance", "Suit_Protection_ColdDrain" => "Cold resistance",
+        "Suit_Protection_ToxDrain" => "Toxic resistance", "Suit_Protection_RadDrain" => "Radiation resistance",
+        _ => "Other Ingestor effect"
+    };
+
+    /// <summary>A food's Ingestor line: "+65% Cold resistance · 2:30 per item". Stats whose amount depends on the
+    /// player's equipment show the effect alone ("Boosts shield strength") rather than a made-up number;
+    /// <paramref name="baseDuration"/> is FoodIngestorTables.BaseDuration (seconds, times the food's cooking value).</summary>
+    public static string Summary(FoodIngestorDefinition food, float bonus, float baseDuration)
+    {
+        double seconds = Math.Max(0, baseDuration * food.CookingValue);
+        string effect = Text(food.Stat, bonus) is { } amount
+            ? $"{amount} {EffectName(food.Effect)}" : $"Boosts {EffectName(food.Effect).ToLowerInvariant()}";
+        return $"{effect} · {TimeSpan.FromSeconds(seconds):m\\:ss} per item";
+    }
 }

@@ -9,12 +9,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ArtifactX.WinUI3.ViewModels;
 
-/// <summary>A choice in the Egg Sequencer page's effect filter.</summary>
-public sealed record EggFilterOption(string Label, Func<EggCatalystRowViewModel, bool> Matches)
-{
-    public override string ToString() => Label;
-}
-
 /// <summary>An egg to sequence, or none (Egg null, Slot -1); Slot is its place in the save's egg array.</summary>
 public sealed record EggChoice(string Label, EggCreature? Egg, int Slot = -1)
 {
@@ -34,7 +28,7 @@ public sealed record EggPreviewLook(string Rig, IReadOnlyList<string> Parts, ulo
 public sealed partial class EggSequencerViewModel : ObservableObject
 {
     private EggSequencerRules? _rules;
-    private List<(ItemValueInfo Item, EggCatalystEffect Effect)> _items = [];
+    private List<EggCatalyst> _items = [];
     private List<EggCatalystRowViewModel> _slotRows = [];
     private Dictionary<string, long> _owned = new(StringComparer.OrdinalIgnoreCase);
 
@@ -42,8 +36,8 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     public ObservableCollection<EggCatalystRowViewModel> Items { get; } = [];
 
     [ObservableProperty] public partial EggSlotViewModel? SelectedSlot { get; private set; }
-    [ObservableProperty] public partial IReadOnlyList<EggFilterOption> FilterOptions { get; private set; } = [];
-    [ObservableProperty] public partial EggFilterOption? Filter { get; set; }
+    [ObservableProperty] public partial IReadOnlyList<EggCatalystFilter> FilterOptions { get; private set; } = [];
+    [ObservableProperty] public partial EggCatalystFilter? Filter { get; set; }
     [ObservableProperty] public partial string SearchText { get; set; } = "";
     [ObservableProperty] public partial string Message { get; private set; } = "Loading the Egg Sequencer rules...";
     [ObservableProperty] public partial string Title { get; private set; } = "";
@@ -93,12 +87,9 @@ public sealed partial class EggSequencerViewModel : ObservableObject
         _rules = rules;
         var full = values.FirstOrDefault(v => string.Equals(v.Id, rules.FullDoseProductId, StringComparison.OrdinalIgnoreCase));
         long fullDose = full?.Value ?? 0;
-        var ingredients = rules.Ingredients.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        _items = await Task.Run(() => values
-            .Where(v => v.Kind is "Product" or "Substance" && ingredients.Contains(v.Id))
-            .Select(v => (v, EggSequencer.Effect(v.Id, v.Kind == "Substance", v.Value, fullDose, rules)))
-            .ToList());
-        await CatalogService.WarmCacheAsync(_items.Select(i => i.Item.Id));
+        _items = await Task.Run(() => EggSequencer.Catalysts(rules, values.Where(v => v.Kind is "Product" or "Substance")
+            .Select(v => (v.Id, v.Name, v.Kind == "Substance", v.Value)), fullDose));
+        await CatalogService.WarmCacheAsync(_items.Select(i => i.Id));
         _owned = InventoryTotalsService.Count();
         HasSave = _owned.Count > 0;
         OnlyOwned = HasSave;
@@ -106,12 +97,11 @@ public sealed partial class EggSequencerViewModel : ObservableObject
         Title = Text("UI_EGG_MODIFIER_NAME_L");
         CatalystsHeading = Text("UI_EGG_MODIFIER_INPUT_HEADING");
         StatusHeading = Text("UI_EGG_MODIFIER_OUTPUT_HEADING");
-        DoseNote = $"A full dose is {fullDose:N0} units of value, the worth of one {full?.Name ?? rules.FullDoseProductId}. "
-            + $"Raw materials count {rules.SubstanceModifier:0.#} times their value. A slot holds up to {rules.ItemLimit:N0}.";
+        DoseNote = EggSequencerText.DoseNote(rules, fullDose, full?.Name);
         Slots.Clear();
         foreach (var slot in Enum.GetValues<EggCatalystSlot>())
         {
-            var vm = new EggSlotViewModel(slot, rules, fullDose, Text);
+            var vm = new EggSlotViewModel(slot, rules, fullDose);
             vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(EggSlotViewModel.Result)) UpdateLook(); };
             Slots.Add(vm);
         }
@@ -139,8 +129,8 @@ public sealed partial class EggSequencerViewModel : ObservableObject
         if (_rules is null) return;
         foreach (var s in Slots) s.IsSelected = s == slot;
         SelectedSlot = slot;
-        _slotRows = _items.Select(i => new EggCatalystRowViewModel(i.Item.Id, i.Item.Name, i.Item.Kind == "Substance", i.Item.Value,
-                i.Effect, slot.Slot, _rules.ItemLimit, Text, _owned.GetValueOrDefault(i.Item.Id)) { Icon = CatalogService.TryGet(i.Item.Id)?.Icon })
+        _slotRows = _items.Select(i => new EggCatalystRowViewModel(i, slot.Slot, _rules, _owned.GetValueOrDefault(i.Id))
+                { Icon = CatalogService.TryGet(i.Id)?.Icon })
             .ToList();
         FilterOptions = Options(slot.Slot);
         Filter = FilterOptions[0];
@@ -152,7 +142,7 @@ public sealed partial class EggSequencerViewModel : ObservableObject
 
     public void ClearSelectedSlot() => SelectedSlot?.SetItem(null);
 
-    partial void OnFilterChanged(EggFilterOption? value) => Apply();
+    partial void OnFilterChanged(EggCatalystFilter? value) => Apply();
     partial void OnSelectedEggChanged(EggChoice? value)
     {
         foreach (var slot in Slots) slot.SetEgg(value?.Egg);
@@ -218,26 +208,15 @@ public sealed partial class EggSequencerViewModel : ObservableObject
     partial void OnOnlyOwnedChanged(bool value) => Apply();
     partial void OnOnlyFullDoseChanged(bool value) => Apply();
 
-    private IReadOnlyList<EggFilterOption> Options(EggCatalystSlot slot)
-    {
-        var any = new EggFilterOption("Any effect", _ => true);
-        return slot switch
-        {
-            EggCatalystSlot.GrowthHormone =>
-                (EggFilterOption[])[any, new("Makes it bigger", r => r.Effect.Grows), new("Makes it smaller", r => !r.Effect.Grows)],
-            EggCatalystSlot.NeuralCalibrator =>
-                (EggFilterOption[])[any, .. _slotRows.Select(r => r.TraitWord).Distinct().Order()
-                    .Select(word => new EggFilterOption($"Toward {word}", r => r.TraitWord == word))],
-            _ => (EggFilterOption[])[any, new($"Certain with 10 or fewer", r => r.Needed <= 10)],
-        };
-    }
+    private IReadOnlyList<EggCatalystFilter> Options(EggCatalystSlot slot) =>
+        EggSequencerText.Filters(slot, _slotRows.Select(r => r.Label));
 
     private void Apply()
     {
         if (_slotRows.Count == 0) return;
         string text = SearchText.Trim();
         var rows = _slotRows.Where(r => r.HasEffect)
-            .Where(r => Filter?.Matches(r) ?? true)
+            .Where(r => Filter?.Matches(r.Item, r.Label) ?? true)
             .Where(r => text.Length == 0 || r.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
             .Where(r => !OnlyOwned || r.HasOwned)
             // A full dose (100%): with your own items, enough of them; otherwise one a slot can hold enough of.
@@ -253,5 +232,5 @@ public sealed partial class EggSequencerViewModel : ObservableObject
             : $"{rows.Count:N0} items work in the {SelectedSlot?.Name}, fewest needed first. Click one to put it in.";
     }
 
-    private string Text(string key) => _rules?.Texts.TryGetValue(key, out var t) == true && t.Length > 0 ? t : key;
+    private string Text(string key) => _rules is null ? key : EggSequencerText.Text(_rules, key);
 }

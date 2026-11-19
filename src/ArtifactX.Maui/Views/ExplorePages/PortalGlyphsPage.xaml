@@ -31,11 +31,16 @@
                 <Border Style="{StaticResource ThemeCardStyle}" Padding="16" IsEnabled="{Binding CanEdit}">
                     <VerticalStackLayout Spacing="12">
                         <Label Text="Your address" Style="{StaticResource ThemeCardTitleStyle}" />
-                        <Entry Text="{Binding AddressInput}" Placeholder="12-glyph address" MaxLength="12" FontSize="20"
+                        <!-- A code shared as text (spaces or dashes are fine) or signal booster coordinates: room for
+                             "0F2F:0065:077F:0013" and spaced codes, no autocorrect on hex. -->
+                        <Entry Text="{Binding AddressInput}" Placeholder="Code or coordinates" MaxLength="24" FontSize="20"
+                               IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
                                TextColor="{DynamicResource ThemeTextColor}" PlaceholderColor="{DynamicResource ThemeTextDimColor}"
-                               SemanticProperties.Description="Portal address, 12 hexadecimal characters" />
-                        <!-- What is typed, as the glyphs to check against the portal. -->
-                        <controls:GlyphRow Code="{Binding AddressInput}" Caption="Your address" GlyphSize="22" />
+                               SemanticProperties.Description="Portal code of 12 characters, 0 to 9 and A to F, or galactic coordinates" />
+                        <Label Text="Type the 12-character code (0-9 and A-F, spaces are fine), signal booster coordinates like 0F2F:0065:077F:0013, or pick the glyphs below."
+                               Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
+                        <!-- The address as Find system will read it, as the glyphs to check against the portal. -->
+                        <controls:GlyphRow Code="{Binding PreviewCode}" Caption="Your address" GlyphSize="22" />
                         <Button Text="Enter glyphs by hand" Command="{Binding EnterManuallyCommand}"
                                 TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
                         <Label Text="Galaxy" Style="{StaticResource ThemeBodyTextStyle}" />

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:ArtifactX.Maui.Controls"
+    x:Class="ArtifactX.Maui.Controls.TapCard">
+    <!-- The card's look underneath, hidden from screen readers; a see-through button over all of it reads
+         AccessibleName and runs Command, so TalkBack finds a real button (a tap gesture alone isn't one). -->
+    <ContentView.ControlTemplate>
+        <ControlTemplate x:DataType="controls:TapCard">
+            <Grid>
+                <ContentPresenter AutomationProperties.ExcludedWithChildren="True" />
+                <Button Text="" Padding="0" BorderWidth="0" CornerRadius="0" BackgroundColor="Transparent"
+                        HorizontalOptions="Fill" VerticalOptions="Fill"
+                        Command="{Binding Source={RelativeSource TemplatedParent}, Path=Command}"
+                        CommandParameter="{Binding Source={RelativeSource TemplatedParent}, Path=CommandParameter}"
+                        SemanticProperties.Description="{Binding Source={RelativeSource TemplatedParent}, Path=AccessibleName}"
+                        SemanticProperties.Hint="{Binding Source={RelativeSource TemplatedParent}, Path=AccessibleHint}" />
+            </Grid>
+        </ControlTemplate>
+    </ContentView.ControlTemplate>
+</ContentView>

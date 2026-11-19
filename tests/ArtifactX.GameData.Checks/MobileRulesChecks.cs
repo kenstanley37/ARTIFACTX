@@ -1,3 +1,4 @@
+using ArtifactX.Core.Companions;
 using ArtifactX.Core.Recipes;
 using ArtifactX.Core.Universe;
 using ArtifactX.GameData.Services;
@@ -98,7 +99,69 @@ static class MobileRulesChecks
         if (readoutBody?.SizeLabel != "Giant") Fail($"Uwaiimor XIII: phone size label {readoutBody?.SizeLabel ?? "none"}, expected Giant");
         else Console.WriteLine($"Uwaiimor XIII: phone readout says {readoutBody.Name} is a Giant.");
 
-        Console.WriteLine(failures == 0 ? "PASS: the rules file gives the phone the desktop's portals, hotspots and base spots." : $"{failures} failures.");
+        RecipesAndEggs(phone, connection, Desktop<EggSequencerRules>, Fail);
+
+        Console.WriteLine(failures == 0 ? "PASS: the rules file gives the phone the desktop's portals, hotspots, base spots, recipes and egg rules." : $"{failures} failures.");
         if (failures > 0) Environment.ExitCode = 1;
+    }
+
+    /// <summary>The phone's recipes and Egg Sequencer against the desktop's catalog rows: the same recipes and the same
+    /// sequencer items with the same effects; then the shared wording (EggSequencerText) against the owner's in-game
+    /// sequencer screens of 2026-11-04 (as EggSequencerChecks in Core.Checks).</summary>
+    private static void RecipesAndEggs(GameRules phone, SqliteConnection connection, Func<string, EggSequencerRules> desktop,
+        Action<string> fail)
+    {
+        var pcRecipes = 0;
+        var pcValues = new List<(string Id, string Name, bool IsSubstance, long Value)>();
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT c.TemplateType, i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                WHERE c.TemplateType IN ('Recipes', 'ItemValues') AND i.DescriptionEnglish IS NOT NULL
+                """;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                if (reader.GetString(0) == "Recipes") { pcRecipes++; continue; }
+                using var json = JsonDocument.Parse(reader.GetString(2));
+                var root = json.RootElement;
+                if (root.GetProperty("kind").GetString() is "Product" or "Substance")
+                    pcValues.Add((root.GetProperty("id").GetString()!, reader.IsDBNull(1) ? "" : reader.GetString(1),
+                        root.GetProperty("kind").GetString() == "Substance", root.GetProperty("value").GetInt64()));
+            }
+        }
+        if (phone.Recipes.Count != pcRecipes || phone.Recipes.Any(r => r.Ingredients.Count == 0 || r.ResultId.Length == 0))
+            fail($"recipes: phone {phone.Recipes.Count}, catalog {pcRecipes}");
+        if (phone.Food is null) fail("no Nutrient Ingestor table on the phone");
+
+        var pcEgg = desktop("EGGSEQUENCER");
+        if (phone.EggSequencer is not { } egg) { fail("no Egg Sequencer rules on the phone"); return; }
+        long full = phone.ItemValues.GetValueOrDefault(egg.FullDoseProductId)?.Value ?? 0;
+        long pcFull = pcValues.FirstOrDefault(v => v.Id == pcEgg.FullDoseProductId).Value;
+        var pcItems = EggSequencer.Catalysts(pcEgg, pcValues, pcFull).ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
+        var phoneItems = EggSequencer.Catalysts(egg, phone.ItemValues.Select(v => (v.Key, phone.ItemName(v.Key) ?? "", v.Value.IsSubstance, v.Value.Value)), full);
+        if (full != pcFull || phoneItems.Count != pcItems.Count
+            || phoneItems.Any(i => !pcItems.TryGetValue(i.Id, out var pc) || pc.Effect != i.Effect || pc.Value != i.Value))
+            fail($"egg items: phone {phoneItems.Count} (full dose {full}), desktop {pcItems.Count} (full dose {pcFull})");
+
+        // The game's own screens: "Overdosed! (102%)" for 100 Frozen Tubers, "Dose: 0%" for one Ferrite Dust, two
+        // Viscous Custard "Dose: 100%" and Gentleness "Increasing", two Ice Cream Weight / Height "Increasing".
+        var byId = phoneItems.ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
+        (EggCatalystSlot Slot, string Id, int Count, string Dose, string? Label, string? Status)[] screens =
+        [
+            (EggCatalystSlot.GeneSplitter, "FOOD_P_COLDWILD", 100, "Overdosed! (102%)", null, "UI_EGG_MODIFIER_OUT_UNSTABLE"),
+            (EggCatalystSlot.DyeInjector, "LAND1", 1, "Dose: 0%", null, null),   // only the dose was recorded
+            (EggCatalystSlot.NeuralCalibrator, "FOOD_R_CUSTARD", 2, "Dose: 100%", "UI_PET_GENTLENESS_RATING", "UI_EGG_MODIFIER_OUT_INCREASING"),
+            (EggCatalystSlot.GrowthHormone, "FOOD_ICE", 2, "Dose: 100%", "WEIGHT_HEIGHT", "UI_EGG_MODIFIER_OUT_INCREASING"),
+        ];
+        foreach (var s in screens)
+        {
+            if (!byId.TryGetValue(s.Id, out var item)) { fail($"egg screen: {s.Id} is not a sequencer item on the phone"); continue; }
+            var report = EggSequencerText.Describe(s.Slot, item, s.Count, null, full, egg);
+            string label = s.Label is null ? report.StatusLabel : EggSequencerText.Text(egg, s.Label);
+            if (report.DoseText != s.Dose || (s.Status is not null && report.StatusText != EggSequencerText.Text(egg, s.Status)) || report.StatusLabel != label)
+                fail($"egg screen: {s.Count} {item.Name} in the {s.Slot}: {report.DoseText}, {report.StatusLabel} {report.StatusText}");
+        }
+        Console.WriteLine($"Phone recipes: {phone.Recipes.Count:N0}; egg items: {phoneItems.Count:N0}, matching the desktop and four in-game sequencer screens.");
     }
 }

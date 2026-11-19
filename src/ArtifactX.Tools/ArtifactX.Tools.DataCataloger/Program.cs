@@ -31,7 +31,7 @@ if (args.Length > 0 && args[0].Equals("export-mobile-rules", StringComparison.Or
             throw new ArgumentException("Usage: DataCataloger export-mobile-rules <catalog.sqlite> <output.rules.gz>");
         string output = Path.GetFullPath(args[2]);
         var rules = MobileRulesExportService.Export(Path.GetFullPath(args[1]), output);
-        Console.WriteLine($"Exported {rules.Rows.Count} tables and {rules.ItemNames.Count} item names ({rules.GameBuildLabel}, "
+        Console.WriteLine($"Exported {rules.Rows.Count} tables, {rules.Recipes.Count} recipes, {rules.ItemValues.Count} item values and {rules.ItemNames.Count} item names ({rules.GameBuildLabel}, "
             + $"{new FileInfo(output).Length / 1024} KB). Numbers and text only - no images.");
     }
     catch (Exception error) { Console.Error.WriteLine(error.Message); Environment.ExitCode = 1; }

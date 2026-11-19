@@ -35,14 +35,14 @@
                             TextColor="{DynamicResource ThemeTextColor}" />
                     </HorizontalStackLayout>
 
-                    <Border
+                    <controls:TapCard
                         Grid.Column="2"
+                        VerticalOptions="Center"
+                        Command="{Binding ToggleThemeCommand}"
+                        AccessibleName="{Binding ActiveThemeLabel, StringFormat='Theme: {0}. Switch between Galaxy Map and Station Core'}">
+                    <Border
                         Style="{StaticResource ThemeCardAltStyle}"
-                        Padding="10,5"
-                        VerticalOptions="Center">
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Command="{Binding ToggleThemeCommand}" />
-                        </Border.GestureRecognizers>
+                        Padding="10,5">
                         <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
                             <BoxView
                                 WidthRequest="8"
@@ -55,20 +55,17 @@
                                 FontFamily="Exo2"
                                 FontAttributes="Bold"
                                 FontSize="11"
-                                TextColor="{DynamicResource ThemeTextDimColor}"
-                                SemanticProperties.Description="Switch between Galaxy Map and Station Core themes" />
+                                TextColor="{DynamicResource ThemeTextDimColor}" />
                         </HorizontalStackLayout>
                     </Border>
+                    </controls:TapCard>
                 </Grid>
 
                 <!-- Hero Card: FIND A SYSTEM / Enter or scan portal glyphs -->
+                <controls:TapCard Command="{Binding OpenPortalGlyphsCommand}" AccessibleName="Find a system. Enter or scan portal glyphs.">
                 <Border
                     Style="{StaticResource ThemeHeroCardStyle}"
-                    Padding="18,18"
-                    SemanticProperties.Description="Find a system. Enter or scan portal glyphs.">
-                    <Border.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding OpenPortalGlyphsCommand}" />
-                    </Border.GestureRecognizers>
+                    Padding="18,18">
                     <VerticalStackLayout Spacing="8">
                         <Label
                             Text="FIND A SYSTEM"
@@ -82,19 +79,16 @@
                             LineHeight="1.25" />
                     </VerticalStackLayout>
                 </Border>
+                </controls:TapCard>
 
                 <!-- 2-Column Helper Cards: Recipes & Egg Sequencer -->
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
 
                     <!-- Recipes Card -->
+                    <controls:TapCard Grid.Column="0" Command="{Binding OpenRecipesCommand}" AccessibleName="Open Refiner and Cooking Recipes">
                     <Border
-                        Grid.Column="0"
                         Style="{StaticResource ThemeCardStyle}"
-                        Padding="16,16"
-                        SemanticProperties.Description="Open Refiner and Cooking Recipes">
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Command="{Binding OpenRecipesCommand}" />
-                        </Border.GestureRecognizers>
+                        Padding="16,16">
                         <VerticalStackLayout Spacing="10">
                             <!-- Custom Vector Flask Icon -->
                             <Path
@@ -119,16 +113,13 @@
                             </VerticalStackLayout>
                         </VerticalStackLayout>
                     </Border>
+                    </controls:TapCard>
 
                     <!-- Egg Sequencer Card -->
+                    <controls:TapCard Grid.Column="1" Command="{Binding OpenEggSequencerCommand}" AccessibleName="Open Companion Egg Sequencer">
                     <Border
-                        Grid.Column="1"
                         Style="{StaticResource ThemeCardStyle}"
-                        Padding="16,16"
-                        SemanticProperties.Description="Open Companion Egg Sequencer">
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Command="{Binding OpenEggSequencerCommand}" />
-                        </Border.GestureRecognizers>
+                        Padding="16,16">
                         <VerticalStackLayout Spacing="10">
                             <!-- Custom Vector Egg Icon -->
                             <Path
@@ -153,6 +144,7 @@
                             </VerticalStackLayout>
                         </VerticalStackLayout>
                     </Border>
+                    </controls:TapCard>
 
                 </Grid>
 

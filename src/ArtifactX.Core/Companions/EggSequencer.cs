@@ -161,6 +161,18 @@ public static class EggSequencer
         return new EggCatalystEffect(trait, increases, listed is not null, grows, Count(1), Count(certain));
     }
 
+    /// <summary>The items the sequencer takes (<see cref="EggSequencerRules.Ingredients"/>) among
+    /// <paramref name="items"/> (every product and substance with its base value), each with what it always does.
+    /// <paramref name="fullDoseValue"/> is the base value of <see cref="EggSequencerRules.FullDoseProductId"/>.</summary>
+    public static List<EggCatalyst> Catalysts(EggSequencerRules rules,
+        IEnumerable<(string Id, string Name, bool IsSubstance, long Value)> items, long fullDoseValue)
+    {
+        var ingredients = rules.Ingredients.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return items.Where(i => ingredients.Contains(i.Id))
+            .Select(i => new EggCatalyst(i.Id, i.Name, i.IsSubstance, i.Value, Effect(i.Id, i.IsSubstance, i.Value, fullDoseValue, rules)))
+            .ToList();
+    }
+
     /// <summary>What <paramref name="count"/> of an item does in one slot.</summary>
     public static EggSlotOutcome Outcome(EggCatalystSlot slot, bool isSubstance, long baseValue, int count,
         long fullDoseValue, EggSequencerRules rules)
