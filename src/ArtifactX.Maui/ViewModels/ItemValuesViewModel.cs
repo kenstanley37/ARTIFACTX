@@ -24,7 +24,7 @@ public sealed partial class ItemValuesViewModel : ObservableObject
     private bool _loaded;
 
     public IReadOnlyList<FinderChoice> Economies { get; } =
-        [new("Every item", ""), new("Trade goods only", "*"), .. TradeEconomies.All.Select(e => new FinderChoice($"{e.Economy} trade goods", e.Category))];
+        (FinderChoice[])[new("Every item", ""), new("Trade goods only", "*"), .. TradeEconomies.All.Select(e => new FinderChoice($"{e.Economy} trade goods", e.Category))];
 
     [ObservableProperty] public partial FinderChoice? Economy { get; set; }
     [ObservableProperty] public partial string Search { get; set; } = "";
