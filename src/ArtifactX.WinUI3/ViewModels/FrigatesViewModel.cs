@@ -23,7 +23,26 @@ public sealed partial class FrigatesViewModel : ObservableObject
     private Dictionary<string, (string DisplayName, string Description, string Category)>? _traitCatalog;
     private Dictionary<string, IReadOnlyList<string>> _nameWords = new(StringComparer.OrdinalIgnoreCase);
     private List<FrigateTraitChoice> _traitChoices = new();
+    private Dictionary<int, ArtifactX.Core.Frigates.FrigateModel> _models = new();
     private bool _loading;
+
+    /// <summary>The selected frigate's look changed (another frigate, its class or its model seed): the page rebuilds
+    /// the 3D preview from <see cref="PreviewScene"/> and <see cref="ModelSeedText"/>.</summary>
+    public event Action? PreviewChanged;
+
+    /// <summary>The scene the preview draws for the selected frigate's class (catalog format 109, FRIGATEMODELS:
+    /// the class's model, at its LOD 1 hull); null without a selection or with older game data.</summary>
+    public string? PreviewScene => SelectedIndex >= 0 && Enum.TryParse<GcFrigateClass.FrigateClassEnum>(Role, out var role)
+        && _models.TryGetValue((int)role, out var model) ? model.PreviewScene : null;
+
+    /// <summary>The selected frigate's model seed (ResourceSeed), which picks an organic frigate's parts.</summary>
+    public string? ModelSeedText => SelectedIndex >= 0 ? FrigateService.Text(NmsFrigatePaths.ModelSeedPath(SelectedIndex)) : null;
+
+    /// <summary>The selected frigate's Home Seed (HomeSystemSeed), which gives its paint.</summary>
+    public string? HomeSeedText => SelectedIndex >= 0 ? FrigateService.Text(NmsFrigatePaths.HomeSeedPath(SelectedIndex)) : null;
+
+    /// <summary>Tells the page the look changed.</summary>
+    public void RefreshPreview() => PreviewChanged?.Invoke();
 
     public ObservableCollection<FrigateCardViewModel> Cards { get; } = new();
 
@@ -49,6 +68,22 @@ public sealed partial class FrigatesViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<FrigateTraitSlotViewModel> Traits { get; private set; } = [];
     [ObservableProperty] public partial bool HasEdits { get; private set; }
 
+    private const string FleetCollapsedKey = "FrigateFleetOneRow";
+
+    /// <summary>The fleet shows as one row that scrolls sideways (remembered).</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(FleetExpanded), nameof(FleetToggleLabel), nameof(FleetToggleName))]
+    public partial bool FleetCollapsed { get; private set; } = SettingsStore.Get(SettingsStore.Scope.Profile, FleetCollapsedKey) == "1";
+
+    public bool FleetExpanded => !FleetCollapsed;
+    public string FleetToggleLabel => FleetCollapsed ? "Show all" : "One row";
+    public string FleetToggleName => FleetCollapsed ? "Show every frigate in rows" : "Show the fleet as one row";
+
+    public void ToggleFleet()
+    {
+        FleetCollapsed = !FleetCollapsed;
+        SettingsStore.Set(SettingsStore.Scope.Profile, FleetCollapsedKey, FleetCollapsed ? "1" : "0");
+    }
+
     public bool NoFreighter => !HasFreighter;
     partial void OnHasFreighterChanged(bool value) => OnPropertyChanged(nameof(NoFreighter));
 
@@ -59,6 +94,7 @@ public sealed partial class FrigatesViewModel : ObservableObject
         _traitCatalog ??= await CatalogService.GetFrigateTraitsAsync();
         _nameWords = await CatalogService.GetProceduralNameWordsAsync();
         _traitChoices = BuildTraitChoices(_traitCatalog);
+        _models = await CatalogService.GetFrigateModelsAsync();
         RefreshCards();
         Select(Cards.Any(c => c.Index == SelectedIndex) ? SelectedIndex : Cards.FirstOrDefault()?.Index ?? -1);
     }
@@ -153,6 +189,7 @@ public sealed partial class FrigatesViewModel : ObservableObject
         _ = Feeding.ShowAsync(selectedFrigate, traitIds, _traitCatalog ?? new());
 
         HasEdits = FrigateService.HasEdits(index);
+        RefreshPreview();
     }
 
     /// <summary>The name box lost focus: staged when it changed.</summary>
@@ -170,7 +207,11 @@ public sealed partial class FrigatesViewModel : ObservableObject
         RefreshCards();
     }
 
-    partial void OnRoleChanged(string? value) => SetChoice(value, NmsFrigatePaths.FrigateClassPath);
+    partial void OnRoleChanged(string? value)
+    {
+        SetChoice(value, NmsFrigatePaths.FrigateClassPath);
+        if (!_loading) RefreshPreview();
+    }
     partial void OnRaceChanged(RaceChoice? value) => SetChoice(value?.Value, NmsFrigatePaths.RacePath);
     partial void OnRatingChanged(string? value) => SetChoice(value, NmsFrigatePaths.InventoryClassPath);
 
@@ -198,6 +239,7 @@ public sealed partial class FrigatesViewModel : ObservableObject
         var frigate = FrigateService.ReadAll().FirstOrDefault(f => f.Index == SelectedIndex);
         GeneratedName = frigate is null ? "" : GenerateName(frigate) ?? "";
         RefreshCards();
+        RefreshPreview();
     }
 
     private string? GenerateName(FrigateSummary frigate) => frigate.ResourceSeed == 0

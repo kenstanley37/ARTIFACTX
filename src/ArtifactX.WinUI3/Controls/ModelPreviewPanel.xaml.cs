@@ -54,6 +54,9 @@ public sealed partial class ModelPreviewPanel : UserControl
     /// <param name="built">Built ship parts, colours and styles, for fabricated starships.</param>
     /// <param name="childPartSeed">Pick parts with the seed's first child seed - people (a freighter captain).</param>
     /// <param name="shapeOnly">Show a shape scan: for models whose colour rule isn't known (people).</param>
+    /// <param name="texturesFromModelSeed">With <paramref name="colourSeedText"/>, the model seed still picks each layer's
+    /// texture and only the colours come from the colour seed (frigates: CV-7 Keharaso and CS-6 Oishiz share a Home Seed
+    /// but their roof plates differ, owner's shots 2026-11-19).</param>
     /// <param name="colourSeedText">The seed the default paint comes from when it isn't the model seed: a freighter's
     /// Home Seed (#69 - in game, rerolling Home Seed changed the paint pattern and kept the shape; Model Seed is the
     /// shape). Null: the model seed.</param>
@@ -65,7 +68,8 @@ public sealed partial class ModelPreviewPanel : UserControl
         BuiltLook? built = null,
         string? colourSeedText = null,
         bool childPartSeed = false,
-        bool shapeOnly = false)
+        bool shapeOnly = false,
+        bool texturesFromModelSeed = false)
     {
         int version = ++_version;
         if (string.IsNullOrEmpty(scene) || GameDataService.Game is not { } game)
@@ -141,7 +145,7 @@ public sealed partial class ModelPreviewPanel : UserControl
         }
         if (await ModelPreviewService.SeedColoursAsync(paintSeed, rawSeed: true) is { } seedColours)
         {
-            var textures = await ModelPreviewService.PaintAsync(models, mesh, seedColours, paintSeed);
+            var textures = await ModelPreviewService.PaintAsync(models, mesh, seedColours, texturesFromModelSeed ? seed : paintSeed);
             if (version != _version) return;
             Preview.Show(mesh, Colour, m => IsGlow(m) ? null : textures.GetValueOrDefault(m));
             NoteTxt.Text = colourSeedText is not null

@@ -482,6 +482,29 @@ public static partial class CatalogService
         }
     });
 
+    /// <summary>Each frigate class's model and the scene its 3D preview draws (catalog row FRIGATEMODELS, format
+    /// 109), by GcFrigateClass value; empty for an older catalog.</summary>
+    public static Task<Dictionary<int, ArtifactX.Core.Frigates.FrigateModel>> GetFrigateModelsAsync() => Task.Run(() =>
+    {
+        var models = new Dictionary<int, ArtifactX.Core.Frigates.FrigateModel>();
+        if (ResolveDbPath() is not string dbPath) return models;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'FRIGATEMODELS'";
+            if (command.ExecuteScalar() is string json
+                && System.Text.Json.JsonSerializer.Deserialize<List<ArtifactX.Core.Frigates.FrigateModel>>(json) is { } list)
+                foreach (var m in list) models.TryAdd(m.Class, m);
+        }
+        catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
+        {
+            Debug.WriteLine($"[CatalogService] Frigate models unavailable: {ex.Message}");
+        }
+        return models;
+    });
+
     /// <summary>Ship Technology/Cargo max-slot counts per (ship type, class letter),
     /// sourced from the ShipCapacity category.</summary>
     public static async Task<Dictionary<string, int>> GetShipCapacityAsync()
