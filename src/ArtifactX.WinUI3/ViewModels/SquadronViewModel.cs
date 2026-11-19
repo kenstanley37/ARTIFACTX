@@ -42,7 +42,7 @@ public sealed partial class SquadronSlotViewModel : ObservableObject
     public Thickness BorderThickness => new(IsSelected ? 2 : 1);
     public Brush Fill => ThemeResources.Brush(IsSelected ? "ThemeSelectedFillBrush" : "ThemePanelAltBrush");
     public Windows.UI.Text.FontWeight Weight => IsSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
-    public string AccessibleName => $"Squadron {Label}";
+    public string AccessibleName => Label.StartsWith("Slot ", StringComparison.Ordinal) ? $"Squadron {Label}" : $"Squadron slot {Index + 1}, {Label}";
 }
 
 /// <summary>
@@ -180,6 +180,7 @@ public sealed partial class SquadronViewModel : ObservableObject
     {
         PilotName = HasSelection && _factRules is { } nameRules && NmsSeedGenerator.TryParse(ShipSeed, out ulong nameSeed)
             ? nameRules.PilotName(nameSeed, PilotScene) : "";
+        if (HasSelection && SelectedIndex < Slots.Count) Slots[SelectedIndex].Label = SlotLabel(SelectedIndex);
         if (!HasSelection || _factRules is not { } rules
             || !NmsSeedGenerator.TryParse(SquadronService.TraitsSeed(SelectedIndex), out ulong seed))
         {
@@ -250,7 +251,14 @@ public sealed partial class SquadronViewModel : ObservableObject
         if (seedText == ShipSeed) ShipName = name.Length > 0 ? name : "Squadron Starship";
     }
 
-    private static string SlotLabel(int slot) => SquadronService.IsUnlocked(slot) ? $"Slot {slot + 1}" : $"Slot {slot + 1} (Locked)";
+    /// <summary>A slot button: the pilot's name when the game data has it, else "Slot 1"; "Slot 2 (Locked)" for a locked bay.</summary>
+    private string SlotLabel(int slot)
+    {
+        if (!SquadronService.IsUnlocked(slot)) return $"Slot {slot + 1} (Locked)";
+        string name = _factRules is { } rules && NmsSeedGenerator.TryParse(SquadronService.ShipSeed(slot), out ulong seed)
+            ? rules.PilotName(seed, SquadronService.NpcScene(slot)) : "";
+        return name.Length > 0 ? name : $"Slot {slot + 1}";
+    }
 
     /// <summary>Only 0-3 are confirmed (C/B/A/S, GcInventoryClass's raw values) - PilotRank is a plain ushort in
     /// libMBIN, so higher values are accepted without validation. See NmsSquadronPaths.</summary>
