@@ -60,14 +60,14 @@ public sealed partial class FinderViewModel : ObservableObject
     public bool HasNoStarts => !HasStarts;
 
     public IReadOnlyList<FinderChoice> Areas { get; } =
-        [new("This region", "0"), new("This region and the ones around it (slower)", "1")];
+        (FinderChoice[])[new("This region", "0"), new("This region and the ones around it (slower)", "1")];
     [ObservableProperty] public partial FinderChoice? Area { get; set; }
 
     public IReadOnlyList<FinderChoice> Classes { get; } =
-        [new("S-class only", "3"), new("A-class or better", "2"), new("Any class", "0")];
+        (FinderChoice[])[new("S-class only", "3"), new("A-class or better", "2"), new("Any class", "0")];
     [ObservableProperty] public partial FinderChoice? Class { get; set; }
 
-    [ObservableProperty] public partial IReadOnlyList<FinderChoice> Kinds { get; private set; } = [new("Any kind", "")];
+    [ObservableProperty] public partial IReadOnlyList<FinderChoice> Kinds { get; private set; } = (FinderChoice[])[new("Any kind", "")];
     [ObservableProperty] public partial FinderChoice? Kind { get; set; }
 
     [ObservableProperty] public partial IReadOnlyList<FinderRowViewModel> Results { get; private set; } = [];
@@ -213,7 +213,7 @@ public sealed partial class FinderViewModel : ObservableObject
             _stars = await GameRulesService.GetAsync() is { GalaxySettings: { } settings, GalaxyPlacement: { } placement }
                 ? await Task.Run(() => RegionStarPositions.ForSystem(from, settings, placement)) : null;
             string keep = Kind?.Value ?? "";
-            Kinds = [new("Any kind", ""), .. found.GroupBy(f => f.Kind).OrderBy(g => g.Key, StringComparer.CurrentCulture)
+            Kinds = (FinderChoice[])[new("Any kind", ""), .. found.GroupBy(f => f.Kind).OrderBy(g => g.Key, StringComparer.CurrentCulture)
                 .Select(g => new FinderChoice(g.Key, g.Key))];
             Kind = Kinds.FirstOrDefault(k => k.Value == keep) ?? Kinds[0];
             Apply();
