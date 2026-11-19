@@ -58,6 +58,20 @@
                                     <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Grid.Column="2" Text="{Binding CopyButtonLabel}" SemanticProperties.Description="{Binding Name, StringFormat='Copy portal address for {0}'}" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SystemFromGlyphsViewModel}}, Path=CopyBodyPortalCodeCommand}"
                                             CommandParameter="{Binding .}" TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="11" Padding="8,4" WidthRequest="110" />
                                 </Grid>
+                            <!-- What the planet is like, as the game's Discoveries page and scanner say it (SystemProfiles). -->
+                            <VerticalStackLayout IsVisible="{Binding HasProfile}" Spacing="3">
+                                <Label Text="{Binding TypeText}" FontSize="15" FontAttributes="Bold" TextColor="{DynamicResource ThemeAccentColor}" />
+                                <Label Text="{Binding WeatherText, StringFormat='Weather: {0}'}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}" />
+                                <Label Text="{Binding SentinelsText}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding HasAggressiveSentinels}" Value="True">
+                                            <Setter Property="TextColor" Value="{DynamicResource ThemeWarningColor}" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                                <Label Text="{Binding LifeText}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}" />
+                                <Label Text="{Binding ResourcesText, StringFormat='Resources: {0}'}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}" />
+                            </VerticalStackLayout>
                             <!-- The glyphs that open a portal to this body - each one's first glyph is its own. -->
                             <VerticalStackLayout Spacing="4">
                                 <Label Text="PORTAL GLYPHS · TAP TO ENLARGE" Style="{StaticResource ThemeEyebrowStyle}" />
@@ -134,6 +148,32 @@
                                         </BindableLayout.ItemTemplate>
                                     </VerticalStackLayout>
                                 </VerticalStackLayout>
+                                <!-- Crashed ships and shops, measured from the portal (PlanetFindsService). -->
+                                <Button BorderColor="{DynamicResource ThemeLineColor}" BorderWidth="1" Text="{Binding FindsButtonLabel}" Command="{Binding ToggleFindsCommand}" HorizontalOptions="Start"
+                                        SemanticProperties.Description="{Binding Name, StringFormat='Crashed ships and shops on {0}'}"
+                                        TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" FontSize="12" Padding="10,6" />
+                                <VerticalStackLayout IsVisible="{Binding IsFindsOpen}" Spacing="8">
+                                    <ActivityIndicator IsRunning="{Binding IsFinding}" IsVisible="{Binding IsFinding}" Color="{DynamicResource ThemeAccentColor}" HorizontalOptions="Start" />
+                                    <Label Text="{Binding FindsNote}" IsVisible="{Binding HasFindsNote}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="13" />
+                                    <Label Text="{Binding WreckCounts}" IsVisible="{Binding HasWreckCounts}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="14" />
+                                    <Label Text="BEST CRASHED SHIPS NEAR THE PORTAL" IsVisible="{Binding HasWrecks}" Style="{StaticResource ThemeEyebrowStyle}" Margin="0,4,0,0" />
+                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Wrecks}" Spacing="8">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:PlanetFindViewModel">
+                                                <controls:FindRow />
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
+                                    <Label Text="SHOPS NEAR THE PORTAL" IsVisible="{Binding HasShops}" Style="{StaticResource ThemeEyebrowStyle}" Margin="0,4,0,0" />
+                                    <Label Text="Their cabinets sell the Multi-tools tab's list for where you last loaded." IsVisible="{Binding HasShops}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" />
+                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Shops}" Spacing="8">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:PlanetFindViewModel">
+                                                <controls:FindRow />
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
+                                </VerticalStackLayout>
                                 </VerticalStackLayout>
                             </Border>
                         </DataTemplate>
@@ -181,8 +221,53 @@
                     </VerticalStackLayout>
                 </VerticalStackLayout>
                 <VerticalStackLayout IsVisible="{Binding IsMultiToolsTabSelected}" Spacing="10">
-                    <Label Text="{Binding MultiToolOddsSummary}" Style="{StaticResource ThemeSectionHeaderStyle}" />
-                    <Label Text="{Binding MultiToolExplanation}" Style="{StaticResource ThemeBodyTextStyle}" />
+                    <Label Text="Multi-tools" Style="{StaticResource ThemeSectionHeaderStyle}" />
+                    <!-- How rolling works first: the lists below only make sense with it (owner, 2026-11-18). -->
+                    <Border Style="{StaticResource ThemeCardStyle}" Padding="14">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="HOW TO GET THE TOOL YOU WANT" Style="{StaticResource ThemeEyebrowStyle}" />
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding MultiToolSteps}" Spacing="6">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Label Text="{Binding .}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="15" />
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+                    <Label Text="{Binding MultiToolOddsSummary}" Style="{StaticResource ThemeBodyTextStyle}" FontAttributes="Bold" />
+                    <Label Text="{Binding MultiToolNote}" Style="{StaticResource ThemeBodyTextStyle}" />
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding MultiToolPlaces}" Spacing="10" IsVisible="{Binding HasMultiToolPlaces}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MultiToolPlaceViewModel">
+                                <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12">
+                                    <VerticalStackLayout Spacing="6">
+                                        <Label Text="{Binding Heading}" Style="{StaticResource ThemeEyebrowStyle}" />
+                                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Station}" Spacing="6" IsVisible="{Binding HasStation}">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:CabinetToolRow">
+                                                    <VerticalStackLayout Spacing="1" SemanticProperties.Description="{Binding AccessibleName}">
+                                                        <Label Text="{Binding Title}" FontSize="13" TextColor="{DynamicResource ThemeTextDimColor}">
+                                                            <Label.Triggers>
+                                                                <DataTrigger TargetType="Label" Binding="{Binding IsSClass}" Value="True">
+                                                                    <Setter Property="TextColor" Value="{DynamicResource ThemeDoneColor}" />
+                                                                    <Setter Property="FontAttributes" Value="Bold" />
+                                                                </DataTrigger>
+                                                            </Label.Triggers>
+                                                        </Label>
+                                                        <Label Text="{Binding ToolLine}" FontSize="15" FontAttributes="Bold" TextColor="{DynamicResource ThemeTextColor}" />
+                                                    </VerticalStackLayout>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </VerticalStackLayout>
+                                        <Label Text="{Binding ShopsLine}" IsVisible="{Binding HasShops}" FontSize="14" TextColor="{DynamicResource ThemeTextColor}" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                    <Label Text="A planet shop cabinet's class depends on exactly where it stands, which the app can't pin down yet, so only its list is shown."
+                           IsVisible="{Binding HasMultiToolPlaces}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
                 </VerticalStackLayout>
             </VerticalStackLayout>
         </ScrollView>

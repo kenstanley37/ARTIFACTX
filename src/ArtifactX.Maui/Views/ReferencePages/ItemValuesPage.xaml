@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ArtifactX.Maui.ViewModels"
+    x:Class="ArtifactX.Maui.Views.ReferencePages.ItemValuesPage"
+    x:DataType="vm:ItemValuesViewModel"
+    Shell.NavBarIsVisible="False"
+    Background="{DynamicResource ThemePageBackdropBrush}"
+    xmlns:controls="clr-namespace:ArtifactX.Maui.Controls">
+    <!-- The galaxy being viewed, on every page (GalaxyBar); outside the scroll so it stays in sight. -->
+    <Grid RowDefinitions="Auto,Auto,*">
+        <controls:GalaxyBar />
+        <VerticalStackLayout Grid.Row="1" Padding="20,20,20,8" Spacing="10" MaximumWidthRequest="720" HorizontalOptions="Fill">
+            <Button Text="Back" Command="{Binding GoBackCommand}" HorizontalOptions="Start" SemanticProperties.Description="Back"
+                    TextColor="{DynamicResource ThemeTextColor}" BackgroundColor="{DynamicResource ThemePanelAltColor}" />
+            <Label Text="Item values" Style="{StaticResource ThemePageTitleStyle}" />
+            <Label Text="What things are worth, and which economy deals in each trade good." Style="{StaticResource ThemeDimTextStyle}" />
+            <Entry Text="{Binding Search}" Placeholder="Search items" ClearButtonVisibility="WhileEditing"
+                   TextColor="{DynamicResource ThemeTextColor}" PlaceholderColor="{DynamicResource ThemeTextDimColor}"
+                   SemanticProperties.Description="Search items by name" />
+            <Picker ItemsSource="{Binding Economies}" SelectedItem="{Binding Economy}" Title="Show"
+                    ItemDisplayBinding="{Binding Label, x:DataType='vm:FinderChoice'}"
+                    TextColor="{DynamicResource ThemeTextColor}" SemanticProperties.Description="Show every item or one economy's trade goods" />
+            <Label Text="{Binding Status}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" />
+        </VerticalStackLayout>
+        <CollectionView Grid.Row="2" ItemsSource="{Binding Rows}" SelectionMode="None"
+                        MaximumWidthRequest="720" HorizontalOptions="Fill" Margin="20,0,20,0">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:ItemValueRowViewModel">
+                    <Border Style="{StaticResource ThemeCardAltStyle}" Padding="12,10" Margin="0,0,0,8" SemanticProperties.Description="{Binding AccessibleName}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="15" TextColor="{DynamicResource ThemeTextColor}" />
+                                <Label Text="{Binding Detail}" FontSize="13" TextColor="{DynamicResource ThemeTextDimColor}" />
+                            </VerticalStackLayout>
+                            <Label Grid.Column="1" Text="{Binding Value}" FontSize="15" FontAttributes="Bold" VerticalOptions="Center"
+                                   TextColor="{DynamicResource ThemeDoneColor}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

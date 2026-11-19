@@ -73,6 +73,14 @@ public static class RegionStarPositions
         GalaxyGenerationSettings settings, GalaxyPlacementSettings placement) =>
         Stars(galaxy, x, y, z, settings, placement)?.Where(s => s.System < 1000).ToList();
 
+    /// <summary>Every star of the region holding <paramref name="systemAddress"/> (a packed address; planet and system
+    /// bits ignored), as <see cref="Stars(int, int, int, int, GalaxyGenerationSettings, GalaxyPlacementSettings)"/>.</summary>
+    public static IReadOnlyList<RegionStar>? ForSystem(ulong systemAddress, GalaxyGenerationSettings settings, GalaxyPlacementSettings placement)
+    {
+        ulong key = RegionStarGeneration.RegionKey(systemAddress);
+        return Stars((int)((key >> 32) & 0xFF), (int)(key & 0xFFF), (int)((key >> 24) & 0xFF), (int)((key >> 12) & 0xFFF), settings, placement);
+    }
+
     /// <summary>
     /// Every star of a region in emission order: ordinary systems 1..N, then purple systems
     /// 1001..1065. Null where <see cref="Ordinary"/> is.

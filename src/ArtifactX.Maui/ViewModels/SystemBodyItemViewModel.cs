@@ -30,14 +30,42 @@ public sealed partial class SystemBodyItemViewModel : ObservableObject
         SwatchColor = Color.FromArgb(body.SwatchHex);
     }
 
+    /// <summary>The body's colour dot: the readout's neutral colour until its type is known, then the planet type's
+    /// colour (NmsPlanets.TypeColour, as the desktop's lists).</summary>
+    [ObservableProperty] public partial Color SwatchColor { get; private set; }
+
     public GeneratedSystemBody Body { get; }
-    public Color SwatchColor { get; }
     public string Name => Body.Name;
     public string PrimaryLine => Body.PrimaryLine;
     public string SecondaryLine => Body.SecondaryLine;
     public string BodyPortalCode => Body.BodyPortalCode;
     public bool IsDialedBody => Body.IsDialedBody;
     public bool HasRings => Body.HasRings;
+
+    // ---------------------------------------------------------------- planet details (SystemProfiles, from the rules file)
+
+    [ObservableProperty] public partial bool HasProfile { get; private set; }
+    /// <summary>The game's word for the planet's type ("Paradise", "Frozen"), as its Discoveries page shows.</summary>
+    [ObservableProperty] public partial string TypeText { get; private set; } = "";
+    [ObservableProperty] public partial string WeatherText { get; private set; } = "";
+    [ObservableProperty] public partial string SentinelsText { get; private set; } = "";
+    [ObservableProperty] public partial bool HasAggressiveSentinels { get; private set; }
+    [ObservableProperty] public partial string LifeText { get; private set; } = "";
+    [ObservableProperty] public partial string ResourcesText { get; private set; } = "";
+
+    /// <summary>Fills the planet's weather, sentinels, life and resources (Core PlanetProfileText, the desktop's words).</summary>
+    public void ApplyProfile(PlanetProfile profile, PlanetType? type, GameRules rules)
+    {
+        TypeText = profile.Descriptor;
+        if (type is not null) SwatchColor = Color.FromArgb(NmsPlanets.TypeColour(type.Biome));
+        WeatherText = PlanetProfileText.Weather(profile, type);
+        string sentinels = PlanetProfileText.Sentinels(profile);
+        SentinelsText = $"{sentinels} sentinels";
+        HasAggressiveSentinels = sentinels is "Aggressive" or "Corrupted";
+        LifeText = $"Flora: {PlanetProfileText.Flora(profile)} · Fauna: {PlanetProfileText.Fauna(profile)}";
+        ResourcesText = string.Join(", ", PlanetProfileText.Resources(profile, rules.ItemName, rules.Profiles?.HintNames));
+        HasProfile = true;
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CopyButtonLabel))]
@@ -114,6 +142,62 @@ public sealed partial class SystemBodyItemViewModel : ObservableObject
             if (survey.Plan.PortalNote is { } note) ShowNote(note);
         }
         finally { IsSurveying = false; }
+    }
+
+    // ---------------------------------------------------------------- crashed ships and shops (PlanetFindsService)
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindsButtonLabel))]
+    public partial bool IsFindsOpen { get; set; }
+
+    public string FindsButtonLabel => IsFindsOpen ? "Hide crashed ships and shops" : "Crashed ships and shops";
+
+    [ObservableProperty] public partial bool IsFinding { get; set; }
+    [ObservableProperty] public partial string FindsNote { get; set; } = "";
+    [ObservableProperty] public partial bool HasFindsNote { get; set; }
+    [ObservableProperty] public partial string WreckCounts { get; set; } = "";
+    [ObservableProperty] public partial bool HasWreckCounts { get; set; }
+    [ObservableProperty] public partial IReadOnlyList<PlanetFindViewModel> Wrecks { get; set; } = [];
+    [ObservableProperty] public partial bool HasWrecks { get; set; }
+    [ObservableProperty] public partial IReadOnlyList<PlanetFindViewModel> Shops { get; set; } = [];
+    [ObservableProperty] public partial bool HasShops { get; set; }
+
+    private bool _found;
+
+    /// <summary>The planet's crashed ships by class and the best ones and nearest shops from the portal; worked out once,
+    /// off the UI thread (a whole-planet pass, a second or two on a phone).</summary>
+    [RelayCommand]
+    private async Task ToggleFindsAsync()
+    {
+        IsFindsOpen = !IsFindsOpen;
+        if (!IsFindsOpen || _found || IsFinding) return;
+        IsFinding = true;
+        try
+        {
+            if (await GameRulesService.GetAsync() is not { } rules)
+            {
+                SetFindsNote("This copy of ArtifactX doesn't have the game rules it needs for crashed ships.");
+                return;
+            }
+            ulong planetAddress = NmsPortalCode.ToAddress(Body.BodyPortalCode, _galaxyNumber);
+            var (finds, reason) = await Task.Run(() => PlanetFindsService.ForPlanet(planetAddress, rules));
+            _found = true;
+            if (finds is null) { SetFindsNote(reason); return; }
+            WreckCounts = finds.ClassCounts.Length > 0 ? $"Crashed ships on this planet: {finds.ClassCounts}" : "";
+            HasWreckCounts = WreckCounts.Length > 0;
+            Wrecks = finds.Wrecks.Select(f => new PlanetFindViewModel(f)).ToArray();
+            HasWrecks = Wrecks.Count > 0;
+            Shops = finds.Shops.Select(f => new PlanetFindViewModel(f)).ToArray();
+            HasShops = Shops.Count > 0;
+            if (finds.Note.Length > 0) SetFindsNote(finds.Note);
+        }
+        finally { IsFinding = false; }
+    }
+
+    private void SetFindsNote(string note)
+    {
+        FindsNote = note;
+        HasFindsNote = true;
     }
 
     [RelayCommand]

@@ -57,6 +57,19 @@ public static class SpeciesNames
 
     private static readonly string[] LatinEndings = ["ium", "ima", "ica", "osa", "eus", "era", "eum", "ae", "ea", "ia", "is", "ii", "us", "um"];
 
+    /// <summary>The species name the game will give a predicted creature when it's discovered, or null when the
+    /// creature lacks the seeds (game data before catalog format 79: no spawn scale, so no genus seed) or the words are
+    /// missing. Right for 97% of the owner's 2026 discoveries (<see cref="FaunaSeeds"/>). Shared by the desktop's
+    /// CreatureNameService and the phone's Ingredient Finder.</summary>
+    public static string? Predicted(PredictedCreature creature, ulong planetAddress, IReadOnlyList<string> creatureRoots)
+    {
+        if (creature.Seed == 0 || creature.Scale <= 0 || creature.CreatureType == 0) return null;
+        var (species, genus) = FaunaSeeds(creature.Seed,
+            string.IsNullOrEmpty(creature.SpeciesId) ? creature.Id : creature.SpeciesId,
+            planetAddress, creature.CreatureType, creature.SizeClass);
+        return Fauna(species, genus, creatureRoots);
+    }
+
     /// <summary>A creature's species name from its two seeds, or null without
     /// the NAMEGEN_CRE words.</summary>
     public static string? Fauna(ulong seedA, ulong seedB, IReadOnlyList<string> creatureRoots)

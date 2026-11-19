@@ -101,6 +101,31 @@ static class MobileRulesChecks
 
         RecipesAndEggs(phone, connection, Desktop<EggSequencerRules>, Fail);
 
+        // Multi-tool cabinets: the phone's tables and name words against the catalog's, every load place of every system.
+        var pcWords = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id = i.CategoryId WHERE c.TemplateType = 'MultiToolNameWords'";
+            using var reader = command.ExecuteReader();
+            while (reader.Read()) pcWords[reader.GetString(0)] = JsonSerializer.Deserialize<List<string>>(reader.GetString(1))!;
+        }
+        var pcInventory = Desktop<InventoryGenerationTables>("INVENTORYGENERATION");
+        var pcKinds = new MultiToolKindClassifier(Desktop<MultiToolModelTables>("MULTITOOLMODEL"));
+        var phoneKinds = new MultiToolKindClassifier(phone.MultiToolModel!);
+        int places = 0, stationTools = 0;
+        string Describe(IReadOnlyList<CabinetLoadPlace> list) => string.Join("|", list.Select(p => $"{p.Body}:"
+            + string.Join(",", p.Station.Select(t => $"{t.Cabinet}{t.ClassLetter}{t.Tool.DefaultName}/{t.Kind}")) + ";"
+            + string.Join(",", p.Shops.Select(t => $"{t.Tool.DefaultName}/{t.Kind}"))));
+        foreach (ulong system in systems)
+        {
+            var pc = SystemCabinets.ForSystem(system, [], pcStations, pcInventory, pcKinds, k => pcWords.GetValueOrDefault(k));
+            var mobile = SystemCabinets.ForSystem(system, [], phoneStations, phone.Inventory!, phoneKinds, phone.Words);
+            if (Describe(pc) != Describe(mobile)) Fail($"{system:X}: cabinets differ");
+            places += mobile.Count;
+            stationTools += mobile.Sum(p => p.Station.Count);
+        }
+        Console.WriteLine($"Cabinets: {places} load places, {stationTools} station cabinet tools across {systems.Count} systems, phone = desktop.");
+
         Console.WriteLine(failures == 0 ? "PASS: the rules file gives the phone the desktop's portals, hotspots, base spots, recipes and egg rules." : $"{failures} failures.");
         if (failures > 0) Environment.ExitCode = 1;
     }

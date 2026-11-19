@@ -11,5 +11,6 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("live-portal-scan", typeof(LivePortalScannerPage));
         Routing.RegisterRoute("system-details", typeof(SystemDetailsPage));
         Routing.RegisterRoute("recipe-details", typeof(Views.ReferencePages.RecipeDetailsPage));
+        Routing.RegisterRoute("item-values", typeof(Views.ReferencePages.ItemValuesPage));
     }
 }

@@ -44,6 +44,13 @@ public sealed partial class HomeViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private static async Task OpenItemValuesAsync()
+    {
+        if (Shell.Current is not null)
+            await Shell.Current.GoToAsync("item-values");
+    }
+
+    [RelayCommand]
     private static async Task OpenRecentSystemAsync(RecentSystemSummary? system)
     {
         if (system is null || Shell.Current is null) return;

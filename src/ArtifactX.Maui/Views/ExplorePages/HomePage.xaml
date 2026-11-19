@@ -148,6 +148,16 @@
 
                 </Grid>
 
+                <!-- Item values: what things are worth, and which economy deals in each trade good. -->
+                <controls:TapCard Command="{Binding OpenItemValuesCommand}" AccessibleName="Open Item values and trade goods">
+                    <Border Style="{StaticResource ThemeCardStyle}" Padding="16,14">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Item values" FontFamily="Exo2" FontAttributes="Bold" FontSize="16" TextColor="{DynamicResource ThemeTextColor}" />
+                            <Label Text="What things are worth, and which economy deals in each trade good" Style="{StaticResource ThemeDimTextStyle}" />
+                        </VerticalStackLayout>
+                    </Border>
+                </controls:TapCard>
+
                 <!-- RECENT SYSTEMS Section -->
                 <VerticalStackLayout Spacing="10" Margin="0,6,0,0">
                     <Label

@@ -77,7 +77,41 @@ public static class MobileRulesExportService
                         result.Amount, root.GetProperty("ingredients").EnumerateArray().Select(Pair).ToArray()));
                 }
                 else if (root.GetProperty("kind").GetString() is "Product" or "Substance" && root.GetProperty("id").GetString() is { Length: > 0 } id)
-                    values[id] = new ItemBaseValue(root.GetProperty("value").GetInt64(), root.GetProperty("kind").GetString() == "Substance");
+                    values[id] = new ItemBaseValue(root.GetProperty("value").GetInt64(), root.GetProperty("kind").GetString() == "Substance",
+                        reader.IsDBNull(2) ? "None" : reader.GetString(2),
+                        root.TryGetProperty("legality", out var legality) && legality.GetString() == "Illegal");
+            }
+        }
+
+        // Multi-tool name words, as the desktop reads them (CatalogService.GetProceduralNameWordsAsync).
+        var words = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT i.NameEnglish, i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                WHERE c.TemplateType = 'MultiToolNameWords' AND i.DescriptionEnglish IS NOT NULL
+                """;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+                if (JsonSerializer.Deserialize<List<string>>(reader.GetString(1)) is { } list) words[reader.GetString(0)] = list;
+        }
+
+        // Fish caught outside missions and where they live, as the desktop reads them (CatalogService.GetFishAsync).
+        var fish = new Dictionary<string, FishHabitat>(StringComparer.OrdinalIgnoreCase);
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT i.DescriptionEnglish FROM Items i JOIN Categories c ON c.Id = i.CategoryId
+                WHERE c.TemplateType = 'Fish' AND i.DescriptionEnglish IS NOT NULL
+                """;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                using var json = JsonDocument.Parse(reader.GetString(0));
+                var root = json.RootElement;
+                if (root.GetProperty("mission").GetBoolean() || root.GetProperty("id").GetString() is not { Length: > 0 } id) continue;
+                fish[id] = new FishHabitat(root.GetProperty("biomes").EnumerateArray().Select(b => b.GetInt32()).ToArray(),
+                    root.GetProperty("storm").GetBoolean());
             }
         }
 
@@ -92,6 +126,8 @@ public static class MobileRulesExportService
             ItemNames = names,
             Recipes = recipes,
             ItemValues = values,
+            NameWords = words,
+            Fish = fish,
         };
     }
 

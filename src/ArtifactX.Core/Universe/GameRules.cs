@@ -20,8 +20,8 @@ namespace ArtifactX.Core.Universe;
 public sealed class GameRules
 {
     /// <summary>This file's layout; a phone refuses a newer one rather than misread it. 2 (2026-11-18): recipes, item
-    /// values and the EGGSEQUENCER row.</summary>
-    public const int CurrentFormat = 2;
+    /// values and the EGGSEQUENCER row. 3: multi-tool name words. 4: fish habitats. 5: trade category and legality on item values.</summary>
+    public const int CurrentFormat = 5;
 
     public int Format { get; init; } = CurrentFormat;
 
@@ -49,6 +49,14 @@ public sealed class GameRules
     /// Sequencer's doses are worked out from them.</summary>
     public Dictionary<string, ItemBaseValue> ItemValues { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The multi-tool name word lists (the catalog's "MultiToolNameWords" rows) that cabinet tools are named from.</summary>
+    public Dictionary<string, List<string>> NameWords { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Where each fish caught outside missions lives (the catalog's "Fish" rows), by item id.</summary>
+    public Dictionary<string, FishHabitat> Fish { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public IReadOnlyList<string>? Words(string key) => NameWords.TryGetValue(key, out var words) ? words : null;
+
     // Parsed tables, once each (PLANETPROFILE alone is ~650 KB of JSON).
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, object?> _parsed = new(StringComparer.OrdinalIgnoreCase);
 
@@ -59,13 +67,19 @@ public sealed class GameRules
 
     public string? ItemName(string id) => ItemNames.TryGetValue(id, out var name) ? name : null;
 
-    public BiomeTables? Biomes => Row<BiomeTables>("BIOMETABLES");
-    public PlanetProfileTables? Profiles => Row<PlanetProfileTables>("PLANETPROFILE");
-    public StationEquipmentTables? Stations => Row<StationEquipmentTables>("STATIONEQUIPMENT");
-    public BuildingOverrideRule[]? BuildingOverrides => Row<BuildingOverrideRule[]>("BUILDINGOVERRIDES");
-    public Recipes.ExtractionTables? Extraction => Row<Recipes.ExtractionTables>("EXTRACTIONTABLES");
-    public Recipes.FoodIngestorTables? Food => Row<Recipes.FoodIngestorTables>("FOODINGESTOR");
-    public Companions.EggSequencerRules? EggSequencer => Row<Companions.EggSequencerRules>("EGGSEQUENCER");
+    [System.Text.Json.Serialization.JsonIgnore] public BiomeTables? Biomes => Row<BiomeTables>("BIOMETABLES");
+    [System.Text.Json.Serialization.JsonIgnore] public PlanetProfileTables? Profiles => Row<PlanetProfileTables>("PLANETPROFILE");
+    [System.Text.Json.Serialization.JsonIgnore] public StationEquipmentTables? Stations => Row<StationEquipmentTables>("STATIONEQUIPMENT");
+    [System.Text.Json.Serialization.JsonIgnore] public BuildingOverrideRule[]? BuildingOverrides => Row<BuildingOverrideRule[]>("BUILDINGOVERRIDES");
+    [System.Text.Json.Serialization.JsonIgnore] public BuildingClassPlacement[]? BuildingPlacement => Row<BuildingClassPlacement[]>("BUILDINGPLACEMENT");
+    [System.Text.Json.Serialization.JsonIgnore] public Recipes.CreatureProductSource[]? CreatureSources => Row<Recipes.CreatureProductSource[]>("CREATUREPRODUCTS");
+    [System.Text.Json.Serialization.JsonIgnore] public GalaxyPlacementSettings? GalaxyPlacement => Row<GalaxyPlacementSettings>("GALAXYPLACEMENT");
+    [System.Text.Json.Serialization.JsonIgnore] public GalaxyGenerationSettings? GalaxySettings => Row<GalaxyGenerationSettings>("GALAXYGENERATION");
+    [System.Text.Json.Serialization.JsonIgnore] public Recipes.ExtractionTables? Extraction => Row<Recipes.ExtractionTables>("EXTRACTIONTABLES");
+    [System.Text.Json.Serialization.JsonIgnore] public Recipes.FoodIngestorTables? Food => Row<Recipes.FoodIngestorTables>("FOODINGESTOR");
+    [System.Text.Json.Serialization.JsonIgnore] public InventoryGenerationTables? Inventory => Row<InventoryGenerationTables>("INVENTORYGENERATION");
+    [System.Text.Json.Serialization.JsonIgnore] public MultiToolModelTables? MultiToolModel => Row<MultiToolModelTables>("MULTITOOLMODEL");
+    [System.Text.Json.Serialization.JsonIgnore] public Companions.EggSequencerRules? EggSequencer => Row<Companions.EggSequencerRules>("EGGSEQUENCER");
 
     /// <summary>Writes the file: gzip-compressed JSON (about a tenth of the raw ~2 MB).</summary>
     public void Write(Stream output)
@@ -94,9 +108,12 @@ public sealed class GameRules
             ItemNames = new(rules.ItemNames, StringComparer.OrdinalIgnoreCase),
             Recipes = rules.Recipes,
             ItemValues = new(rules.ItemValues, StringComparer.OrdinalIgnoreCase),
+            NameWords = new(rules.NameWords, StringComparer.OrdinalIgnoreCase),
+            Fish = new(rules.Fish, StringComparer.OrdinalIgnoreCase),
         };
     }
 }
 
-/// <summary>An item's base value (GcProductData/GcRealitySubstanceData BaseValue) and whether it is a substance.</summary>
-public sealed record ItemBaseValue(long Value, bool IsSubstance);
+/// <summary>An item's base value (GcProductData/GcRealitySubstanceData BaseValue), whether it is a substance, its trade
+/// category (Recipes.TradeEconomies names the economy) and whether it is contraband.</summary>
+public sealed record ItemBaseValue(long Value, bool IsSubstance, string TradeCategory = "None", bool Illegal = false);
