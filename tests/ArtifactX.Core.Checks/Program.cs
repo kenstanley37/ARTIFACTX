@@ -77,6 +77,7 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
     PlanetRegionChecks.Check();
     SpeciesNameChecks.FaunaSeeds();
     SpeciesNameChecks.FaunaSizeClass();
+    DiscoveryKeyChecks.Check();
     PlanetFaunaPairingChecks.Check();
     CreatureInfoChecks.Check();
     CreatureFormChecks.Check();

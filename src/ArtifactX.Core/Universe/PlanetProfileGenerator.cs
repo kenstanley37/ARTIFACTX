@@ -152,13 +152,10 @@ public static partial class PlanetProfileGenerator
         bool caves = false;
         if (t.Objects is { } objects && BiomeFile(objects, biome, subType) is { } file)
         {
-            var terrain = Terrain(Rng.Start(seeds[4]), file, objects.Terrain, body, star);
+            var (terrain, placed) = TerrainAndObjects(seeds, body, star, b, objects, file);
             sea = terrain.Sea;
             caves = terrain.Caves;
             water = sea > 0f;
-            var planet = new PlanetFacts(biome, subType, planetClass, sentinels.Length > 2 ? sentinels[2] : 1,
-                ExtremeLooking(biome, subType, weather, extreme), scrap, terrain.Sea, terrain.Caves, objects.Terrain.SeaStandard);
-            var placed = PlacedObjects(Rng.Start(seeds[7]), file, objects, planet);
             hints = placed.Hints;
             harvest = Harvest(placed.Placed, objects);
         }
@@ -168,6 +165,19 @@ public static partial class PlanetProfileGenerator
         int? faunaCount = t.Creatures is not null ? (fauna <= 0 ? 0 : faunaResult.Count) : null;
         return new PlanetProfile(common, uncommon, b.Rare, weather, extreme, storms, flora, fauna, sentinels,
             hints, scrap, water, faunaCount, faunaResult.Creatures, b.Descriptor, harvest);
+    }
+
+    /// <summary>The terrain step (child seed 4) and the object step (child seed 7) for a planet whose
+    /// <see cref="Basics"/> are known.</summary>
+    private static ((float Sea, bool Caves, int Index, int DrawsBeforeLayers) Terrain,
+        (string[] Hints, List<ObjectList> Placed, List<int> Picks) Placed) TerrainAndObjects(ulong[] seeds, PlanetType body, int star,
+        PlanetBasics b, ObjectTables objects, BiomeObjects file)
+    {
+        var terrain = Terrain(Rng.Start(seeds[4]), file, objects.Terrain, body, star);
+        var planet = new PlanetFacts(body.Biome, body.SubType, body.Class, b.Sentinels.Length > 2 ? b.Sentinels[2] : 1,
+            ExtremeLooking(body.Biome, body.SubType, b.WeatherType, b.Extreme), b.ScrapWorld, terrain.Sea, terrain.Caves,
+            objects.Terrain.SeaStandard);
+        return (terrain, PlacedObjects(Rng.Start(seeds[7]), file, objects, planet));
     }
 
     /// <summary>The planet's resources, weather, life, sentinels and descriptor alone: the same steps and seeds as

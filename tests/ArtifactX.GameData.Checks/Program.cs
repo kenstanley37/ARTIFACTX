@@ -492,6 +492,12 @@ if (args.Length == 2 && args[0] == "--crashed-ship-class-check")
     return;
 }
 
+if (args.Length == 3 && args[0] == "--discovery-seed-check")
+{
+    DiscoverySeedChecks.Run(args[1], args[2]);
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--gas-giant-layout-check")
 {
     GasGiantLayoutChecks.Run(args[1]);
