@@ -480,6 +480,12 @@ if (args.Length == 2 && args[0] == "--system-chances-check")
     return;
 }
 
+if (args.Length == 2 && args[0] == "--crashed-ship-class-check")
+{
+    CrashedShipClassChecks.Run(args[1]);
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--gas-giant-layout-check")
 {
     GasGiantLayoutChecks.Run(args[1]);

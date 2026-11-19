@@ -149,6 +149,33 @@ public static class CrashedShipSites
         return all;
     }
 
+    /// <summary>The planet's wrecks of class <paramref name="minClass"/> or better as the game shows it (an Exotic is
+    /// S), like <see cref="All"/> but much cheaper for a search over many planets: the class (a hash of the site key)
+    /// is checked first and the ground test (terrain) only runs for the few that pass.</summary>
+    public static List<CrashedShipSite> OfClass(PlanetSiteContext context, int minClass, CancellationToken cancel = default)
+    {
+        if (context.Uncharted) return All(context).Where(s => s.ShownClass >= minClass).ToList();
+        var found = new List<CrashedShipSite>();
+        var seen = new HashSet<ulong>();
+        var attributes = context.Attributes;
+        for (int face = 0; face < 6; face++)
+            foreach (var site in PlanetBuildingSites.Sites(face, context.Divisions, context.Radius, context.SectorSeed, context.Slots, IsWreck))
+            {
+                if (!seen.Add(site.Key)) continue;   // a cell on a cube edge belongs to two faces
+                if ((seen.Count & 255) == 0) cancel.ThrowIfCancellationRequested();
+                int cls = SystemShipPool.CrashedShipClass(site.Key, attributes.Wealth, attributes.Pirate, context.Inventory) ?? -1;
+                if (cls < minClass)
+                {
+                    // Only an Exotic lifts a lower roll to S; pick the ship just for those few.
+                    if (minClass > 3 || site.Class == SentinelDistressSignal || context.Pool is null || context.ShipPool is null) continue;
+                    var ship = SystemShipPool.CrashedShip(site.Key, context.Pool, attributes.Race, attributes.Pirate, context.SystemAddress, context.ShipPool);
+                    if (ship?.Type != SystemStarshipType.Exotic) continue;
+                }
+                if (context.Builds(site)) found.Add(Describe(context, site, Vector3.Normalize(site.Point)));
+            }
+        return found;
+    }
+
     /// <summary>A wreck site described: coordinates, the ship lying there, its class and inventory, depth underwater.</summary>
     public static CrashedShipSite Describe(PlanetSiteContext context, BuildingSite site, Vector3 from)
     {
