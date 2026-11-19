@@ -51,17 +51,27 @@ public sealed partial class FrigatePage : Page
     private string? _previewKey;
 
     /// <summary>The selected frigate's hull: its class's model (FrigatesViewModel.PreviewScene) and, for organic
-    /// frigates, the parts its model seed picks. Rebuilt only when either changed. A shape scan: the ships' seed paint
-    /// gave pink, yellow and blue hulls where the game shows the owner's frigates dark navy and grey (2026-11-19), so
-    /// frigate colours follow some other rule, not found yet.</summary>
+    /// frigates, the parts its model seed picks, painted from the model seed itself as starships are (ModelPreviewPanel's
+    /// seed colours), except the Paint palette (<see cref="FrigateHullPaint"/>). Rebuilt only when either changed. Checked 2026-11-19 against the owner's photo-mode shots of two
+    /// Combat frigates: the Freighter palette's primary is CV-7 Keharaso's brown roof (#6F4346) and CS-6 Oishiz's near-black
+    /// one (#3A4F60); the child-seed rule fitted neither.</summary>
     private void ShowPreview()
     {
         string? scene = ViewModel.PreviewScene, seed = ViewModel.ModelSeedText;
         string key = $"{scene}|{seed}";
         if (key == _previewKey) return;
         _previewKey = key;
-        _ = FrigatePreview.ShowAsync(scene, seed, shapeOnly: true);
+        _ = FrigatePreview.ShowAsync(scene, seed, paletteOverrides: FrigateHullPaint);
     }
+
+    /// <summary>The Paint palette on frigates isn't the seed's: the broad hull bands it colours (the combat hull's
+    /// WARRIORTILED material, layers OVERLAY3 and OVERLAY4) look the same pale grey on CV-7 Keharaso and CS-6 Oishiz in
+    /// the owner's photo-mode shots (2026-11-19), whose seeds give pink and steel blue. Measured from those shots under
+    /// the game's blue space light, so an approximation; where the game takes it from isn't found yet.</summary>
+    private static readonly System.Collections.Generic.Dictionary<string, float[]> FrigateHullPaint = new()
+    {
+        ["Paint"] = new[] { 0.80f, 0.82f, 0.84f },
+    };
 
     /// <summary>An edit (here or the title bar's Reset): refresh the cards, not the details being typed in.</summary>
     private void OnEditsChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(ViewModel.RefreshCards);
