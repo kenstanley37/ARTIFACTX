@@ -121,17 +121,9 @@
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Spacing="6">
                                             <TextBlock Text="PILOT RANK" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <NumberBox Value="{x:Bind ViewModel.Rank.Value, Mode=TwoWay}" Minimum="0" SpinButtonPlacementMode="Compact"
-                                                           AutomationProperties.Name="Pilot rank"
-                                                           ToolTipService.ToolTip="0 to 3 show in game as the C, B, A or S badge next to the pilot's name."/>
-                                                <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.RankLetter, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}"
-                                                           FontWeight="SemiBold" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
-                                            </Grid>
+                                            <ComboBox ItemsSource="{x:Bind ViewModel.Ranks}" SelectedItem="{x:Bind ViewModel.Rank, Mode=TwoWay}"
+                                                      HorizontalAlignment="Stretch" AutomationProperties.Name="Pilot rank"
+                                                      ToolTipService.ToolTip="The class badge next to the pilot's name in game. It limits how good three of the pilot's four traits can be."/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="2" Spacing="6">
                                             <TextBlock Text="SHIP TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
@@ -163,6 +155,20 @@
                                                       ToolTipService.ToolTip="Drives the pilot's four stat categories and their ratings (the categories themselves vary per pilot), confirmed kills and the notes line."/>
                                         </StackPanel>
                                         <controls:SeedBox x:Name="TraitsSeedBox" Label="Traits seed" Changed="Seed_Changed"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0" Visibility="{x:Bind ViewModel.HasFacts, Mode=OneWay}">
+                                            <Button Command="{x:Bind ViewModel.FindBestTraitsCommand}"
+                                                    AutomationProperties.Name="Find the best traits seed for this pilot's rank">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <ProgressRing IsActive="{x:Bind ViewModel.IsSearching, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsSearching, Mode=OneWay}"
+                                                                  Width="16" Height="16"/>
+                                                    <TextBlock Text="{x:Bind ViewModel.SearchButtonText, Mode=OneWay}"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <FontIcon Glyph="&#xE946;" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}" VerticalAlignment="Center"
+                                                      ToolTipService.ToolTip="Tries millions of traits seeds and picks the best stat card for the pilot's current rank. The rank limits three of the four traits: Class S can reach Unrivaled, A Outstanding, B Excellent, C Good. Set the rank first. Previous on the seed box brings the old seed back."/>
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind ViewModel.SearchStatus, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13"
+                                                   TextWrapping="Wrap" MaxWidth="460" HorizontalAlignment="Left"/>
                                     </StackPanel>
                                 </StackPanel>
                             </ContentControl>
@@ -230,7 +236,7 @@
 
                         <!-- The pilot (its race's NPC scene; the appearance seed's first child seed picks the parts, as for a
                              freighter captain - a shape scan, colours unknown) beside its ship, the same height so they line up;
-                             the ship's name sits under its preview. -->
+                             each one's name sits under its preview. -->
                         <Grid x:Name="PreviewGroup" Grid.Column="1" ColumnSpacing="18" RowSpacing="18" VerticalAlignment="Top"
                               Visibility="{x:Bind ViewModel.ShowPreviews, Mode=OneWay}">
                             <Grid.ColumnDefinitions>
@@ -241,8 +247,12 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <controls:ModelPreviewPanel x:Name="PilotPreview" Subject="pilot" Heading="PILOT"
-                                                        PreviewHeight="300" StartYawOffset="2.65" StartPitchOffset="0.45"/>
+                            <StackPanel Spacing="8">
+                                <controls:ModelPreviewPanel x:Name="PilotPreview" Subject="pilot" Heading="PILOT"
+                                                            PreviewHeight="300" StartYawOffset="2.65" StartPitchOffset="0.45"/>
+                                <TextBlock Text="{x:Bind ViewModel.PilotName, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"
+                                           FontSize="15" Foreground="{ThemeResource ThemeAccentBrush}" TextWrapping="Wrap"/>
+                            </StackPanel>
                             <StackPanel x:Name="ShipColumn" Grid.Column="1" Spacing="8">
                                 <controls:ModelPreviewPanel x:Name="ShipPreview" Subject="ship" Heading="SHIP" PreviewHeight="300"/>
                                 <TextBlock Text="{x:Bind ViewModel.ShipName, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}" FontWeight="SemiBold"

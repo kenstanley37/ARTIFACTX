@@ -22,6 +22,7 @@ public sealed partial class SquadronPage : Page
     {
         InitializeComponent();
         ViewModel.PreviewChanged += ShowDetails;
+        ViewModel.TraitsSeedFound += seed => TraitsSeedBox.Set(seed);
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnEditsChanged;
         Unloaded += (_, _) =>

@@ -2,6 +2,7 @@ using ArtifactX.Almanac.Starship;
 using ArtifactX.Core.NmsModels;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using System;
@@ -42,7 +43,7 @@ public sealed partial class SquadronSlotViewModel : ObservableObject
     public Thickness BorderThickness => new(IsSelected ? 2 : 1);
     public Brush Fill => ThemeResources.Brush(IsSelected ? "ThemeSelectedFillBrush" : "ThemePanelAltBrush");
     public Windows.UI.Text.FontWeight Weight => IsSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
-    public string AccessibleName => $"Squadron {Label}";
+    public string AccessibleName => Label.StartsWith("Slot ", StringComparison.Ordinal) ? $"Squadron {Label}" : $"Squadron slot {Index + 1}, {Label}";
 }
 
 /// <summary>
@@ -62,7 +63,21 @@ public sealed partial class SquadronViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasFacts))] public partial IReadOnlyList<PilotFactRow> Facts { get; private set; } = [];
     [ObservableProperty] public partial string Kills { get; private set; } = "";
     [ObservableProperty] public partial string Notes { get; private set; } = "";
+
+    /// <summary>The pilot's name as the game shows it ("Liquidator Uduoh": Core NpcNames from the pilot-and-ship name
+    /// seed and the race of the pilot's NPC scene; catalog format 111). "" until the game data has it.</summary>
+    [ObservableProperty] public partial string PilotName { get; private set; } = "";
     public bool HasFacts => Facts.Count > 0;
+
+    /// <summary>"Find best traits" is running (SquadronTraitSearch, a few seconds on every core).</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SearchButtonText))] public partial bool IsSearching { get; private set; }
+    public string SearchButtonText => IsSearching ? "Searching..." : "Find Best Traits";
+
+    /// <summary>What the last search found, for the line under the button; "" until one ran for this pilot.</summary>
+    [ObservableProperty] public partial string SearchStatus { get; private set; } = "";
+
+    /// <summary>A search found a traits seed: the page puts it in the traits seed box, which stages it.</summary>
+    public event Action<string>? TraitsSeedFound;
 
     /// <summary>GcPlayerSquadronConfig.RandomPilotNPCResources (NmsSquadronPaths.NpcRaceOptions).</summary>
     public IReadOnlyList<SquadronChoice> Races { get; } = NmsSquadronPaths.NpcRaceOptions.Select(o => new SquadronChoice(o.DisplayName, o.Filename)).ToList();
@@ -78,8 +93,12 @@ public sealed partial class SquadronViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowPreviews))] public partial bool IsUnlocked { get; set; }
     [ObservableProperty] public partial SquadronChoice? Race { get; set; }
     [ObservableProperty] public partial SquadronChoice? ShipType { get; set; }
-    [ObservableProperty] public partial NumberFieldViewModel? Rank { get; private set; }
-    [ObservableProperty] public partial string RankLetter { get; private set; } = "";
+    /// <summary>The pilot ranks the game shows (GcInventoryClass raw values 0-3 as the C, B, A, S badge); a save's
+    /// unconfirmed higher value is added as an extra entry so it isn't silently replaced.</summary>
+    public ObservableCollection<SquadronChoice> Ranks { get; } = new(Enumerable.Range(0, 4).Select(r => new SquadronChoice(RankLetterFor(r), r.ToString())));
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(RankLetter))] public partial SquadronChoice? Rank { get; set; }
+    public string RankLetter => Rank?.Label ?? "";
     [ObservableProperty] public partial string ShipName { get; private set; } = "";
     [ObservableProperty] public partial bool HasEdits { get; private set; }
 
@@ -120,6 +139,7 @@ public sealed partial class SquadronViewModel : ObservableObject
     public void Select(int index)
     {
         SelectedIndex = index;
+        SearchStatus = "";
         foreach (var slot in Slots)
         {
             slot.Label = SlotLabel(slot.Index);
@@ -132,7 +152,6 @@ public sealed partial class SquadronViewModel : ObservableObject
             Race = null;
             ShipType = null;
             Rank = null;
-            RankLetter = "";
             HasEdits = false;
             _loading = false;
             PreviewChanged?.Invoke();
@@ -155,25 +174,27 @@ public sealed partial class SquadronViewModel : ObservableObject
         }
         ShipType = shipType;
 
-        double rank = SquadronService.Rank(index);
-        Rank = new NumberFieldViewModel("Pilot rank", "rank", rank, field =>
+        foreach (var stale in Ranks.Where(r => !r.Listed).ToList()) Ranks.Remove(stale);
+        string rank = ((int)SquadronService.Rank(index)).ToString();
+        var rankChoice = Ranks.FirstOrDefault(r => r.Value == rank);
+        if (rankChoice is null)
         {
-            RankLetter = RankLetterFor(field.Value);
-            if (double.IsNaN(field.Value)) return;
-            SquadronService.SetRank(SelectedIndex, (int)field.Value);
-            HasEdits = true;
-            RefreshFacts();
-        });
-        RankLetter = RankLetterFor(rank);
+            rankChoice = new SquadronChoice($"Rank {rank} (no confirmed class badge)", rank, Listed: false);
+            Ranks.Add(rankChoice);
+        }
+        Rank = rankChoice;
         HasEdits = SquadronService.HasEdits(index);
         _loading = false;
         RefreshFacts();
         PreviewChanged?.Invoke();
     }
 
-    /// <summary>Works the stat card out again from the traits seed and rank (after either changed).</summary>
+    /// <summary>Works the pilot's name and stat card out again (after a seed, the race or the rank changed).</summary>
     public void RefreshFacts()
     {
+        PilotName = HasSelection && _factRules is { } nameRules && NmsSeedGenerator.TryParse(ShipSeed, out ulong nameSeed)
+            ? nameRules.PilotName(nameSeed, PilotScene) : "";
+        if (HasSelection && SelectedIndex < Slots.Count) Slots[SelectedIndex].Label = SlotLabel(SelectedIndex);
         if (!HasSelection || _factRules is not { } rules
             || !NmsSeedGenerator.TryParse(SquadronService.TraitsSeed(SelectedIndex), out ulong seed))
         {
@@ -191,6 +212,28 @@ public sealed partial class SquadronViewModel : ObservableObject
         Notes = rules.Word(facts.NoteKey).Text;
     }
 
+    /// <summary>Looks for the traits seed with the best stat card this pilot's rank allows and puts it in the traits seed
+    /// box (staged like a typed seed; the box's Previous button or Reset brings the old one back).</summary>
+    [RelayCommand]
+    private async Task FindBestTraitsAsync()
+    {
+        if (!HasSelection || _factRules is not { } rules || IsSearching) return;
+        int slot = SelectedIndex, rank = (int)SquadronService.Rank(slot);
+        string rankText = RankLetter;
+        IsSearching = true;
+        SearchStatus = "";
+        var ranges = rules.Ranges;
+        var found = await Task.Run(() => ArtifactX.Core.Squadron.SquadronTraitSearch.Find(rank, ranges, TimeSpan.FromSeconds(30)));
+        IsSearching = false;
+        if (SelectedIndex != slot) return;
+        TraitsSeedFound?.Invoke($"0x{found.Seed:X16}");
+        string best = rules.Word($"UI_SQUADRON_FACT_GRADE{ArtifactX.Core.Squadron.SquadronTraitSearch.BestGrade(rank, ranges)}").Text;
+        string unrivaled = rules.Word("UI_SQUADRON_FACT_GRADE1").Text;
+        SearchStatus = !found.IsBest ? $"The best of {found.Tried:N0} seeds tried. Search again for another try."
+            : best == unrivaled ? $"The best a {rankText} pilot can have: {unrivaled} on all four traits."
+            : $"The best a {rankText} pilot can have: {best} on three traits (the rank's limit) and {unrivaled} on the fourth.";
+    }
+
     /// <summary>The game's grade colours: TRADEABLE green (Good, Excellent), COMMODITY gold (Outstanding, Unrivaled).</summary>
     private static Brush GradeBrush(string tag) => tag.ToUpperInvariant() switch
     {
@@ -206,6 +249,15 @@ public sealed partial class SquadronViewModel : ObservableObject
         HasEdits = true;
         foreach (var slot in Slots) slot.Label = SlotLabel(slot.Index);
         PreviewChanged?.Invoke();
+    }
+
+    partial void OnRankChanged(SquadronChoice? value)
+    {
+        if (_loading || !HasSelection || value is null || !int.TryParse(value.Value, out int rank)) return;
+        if (rank == (int)SquadronService.Rank(SelectedIndex)) return;
+        SquadronService.SetRank(SelectedIndex, rank);
+        HasEdits = true;
+        RefreshFacts();
     }
 
     partial void OnRaceChanged(SquadronChoice? value)
@@ -244,16 +296,22 @@ public sealed partial class SquadronViewModel : ObservableObject
         if (seedText == ShipSeed) ShipName = name.Length > 0 ? name : "Squadron Starship";
     }
 
-    private static string SlotLabel(int slot) => SquadronService.IsUnlocked(slot) ? $"Slot {slot + 1}" : $"Slot {slot + 1} (Locked)";
+    /// <summary>A slot button: the pilot's name when the game data has it, else "Slot 1"; "Slot 2 (Locked)" for a locked bay.</summary>
+    private string SlotLabel(int slot)
+    {
+        if (!SquadronService.IsUnlocked(slot)) return $"Slot {slot + 1} (Locked)";
+        string name = _factRules is { } rules && NmsSeedGenerator.TryParse(SquadronService.ShipSeed(slot), out ulong seed)
+            ? rules.PilotName(seed, SquadronService.NpcScene(slot)) : "";
+        return name.Length > 0 ? name : $"Slot {slot + 1}";
+    }
 
     /// <summary>Only 0-3 are confirmed (C/B/A/S, GcInventoryClass's raw values) - PilotRank is a plain ushort in
     /// libMBIN, so higher values are accepted without validation. See NmsSquadronPaths.</summary>
-    private static string RankLetterFor(double rank) => rank switch
+    private static string RankLetterFor(int rank) => rank switch
     {
         0 => "Class C",
         1 => "Class B",
         2 => "Class A",
-        3 => "Class S",
-        _ => "No confirmed class badge",
+        _ => "Class S",
     };
 }
