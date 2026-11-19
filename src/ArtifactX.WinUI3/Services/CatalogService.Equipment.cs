@@ -482,6 +482,27 @@ public static partial class CatalogService
         }
     });
 
+    /// <summary>The squadron pilot stat card's rules (catalog row SQUADRONFACTS, format 110), or null for an older catalog.</summary>
+    public static Task<ArtifactX.Core.Squadron.SquadronFactRules?> GetSquadronFactRulesAsync() => Task.Run(() =>
+    {
+        if (ResolveDbPath() is not string dbPath) return null;
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly");
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT DescriptionEnglish FROM Items WHERE GameId = 'SQUADRONFACTS'";
+            return command.ExecuteScalar() is string json
+                && System.Text.Json.JsonSerializer.Deserialize<ArtifactX.Core.Squadron.SquadronFactRules>(json) is { Words: not null, RangeLow.Length: > 0 } rules
+                ? rules : null;
+        }
+        catch (Exception ex) when (ex is SqliteException or System.Text.Json.JsonException)
+        {
+            Debug.WriteLine($"[CatalogService] Squadron fact rules unavailable: {ex.Message}");
+            return null;
+        }
+    });
+
     /// <summary>Each frigate class's model and the scene its 3D preview draws (catalog row FRIGATEMODELS, format
     /// 109), by GcFrigateClass value; empty for an older catalog.</summary>
     public static Task<Dictionary<int, ArtifactX.Core.Frigates.FrigateModel>> GetFrigateModelsAsync() => Task.Run(() =>
