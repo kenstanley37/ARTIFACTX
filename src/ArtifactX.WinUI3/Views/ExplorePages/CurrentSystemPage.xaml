@@ -175,6 +175,32 @@
                                                    Text="Worked out the way the game does, or as the game showed it when you recorded it. The game words economy, wealth and conflict its own way (Mining may read &quot;Prospecting&quot;): open the system in the game's Discoveries or Galaxy Map with screen recording on to get its exact words."/>
                                     </StackPanel>
                                 </Border>
+
+                                <!-- Discover this system (#43, SystemDiscoveriesViewModel): stages the loaded save's missing
+                                     planet, creature, plant and mineral discoveries, not uploaded. Beside the system data,
+                                     not a row of its own (owner, 2026-11-19). -->
+                                <Border MaxWidth="320" VerticalAlignment="Top" Padding="18,14,18,16"
+                                        Visibility="{x:Bind ViewModel.Discoveries.IsVisible, Mode=OneWay}"
+                                        CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemeVoidBrush}"
+                                        BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="DISCOVER THIS SYSTEM" Style="{StaticResource ThemeEyebrowStyle}"/>
+                                        <TextBlock Text="{x:Bind ViewModel.Discoveries.Summary, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" FontSize="15" TextWrapping="Wrap"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Button Content="Discover everything here" Command="{x:Bind ViewModel.Discoveries.DiscoverCommand}"
+                                                    Style="{StaticResource ThemeAccentButtonStyle}"
+                                                    Visibility="{x:Bind ViewModel.Discoveries.IsNotStaged, Mode=OneWay}"
+                                                    AutomationProperties.Name="Discover every planet, creature, plant and mineral in this system"
+                                                    ToolTipService.ToolTip="Adds this system's missing discoveries to your save as not yet uploaded. Nothing is written until you save."/>
+                                            <Button Content="Undo" Command="{x:Bind ViewModel.Discoveries.UndoCommand}"
+                                                    Visibility="{x:Bind ViewModel.Discoveries.IsStaged, Mode=OneWay}"
+                                                    AutomationProperties.Name="Undo the staged discoveries for this system"/>
+                                            <ProgressRing IsActive="{x:Bind ViewModel.Discoveries.IsBusy, Mode=OneWay}" Width="16" Height="16"
+                                                          Visibility="{x:Bind ViewModel.Discoveries.IsBusy, Mode=OneWay}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind ViewModel.Discoveries.Note, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
                             </ctcontrols:WrapPanel>
 
                             <!-- Planet discovery and detail cards come before station stock. -->
@@ -218,29 +244,6 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                </StackPanel>
-                            </controls:FoldingCard>
-
-                            <!-- Discover this system (#43, SystemDiscoveriesViewModel): stages the loaded save's missing
-                                 planet, creature, plant and mineral discoveries, not uploaded. -->
-                            <controls:FoldingCard Title="DISCOVER THIS SYSTEM" FoldedName="{x:Bind ViewModel.Discoveries.Summary, Mode=OneWay}"
-                                                  SettingKey="CurrentSystemDiscoverCollapsed"
-                                                  Visibility="{x:Bind ViewModel.Discoveries.IsVisible, Mode=OneWay}">
-                                <StackPanel Spacing="10" Margin="0,16,0,0">
-                                    <TextBlock Text="{x:Bind ViewModel.Discoveries.Summary, Mode=OneWay}" Style="{StaticResource ThemeBodyTextStyle}" TextWrapping="Wrap"/>
-                                    <TextBlock Text="{x:Bind ViewModel.Discoveries.Note, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="13" TextWrapping="Wrap"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Content="Discover everything here" Command="{x:Bind ViewModel.Discoveries.DiscoverCommand}"
-                                                Style="{StaticResource ThemeAccentButtonStyle}"
-                                                Visibility="{x:Bind ViewModel.Discoveries.IsNotStaged, Mode=OneWay}"
-                                                AutomationProperties.Name="Discover every planet, creature, plant and mineral in this system"
-                                                ToolTipService.ToolTip="Adds this system's missing discoveries to your save as not yet uploaded. Nothing is written until you save."/>
-                                        <Button Content="Undo" Command="{x:Bind ViewModel.Discoveries.UndoCommand}"
-                                                Visibility="{x:Bind ViewModel.Discoveries.IsStaged, Mode=OneWay}"
-                                                AutomationProperties.Name="Undo the staged discoveries for this system"/>
-                                        <ProgressRing IsActive="{x:Bind ViewModel.Discoveries.IsBusy, Mode=OneWay}" Width="16" Height="16"
-                                                      Visibility="{x:Bind ViewModel.Discoveries.IsBusy, Mode=OneWay}" VerticalAlignment="Center"/>
-                                    </StackPanel>
                                 </StackPanel>
                             </controls:FoldingCard>
 
