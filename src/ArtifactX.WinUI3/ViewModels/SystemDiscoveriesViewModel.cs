@@ -8,8 +8,8 @@ using CommunityToolkit.Mvvm.Input;
 namespace ArtifactX.WinUI3.ViewModels;
 
 /// <summary>
-/// The Current System page's "Discover everything here" card (#43, SystemDiscoveryService): what the save's current
-/// system still lacks, a button that stages it all as discoveries made but not uploaded, and Undo. It acts on the
+/// The Current System page's "Discover everything" button under System Data (#43, SystemDiscoveryService): what the save's current
+/// system still lacks (its (i) explains), staging it all as discoveries made but not uploaded, and Undo. It acts on the
 /// loaded save's location, which the page shows.
 /// </summary>
 public sealed partial class SystemDiscoveriesViewModel : ObservableObject
@@ -22,7 +22,11 @@ public sealed partial class SystemDiscoveriesViewModel : ObservableObject
     [ObservableProperty] public partial bool IsStaged { get; private set; }
     [ObservableProperty, NotifyCanExecuteChangedFor(nameof(DiscoverCommand))] public partial bool CanDiscover { get; private set; }
     [ObservableProperty] public partial string Summary { get; private set; } = "";
-    [ObservableProperty] public partial string Note { get; private set; } = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(Info))] public partial string Note { get; private set; } = "";
+
+    /// <summary>The (i) next to the button: where things stand, then what the button does.</summary>
+    public string Info => Summary.Length == 0 ? Note : Summary + Environment.NewLine + Environment.NewLine + Note;
+    partial void OnSummaryChanged(string value) => OnPropertyChanged(nameof(Info));
 
     public bool IsNotStaged => !IsStaged;
     partial void OnIsStagedChanged(bool value) => OnPropertyChanged(nameof(IsNotStaged));
@@ -44,7 +48,7 @@ public sealed partial class SystemDiscoveriesViewModel : ObservableObject
         CanDiscover = plan is { Total: > 0 };
         Note = PlanetTypesService.ProfileTables?.Objects?.Spawn is null
             ? "Plants and minerals need up-to-date game data: rebuild it in Settings to include them."
-            : "Added as discoveries you haven't uploaded yet. Upload them in game from the Discoveries page.";
+            : "Marks every planet, creature, plant and mineral here as discovered. They're added as discoveries you haven't uploaded yet: upload them in game from the Discoveries page. Nothing is written until you save.";
         Summary = staged
             ? "Discoveries staged for this system. Save to write them, or Undo."
             : plan is null ? ""
