@@ -59,7 +59,10 @@ public sealed partial class SystemDiscoveriesViewModel : ObservableObject
         _plan = plan;
         IsStaged = staged;
         IsVisible = staged || plan is not null || otherSystem;
-        CanDiscover = plan is { Total: > 0 };
+        // Not while the game runs: ArtifactX can't save then, and the game's next save would replace the loaded one
+        // (owner, 2026-11-19).
+        bool gameRunning = GameProcessMonitorService.IsGameRunning;
+        CanDiscover = plan is { Total: > 0 } && !gameRunning;
         Note = PlanetTypesService.ProfileTables?.Objects?.Spawn is null
             ? "Plants and minerals need up-to-date game data: rebuild it in Settings to include them."
             : "Marks every planet, creature, plant and mineral here as discovered. They're added as discoveries you haven't uploaded yet: upload them in game from the Discoveries page. Nothing is written until you save.";
@@ -69,6 +72,7 @@ public sealed partial class SystemDiscoveriesViewModel : ObservableObject
             ? "Your loaded save was made in another system. Close No Man's Sky and reload the save (ArtifactX offers to when the game closes) to discover this one."
             : plan is null ? ""
             : plan.Total == 0 ? "Everything in this system is already discovered."
+            : gameRunning ? "Not yet discovered here: " + Counts(plan) + ". Close No Man's Sky to discover them."
             : "Not yet discovered here: " + Counts(plan) + ".";
     }
 

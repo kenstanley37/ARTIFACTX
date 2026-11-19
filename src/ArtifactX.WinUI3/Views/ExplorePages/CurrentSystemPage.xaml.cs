@@ -72,7 +72,11 @@ public sealed partial class CurrentSystemPage : Page
     });
 
     /// <summary>The game started or stopped, or a marker was staged or saved: the planet cards' marker buttons follow.</summary>
-    private void OnGameRunningChanged(object? sender, bool running) => DispatcherQueue.TryEnqueue(() => ViewModel.RefreshMarkers());
+    private void OnGameRunningChanged(object? sender, bool running) => DispatcherQueue.TryEnqueue(() =>
+    {
+        ViewModel.RefreshMarkers();
+        _ = ViewModel.Discoveries.RefreshAsync();
+    });
     private void OnPendingEditsChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
     {
         ViewModel.RefreshMarkers();
