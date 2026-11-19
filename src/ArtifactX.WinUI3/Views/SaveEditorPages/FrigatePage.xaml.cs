@@ -23,6 +23,7 @@ public sealed partial class FrigatePage : Page
     public FrigatePage()
     {
         InitializeComponent();
+        ViewModel.PreviewChanged += ShowPreview;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         SaveSessionManager.PendingEditsChanged += OnEditsChanged;
         LiveItemsService.Changed += OnLiveItemsChanged;
@@ -45,6 +46,19 @@ public sealed partial class FrigatePage : Page
     }
 
     private void OnSessionChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(() => _ = LoadAsync());
+
+    private string? _previewKey;
+
+    /// <summary>The selected frigate's hull: its class's model (FrigatesViewModel.PreviewScene) and, for organic
+    /// frigates, the parts its model seed picks. Rebuilt only when either changed.</summary>
+    private void ShowPreview()
+    {
+        string? scene = ViewModel.PreviewScene, seed = ViewModel.ModelSeedText;
+        string key = $"{scene}|{seed}";
+        if (key == _previewKey) return;
+        _previewKey = key;
+        _ = FrigatePreview.ShowAsync(scene, seed);
+    }
 
     /// <summary>An edit (here or the title bar's Reset): refresh the cards, not the details being typed in.</summary>
     private void OnEditsChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(ViewModel.RefreshCards);
