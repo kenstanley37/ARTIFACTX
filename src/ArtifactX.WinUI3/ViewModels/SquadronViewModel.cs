@@ -93,8 +93,12 @@ public sealed partial class SquadronViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowPreviews))] public partial bool IsUnlocked { get; set; }
     [ObservableProperty] public partial SquadronChoice? Race { get; set; }
     [ObservableProperty] public partial SquadronChoice? ShipType { get; set; }
-    [ObservableProperty] public partial NumberFieldViewModel? Rank { get; private set; }
-    [ObservableProperty] public partial string RankLetter { get; private set; } = "";
+    /// <summary>The pilot ranks the game shows (GcInventoryClass raw values 0-3 as the C, B, A, S badge); a save's
+    /// unconfirmed higher value is added as an extra entry so it isn't silently replaced.</summary>
+    public ObservableCollection<SquadronChoice> Ranks { get; } = new(Enumerable.Range(0, 4).Select(r => new SquadronChoice(RankLetterFor(r), r.ToString())));
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(RankLetter))] public partial SquadronChoice? Rank { get; set; }
+    public string RankLetter => Rank?.Label ?? "";
     [ObservableProperty] public partial string ShipName { get; private set; } = "";
     [ObservableProperty] public partial bool HasEdits { get; private set; }
 
@@ -148,7 +152,6 @@ public sealed partial class SquadronViewModel : ObservableObject
             Race = null;
             ShipType = null;
             Rank = null;
-            RankLetter = "";
             HasEdits = false;
             _loading = false;
             PreviewChanged?.Invoke();
@@ -171,16 +174,15 @@ public sealed partial class SquadronViewModel : ObservableObject
         }
         ShipType = shipType;
 
-        double rank = SquadronService.Rank(index);
-        Rank = new NumberFieldViewModel("Pilot rank", "rank", rank, field =>
+        foreach (var stale in Ranks.Where(r => !r.Listed).ToList()) Ranks.Remove(stale);
+        string rank = ((int)SquadronService.Rank(index)).ToString();
+        var rankChoice = Ranks.FirstOrDefault(r => r.Value == rank);
+        if (rankChoice is null)
         {
-            RankLetter = RankLetterFor(field.Value);
-            if (double.IsNaN(field.Value)) return;
-            SquadronService.SetRank(SelectedIndex, (int)field.Value);
-            HasEdits = true;
-            RefreshFacts();
-        });
-        RankLetter = RankLetterFor(rank);
+            rankChoice = new SquadronChoice($"Rank {rank} (no confirmed class badge)", rank, Listed: false);
+            Ranks.Add(rankChoice);
+        }
+        Rank = rankChoice;
         HasEdits = SquadronService.HasEdits(index);
         _loading = false;
         RefreshFacts();
@@ -249,6 +251,15 @@ public sealed partial class SquadronViewModel : ObservableObject
         PreviewChanged?.Invoke();
     }
 
+    partial void OnRankChanged(SquadronChoice? value)
+    {
+        if (_loading || !HasSelection || value is null || !int.TryParse(value.Value, out int rank)) return;
+        if (rank == (int)SquadronService.Rank(SelectedIndex)) return;
+        SquadronService.SetRank(SelectedIndex, rank);
+        HasEdits = true;
+        RefreshFacts();
+    }
+
     partial void OnRaceChanged(SquadronChoice? value)
     {
         if (_loading || !HasSelection || value is null) return;
@@ -296,12 +307,11 @@ public sealed partial class SquadronViewModel : ObservableObject
 
     /// <summary>Only 0-3 are confirmed (C/B/A/S, GcInventoryClass's raw values) - PilotRank is a plain ushort in
     /// libMBIN, so higher values are accepted without validation. See NmsSquadronPaths.</summary>
-    private static string RankLetterFor(double rank) => rank switch
+    private static string RankLetterFor(int rank) => rank switch
     {
         0 => "Class C",
         1 => "Class B",
         2 => "Class A",
-        3 => "Class S",
-        _ => "No confirmed class badge",
+        _ => "Class S",
     };
 }

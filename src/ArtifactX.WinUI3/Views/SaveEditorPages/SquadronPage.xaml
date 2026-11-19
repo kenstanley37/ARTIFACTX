@@ -121,17 +121,9 @@
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Spacing="6">
                                             <TextBlock Text="PILOT RANK" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <NumberBox Value="{x:Bind ViewModel.Rank.Value, Mode=TwoWay}" Minimum="0" SpinButtonPlacementMode="Compact"
-                                                           AutomationProperties.Name="Pilot rank"
-                                                           ToolTipService.ToolTip="0 to 3 show in game as the C, B, A or S badge next to the pilot's name."/>
-                                                <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.RankLetter, Mode=OneWay}" FontFamily="{ThemeResource ThemeDisplayFont}"
-                                                           FontWeight="SemiBold" FontSize="14" Foreground="{ThemeResource ThemeAccentBrush}" VerticalAlignment="Center"/>
-                                            </Grid>
+                                            <ComboBox ItemsSource="{x:Bind ViewModel.Ranks}" SelectedItem="{x:Bind ViewModel.Rank, Mode=TwoWay}"
+                                                      HorizontalAlignment="Stretch" AutomationProperties.Name="Pilot rank"
+                                                      ToolTipService.ToolTip="The class badge next to the pilot's name in game. It limits how good three of the pilot's four traits can be."/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="2" Spacing="6">
                                             <TextBlock Text="SHIP TYPE" Style="{StaticResource ThemeEyebrowStyle}"/>
