@@ -38,6 +38,9 @@ public sealed partial class FrigatesViewModel : ObservableObject
     /// <summary>The selected frigate's model seed (ResourceSeed), which picks an organic frigate's parts.</summary>
     public string? ModelSeedText => SelectedIndex >= 0 ? FrigateService.Text(NmsFrigatePaths.ModelSeedPath(SelectedIndex)) : null;
 
+    /// <summary>The selected frigate's Home Seed (HomeSystemSeed), which gives its paint.</summary>
+    public string? HomeSeedText => SelectedIndex >= 0 ? FrigateService.Text(NmsFrigatePaths.HomeSeedPath(SelectedIndex)) : null;
+
     /// <summary>Tells the page the look changed.</summary>
     public void RefreshPreview() => PreviewChanged?.Invoke();
 

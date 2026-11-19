@@ -50,28 +50,20 @@ public sealed partial class FrigatePage : Page
 
     private string? _previewKey;
 
-    /// <summary>The selected frigate's hull: its class's model (FrigatesViewModel.PreviewScene) and, for organic
-    /// frigates, the parts its model seed picks, painted from the model seed itself as starships are (ModelPreviewPanel's
-    /// seed colours), except the Paint palette (<see cref="FrigateHullPaint"/>). Rebuilt only when either changed. Checked 2026-11-19 against the owner's photo-mode shots of two
-    /// Combat frigates: the Freighter palette's primary is CV-7 Keharaso's brown roof (#6F4346) and CS-6 Oishiz's near-black
-    /// one (#3A4F60); the child-seed rule fitted neither.</summary>
+    /// <summary>The selected frigate's hull: its class's model (FrigatesViewModel.PreviewScene), with the parts and
+    /// texture choices its Model Seed picks and the paint its Home Seed gives - as freighters are painted. Rebuilt only
+    /// when one of the three changed. Checked 2026-11-19 against the owner's photo-mode shots: CV-7 Keharaso and CS-6
+    /// Oishiz share Home Seed 0x980906A7A427, whose colours are their blue panels (Paint #3D8ECA / #446087) and the
+    /// slate and brown roof plates (Freighter #2D4B60 / #613C3E) - Oishiz's roof slate, Keharaso's brown, as each
+    /// Model Seed picks the plates. Their own Model Seeds' colours (pink, steel blue) fitted neither.</summary>
     private void ShowPreview()
     {
-        string? scene = ViewModel.PreviewScene, seed = ViewModel.ModelSeedText;
-        string key = $"{scene}|{seed}";
+        string? scene = ViewModel.PreviewScene, seed = ViewModel.ModelSeedText, home = ViewModel.HomeSeedText;
+        string key = $"{scene}|{seed}|{home}";
         if (key == _previewKey) return;
         _previewKey = key;
-        _ = FrigatePreview.ShowAsync(scene, seed, paletteOverrides: FrigateHullPaint);
+        _ = FrigatePreview.ShowAsync(scene, seed, colourSeedText: string.IsNullOrEmpty(home) ? null : home, texturesFromModelSeed: true);
     }
-
-    /// <summary>The Paint palette on frigates isn't the seed's: the broad hull bands it colours (the combat hull's
-    /// WARRIORTILED material, layers OVERLAY3 and OVERLAY4) look the same pale grey on CV-7 Keharaso and CS-6 Oishiz in
-    /// the owner's photo-mode shots (2026-11-19), whose seeds give pink and steel blue. Measured from those shots under
-    /// the game's blue space light, so an approximation; where the game takes it from isn't found yet.</summary>
-    private static readonly System.Collections.Generic.Dictionary<string, float[]> FrigateHullPaint = new()
-    {
-        ["Paint"] = new[] { 0.80f, 0.82f, 0.84f },
-    };
 
     /// <summary>An edit (here or the title bar's Reset): refresh the cards, not the details being typed in.</summary>
     private void OnEditsChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(ViewModel.RefreshCards);
@@ -126,6 +118,7 @@ public sealed partial class FrigatePage : Page
     {
         ViewModel.Edited();
         if (ReferenceEquals(sender, ModelSeedBox)) ViewModel.RefreshGeneratedName();
+        else ViewModel.RefreshPreview();
     }
 
     public Visibility HasGeneratedName(string value) => string.IsNullOrWhiteSpace(value) ? Visibility.Collapsed : Visibility.Visible;
