@@ -381,12 +381,6 @@ public sealed partial class MainWindow : Window
         WindowId windowId = new WindowId((ulong)windowHandle);
         _appWindow = AppWindow.GetFromWindowId(windowId);
 
-        // The taskbar and Alt-Tab icon, set on the window itself: an unpackaged WinUI 3 window doesn't reliably
-        // take the .exe's ApplicationIcon (owner saw a blank taskbar icon, 2026-11-18). The .ico is copied next
-        // to the app for this (csproj Content).
-        string icon = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
-        if (System.IO.File.Exists(icon)) _appWindow.SetIcon(icon);
-
         if (AppWindowTitleBar.IsCustomizationSupported())
         {
             var titleBar = _appWindow.TitleBar;
@@ -397,6 +391,16 @@ public sealed partial class MainWindow : Window
             titleBar.ButtonHoverBackgroundColor = Color.FromArgb(255, 20, 26, 39);
             titleBar.ButtonPressedBackgroundColor = Color.FromArgb(255, 255, 157, 0);
         }
+
+        // The taskbar and Alt-Tab icon (WindowIcon), after the title bar is set up and again on first activation.
+        Helpers.App.WindowIcon.Apply(_appWindow, windowHandle);
+        Activated += ApplyIconOnFirstActivation;
+    }
+
+    private void ApplyIconOnFirstActivation(object sender, WindowActivatedEventArgs args)
+    {
+        Activated -= ApplyIconOnFirstActivation;
+        Helpers.App.WindowIcon.Apply(_appWindow, WindowNative.GetWindowHandle(this));
     }
 
     private void RootNav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
