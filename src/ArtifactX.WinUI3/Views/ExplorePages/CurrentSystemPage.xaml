@@ -75,25 +75,22 @@
                         <Grid>
                             <TextBlock Text="CURRENT SYSTEM" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                                <Button x:Name="CaptureSystemBtn" Click="CaptureSystem_Click" Padding="8,3" VerticalAlignment="Center"
-                                        IsEnabled="{x:Bind ViewModel.CanCapture, Mode=OneWay}" AutomationProperties.Name="Capture this system now"
-                                        ToolTipService.ToolTip="Take the game's picture of this system now (open its Discoveries page in game first)">
-                                    <FlyoutBase.AttachedFlyout>
-                                        <Flyout x:Name="CaptureFlyout">
-                                            <StackPanel MaxWidth="320" Spacing="8">
-                                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <FontIcon x:Name="CaptureFlyoutIcon" Glyph="&#xE73E;" FontSize="16"/>
-                                                    <TextBlock x:Name="CaptureFlyoutTitle" FontWeight="SemiBold" FontSize="13"/>
-                                                </StackPanel>
-                                                <TextBlock x:Name="CaptureFlyoutDetails" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                                            </StackPanel>
-                                        </Flyout>
-                                    </FlyoutBase.AttachedFlyout>
+                                <!-- A picture of the player's own behind the top section (owner, 2026-11-24). -->
+                                <DropDownButton x:Name="BackgroundBtn" Padding="10,2" FontSize="12" AutomationProperties.Name="Background picture"
+                                                ToolTipService.ToolTip="Put one of your own screenshots behind this section">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <FontIcon Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                        <TextBlock Text="{x:Bind ViewModel.CaptureLabel, Mode=OneWay}" FontSize="11" VerticalAlignment="Center"/>
+                                        <FontIcon Glyph="&#xE8B9;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                        <TextBlock Text="Background"/>
                                     </StackPanel>
-                                </Button>
+                                    <DropDownButton.Flyout>
+                                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                            <MenuFlyoutItem Text="From your Steam screenshots..." Click="BackgroundFromSteam_Click"/>
+                                            <MenuFlyoutItem Text="From a picture file..." Click="BackgroundFromFile_Click"/>
+                                            <MenuFlyoutSeparator/>
+                                            <MenuFlyoutItem Text="Remove background" Click="RemoveBackground_Click" IsEnabled="{x:Bind ViewModel.HasBackground, Mode=OneWay}"/>
+                                        </MenuFlyout>
+                                    </DropDownButton.Flyout>
+                                </DropDownButton>
                                 <!-- Smaller card, so the planets show without scrolling (2026-10-18). -->
                                 <Button Content="{x:Bind ViewModel.CompactLabel, Mode=OneWay}" Click="Compact_Click" Padding="10,2" FontSize="12"/>
                             </StackPanel>
@@ -101,31 +98,29 @@
                     </Border>
                     <Grid>
                         <StackPanel x:Name="SystemBody" Padding="{x:Bind ViewModel.BodyPadding, Mode=OneWay}" Spacing="18">
+                            <Grid>
+                            <!-- The player's own picture behind the top section, out to the card's edges and faded into it
+                                 (PageBackgroundService; picked from the band's Background menu). Decoration only. A brush on
+                                 an empty Border, not an Image: an Image asks for its own height and stretched the card. -->
+                            <Border Visibility="{x:Bind ViewModel.HasBackground, Mode=OneWay}" Margin="{x:Bind ViewModel.BackdropMargin, Mode=OneWay}"
+                                    IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw">
+                                <Border.Background>
+                                    <ImageBrush ImageSource="{x:Bind ViewModel.BackgroundPicture, Mode=OneWay}" Stretch="UniformToFill" Opacity="0.4"/>
+                                </Border.Background>
+                            </Border>
                             <ctcontrols:WrapPanel x:Name="LocationPanel" HorizontalSpacing="32" VerticalSpacing="18" SizeChanged="LocationPanel_SizeChanged">
                                 <Border Width="{x:Bind ViewModel.FrameWidth, Mode=OneWay}" Height="{x:Bind ViewModel.FrameHeight, Mode=OneWay}"
                                         CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemeVoidBrush}">
                                     <Grid>
-                                        <!-- The same orrery from the generator's bodies when the save hasn't placed them and there's no picture. -->
+                                        <!-- The same orrery from the generator's bodies when the save hasn't placed them. -->
                                         <controls:SystemMap Bodies="{x:Bind ViewModel.OrbitBodies, Mode=OneWay}" StarColour="{x:Bind ViewModel.MapStarColour, Mode=OneWay}"
                                                             Visibility="{x:Bind ViewModel.ShowOrbits, Mode=OneWay}"
                                                             BodyClicked="Map_BodyClicked"/>
-                                        <!-- The system as an orrery (#65): every planet and moon the save places; wins over the picture and the drawing. -->
+                                        <!-- The system as an orrery (#65): every planet and moon the save places; wins over the drawing. -->
                                         <controls:SystemMap Bodies="{x:Bind ViewModel.MapBodies, Mode=OneWay}" Station="{x:Bind ViewModel.MapStation, Mode=OneWay}"
                                                             Player="{x:Bind ViewModel.MapPlayer, Mode=OneWay}" StarColour="{x:Bind ViewModel.MapStarColour, Mode=OneWay}"
                                                             Visibility="{x:Bind ViewModel.HasMap, Mode=OneWay}"
                                                             BodyClicked="Map_BodyClicked"/>
-                                        <!-- The game's own view of this system's planets, when screen recording caught its Discoveries page (2026-10-17). -->
-                                        <Image Source="{x:Bind ViewModel.SystemPicture, Mode=OneWay}" Stretch="UniformToFill" Visibility="{x:Bind ViewModel.HasPicture, Mode=OneWay}"
-                                               ToolTipService.ToolTip="How the game's Discoveries page shows this system's planets."/>
-                                        <Button Click="CaptureSystem_Click" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="6,4" CornerRadius="4"
-                                                IsEnabled="{x:Bind ViewModel.CanCapture, Mode=OneWay}" AutomationProperties.Name="Capture the game's picture of this system"
-                                                Background="{ThemeResource ThemePanelBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                                                ToolTipService.ToolTip="Take the game's picture of this system now (open its Discoveries page in game first)">
-                                            <StackPanel Orientation="Horizontal" Spacing="5">
-                                                <FontIcon Glyph="&#xE722;" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                                <TextBlock Text="Capture" FontSize="11" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Button>
                                     </Grid>
                                 </Border>
 
@@ -173,8 +168,8 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="11" TextWrapping="Wrap" MaxWidth="320"
-                                                   Text="Worked out the way the game does, or as the game showed it when you recorded it. The game words economy, wealth and conflict its own way (Mining may read &quot;Prospecting&quot;): open the system in the game's Discoveries or Galaxy Map with screen recording on to get its exact words."/>
+                                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" MaxWidth="320"
+                                                   Text="Worked out the way the game does, in the game's own words. Anything you record in your notes below is shown instead."/>
                                     </StackPanel>
                                 </Border>
                                 <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Discoveries.IsVisible, Mode=OneWay}">
@@ -206,34 +201,11 @@
                                 </StackPanel>
                                 </StackPanel>
                             </ctcontrols:WrapPanel>
+                            </Grid>
 
-                            <!-- Planet discovery and detail cards come before station stock. -->
                             <controls:FoldingCard Title="PLANETS AND MOONS" FoldedName="{x:Bind ViewModel.PlanetSectionSummary, Mode=OneWay}"
                                                   SettingKey="CurrentSystemPlanetsCollapsed">
                                 <StackPanel Spacing="18" Margin="0,16,0,0">
-                                    <!-- Planets read off the game screen under a name ArtifactX doesn't know (renamed by another player). -->
-                                    <Border Visibility="{x:Bind ViewModel.HasUnmatched, Mode=OneWay}" BorderBrush="{ThemeResource ThemeWarningBrush}" BorderThickness="1"
-                                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
-                                        <StackPanel Spacing="10">
-                                            <TextBlock Text="READ FROM THE GAME - WHICH PLANET IS THIS?" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                                       Text="These names were read off the game screen but aren't the names ArtifactX knows - usually a planet someone renamed. Most renamed planets are learned from your save by themselves; for these, landing on the planet also teaches ArtifactX its name. Or pick it here if you know which one it is."/>
-                                            <ItemsControl ItemsSource="{x:Bind ViewModel.Unmatched, Mode=OneWay}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate x:DataType="viewmodels:UnmatchedBodyViewModel">
-                                                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,8">
-                                                            <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" Width="240" VerticalAlignment="Center"
-                                                                       Foreground="{ThemeResource ThemeWarningBrush}" TextTrimming="CharacterEllipsis"/>
-                                                            <ComboBox PlaceholderText="Which planet?" MinWidth="280" ItemsSource="{x:Bind Bodies}" SelectedItem="{x:Bind Selected, Mode=TwoWay}"/>
-                                                            <Button Content="Save" Click="AssignUnmatched_Click" Tag="{x:Bind}" IsEnabled="{x:Bind CanSave, Mode=OneWay}"/>
-                                                            <HyperlinkButton Content="Not in this system" Click="DismissUnmatched_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                    </Border>
-
                                     <TextBlock Visibility="{x:Bind ViewModel.NoPlanets, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
                                                Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}">
@@ -268,7 +240,6 @@
                                     </Grid>
                                 </Border>
                             </controls:FoldingCard>
-                            <controls:StationMarket Market="{x:Bind ViewModel.Market}"/>
                             <controls:SystemNotesPanel Notes="{x:Bind ViewModel.Notes}"/>
                             <controls:SystemStarshipsPanel Starships="{x:Bind ViewModel.Starships}"/>
 

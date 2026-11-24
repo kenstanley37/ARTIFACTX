@@ -28,7 +28,6 @@ public sealed partial class CreatureCard : UserControl
 
     public string PreviewName => $"3D model of {Creature?.Name ?? "creature"}. Drag to rotate.";
 
-    public event EventHandler<CreatureCardRequest>? DeleteRequested;
     public event EventHandler<CreatureCardRequest>? Preview3DRequested;
 
     public CreatureCard()
@@ -88,10 +87,5 @@ public sealed partial class CreatureCard : UserControl
     private void Preview_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
         View3DModel_Click(sender, e);
-    }
-
-    private void Delete_Click(object sender, RoutedEventArgs e)
-    {
-        if (Creature is { } creature) DeleteRequested?.Invoke(this, new(creature, (FrameworkElement)sender));
     }
 }

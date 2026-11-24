@@ -18,18 +18,14 @@ public sealed partial class PlanetFinderPage : Page
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         FishCatchRecorder.SnapshotSeen += OnSnapshotSeen;
         PlanetDetailsService.Changed += OnRecordsChanged;
-        PlanetDetailsService.Captured += OnRecordsChanged;
         PlanetWaterService.Changed += OnRecordsChanged;
-        CreatureListService.Changed += OnRecordsChanged;
         SystemNotesService.Changed += OnSystemChanged;
         Unloaded += (_, _) =>
         {
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             FishCatchRecorder.SnapshotSeen -= OnSnapshotSeen;
             PlanetDetailsService.Changed -= OnRecordsChanged;
-            PlanetDetailsService.Captured -= OnRecordsChanged;
             PlanetWaterService.Changed -= OnRecordsChanged;
-            CreatureListService.Changed -= OnRecordsChanged;
             SystemNotesService.Changed -= OnSystemChanged;
             ViewModel.Detach();
         };

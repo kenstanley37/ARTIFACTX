@@ -48,9 +48,6 @@ public static class PlanetDetailsService
     private static readonly object Lock = new();
     private static Dictionary<string, PlanetDetails>? _details;
 
-    /// <summary>Raised (on any thread) when details arrive from outside the Planets page -
-    /// read off a game screen (PlanetPageReader) - so an open page can show them.</summary>
-    public static event Action<ulong, int>? Captured;
     /// <summary>Raised (on any thread) when details for a planet are added, modified, or reloaded.</summary>
     public static event Action<ulong, int>? Changed;
 
@@ -235,7 +232,6 @@ public static class PlanetDetailsService
         {
             Debug.WriteLine($"[PlanetDetailsService] Couldn't save planet details: {ex.Message}");
         }
-        if (source == "captured") Captured?.Invoke(systemAddress, planet);
         Changed?.Invoke(systemAddress, planet);
     }
 

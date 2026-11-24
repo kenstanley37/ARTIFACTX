@@ -37,8 +37,6 @@ public sealed partial class SettingsPage : Page
 #endif
 
         DailyBackupSwitch.IsOn = UserDatabase.DailyBackups;
-        CaptureLogSwitch.IsOn = ScreenCaptureLogService.Enabled;
-        RefreshCaptureLogStatus();
         foreach (int keep in DataKeepChoices) DataKeepBox.Items.Add(new ComboBoxItem { Content = $"{keep} backups", Tag = keep });
         DataKeepBox.SelectedItem = DataKeepBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (int)i.Tag == UserDatabase.BackupsToKeep)
             ?? DataKeepBox.Items[1];
@@ -181,53 +179,6 @@ public sealed partial class SettingsPage : Page
 
     // ---------------------------------------------------------------- user.db
 
-    private void CaptureLog_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (_loading) return;
-        ScreenCaptureLogService.Enabled = CaptureLogSwitch.IsOn;
-        RefreshCaptureLogStatus();
-    }
-
-    private void RefreshCaptureLogStatus()
-    {
-        long bytes = ScreenCaptureLogService.SizeOnDisk();
-        CaptureLogStatusTxt.Text = (bytes == 0 ? "Nothing read yet." : $"The reading log uses {bytes / 1048576.0:0.#} MB (the oldest is removed past 200 MB).")
-            + (PlanetPageReader.Filled > 0 ? $" {PlanetPageReader.Filled} planet{(PlanetPageReader.Filled == 1 ? "" : "s")} filled in from their Discoveries page this session." : "")
-            + (SystemPageReader.Filled > 0 ? $" {SystemPageReader.Filled} system{(SystemPageReader.Filled == 1 ? "" : "s")} filled in from the game's system screens." : "")
-            + (ScreenCaptureLogService.Enabled && !GameProcessMonitorService.IsGameRunning ? " Recording starts when you start No Man's Sky." : "");
-    }
-
-    private async void ManualCaptureSettingsBtn_Click(object sender, RoutedEventArgs e)
-    {
-        ManualCaptureSettingsBtn.IsEnabled = false;
-        try
-        {
-            var result = await ScreenCaptureLogService.CaptureNowAsync();
-            RefreshCaptureLogStatus();
-            CaptureLogStatusTxt.Text = result.Message;
-        }
-        finally
-        {
-            ManualCaptureSettingsBtn.IsEnabled = true;
-        }
-    }
-
-    private void OpenCaptureLog_Click(object sender, RoutedEventArgs e) =>
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = ScreenCaptureLogService.Folder, UseShellExecute = true });
-
-    private async void DeleteCaptureLog_Click(object sender, RoutedEventArgs e)
-    {
-        var confirm = new ContentDialog
-        {
-            Title = "Delete the reading log?",
-            Content = "The log of text read from game screens is removed. What was filled in from it (planet details, markets, creatures...), your saves and other ArtifactX data aren't touched.",
-            PrimaryButtonText = "Delete", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close, XamlRoot = XamlRoot,
-        };
-        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
-        ScreenCaptureLogService.DeleteAll();
-        RefreshCaptureLogStatus();
-    }
-
     private void DailyBackup_Toggled(object sender, RoutedEventArgs e)
     {
         if (_loading) return;
@@ -305,8 +256,6 @@ public sealed partial class SettingsPage : Page
             FindsService.Reload();
             PlanetWaterService.Reload();
             PlanetDetailsService.Reload();
-            BodyKindsService.Reload();
-            SystemMarketService.Reload();
             FishCatchService.Reload();
             GuidesService.Reload();
             HiddenStationsService.Reload();

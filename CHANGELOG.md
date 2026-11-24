@@ -5,11 +5,13 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Added
+- Current System: put one of your own screenshots behind the top of the page. Use **Background** in the Current System bar to pick from your No Man's Sky screenshots in Steam or from any picture file, or to remove it. It's one picture for the page, kept as a copy, so it stays even if you delete the screenshot.
 - Current System: **Discover everything** (under System Data) marks every planet, creature, plant and mineral of the system your save is in as discovered, with the names the game gives them; it reads "Everything discovered" once nothing is left. They're added as discoveries you haven't uploaded yet, so you can still upload them in game from the Discoveries page. Update your game data once to include plants and minerals.
 
 ### Changed
 - Squadron: each pilot now has a 3D preview of the pilot themselves beside their ship, and the page is laid out like the Frigates page, with the seed explanations moved into (i) tips. The pilot's name and title ("Liquidator Uduoh") sits under their preview, the ship's name under the ship. The slot buttons show each pilot's name too. Find Best Traits picks the traits seed with the best stat card the pilot's rank allows (Unrivaled on every trait for a Class S pilot). Pilot rank is now a list of the classes (C, B, A, S) instead of a number. Below the seeds is the pilot's stat card as the game shows it: their four skills and grades, confirmed kills and notes. It changes as you reroll the traits seed or change the rank. Rebuild your game data to see it.
 - Frigates: the selected frigate's details are laid out as a tidy form, with a 3D preview of its hull beside them and the model and home seeds under it. Organic frigates show the parts their model seed picks. Update your game data once to see the previews.
+- Game screen recording is gone. Planet and system details now come from the game's own generator, and renamed planets from your save, so ArtifactX no longer reads the game screen at all. When you update, it removes what screen reading stored: its screenshots, pictures and reading log, the details it read, and the station trade prices. Everything you typed yourself is kept, and your data is backed up first. Station trade prices will come back once ArtifactX can work them out from the game files. The setting is no longer in Settings, and creature cards no longer have a remove button.
 - The update window is easier to read: the new version's changes show as headings and bullet points in a larger size instead of raw text, with a clearer progress bar while it downloads. It stays open until the update finishes, and Settings > Updates opens the same window.
 
 ### Fixed

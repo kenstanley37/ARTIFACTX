@@ -229,28 +229,6 @@ public static class SystemNotesService
 
     private static int NmsGalaxy(ulong address) => (int)((address >> 32) & 0xFF) + 1;
 
-    /// <summary>The systems' fields (column names: "economy", "race"...) whose current value screen capture
-    /// wrote (field_sources), as (packed address, field). Empty when user.db can't be read.</summary>
-    public static HashSet<(ulong Address, string Field)> CapturedFields()
-    {
-        var result = new HashSet<(ulong, string)>();
-        try
-        {
-            using var connection = UserDatabase.Open();
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = "SELECT entity_key, field FROM field_sources WHERE entity = 'system' AND source = 'captured' AND deleted = 0";
-            using var r = cmd.ExecuteReader();
-            while (r.Read())
-                if (ulong.TryParse(r.GetString(0), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong address))
-                    result.Add((address, r.GetString(1)));
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[SystemNotesService] Couldn't read field sources: {ex.Message}");
-        }
-        return result;
-    }
-
     // ---------------------------------------------------------------- database
 
     private static Dictionary<string, SystemNote> LoadAll()

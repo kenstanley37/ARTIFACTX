@@ -48,8 +48,6 @@ public sealed partial class AppTitleBar : UserControl
         ThemeBtnTxt.Text = $"Theme: {ThemeService.Current.DisplayName}";
         FishCatchRecorder.ActiveChanged += RefreshRecording;
         RefreshRecording();
-        ScreenCaptureLogService.RecordingChanged += () => _ui.TryEnqueue(RefreshScreenRecording);
-        RefreshScreenRecording();
 
         // Parts placed follow the game's saves live, like the Bases page (2026-10-18).
         FishCatchRecorder.SnapshotSeen += snapshot =>
@@ -87,24 +85,8 @@ public sealed partial class AppTitleBar : UserControl
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(LocationRegion, "You are here: " + w.Detail.Replace("\n", ", "));
     }
 
-    private void RefreshScreenRecording()
-    {
-        ScreenRecordingBtn.Visibility = ScreenCaptureLogService.IsRecording ? Visibility.Visible : Visibility.Collapsed;
-        // Beside the fish "Recording as you play" label when that shows, in its place when not.
-        ScreenRecordingBtn.Margin = new Thickness(0, 0, RecordingBtn.Visibility == Visibility.Visible ? 170 : 12, 0);
-    }
-
-    private void StopScreenRecording_Click(object sender, RoutedEventArgs e)
-    {
-        ScreenRecordingFlyout.Hide();
-        ScreenCaptureLogService.Enabled = false;
-    }
-
-    private void RefreshRecording()
-    {
+    private void RefreshRecording() =>
         RecordingBtn.Visibility = FishCatchRecorder.IsActive ? Visibility.Visible : Visibility.Collapsed;
-        RefreshScreenRecording();
-    }
 
     /// <summary>The installed game's own build, read from the install, against the release ArtifactX was tested
     /// with (TestedGameRelease). The release name is only shown when the installed build is that one - the old

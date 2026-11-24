@@ -34,10 +34,6 @@
                             ToolTipService.ToolTip="Inspect 3D creature anatomy and rig" AutomationProperties.Name="Inspect 3D creature anatomy">
                         <FontIcon Glyph="&#xE91B;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
                     </Button>
-                    <Button Click="Delete_Click" Padding="6,4" Background="Transparent" BorderThickness="0"
-                            ToolTipService.ToolTip="Remove this creature from ArtifactX's records" AutomationProperties.Name="Remove creature">
-                        <FontIcon Glyph="&#xE74D;" FontSize="12"/>
-                    </Button>
                 </StackPanel>
             </Grid>
 

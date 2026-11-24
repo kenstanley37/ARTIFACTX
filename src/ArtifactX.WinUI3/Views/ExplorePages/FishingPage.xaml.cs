@@ -26,7 +26,6 @@ public sealed partial class FishingPage : Page
         FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         JumpPlanner.RangeChanged += ViewModel.UpdateWhere;
         PlanetWaterService.Changed += OnPlanetChanged;
-        PlanetDetailsService.Captured += OnPlanetChanged;
         PlanetDetailsService.Changed += OnPlanetChanged;
         ViewModel.PropertyChanging += OnViewModelChanging;
         ViewModel.PropertyChanged += OnViewModelChanged;
@@ -34,7 +33,6 @@ public sealed partial class FishingPage : Page
         {
             JumpPlanner.RangeChanged -= ViewModel.UpdateWhere;
             PlanetWaterService.Changed -= OnPlanetChanged;
-            PlanetDetailsService.Captured -= OnPlanetChanged;
             PlanetDetailsService.Changed -= OnPlanetChanged;
             FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
         };

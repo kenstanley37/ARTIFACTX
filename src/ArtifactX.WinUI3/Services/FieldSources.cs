@@ -8,11 +8,10 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>
 /// Where each recorded value came from, field by field (user.db step 18, 2026-10-17):
-/// a planet can mix a sentinel level read off the game screen with weather the player
-/// typed. For the future shared database: captured values are checked against the
-/// system generator, and a value read on one build of the game can't be checked against
-/// another (big updates reshuffle what planets get) - so each value carries the game
-/// build it was seen on. Written in the same transaction as the value itself; only
+/// "user" typed or "save" learned from a save ("captured" screen readings were removed in
+/// step 22, 2026-11-24). For the future shared database: a value seen on one build of the
+/// game can't be checked against another (big updates reshuffle what planets get) - so each
+/// value carries the game build it was seen on. Written in the same transaction as the value itself; only
 /// fields whose value actually changed get a new row.
 /// </summary>
 public static class FieldSources

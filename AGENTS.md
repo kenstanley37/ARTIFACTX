@@ -45,7 +45,7 @@ No Man's Sky save editor and companion app for ordinary players (modest PCs, som
 - Expeditions (`XTp == "Season"`): live state is under `2YS`; `SaveSessionManager` remaps - always write `vLc` paths, no expedition copies of pages.
 - Templates/shares always include and apply unlocked slots (`hl?`).
 - Every save-format claim needs evidence (controlled in-game diff or decrypted real save), written in the doc comment.
-- The save stores almost nothing about planets/systems; the generator port and screen capture provide the rest.
+- The save stores almost nothing about planets/systems; the generator port provides the rest. No screen capture or OCR of the game (removed 2026-11-24): what the generator can't give yet (trade terminals) is a generator task.
 
 ## 5. App data
 

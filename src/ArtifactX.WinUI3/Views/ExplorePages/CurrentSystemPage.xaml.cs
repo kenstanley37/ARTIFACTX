@@ -1,3 +1,4 @@
+using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Helpers.Layout;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
@@ -5,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using System;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Views.ExplorePages;
 
@@ -22,17 +24,12 @@ public sealed partial class CurrentSystemPage : Page
         ViewModel.SystemArrived += ShowSystemChange;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         FishCatchRecorder.SnapshotSeen += OnSnapshotSeen;
-        PlanetDetailsService.Captured += OnPlanetChanged;
         PlanetDetailsService.Changed += OnPlanetChanged;
         PlanetWaterService.Changed += OnPlanetChanged;
         FindsService.Changed += OnFindsChanged;
         SystemNotesService.Changed += OnSystemChanged;
-        SystemPageReader.Captured += OnSystemChanged;
-        BodyKindsService.Captured += OnSystemChanged;
-        UnmatchedBodiesService.Changed += OnSystemChanged;
-        SystemMarketService.Changed += OnMarketChanged;
-        ScreenCaptureLogService.SystemPictureSaved += OnPictureSaved;
         PlanetTypesService.Loaded += OnPlanetTypesLoaded;
+        PageBackgroundService.Changed += OnBackgroundChanged;
         GameProcessMonitorService.RunningStateChanged += OnGameRunningChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
         Unloaded += (_, _) =>
@@ -40,23 +37,64 @@ public sealed partial class CurrentSystemPage : Page
             ViewModel.SystemArrived -= ShowSystemChange;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             FishCatchRecorder.SnapshotSeen -= OnSnapshotSeen;
-            PlanetDetailsService.Captured -= OnPlanetChanged;
             PlanetDetailsService.Changed -= OnPlanetChanged;
             PlanetWaterService.Changed -= OnPlanetChanged;
             FindsService.Changed -= OnFindsChanged;
             SystemNotesService.Changed -= OnSystemChanged;
-            SystemPageReader.Captured -= OnSystemChanged;
-            BodyKindsService.Captured -= OnSystemChanged;
-            UnmatchedBodiesService.Changed -= OnSystemChanged;
-            SystemMarketService.Changed -= OnMarketChanged;
-            ScreenCaptureLogService.SystemPictureSaved -= OnPictureSaved;
             PlanetTypesService.Loaded -= OnPlanetTypesLoaded;
+            PageBackgroundService.Changed -= OnBackgroundChanged;
             GameProcessMonitorService.RunningStateChanged -= OnGameRunningChanged;
             SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
             _bannerStoryboard?.Stop();
         };
         if (SaveSessionManager.IsSaveLoaded) { _ = ViewModel.LoadAsync(); _ = ViewModel.Discoveries.RefreshAsync(); }
         _ = PlanetTypesService.EnsureLoadedAsync();
+        _ = ViewModel.LoadBackgroundAsync();
+    }
+
+    private void OnBackgroundChanged(string page) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (page == CurrentSystemViewModel.BackgroundKey) _ = ViewModel.LoadBackgroundAsync();
+    });
+
+    private async void BackgroundFromSteam_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new ScreenshotPickerViewModel();
+        var dialog = new ContentDialog
+        {
+            Title = "Choose a screenshot",
+            Content = new ScreenshotPicker(picker),
+            PrimaryButtonText = "Use this picture",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = false,
+            XamlRoot = XamlRoot,
+        };
+        // Wide enough for three screenshots side by side.
+        dialog.Resources["ContentDialogMaxWidth"] = 900.0;
+        picker.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ScreenshotPickerViewModel.HasSelection)) dialog.IsPrimaryButtonEnabled = picker.HasSelection;
+        };
+        _ = picker.LoadAsync();
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary && picker.Selected is { } shot)
+            await SetBackgroundAsync(shot.Path);
+    }
+
+    private async void BackgroundFromFile_Click(object sender, RoutedEventArgs e)
+    {
+        var filePicker = new Windows.Storage.Pickers.FileOpenPicker { SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary };
+        foreach (var type in new[] { ".jpg", ".jpeg", ".png", ".bmp" }) filePicker.FileTypeFilter.Add(type);
+        WinRT.Interop.InitializeWithWindow.Initialize(filePicker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance));
+        if (await filePicker.PickSingleFileAsync() is { } file) await SetBackgroundAsync(file.Path);
+    }
+
+    private void RemoveBackground_Click(object sender, RoutedEventArgs e) => PageBackgroundService.Remove(CurrentSystemViewModel.BackgroundKey);
+
+    private async Task SetBackgroundAsync(string path)
+    {
+        if (await PageBackgroundService.SetAsync(CurrentSystemViewModel.BackgroundKey, path) is not { } error) return;
+        await new ContentDialog { Title = "Couldn't use that picture", Content = error, CloseButtonText = "OK", XamlRoot = XamlRoot }.ShowAsync();
     }
 
     /// <summary>The planet type tables arrived: show the bodies nobody has discovered yet.</summary>
@@ -100,8 +138,6 @@ public sealed partial class CurrentSystemPage : Page
     private void OnPlanetChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() => { if (IsThisSystem(system)) ViewModel.Refresh(notes: false); });
     private void OnSystemChanged(ulong system) => DispatcherQueue.TryEnqueue(() => { if (IsThisSystem(system)) ViewModel.Refresh(notes: true); });
     private void OnFindsChanged() => DispatcherQueue.TryEnqueue(() => ViewModel.Refresh(notes: false));
-    private void OnMarketChanged(ulong system) => DispatcherQueue.TryEnqueue(() => { if (IsThisSystem(system)) ViewModel.ShowMarket(); });
-    private void OnPictureSaved(ulong system) => DispatcherQueue.TryEnqueue(() => { if (IsThisSystem(system)) _ = ViewModel.RefreshPictureAsync(); });
 
     private void ShowHelp_Click(object sender, RoutedEventArgs e) => ViewModel.SetHelpVisible(true);
     private void HideHelp_Click(object sender, RoutedEventArgs e) => ViewModel.SetHelpVisible(false);
@@ -115,28 +151,6 @@ public sealed partial class CurrentSystemPage : Page
 
     private void OpenCabinetMultiTools_Click(object sender, RoutedEventArgs e) =>
         Frame.Navigate(typeof(ExplorePages.CabinetMultiToolsPage), ViewModel.SystemAddress);
-
-    private void AssignUnmatched_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is UnmatchedBodyViewModel row) ViewModel.AssignUnmatched(row);
-    }
-
-    private void DismissUnmatched_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is UnmatchedBodyViewModel row) ViewModel.DismissUnmatched(row);
-    }
-
-    private async void CaptureSystem_Click(object sender, RoutedEventArgs e)
-    {
-        CaptureResult result;
-        try { result = await ViewModel.CaptureSystemAsync(); }
-        catch (Exception ex) { result = new CaptureResult(false, ex.Message); }
-        CaptureFlyoutIcon.Glyph = result.Success ? "" : "";
-        CaptureFlyoutIcon.Foreground = ThemeResources.Brush(result.Success ? "ThemeAccentBrush" : "ThemeWarningBrush");
-        CaptureFlyoutTitle.Text = !result.Success ? "Couldn't read the screen" : result.ReadInfo is not null ? "System read" : "Picture taken";
-        CaptureFlyoutDetails.Text = result.Message;
-        CaptureFlyout.ShowAt(sender as FrameworkElement ?? CaptureSystemBtn);
-    }
 
     /// <summary>A bold banner over the card for a few seconds after live follow sees a new
     /// system, so the switch can't be missed, and the card fading in.</summary>

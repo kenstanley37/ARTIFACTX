@@ -74,12 +74,6 @@
             <!-- Header: the planet, where it is, its glyphs and its conditions -->
             <Border x:Name="HeaderCard" Style="{StaticResource ThemeCardStyle}" SizeChanged="HeaderCard_SizeChanged">
                 <Grid>
-                    <Border Margin="-1" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Opacity="0.25">
-                        <Border.Background>
-                            <ImageBrush ImageSource="{x:Bind ViewModel.SystemPicture, Mode=OneWay}" Stretch="UniformToFill"/>
-                        </Border.Background>
-                    </Border>
-
                     <StackPanel Padding="20,16,20,18" Spacing="14">
                         <Grid ColumnSpacing="18">
                             <Grid.ColumnDefinitions>
@@ -153,7 +147,7 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <TextBlock Text="None recorded yet - add them with Edit details, or read them in game with screen recording on"
+                                <TextBlock Text="None recorded yet - add them with Edit details"
                                            Visibility="{x:Bind IsCollapsedWhen(ViewModel.HasResources), Mode=OneWay}"
                                            Style="{StaticResource ThemeDimTextStyle}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap"/>
                             </StackPanel>
@@ -275,7 +269,7 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="explore:CreatureCardViewModel">
-                                            <controls:CreatureCard Creature="{x:Bind}" DeleteRequested="Creature_DeleteRequested" Preview3DRequested="Creature_Preview3DRequested"/>
+                                            <controls:CreatureCard Creature="{x:Bind}" Preview3DRequested="Creature_Preview3DRequested"/>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>

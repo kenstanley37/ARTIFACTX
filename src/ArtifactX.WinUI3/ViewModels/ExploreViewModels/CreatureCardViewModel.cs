@@ -1,3 +1,4 @@
+using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System;

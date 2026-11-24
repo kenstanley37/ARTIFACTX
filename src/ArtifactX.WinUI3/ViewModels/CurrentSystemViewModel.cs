@@ -7,14 +7,11 @@ using ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
@@ -27,31 +24,9 @@ public sealed record SystemDataRow(string Label, string Value)
     public Brush ValueBrush => ThemeResources.Brush("ThemeWarningBrush");
 }
 
-/// <summary>A planet name read off the game screen that ArtifactX doesn't know (usually one
-/// someone renamed): the player says which body it is, or that it isn't in this system.</summary>
-public sealed partial class UnmatchedBodyViewModel : ObservableObject
-{
-    public UnmatchedBodyViewModel(UnmatchedBodiesService.Held held, IReadOnlyList<ChoiceItem> bodies)
-    {
-        Held = held;
-        Bodies = bodies;
-        Name = held.Name + (held.Moon is bool moon ? (moon ? " (moon)" : " (planet)") : "");
-    }
-
-    public UnmatchedBodiesService.Held Held { get; }
-    public string Name { get; }
-    public IReadOnlyList<ChoiceItem> Bodies { get; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanSave))]
-    public partial ChoiceItem? Selected { get; set; }
-
-    public bool CanSave => Selected is not null;
-}
-
 /// <summary>
-/// Current System: the system you're in (an orrery, or the game's own picture of it), what the
-/// save, the game's generator and your notes say about it, what its station sells, and a card
+/// Current System: the system you're in (an orrery), what the
+/// save, the game's generator and your notes say about it, and a card
 /// per known planet. Follows the game's saves without redrawing what didn't change: a new
 /// system rebuilds everything (SystemArrived), landing elsewhere rebuilds the cards, and new
 /// discoveries only update their numbers.
@@ -67,9 +42,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     private Dictionary<string, (uint Count, float Largest)> _caught = new(StringComparer.OrdinalIgnoreCase);
     private PlanetVocabulary? _vocabulary;
     private bool _descriptorsLoaded;
-    private byte[]? _pictureBytes;
-    private ulong? _pictureSystem;
-    private int _pictureVersion;
 
     public CurrentSystemViewModel()
     {
@@ -89,7 +61,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     public StationMultiToolsViewModel StationTools { get; } = new();
     public SystemMultiToolsViewModel MultiTools { get; } = new();
-    public StationMarketViewModel Market { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
     public SystemStarshipsViewModel Starships { get; } = new();
     public SystemDiscoveriesViewModel Discoveries { get; } = new();
@@ -112,12 +83,10 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     /// the station and you are left off).</summary>
     [ObservableProperty] public partial IReadOnlyList<SystemMapBody> OrbitBodies { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SystemDataRow> SystemData { get; private set; } = [];
-    [ObservableProperty] public partial IReadOnlyList<UnmatchedBodyViewModel> Unmatched { get; private set; } = [];
     public ObservableCollection<PlanetTileViewModel> Tiles { get; } = new();
-    [ObservableProperty] public partial ImageSource? SystemPicture { get; private set; }
 
     /// <summary>Every planet and moon at its centre from the save, for the system map; empty when the save has none.</summary>
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasMap), nameof(HasPicture), nameof(ShowOrbits), nameof(FrameWidth))]
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasMap), nameof(ShowOrbits))]
     public partial IReadOnlyList<SystemMapBody> MapBodies { get; private set; } = [];
 
     /// <summary>The system's space station on the map; null for uncharted systems or when it can't be placed.</summary>
@@ -130,11 +99,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial string MapStarColour { get; private set; } = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CaptureLabel), nameof(CanCapture))]
-    public partial bool IsCapturing { get; private set; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowFullDetails), nameof(CompactLabel), nameof(FrameHeight), nameof(FrameWidth), nameof(BodyPadding))]
+    [NotifyPropertyChangedFor(nameof(ShowFullDetails), nameof(CompactLabel), nameof(FrameHeight), nameof(FrameWidth), nameof(BodyPadding), nameof(BackdropMargin))]
     public partial bool IsCompact { get; private set; } = SettingsStore.Get(SettingsStore.Scope.Profile, CompactKey) == "1";
 
     [ObservableProperty]
@@ -143,15 +108,23 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     public bool HelpHidden => !IsHelpVisible;
     public bool HasStation => Station.Length > 0;
-    /// <summary>The 3D system map (SystemMap) wins over the captured picture and the orbit drawing.</summary>
+    /// <summary>The 3D system map (SystemMap) from the save's planet positions wins over the generator-only orbit drawing.</summary>
     public bool HasMap => MapBodies.Count > 0;
-    public bool HasPicture => !HasMap && SystemPicture is not null;
-    public bool ShowOrbits => !HasMap && SystemPicture is null;
-    public bool HasUnmatched => Unmatched.Count > 0;
+    public bool ShowOrbits => !HasMap;
+    /// <summary>The page key of the picture the player picked for the top card (PageBackgroundService).</summary>
+    public const string BackgroundKey = "CurrentSystem";
+
+    /// <summary>The player's own picture behind the top card, edges faded; null when none is picked.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasBackground))]
+    public partial ImageSource? BackgroundPicture { get; private set; }
+
+    public bool HasBackground => BackgroundPicture is not null;
+
+    /// <summary>Shows the picked picture, or none (on open and whenever it's changed).</summary>
+    public async Task LoadBackgroundAsync() => BackgroundPicture = await PageBackgroundService.LoadAsync(BackgroundKey);
+
     public bool NoPlanets => Tiles.Count == 0;
     public string PlanetSectionSummary => Tiles.Count == 0 ? "No planets yet" : $"{Tiles.Count} bodies";
-    public string CaptureLabel => IsCapturing ? "Capturing..." : "Capture system";
-    public bool CanCapture => !IsCapturing;
 
     /// <summary>"Show less": a small picture, the name, the facts line and the glyphs - the System
     /// Data box, explanation and text code hidden - so the planet cards show without scrolling
@@ -159,19 +132,15 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     public bool ShowFullDetails => !IsCompact;
     public string CompactLabel => IsCompact ? "Show more" : "Show less";
 
-    /// <summary>Square for the orbit drawing, about 3:2 for the game's picture; smaller with "Show less".</summary>
+    /// <summary>The map's frame, about 3:2; smaller with "Show less".</summary>
     public double FrameHeight => IsCompact ? 150 : 360;
     public double FrameWidth => FrameHeight * 1.5;
     public Thickness BodyPadding => IsCompact ? new Thickness(20, 12, 20, 14) : new Thickness(20, 16, 20, 20);
 
+    /// <summary>Takes the background picture out over the body's padding to the card's edges.</summary>
+    public Thickness BackdropMargin => new(-BodyPadding.Left, -BodyPadding.Top, -BodyPadding.Right, 0);
+
     partial void OnStationChanged(string value) => OnPropertyChanged(nameof(HasStation));
-    partial void OnUnmatchedChanged(IReadOnlyList<UnmatchedBodyViewModel> value) => OnPropertyChanged(nameof(HasUnmatched));
-    partial void OnSystemPictureChanged(ImageSource? value)
-    {
-        OnPropertyChanged(nameof(HasPicture));
-        OnPropertyChanged(nameof(ShowOrbits));
-        OnPropertyChanged(nameof(FrameWidth));
-    }
 
     /// <summary>Live follow saw a new system: "SYSTEM CHANGE DETECTED" and its name.</summary>
     public event Action<string>? SystemArrived;
@@ -251,77 +220,13 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         }
     }
 
-    /// <summary>Something recorded about the system or its planets changed (screen recording, the
-    /// player's notes, a planet's page): show it, keeping anything half-typed in the notes.</summary>
+    /// <summary>Something recorded about the system or its planets changed (the player's notes,
+    /// a planet's page): show it, keeping anything half-typed in the notes.</summary>
     public void Refresh(bool notes)
     {
         if (notes) Notes.Load(SystemAddress, SystemPlanets());
         Build();
     }
-
-    public void ShowMarket()
-    {
-        if (SystemAddress is ulong system) Market.Show(system);
-    }
-
-    public async Task RefreshPictureAsync()
-    {
-        int version = ++_pictureVersion;
-        if (SystemAddress is not ulong system)
-        {
-            _pictureSystem = null;
-            _pictureBytes = null;
-            SystemPicture = null;
-            return;
-        }
-        // Read off the UI thread, but retain the existing image when the bytes did not change. A picture being
-        // replaced right now can't be read: keep what's shown, SystemPictureSaved brings the new one.
-        byte[]? bytes;
-        try
-        {
-            bytes = await Task.Run(() => ScreenCaptureLogService.ReadSystemPicture(system));
-        }
-        catch (IOException)
-        {
-            return;
-        }
-        if (SystemAddress != system || version != _pictureVersion) return;
-        if (bytes is null)
-        {
-            _pictureSystem = system;
-            _pictureBytes = null;
-            SystemPicture = null;
-            return;
-        }
-        if (_pictureSystem == system && _pictureBytes is not null && bytes.AsSpan().SequenceEqual(_pictureBytes)) return;
-        var image = new BitmapImage();
-        using var stream = new MemoryStream(bytes);
-        await image.SetSourceAsync(stream.AsRandomAccessStream());
-        if (SystemAddress != system || version != _pictureVersion) return;
-        _pictureSystem = system;
-        _pictureBytes = bytes;
-        SystemPicture = image;
-    }
-
-    /// <summary>The game's Discoveries page picture of this system, taken now (screen recording's manual capture).</summary>
-    public async Task<CaptureResult> CaptureSystemAsync()
-    {
-        if (IsCapturing) return new CaptureResult(false, "A capture is already running.");
-        IsCapturing = true;
-        try { return await ScreenCaptureLogService.CaptureNowAsync(SystemAddress, forceSystemPicture: true); }
-        finally
-        {
-            IsCapturing = false;
-            await RefreshPictureAsync();
-        }
-    }
-
-    public void AssignUnmatched(UnmatchedBodyViewModel row)
-    {
-        if (row.Selected?.Value is string value && int.TryParse(value, out int body)) UnmatchedBodiesService.Assign(row.Held, body);
-    }
-
-    public void DismissUnmatched(UnmatchedBodyViewModel row) => UnmatchedBodiesService.Dismiss(row.Held);
 
     /// <summary>
     /// The system map's bodies: centres from the save (thousands of units), moon hosts and names from the
@@ -381,12 +286,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             MapStation = null;
             MapPlayer = null;
             SystemData = [];
-            Unmatched = [];
             Tiles.Clear();
-            ++_pictureVersion;
-            _pictureBytes = null;
-            _pictureSystem = null;
-            SystemPicture = null;
             return;
         }
 
@@ -445,12 +345,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         _ = UpdateMapStationAsync(system, isUncharted ? null : station.Length > 0 ? station : $"{Heading} Station");
         var data = BuildSystemData(system, note, station);
         if (!SystemData.SequenceEqual(data)) SystemData = data;
-        Market.Show(system);
         ulong portalCode = UniverseInfo.PortalCode(system, 0);
-        var unmatched = BuildUnmatched(system, planets);
-        if (Unmatched.Count != unmatched.Count || Unmatched.Zip(unmatched).Any(pair =>
-            pair.First.Held != pair.Second.Held || !pair.First.Bodies.SequenceEqual(pair.Second.Bodies)))
-            Unmatched = unmatched;
 
         // Every body, discovered or not: the ones nobody has found yet with the type the
         // game's own generator gives them (PlanetTypesService).
@@ -480,7 +375,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
                 await tile.LoadNotableAsync();
             }
         });
-        _ = RefreshPictureAsync();
     }
 
     /// <summary>
@@ -603,20 +497,5 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         bool piratesSeen = note?.Conflict?.Contains("Pirate", StringComparison.OrdinalIgnoreCase) == true;
         if (f.Pirate || piratesSeen) Row("Pirates", piratesSeen ? "Pirate-controlled" : null, "Pirate-controlled");
         return rows;
-    }
-
-    private static List<UnmatchedBodyViewModel> BuildUnmatched(ulong system, List<KnownPlanet> planets)
-    {
-        // The bodies no name or details are known for (all of them when every one is).
-        var open = UnmatchedBodiesService.UnaccountedBodies(system);
-        var bodies = (open.Count > 0 ? open : Enumerable.Range(1, UniverseInfo.For(system).PlanetCount + UniverseInfo.For(system).MoonCount).ToList()).Select(b =>
-        {
-            bool isMoon = BodyKindsService.IsMoon(system, b);
-            string kind = isMoon ? "Moon" : "Planet";
-            var planet = planets.FirstOrDefault(p => p.PlanetIndex == b);
-            string type = planet is not null ? $" · {planet.Classification(PlanetTypesService.Descriptor(system, b), isMoon: isMoon)}" : "";
-            return new ChoiceItem($"{kind} {b} · {UniverseInfo.PlanetName(system, b)}{type}", b.ToString(CultureInfo.InvariantCulture));
-        }).ToList();
-        return UnmatchedBodiesService.For(system).Select(h => new UnmatchedBodyViewModel(h, bodies)).ToList();
     }
 }
