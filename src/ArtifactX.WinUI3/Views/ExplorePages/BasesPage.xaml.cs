@@ -30,25 +30,19 @@ public sealed partial class BasesPage : Page
         FishCatchRecorder.SnapshotSeen += OnLiveSnapshot;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         JumpPlanner.RangeChanged += Rebuild;
-        PlanetDetailsService.Captured += OnPlanetChanged;
         PlanetDetailsService.Changed += OnPlanetChanged;
         PlanetWaterService.Changed += OnPlanetChanged;
-        CreatureListService.Changed += OnPlanetChanged;
         FindsService.Changed += Rebuild;
         SystemNotesService.Changed += OnSystemChanged;
-        SystemPageReader.Captured += OnSystemChanged;
         Unloaded += (_, _) =>
         {
             FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             JumpPlanner.RangeChanged -= Rebuild;
-            PlanetDetailsService.Captured -= OnPlanetChanged;
             PlanetDetailsService.Changed -= OnPlanetChanged;
             PlanetWaterService.Changed -= OnPlanetChanged;
-            CreatureListService.Changed -= OnPlanetChanged;
             FindsService.Changed -= Rebuild;
             SystemNotesService.Changed -= OnSystemChanged;
-            SystemPageReader.Captured -= OnSystemChanged;
         };
         _ = LoadAsync();
     }

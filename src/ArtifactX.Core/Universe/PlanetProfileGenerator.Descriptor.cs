@@ -144,7 +144,7 @@ public static partial class PlanetProfileGenerator
     /// low sentinels on the normal difficulty slot. Its descriptor is then "Paradise" whatever seed 21 draws.
     /// The check's 0 is the weather's intensity (not extreme), not GcWeatherOptions Clear: lush worlds never draw Clear,
     /// and with that reading 17 of the 18 planets the owner's captures name "Paradise Planet" match (the 18th, a dead
-    /// moon, holds planet 3's word: a capture filed on the wrong body, PlanetPageReader.OtherBodysReading), against none before (user.db, 600 captured
+    /// moon, holds planet 3's word: a capture filed on the wrong body by the since-removed screen reader), against none before (user.db, 600 captured
     /// descriptors, build 185034, 2026-11-14).</summary>
     public static bool IsParadise(int biome, int subType, bool extreme, int storms, int[] sentinels) =>
         biome == Lush && subType is not (SwampSub or RuinedSub or InfestedSub) && !extreme && storms == 0

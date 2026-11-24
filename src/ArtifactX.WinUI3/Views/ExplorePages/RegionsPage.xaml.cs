@@ -25,14 +25,12 @@ public sealed partial class RegionsPage : Page
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         FishCatchRecorder.SnapshotSeen += OnSnapshotSeen;
         PlanetDetailsService.Changed += OnPlanetChanged;
-        PlanetDetailsService.Captured += OnPlanetChanged;
         SystemNotesService.Changed += OnSystemChanged;
         Unloaded += (_, _) =>
         {
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             FishCatchRecorder.SnapshotSeen -= OnSnapshotSeen;
             PlanetDetailsService.Changed -= OnPlanetChanged;
-            PlanetDetailsService.Captured -= OnPlanetChanged;
             SystemNotesService.Changed -= OnSystemChanged;
             _refresh.Stop();
         };

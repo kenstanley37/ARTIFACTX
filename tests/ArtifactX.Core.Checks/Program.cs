@@ -87,7 +87,6 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
     TextureRecolourChecks.Check();
     PetBattlerClassChecks.Check();
     InventoryStackLimitChecks.Check();
-    NotesPlanetMatcherChecks.Check();
     ReleaseNotesChecks.Check();
     var rows = new ObservableCollection<Row> { new(1, "A", 10), new(2, "B", 20) };
     var first = rows[0];

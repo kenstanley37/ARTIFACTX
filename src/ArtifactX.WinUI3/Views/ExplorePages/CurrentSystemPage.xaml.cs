@@ -22,15 +22,10 @@ public sealed partial class CurrentSystemPage : Page
         ViewModel.SystemArrived += ShowSystemChange;
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         FishCatchRecorder.SnapshotSeen += OnSnapshotSeen;
-        PlanetDetailsService.Captured += OnPlanetChanged;
         PlanetDetailsService.Changed += OnPlanetChanged;
         PlanetWaterService.Changed += OnPlanetChanged;
         FindsService.Changed += OnFindsChanged;
         SystemNotesService.Changed += OnSystemChanged;
-        SystemPageReader.Captured += OnSystemChanged;
-        BodyKindsService.Captured += OnSystemChanged;
-        UnmatchedBodiesService.Changed += OnSystemChanged;
-        SystemMarketService.Changed += OnMarketChanged;
         PlanetTypesService.Loaded += OnPlanetTypesLoaded;
         GameProcessMonitorService.RunningStateChanged += OnGameRunningChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
@@ -39,15 +34,10 @@ public sealed partial class CurrentSystemPage : Page
             ViewModel.SystemArrived -= ShowSystemChange;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             FishCatchRecorder.SnapshotSeen -= OnSnapshotSeen;
-            PlanetDetailsService.Captured -= OnPlanetChanged;
             PlanetDetailsService.Changed -= OnPlanetChanged;
             PlanetWaterService.Changed -= OnPlanetChanged;
             FindsService.Changed -= OnFindsChanged;
             SystemNotesService.Changed -= OnSystemChanged;
-            SystemPageReader.Captured -= OnSystemChanged;
-            BodyKindsService.Captured -= OnSystemChanged;
-            UnmatchedBodiesService.Changed -= OnSystemChanged;
-            SystemMarketService.Changed -= OnMarketChanged;
             PlanetTypesService.Loaded -= OnPlanetTypesLoaded;
             GameProcessMonitorService.RunningStateChanged -= OnGameRunningChanged;
             SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
@@ -98,7 +88,6 @@ public sealed partial class CurrentSystemPage : Page
     private void OnPlanetChanged(ulong system, int planet) => DispatcherQueue.TryEnqueue(() => { if (IsThisSystem(system)) ViewModel.Refresh(notes: false); });
     private void OnSystemChanged(ulong system) => DispatcherQueue.TryEnqueue(() => { if (IsThisSystem(system)) ViewModel.Refresh(notes: true); });
     private void OnFindsChanged() => DispatcherQueue.TryEnqueue(() => ViewModel.Refresh(notes: false));
-    private void OnMarketChanged(ulong system) => DispatcherQueue.TryEnqueue(() => { if (IsThisSystem(system)) ViewModel.ShowMarket(); });
 
     private void ShowHelp_Click(object sender, RoutedEventArgs e) => ViewModel.SetHelpVisible(true);
     private void HideHelp_Click(object sender, RoutedEventArgs e) => ViewModel.SetHelpVisible(false);
@@ -112,29 +101,6 @@ public sealed partial class CurrentSystemPage : Page
 
     private void OpenCabinetMultiTools_Click(object sender, RoutedEventArgs e) =>
         Frame.Navigate(typeof(ExplorePages.CabinetMultiToolsPage), ViewModel.SystemAddress);
-
-    private void AssignUnmatched_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is UnmatchedBodyViewModel row) ViewModel.AssignUnmatched(row);
-    }
-
-    private void DismissUnmatched_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.Tag is UnmatchedBodyViewModel row) ViewModel.DismissUnmatched(row);
-    }
-
-    private async void ReadScreen_Click(object sender, RoutedEventArgs e)
-    {
-        ScreenReadResult result;
-        try { result = await ViewModel.ReadScreenAsync(); }
-        catch (Exception ex) { result = new ScreenReadResult(false, ex.Message); }
-        bool filled = result.Success && result.ReadInfo is not null;
-        ReadFlyoutIcon.Glyph = filled ? "" : "";
-        ReadFlyoutIcon.Foreground = ThemeResources.Brush(filled ? "ThemeAccentBrush" : "ThemeWarningBrush");
-        ReadFlyoutTitle.Text = !result.Success ? "Couldn't read the screen" : filled ? "Screen read" : "Nothing filled in";
-        ReadFlyoutDetails.Text = result.Message;
-        ReadFlyout.ShowAt(ReadScreenBtn);
-    }
 
     /// <summary>A bold banner over the card for a few seconds after live follow sees a new
     /// system, so the switch can't be missed, and the card fading in.</summary>

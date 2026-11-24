@@ -27,7 +27,7 @@ public static class FishCatchRecorder
     public static event Action? ActiveChanged;
 
     /// <summary>Every save snapshot it reads, the session's first - for other listeners
-    /// that need the player's location (PlanetPageReader).</summary>
+    /// that need the player's location.</summary>
     public static event Action<PlanetSnapshot>? SnapshotSeen;
 
     public static void Start(DispatcherQueue dispatcher)

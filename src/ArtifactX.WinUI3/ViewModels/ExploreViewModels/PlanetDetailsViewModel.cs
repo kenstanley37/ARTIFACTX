@@ -3,6 +3,7 @@ using ArtifactX.Core.Procedural;
 using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Helpers.Fauna;
+using ArtifactX.WinUI3.Models;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Dispatching;
@@ -305,7 +306,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
             if (slot.Discovery >= 0)
             {
                 string name = saveDiscoveries[slot.Discovery].SpeciesName;
-                if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, name)) continue;
                 // Rarity and activity only when the discovery is this very creature (same seed), not a leftover slot.
                 bool same = pred is not null && saveDiscoveries[slot.Discovery].Seed == pred.Seed;
                 var creature = new Creature(Name: name, Rarity: same && rarity.Length > 0 ? rarity : "Discovered", Habitat: habitat,
@@ -327,7 +327,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
             if (pred is null) continue;
             string? predictedName = nameService.PredictedSpecies(pred, planet.Address);
             string unscannedName = predictedName ?? $"Unscanned {pred.DefaultDisplayName}";
-            if (CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, unscannedName)) continue;
             // Traits as the game's discovery list shows them, then the species' two forms (gender with weight and height).
             var unscanned = new Creature(Name: unscannedName,
                 Rarity: predictedName is null ? "Undiscovered" : rarity.Length > 0 ? $"Predicted · {rarity}" : "Predicted",
@@ -396,28 +395,15 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         IsFishCollapsed = collapsed;
     }
 
-    public void DeleteCreature(CreatureCardViewModel creature)
-    {
-        if (Planet is { } planet)
-        {
-            CreatureListService.Delete(planet.SystemAddress, planet.PlanetIndex, creature.Name);
-            _ = ShowCreaturesAsync();
-        }
-    }
-
     // ---------------------------------------------------------------- Following the game
 
     public void Attach(DispatcherQueue dispatcher)
     {
         _dispatcher = dispatcher;
-        CreatureListService.Changed += OnCreaturesChanged;
         FishCatchRecorder.SnapshotSeen += OnSnapshotSeen;
-        PlanetDetailsService.Captured += OnPlanetChanged;
         PlanetDetailsService.Changed += OnPlanetChanged;
         PlanetWaterService.Changed += OnPlanetChanged;
         SystemNotesService.Changed += OnSystemChanged;
-        SystemPageReader.Captured += OnSystemChanged;
-        BodyKindsService.Captured += OnSystemChanged;
         FindsService.Changed += OnFindsChanged;
         GameProcessMonitorService.RunningStateChanged += OnGameRunningChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
@@ -425,14 +411,10 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
 
     public void Detach()
     {
-        CreatureListService.Changed -= OnCreaturesChanged;
         FishCatchRecorder.SnapshotSeen -= OnSnapshotSeen;
-        PlanetDetailsService.Captured -= OnPlanetChanged;
         PlanetDetailsService.Changed -= OnPlanetChanged;
         PlanetWaterService.Changed -= OnPlanetChanged;
         SystemNotesService.Changed -= OnSystemChanged;
-        SystemPageReader.Captured -= OnSystemChanged;
-        BodyKindsService.Captured -= OnSystemChanged;
         FindsService.Changed -= OnFindsChanged;
         GameProcessMonitorService.RunningStateChanged -= OnGameRunningChanged;
         SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
@@ -452,7 +434,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     });
     private void OnGameRunningChanged(object? sender, bool running) => OnUi(Equipment.RefreshMarkers);
     private void OnPendingEditsChanged(object? sender, EventArgs e) => OnUi(Equipment.RefreshMarkers);
-    private void OnCreaturesChanged(ulong system, int planet) => OnUi(() => { if (IsThisPlanet(system, planet)) _ = ShowCreaturesAsync(); });
 
     private void OnSnapshotSeen(PlanetSnapshot snapshot) => OnUi(() =>
     {

@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using ArtifactX.WinUI3.Services;
 using Velopack;
@@ -113,7 +114,11 @@ public partial class App : Application
 
         _ = Task.Run(() =>
         {
-            foreach (var stale in Directory.GetDirectories(LocalAppDataPaths.RootFolder, "Working.old-*"))
+            // Game screen recording was removed (2026-11-24): its text log and the system and creature
+            // pictures it cropped go too.
+            var removedFeatureFolders = new[] { "capture-log", "system-pictures", "creature-pictures" }
+                .Select(name => Path.Combine(LocalAppDataPaths.RootFolder, name)).Where(Directory.Exists);
+            foreach (var stale in Directory.GetDirectories(LocalAppDataPaths.RootFolder, "Working.old-*").Concat(removedFeatureFolders))
             {
                 try { Directory.Delete(stale, recursive: true); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

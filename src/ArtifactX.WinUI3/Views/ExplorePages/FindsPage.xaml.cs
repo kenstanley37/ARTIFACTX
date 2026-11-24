@@ -23,18 +23,14 @@ public sealed partial class FindsPage : Page
         FishCatchRecorder.SnapshotSeen += ViewModel.OnSnapshot;
         JumpPlanner.RangeChanged += ViewModel.Apply;
         FindsService.Changed += OnFindsChanged;
-        PlanetDetailsService.Captured += OnPlanetChanged;
         PlanetDetailsService.Changed += OnPlanetChanged;
         SystemNotesService.Changed += OnSystemNotesChanged;
-        SystemPageReader.Captured += OnSystemNotesChanged;
         Unloaded += (_, _) =>
         {
             JumpPlanner.RangeChanged -= ViewModel.Apply;
             FindsService.Changed -= OnFindsChanged;
-            PlanetDetailsService.Captured -= OnPlanetChanged;
             PlanetDetailsService.Changed -= OnPlanetChanged;
             SystemNotesService.Changed -= OnSystemNotesChanged;
-            SystemPageReader.Captured -= OnSystemNotesChanged;
             FishCatchRecorder.SnapshotSeen -= ViewModel.OnSnapshot;
         };
         _ = ViewModel.LoadAsync();

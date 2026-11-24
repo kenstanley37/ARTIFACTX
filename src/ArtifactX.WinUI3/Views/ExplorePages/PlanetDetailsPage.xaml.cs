@@ -53,20 +53,6 @@ public sealed partial class PlanetDetailsPage : Page
     private void CollapseFish_Click(object sender, RoutedEventArgs e) => ViewModel.SetFishCollapsed(true);
     private void ExpandFish_Click(object sender, RoutedEventArgs e) => ViewModel.SetFishCollapsed(false);
 
-    private async void Creature_DeleteRequested(object? sender, CreatureCardRequest request)
-    {
-        var dialog = new ContentDialog
-        {
-            Title = $"Remove {request.Creature.Name}?",
-            Content = "This removes the creature from what ArtifactX shows for this planet. The game isn't changed.",
-            PrimaryButtonText = "Remove",
-            CloseButtonText = "Keep it",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = XamlRoot,
-        };
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary) ViewModel.DeleteCreature(request.Creature);
-    }
-
     private async void Creature_Preview3DRequested(object? sender, CreatureCardRequest request) =>
         await CreaturePreviewControl.ShowCardAsync(XamlRoot, request.Creature);
 

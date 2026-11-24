@@ -24,31 +24,9 @@ public sealed record SystemDataRow(string Label, string Value)
     public Brush ValueBrush => ThemeResources.Brush("ThemeWarningBrush");
 }
 
-/// <summary>A planet name read off the game screen that ArtifactX doesn't know (usually one
-/// someone renamed): the player says which body it is, or that it isn't in this system.</summary>
-public sealed partial class UnmatchedBodyViewModel : ObservableObject
-{
-    public UnmatchedBodyViewModel(UnmatchedBodiesService.Held held, IReadOnlyList<ChoiceItem> bodies)
-    {
-        Held = held;
-        Bodies = bodies;
-        Name = held.Name + (held.Moon is bool moon ? (moon ? " (moon)" : " (planet)") : "");
-    }
-
-    public UnmatchedBodiesService.Held Held { get; }
-    public string Name { get; }
-    public IReadOnlyList<ChoiceItem> Bodies { get; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanSave))]
-    public partial ChoiceItem? Selected { get; set; }
-
-    public bool CanSave => Selected is not null;
-}
-
 /// <summary>
 /// Current System: the system you're in (an orrery), what the
-/// save, the game's generator and your notes say about it, what its station sells, and a card
+/// save, the game's generator and your notes say about it, and a card
 /// per known planet. Follows the game's saves without redrawing what didn't change: a new
 /// system rebuilds everything (SystemArrived), landing elsewhere rebuilds the cards, and new
 /// discoveries only update their numbers.
@@ -83,7 +61,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     public StationMultiToolsViewModel StationTools { get; } = new();
     public SystemMultiToolsViewModel MultiTools { get; } = new();
-    public StationMarketViewModel Market { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
     public SystemStarshipsViewModel Starships { get; } = new();
     public SystemDiscoveriesViewModel Discoveries { get; } = new();
@@ -106,7 +83,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     /// the station and you are left off).</summary>
     [ObservableProperty] public partial IReadOnlyList<SystemMapBody> OrbitBodies { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SystemDataRow> SystemData { get; private set; } = [];
-    [ObservableProperty] public partial IReadOnlyList<UnmatchedBodyViewModel> Unmatched { get; private set; } = [];
     public ObservableCollection<PlanetTileViewModel> Tiles { get; } = new();
 
     /// <summary>Every planet and moon at its centre from the save, for the system map; empty when the save has none.</summary>
@@ -123,10 +99,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial string MapStarColour { get; private set; } = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ReadLabel), nameof(CanRead))]
-    public partial bool IsReading { get; private set; }
-
-    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowFullDetails), nameof(CompactLabel), nameof(FrameHeight), nameof(FrameWidth), nameof(BodyPadding))]
     public partial bool IsCompact { get; private set; } = SettingsStore.Get(SettingsStore.Scope.Profile, CompactKey) == "1";
 
@@ -139,11 +111,8 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     /// <summary>The 3D system map (SystemMap) from the save's planet positions wins over the generator-only orbit drawing.</summary>
     public bool HasMap => MapBodies.Count > 0;
     public bool ShowOrbits => !HasMap;
-    public bool HasUnmatched => Unmatched.Count > 0;
     public bool NoPlanets => Tiles.Count == 0;
     public string PlanetSectionSummary => Tiles.Count == 0 ? "No planets yet" : $"{Tiles.Count} bodies";
-    public string ReadLabel => IsReading ? "Reading..." : "Read game screen";
-    public bool CanRead => !IsReading;
 
     /// <summary>"Show less": a small picture, the name, the facts line and the glyphs - the System
     /// Data box, explanation and text code hidden - so the planet cards show without scrolling
@@ -157,7 +126,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     public Thickness BodyPadding => IsCompact ? new Thickness(20, 12, 20, 14) : new Thickness(20, 16, 20, 20);
 
     partial void OnStationChanged(string value) => OnPropertyChanged(nameof(HasStation));
-    partial void OnUnmatchedChanged(IReadOnlyList<UnmatchedBodyViewModel> value) => OnPropertyChanged(nameof(HasUnmatched));
 
     /// <summary>Live follow saw a new system: "SYSTEM CHANGE DETECTED" and its name.</summary>
     public event Action<string>? SystemArrived;
@@ -237,34 +205,13 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         }
     }
 
-    /// <summary>Something recorded about the system or its planets changed (a screen read, the
-    /// player's notes, a planet's page): show it, keeping anything half-typed in the notes.</summary>
+    /// <summary>Something recorded about the system or its planets changed (the player's notes,
+    /// a planet's page): show it, keeping anything half-typed in the notes.</summary>
     public void Refresh(bool notes)
     {
         if (notes) Notes.Load(SystemAddress, SystemPlanets());
         Build();
     }
-
-    public void ShowMarket()
-    {
-        if (SystemAddress is ulong system) Market.Show(system);
-    }
-
-    /// <summary>Reads what the game shows now (GameScreenReader): what it fills in arrives through the readers' events.</summary>
-    public async Task<ScreenReadResult> ReadScreenAsync()
-    {
-        if (IsReading) return new ScreenReadResult(false, "Still reading the last screen.");
-        IsReading = true;
-        try { return await GameScreenReader.ReadNowAsync(); }
-        finally { IsReading = false; }
-    }
-
-    public void AssignUnmatched(UnmatchedBodyViewModel row)
-    {
-        if (row.Selected?.Value is string value && int.TryParse(value, out int body)) UnmatchedBodiesService.Assign(row.Held, body);
-    }
-
-    public void DismissUnmatched(UnmatchedBodyViewModel row) => UnmatchedBodiesService.Dismiss(row.Held);
 
     /// <summary>
     /// The system map's bodies: centres from the save (thousands of units), moon hosts and names from the
@@ -324,7 +271,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             MapStation = null;
             MapPlayer = null;
             SystemData = [];
-            Unmatched = [];
             Tiles.Clear();
             return;
         }
@@ -384,12 +330,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         _ = UpdateMapStationAsync(system, isUncharted ? null : station.Length > 0 ? station : $"{Heading} Station");
         var data = BuildSystemData(system, note, station);
         if (!SystemData.SequenceEqual(data)) SystemData = data;
-        Market.Show(system);
         ulong portalCode = UniverseInfo.PortalCode(system, 0);
-        var unmatched = BuildUnmatched(system, planets);
-        if (Unmatched.Count != unmatched.Count || Unmatched.Zip(unmatched).Any(pair =>
-            pair.First.Held != pair.Second.Held || !pair.First.Bodies.SequenceEqual(pair.Second.Bodies)))
-            Unmatched = unmatched;
 
         // Every body, discovered or not: the ones nobody has found yet with the type the
         // game's own generator gives them (PlanetTypesService).
@@ -541,20 +482,5 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         bool piratesSeen = note?.Conflict?.Contains("Pirate", StringComparison.OrdinalIgnoreCase) == true;
         if (f.Pirate || piratesSeen) Row("Pirates", piratesSeen ? "Pirate-controlled" : null, "Pirate-controlled");
         return rows;
-    }
-
-    private static List<UnmatchedBodyViewModel> BuildUnmatched(ulong system, List<KnownPlanet> planets)
-    {
-        // The bodies no name or details are known for (all of them when every one is).
-        var open = UnmatchedBodiesService.UnaccountedBodies(system);
-        var bodies = (open.Count > 0 ? open : Enumerable.Range(1, UniverseInfo.For(system).PlanetCount + UniverseInfo.For(system).MoonCount).ToList()).Select(b =>
-        {
-            bool isMoon = BodyKindsService.IsMoon(system, b);
-            string kind = isMoon ? "Moon" : "Planet";
-            var planet = planets.FirstOrDefault(p => p.PlanetIndex == b);
-            string type = planet is not null ? $" · {planet.Classification(PlanetTypesService.Descriptor(system, b), isMoon: isMoon)}" : "";
-            return new ChoiceItem($"{kind} {b} · {UniverseInfo.PlanetName(system, b)}{type}", b.ToString(CultureInfo.InvariantCulture));
-        }).ToList();
-        return UnmatchedBodiesService.For(system).Select(h => new UnmatchedBodyViewModel(h, bodies)).ToList();
     }
 }

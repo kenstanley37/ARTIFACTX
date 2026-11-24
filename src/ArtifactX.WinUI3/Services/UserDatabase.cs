@@ -20,7 +20,10 @@ namespace ArtifactX.WinUI3.Services;
 ///     in order and recorded in SQLite's PRAGMA user_version.
 ///  2. Steps only ADD: CREATE TABLE / ADD COLUMN / CREATE INDEX (each with a
 ///     default). Never DROP, RENAME, DELETE or UPDATE existing data in a step.
-///     A column that's no longer wanted is simply left unused.
+///     A column that's no longer wanted is simply left unused. The one exception
+///     is step 22 (owner, 2026-11-24): it removes what game screen reading
+///     stored, once that feature was removed, so values nobody sees can't
+///     override the generator. Any further exception needs the owner's say-so.
 ///  3. Never edit or reorder a step that has shipped - append a new one.
 ///  4. Each step runs in its own transaction (all or nothing), and the file is
 ///     copied to Backups\user-db first.
@@ -498,7 +501,51 @@ public static class UserDatabase
             PRIMARY KEY (save_key, system_address)
         );
         """,
+
+        // 22 - game screen reading removed (2026-11-24, owner): its tables go, and the values
+        // it wrote are cleared field by field using field_sources (source 'captured'), so what
+        // the player typed and what came from a save stay. A row left with nothing in it goes;
+        // screen-read rows from before field_sources existed (step 18) are the rows marked
+        // 'captured' with no typed or save field. Planet and system notes live in their own
+        // tables and aren't touched. Dry-run on the owner's user.db: every typed or save value
+        // kept, 1,364 planet rows -> 9, 748 systems -> 535, 4.7 MB -> 1.6 MB after VACUUM.
+        // See CompactAfterStep: VACUUM can't run inside the step's transaction.
+        """
+        UPDATE planet_details SET weather = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'planet' AND f.entity_key = planet_details.system_address || '|' || planet_details.planet_index AND f.field = 'weather' AND f.source = 'captured');
+        UPDATE planet_details SET sentinels = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'planet' AND f.entity_key = planet_details.system_address || '|' || planet_details.planet_index AND f.field = 'sentinels' AND f.source = 'captured');
+        UPDATE planet_details SET flora = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'planet' AND f.entity_key = planet_details.system_address || '|' || planet_details.planet_index AND f.field = 'flora' AND f.source = 'captured');
+        UPDATE planet_details SET fauna = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'planet' AND f.entity_key = planet_details.system_address || '|' || planet_details.planet_index AND f.field = 'fauna' AND f.source = 'captured');
+        UPDATE planet_details SET resources = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'planet' AND f.entity_key = planet_details.system_address || '|' || planet_details.planet_index AND f.field = 'resources' AND f.source = 'captured');
+        UPDATE planet_details SET descriptor = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'planet' AND f.entity_key = planet_details.system_address || '|' || planet_details.planet_index AND f.field = 'descriptor' AND f.source = 'captured');
+        UPDATE planet_details SET fauna_total = NULL WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'planet' AND f.entity_key = planet_details.system_address || '|' || planet_details.planet_index AND f.field = 'fauna_total' AND f.source = 'captured');
+        DELETE FROM planet_details WHERE source = 'captured' AND NOT EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'planet' AND f.entity_key = planet_details.system_address || '|' || planet_details.planet_index AND f.source <> 'captured' AND f.field <> 'name');
+        DELETE FROM planet_details WHERE weather = '' AND sentinels = '' AND flora = '' AND fauna = '' AND resources = '' AND descriptor = '' AND fauna_total IS NULL;
+        UPDATE systems SET name = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'name' AND f.source = 'captured');
+        UPDATE systems SET station = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'station' AND f.source = 'captured');
+        UPDATE systems SET star_class = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'star_class' AND f.source = 'captured');
+        UPDATE systems SET star_colour = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'star_colour' AND f.source = 'captured');
+        UPDATE systems SET economy = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'economy' AND f.source = 'captured');
+        UPDATE systems SET wealth = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'wealth' AND f.source = 'captured');
+        UPDATE systems SET conflict = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'conflict' AND f.source = 'captured');
+        UPDATE systems SET race = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'race' AND f.source = 'captured');
+        UPDATE systems SET ships = '' WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'ships' AND f.source = 'captured');
+        UPDATE systems SET moons = NULL WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'moons' AND f.source = 'captured');
+        UPDATE systems SET water = 0 WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'water' AND f.source = 'captured');
+        UPDATE systems SET dissonant = 0 WHERE EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.field = 'dissonant' AND f.source = 'captured');
+        DELETE FROM systems WHERE source = 'captured' AND NOT EXISTS (SELECT 1 FROM field_sources f WHERE f.entity = 'system' AND f.entity_key = systems.address AND f.source <> 'captured');
+        DELETE FROM systems WHERE name = '' AND station = '' AND star_class = '' AND star_colour = '' AND economy = '' AND wealth = '' AND conflict = '' AND race = '' AND ships = '' AND moons IS NULL AND water = 0 AND dissonant = 0;
+        DELETE FROM planet_water WHERE source = 'captured';
+        DELETE FROM field_sources WHERE source = 'captured';
+        DELETE FROM device_settings WHERE key = 'ScreenCaptureLog';
+        DROP TABLE IF EXISTS body_kinds;
+        DROP TABLE IF EXISTS system_market;
+        DROP TABLE IF EXISTS market_items;
+        DROP TABLE IF EXISTS planet_creatures;
+        """,
     };
+
+    /// <summary>The step after which the file is compacted (VACUUM), because it removed a lot of data.</summary>
+    private const int CompactAfterStep = 22;
 
     public static int SchemaVersion => Migrations.Length;
 
@@ -566,6 +613,8 @@ public static class UserDatabase
                         Execute(connection, $"PRAGMA user_version = {step + 1};", tx);
                         tx.Commit();
                     }
+                    // Deleted rows only free pages inside the file; VACUUM gives the space back.
+                    if (current < CompactAfterStep && Migrations.Length >= CompactAfterStep) Execute(connection, "VACUUM;");
                 }
             }
             _initialized = true;

@@ -75,26 +75,6 @@
                         <Grid>
                             <TextBlock Text="CURRENT SYSTEM" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                                <!-- Reads the game screen once (GameScreenReader); nothing is kept from the screen itself. -->
-                                <Button x:Name="ReadScreenBtn" Click="ReadScreen_Click" Padding="8,3" VerticalAlignment="Center"
-                                        IsEnabled="{x:Bind ViewModel.CanRead, Mode=OneWay}" AutomationProperties.Name="Read the game screen now"
-                                        ToolTipService.ToolTip="Fills in what your save doesn't have from what No Man's Sky shows now. Open a planet or system in Discoveries, a trade terminal, or a planet's fauna list first.">
-                                    <FlyoutBase.AttachedFlyout>
-                                        <Flyout x:Name="ReadFlyout">
-                                            <StackPanel MaxWidth="320" Spacing="8">
-                                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <FontIcon x:Name="ReadFlyoutIcon" Glyph="&#xE73E;" FontSize="16"/>
-                                                    <TextBlock x:Name="ReadFlyoutTitle" FontWeight="SemiBold" FontSize="13"/>
-                                                </StackPanel>
-                                                <TextBlock x:Name="ReadFlyoutDetails" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
-                                            </StackPanel>
-                                        </Flyout>
-                                    </FlyoutBase.AttachedFlyout>
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <FontIcon Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                        <TextBlock Text="{x:Bind ViewModel.ReadLabel, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
                                 <!-- Smaller card, so the planets show without scrolling (2026-10-18). -->
                                 <Button Content="{x:Bind ViewModel.CompactLabel, Mode=OneWay}" Click="Compact_Click" Padding="10,2" FontSize="12"/>
                             </StackPanel>
@@ -163,7 +143,7 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                         <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" MaxWidth="320"
-                                                   Text="Worked out the way the game does, or as the game showed it when you read its screen. The game words economy, wealth and conflict its own way (Mining may read &quot;Prospecting&quot;): open the system in the game's Discoveries or Galaxy Map and press Read game screen to get its exact words."/>
+                                                   Text="Worked out the way the game does, in the game's own words. Anything you record in your notes below is shown instead."/>
                                     </StackPanel>
                                 </Border>
                                 <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Discoveries.IsVisible, Mode=OneWay}">
@@ -196,33 +176,9 @@
                                 </StackPanel>
                             </ctcontrols:WrapPanel>
 
-                            <!-- Planet discovery and detail cards come before station stock. -->
                             <controls:FoldingCard Title="PLANETS AND MOONS" FoldedName="{x:Bind ViewModel.PlanetSectionSummary, Mode=OneWay}"
                                                   SettingKey="CurrentSystemPlanetsCollapsed">
                                 <StackPanel Spacing="18" Margin="0,16,0,0">
-                                    <!-- Planets read off the game screen under a name ArtifactX doesn't know (renamed by another player). -->
-                                    <Border Visibility="{x:Bind ViewModel.HasUnmatched, Mode=OneWay}" BorderBrush="{ThemeResource ThemeWarningBrush}" BorderThickness="1"
-                                            Background="{ThemeResource ThemePanelAltBrush}" CornerRadius="{ThemeResource ThemeCardCornerRadius}" Padding="16,12,16,14">
-                                        <StackPanel Spacing="10">
-                                            <TextBlock Text="READ FROM THE GAME - WHICH PLANET IS THIS?" Style="{StaticResource ThemeEyebrowStyle}"/>
-                                            <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                                                       Text="These names were read off the game screen but aren't the names ArtifactX knows - usually a planet someone renamed. Most renamed planets are learned from your save by themselves; for these, landing on the planet also teaches ArtifactX its name. Or pick it here if you know which one it is."/>
-                                            <ItemsControl ItemsSource="{x:Bind ViewModel.Unmatched, Mode=OneWay}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate x:DataType="viewmodels:UnmatchedBodyViewModel">
-                                                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,8">
-                                                            <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" Width="240" VerticalAlignment="Center"
-                                                                       Foreground="{ThemeResource ThemeWarningBrush}" TextTrimming="CharacterEllipsis"/>
-                                                            <ComboBox PlaceholderText="Which planet?" MinWidth="280" ItemsSource="{x:Bind Bodies}" SelectedItem="{x:Bind Selected, Mode=TwoWay}"/>
-                                                            <Button Content="Save" Click="AssignUnmatched_Click" Tag="{x:Bind}" IsEnabled="{x:Bind CanSave, Mode=OneWay}"/>
-                                                            <HyperlinkButton Content="Not in this system" Click="DismissUnmatched_Click" Tag="{x:Bind}" VerticalAlignment="Center"/>
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                    </Border>
-
                                     <TextBlock Visibility="{x:Bind ViewModel.NoPlanets, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" TextWrapping="Wrap"
                                                Text="No planets in this system are in your discoveries yet. Scan or land on one in-game, then save."/>
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.Tiles, Mode=OneWay}">
@@ -257,7 +213,6 @@
                                     </Grid>
                                 </Border>
                             </controls:FoldingCard>
-                            <controls:StationMarket Market="{x:Bind ViewModel.Market}"/>
                             <controls:SystemNotesPanel Notes="{x:Bind ViewModel.Notes}"/>
                             <controls:SystemStarshipsPanel Starships="{x:Bind ViewModel.Starships}"/>
 

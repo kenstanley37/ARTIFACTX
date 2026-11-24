@@ -168,17 +168,12 @@ public static class PlanetText
         UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex), UniverseInfo.SystemName(p.SystemAddress), UniverseInfo.Region(p.SystemAddress), p.TypeName, p.BiomeGroup);
 
     /// <summary>Everything the finder's search box looks through for a planet: names, type,
-    /// what's recorded about it and its system, and its creatures ("Underwater", "Nocturnal").</summary>
+    /// what's recorded about it and its system.</summary>
     public static string SearchText(KnownPlanet p) => string.Join(" ",
         UniverseInfo.PlanetName(p.SystemAddress, p.PlanetIndex), UniverseInfo.SystemName(p.SystemAddress), UniverseInfo.Region(p.SystemAddress), p.TypeName, p.BiomeGroup,
         PlanetTypesService.Descriptor(p.SystemAddress, p.PlanetIndex),
         DetailsSummary(PlanetDetailsService.Get(p.SystemAddress, p.PlanetIndex), PlanetWaterService.Get(p.SystemAddress, p.PlanetIndex)),
-        NoteSummary(SystemNotesService.Get(p.SystemAddress)),
-        string.Join(" ", CreatureListService.On(p.SystemAddress, p.PlanetIndex).Select(c => $"{c.Name} {c.Rarity} {c.Habitat} {c.Activity}")));
-
-    /// <summary>"Space station" / "Trading post · Irskya XIX" for a market place key.</summary>
-    public static string PlaceName(ulong system, string place) => place == "station" ? "Space station"
-        : int.TryParse(place.Replace("planet:", ""), out int p) ? $"Trading post · {UniverseInfo.PlanetName(system, p)}" : place;
+        NoteSummary(SystemNotesService.Get(p.SystemAddress)));
 
     /// <summary>"just now" / "12 min ago" / "3 h ago" / a date.</summary>
     public static string SeenAgo(string iso)

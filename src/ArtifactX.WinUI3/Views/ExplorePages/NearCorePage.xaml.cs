@@ -41,12 +41,10 @@ public sealed partial class NearCorePage : Page
         SaveSessionManager.ActiveSessionChanged += OnSessionChanged;
         JumpPlanner.RangeChanged += OnRangeChanged;
         SystemNotesService.Changed += OnSystemNotesChanged;
-        SystemPageReader.Captured += OnSystemCaptured;
         Unloaded += (_, _) =>
         {
             JumpPlanner.RangeChanged -= OnRangeChanged;
             SystemNotesService.Changed -= OnSystemNotesChanged;
-            SystemPageReader.Captured -= OnSystemCaptured;
             SaveSessionManager.ActiveSessionChanged -= OnSessionChanged;
             FishCatchRecorder.SnapshotSeen -= OnLiveSnapshot;
         };
@@ -57,11 +55,6 @@ public sealed partial class NearCorePage : Page
     /// position. The list is only rebuilt when something actually changed, so
     /// an unrelated save doesn't reset your scroll position.</summary>
     private void OnSystemNotesChanged(ulong system) => DispatcherQueue.TryEnqueue(() =>
-    {
-        if (_thisSave.Count > 0) Apply();
-    });
-
-    private void OnSystemCaptured(ulong system) => DispatcherQueue.TryEnqueue(() =>
     {
         if (_thisSave.Count > 0) Apply();
     });

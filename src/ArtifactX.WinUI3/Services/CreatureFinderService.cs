@@ -62,7 +62,7 @@ public static class CreatureFinderService
                 // A discovery counts only when it is this very creature (same seed), as on Planet Details.
                 var disc = slot.Discovery >= 0 && mine[slot.Discovery].Seed == creature.Seed ? mine[slot.Discovery] : null;
                 string? name = disc?.SpeciesName ?? names.PredictedSpecies(creature, planet.Address);
-                if (name is null || CreatureListService.IsDeleted(planet.SystemAddress, planet.PlanetIndex, name)) continue;
+                if (name is null) continue;
                 var (speciesSeed, genusSeed) = disc is not null ? (disc.SpeciesSeed, disc.GenusSeed)
                     : SpeciesNames.FaunaSeeds(creature.Seed, string.IsNullOrEmpty(creature.SpeciesId) ? creature.Id : creature.SpeciesId,
                         planet.Address, creature.CreatureType, creature.SizeClass);
