@@ -99,7 +99,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial string MapStarColour { get; private set; } = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowFullDetails), nameof(CompactLabel), nameof(FrameHeight), nameof(FrameWidth), nameof(BodyPadding))]
+    [NotifyPropertyChangedFor(nameof(ShowFullDetails), nameof(CompactLabel), nameof(FrameHeight), nameof(FrameWidth), nameof(BodyPadding), nameof(BackdropMargin))]
     public partial bool IsCompact { get; private set; } = SettingsStore.Get(SettingsStore.Scope.Profile, CompactKey) == "1";
 
     [ObservableProperty]
@@ -111,6 +111,18 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     /// <summary>The 3D system map (SystemMap) from the save's planet positions wins over the generator-only orbit drawing.</summary>
     public bool HasMap => MapBodies.Count > 0;
     public bool ShowOrbits => !HasMap;
+    /// <summary>The page key of the picture the player picked for the top card (PageBackgroundService).</summary>
+    public const string BackgroundKey = "CurrentSystem";
+
+    /// <summary>The player's own picture behind the top card, edges faded; null when none is picked.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasBackground))]
+    public partial ImageSource? BackgroundPicture { get; private set; }
+
+    public bool HasBackground => BackgroundPicture is not null;
+
+    /// <summary>Shows the picked picture, or none (on open and whenever it's changed).</summary>
+    public async Task LoadBackgroundAsync() => BackgroundPicture = await PageBackgroundService.LoadAsync(BackgroundKey);
+
     public bool NoPlanets => Tiles.Count == 0;
     public string PlanetSectionSummary => Tiles.Count == 0 ? "No planets yet" : $"{Tiles.Count} bodies";
 
@@ -124,6 +136,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     public double FrameHeight => IsCompact ? 150 : 360;
     public double FrameWidth => FrameHeight * 1.5;
     public Thickness BodyPadding => IsCompact ? new Thickness(20, 12, 20, 14) : new Thickness(20, 16, 20, 20);
+
+    /// <summary>Takes the background picture out over the body's padding to the card's edges.</summary>
+    public Thickness BackdropMargin => new(-BodyPadding.Left, -BodyPadding.Top, -BodyPadding.Right, 0);
 
     partial void OnStationChanged(string value) => OnPropertyChanged(nameof(HasStation));
 

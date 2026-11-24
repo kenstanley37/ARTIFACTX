@@ -75,6 +75,22 @@
                         <Grid>
                             <TextBlock Text="CURRENT SYSTEM" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                <!-- A picture of the player's own behind the top section (owner, 2026-11-24). -->
+                                <DropDownButton x:Name="BackgroundBtn" Padding="10,2" FontSize="12" AutomationProperties.Name="Background picture"
+                                                ToolTipService.ToolTip="Put one of your own screenshots behind this section">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE8B9;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
+                                        <TextBlock Text="Background"/>
+                                    </StackPanel>
+                                    <DropDownButton.Flyout>
+                                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                            <MenuFlyoutItem Text="From your Steam screenshots..." Click="BackgroundFromSteam_Click"/>
+                                            <MenuFlyoutItem Text="From a picture file..." Click="BackgroundFromFile_Click"/>
+                                            <MenuFlyoutSeparator/>
+                                            <MenuFlyoutItem Text="Remove background" Click="RemoveBackground_Click" IsEnabled="{x:Bind ViewModel.HasBackground, Mode=OneWay}"/>
+                                        </MenuFlyout>
+                                    </DropDownButton.Flyout>
+                                </DropDownButton>
                                 <!-- Smaller card, so the planets show without scrolling (2026-10-18). -->
                                 <Button Content="{x:Bind ViewModel.CompactLabel, Mode=OneWay}" Click="Compact_Click" Padding="10,2" FontSize="12"/>
                             </StackPanel>
@@ -82,6 +98,12 @@
                     </Border>
                     <Grid>
                         <StackPanel x:Name="SystemBody" Padding="{x:Bind ViewModel.BodyPadding, Mode=OneWay}" Spacing="18">
+                            <Grid>
+                            <!-- The player's own picture behind the top section, out to the card's edges and faded into it
+                                 (PageBackgroundService; picked from the band's Background menu). Decoration only. -->
+                            <Image Source="{x:Bind ViewModel.BackgroundPicture, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasBackground, Mode=OneWay}"
+                                   Margin="{x:Bind ViewModel.BackdropMargin, Mode=OneWay}" Stretch="UniformToFill" Opacity="0.4"
+                                   IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
                             <ctcontrols:WrapPanel x:Name="LocationPanel" HorizontalSpacing="32" VerticalSpacing="18" SizeChanged="LocationPanel_SizeChanged">
                                 <Border Width="{x:Bind ViewModel.FrameWidth, Mode=OneWay}" Height="{x:Bind ViewModel.FrameHeight, Mode=OneWay}"
                                         CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemeVoidBrush}">
@@ -175,6 +197,7 @@
                                 </StackPanel>
                                 </StackPanel>
                             </ctcontrols:WrapPanel>
+                            </Grid>
 
                             <controls:FoldingCard Title="PLANETS AND MOONS" FoldedName="{x:Bind ViewModel.PlanetSectionSummary, Mode=OneWay}"
                                                   SettingKey="CurrentSystemPlanetsCollapsed">

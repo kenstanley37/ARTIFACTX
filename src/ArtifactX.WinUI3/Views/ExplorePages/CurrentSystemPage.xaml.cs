@@ -1,3 +1,4 @@
+using ArtifactX.WinUI3.Controls;
 using ArtifactX.WinUI3.Helpers.Layout;
 using ArtifactX.WinUI3.Services;
 using ArtifactX.WinUI3.ViewModels;
@@ -5,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using System;
+using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Views.ExplorePages;
 
@@ -27,6 +29,7 @@ public sealed partial class CurrentSystemPage : Page
         FindsService.Changed += OnFindsChanged;
         SystemNotesService.Changed += OnSystemChanged;
         PlanetTypesService.Loaded += OnPlanetTypesLoaded;
+        PageBackgroundService.Changed += OnBackgroundChanged;
         GameProcessMonitorService.RunningStateChanged += OnGameRunningChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
         Unloaded += (_, _) =>
@@ -39,12 +42,59 @@ public sealed partial class CurrentSystemPage : Page
             FindsService.Changed -= OnFindsChanged;
             SystemNotesService.Changed -= OnSystemChanged;
             PlanetTypesService.Loaded -= OnPlanetTypesLoaded;
+            PageBackgroundService.Changed -= OnBackgroundChanged;
             GameProcessMonitorService.RunningStateChanged -= OnGameRunningChanged;
             SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
             _bannerStoryboard?.Stop();
         };
         if (SaveSessionManager.IsSaveLoaded) { _ = ViewModel.LoadAsync(); _ = ViewModel.Discoveries.RefreshAsync(); }
         _ = PlanetTypesService.EnsureLoadedAsync();
+        _ = ViewModel.LoadBackgroundAsync();
+    }
+
+    private void OnBackgroundChanged(string page) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (page == CurrentSystemViewModel.BackgroundKey) _ = ViewModel.LoadBackgroundAsync();
+    });
+
+    private async void BackgroundFromSteam_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new ScreenshotPickerViewModel();
+        var dialog = new ContentDialog
+        {
+            Title = "Choose a screenshot",
+            Content = new ScreenshotPicker(picker),
+            PrimaryButtonText = "Use this picture",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = false,
+            XamlRoot = XamlRoot,
+        };
+        // Wide enough for three screenshots side by side.
+        dialog.Resources["ContentDialogMaxWidth"] = 900.0;
+        picker.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ScreenshotPickerViewModel.HasSelection)) dialog.IsPrimaryButtonEnabled = picker.HasSelection;
+        };
+        _ = picker.LoadAsync();
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary && picker.Selected is { } shot)
+            await SetBackgroundAsync(shot.Path);
+    }
+
+    private async void BackgroundFromFile_Click(object sender, RoutedEventArgs e)
+    {
+        var filePicker = new Windows.Storage.Pickers.FileOpenPicker { SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary };
+        foreach (var type in new[] { ".jpg", ".jpeg", ".png", ".bmp" }) filePicker.FileTypeFilter.Add(type);
+        WinRT.Interop.InitializeWithWindow.Initialize(filePicker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance));
+        if (await filePicker.PickSingleFileAsync() is { } file) await SetBackgroundAsync(file.Path);
+    }
+
+    private void RemoveBackground_Click(object sender, RoutedEventArgs e) => PageBackgroundService.Remove(CurrentSystemViewModel.BackgroundKey);
+
+    private async Task SetBackgroundAsync(string path)
+    {
+        if (await PageBackgroundService.SetAsync(CurrentSystemViewModel.BackgroundKey, path) is not { } error) return;
+        await new ContentDialog { Title = "Couldn't use that picture", Content = error, CloseButtonText = "OK", XamlRoot = XamlRoot }.ShowAsync();
     }
 
     /// <summary>The planet type tables arrived: show the bodies nobody has discovered yet.</summary>
