@@ -100,10 +100,14 @@
                         <StackPanel x:Name="SystemBody" Padding="{x:Bind ViewModel.BodyPadding, Mode=OneWay}" Spacing="18">
                             <Grid>
                             <!-- The player's own picture behind the top section, out to the card's edges and faded into it
-                                 (PageBackgroundService; picked from the band's Background menu). Decoration only. -->
-                            <Image Source="{x:Bind ViewModel.BackgroundPicture, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasBackground, Mode=OneWay}"
-                                   Margin="{x:Bind ViewModel.BackdropMargin, Mode=OneWay}" Stretch="UniformToFill" Opacity="0.4"
-                                   IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+                                 (PageBackgroundService; picked from the band's Background menu). Decoration only. A brush on
+                                 an empty Border, not an Image: an Image asks for its own height and stretched the card. -->
+                            <Border Visibility="{x:Bind ViewModel.HasBackground, Mode=OneWay}" Margin="{x:Bind ViewModel.BackdropMargin, Mode=OneWay}"
+                                    IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw">
+                                <Border.Background>
+                                    <ImageBrush ImageSource="{x:Bind ViewModel.BackgroundPicture, Mode=OneWay}" Stretch="UniformToFill" Opacity="0.4"/>
+                                </Border.Background>
+                            </Border>
                             <ctcontrols:WrapPanel x:Name="LocationPanel" HorizontalSpacing="32" VerticalSpacing="18" SizeChanged="LocationPanel_SizeChanged">
                                 <Border Width="{x:Bind ViewModel.FrameWidth, Mode=OneWay}" Height="{x:Bind ViewModel.FrameHeight, Mode=OneWay}"
                                         CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemeVoidBrush}">
