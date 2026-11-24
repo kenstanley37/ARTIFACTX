@@ -10,7 +10,7 @@ public static class Scan
         m.Translation = new Vector3(t.TransX, t.TransY, t.TransZ); return m;
     }
     static string Attr(TkSceneNodeData n, string k) => n.Attributes?.FirstOrDefault(a => string.Equals(a.Name?.Value, k, StringComparison.OrdinalIgnoreCase))?.Value?.Value ?? "";
-    public static void Run(string root)
+    public static void Run(string root, bool onlyShop = false)
     {
         var active = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         void Scene(string path, Matrix4x4 parent, string chain, int depth)
@@ -27,6 +27,7 @@ public static class Scan
             if (att.Length > 0 && Paks.Decode(att) is TkAttachmentData a)
                 foreach (var c in (a.Components ?? new()).Select(c => c?.Template).OfType<GcInteractionComponentData>())
                 {
+                    if (onlyShop && c.InteractionType?.InteractionType is not (GcInteractionType.InteractionTypeEnum.Shop or GcInteractionType.InteractionTypeEnum.TechShop)) continue;
                     var p = Vector3.Transform(Vector3.Zero, m);
                     Console.WriteLine($"{c.InteractionType?.InteractionType}\t{p.X:R}\t{p.Y:R}\t{p.Z:R}\t{chain} :: {scene} :: {np}\t{Paks.Norm(att)}");
                 }

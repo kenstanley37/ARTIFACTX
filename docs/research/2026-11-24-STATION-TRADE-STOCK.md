@@ -66,12 +66,30 @@ the catalog must use the player's installed tables, never a fixed number.
 - Not exact (11): the earliest captures (2026-10-17/18 and a few later) contain `LAUNCHFUEL`, `NAV_DATA` and other
   `Shop`-only items, which the station list can't sell: planet trading-post screens filed as the station.
 
+## Planet trading posts (solved 2026-11-24)
+
+A trading post is building class 6 (`Outpost`) of the planet building grid (`PlanetBuildingSites`). It has no
+L-system: PLANETBUILDINGTABLE gives one scene per race (`TRADINGPOST{TRADER,WARRIOR,SCIENTIFIC}.SCENE`, Gek/Vy'keen/
+Korvax), whose `Terminal_Tradingpost` reference holds the `Shop` interaction at scene-local (37.4, 17.795189, z) with
+z = -3.905937 / -3.287193 / -3.779248 (`outpost` mode). The building is not clustered, so its spawn point is the site
+point raised to the Far-region spawn height (`PlanetShopCabinetGenerator.SpawnHeight(site, site)`), with the shop
+cabinets' axes (up = site direction, forward from `BuildingClusterPlacement.Facing(site, key)`). Terminal world
+position -> `SeedForPosition` -> Mix64 -> the same generator with `TradeSettings.Shop` (Shop interaction outside a
+station: `0x14087ae50` falls through to Shop).
+
+Confirmed in game 2026-11-24 on Oodleibe Major (Ialenn planet 3, Slot 8): the site nearest the visor reading
+(+16.61, -152.18) is predicted at +16.60, -152.19, and its terminal (Repository IA7/S-BV1/I) sold exactly the 18
+generated items (`post <decrypted save> <lat> <lon>`). An id missing from this build's tables is passed over without a
+draw (Copper `YELLOW1` is on both lists but in neither table, so no station or post sells it; marking it known shifted
+every later pick).
+
+The October/November trading-post captures can't confirm a site on their own: they don't record which post was read,
+and their few, mostly fixed items fit dozens of the ~1,800 Outpost sites per planet (`posts`).
+
 ## Open
 
 - Pirate stations (`SmugglerStation` + `PirateStationExtraProds`, gated by a string check at engine+0x57aa6e and
   `DAT_146f8249c`). One capture, 1/7.
-- Planet trading posts (`Shop` list): the same generator; needs the trade terminal's world position on the planet
-  (building placement + terrain height), like the planetary cabinets.
 - Tech merchants (ship/suit/weapon/vehicle specialists, issue #9's real ask): NPC interactions (types 0 to 2 in
   `0x141032d20`), not placed in the station scene. Their positions (and so their seeds) still need tracing.
 - Prices: `0x140eec9e0`, seeded from the system seed (+0x2480, Mix64), the trading class's price multipliers and

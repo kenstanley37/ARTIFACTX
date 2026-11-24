@@ -27,6 +27,15 @@ public static class Check
         while (r.Read()) { if (!d.TryGetValue(r.GetString(0), out var s)) d[r.GetString(0)] = s = new(); s.Add(r.GetString(1)); }
         return d;
     }
+    public static Dictionary<(string, string), string> Dates(bool planets)
+    {
+        var d = new Dictionary<(string, string), string>();
+        using var c = new SqliteConnection($"Data Source={UserDb};Mode=ReadOnly"); c.Open();
+        var cmd = c.CreateCommand();
+        cmd.CommandText = "select system_address, place, min(substr(seen_at,1,16)) from market_items where deleted=0 group by system_address, place";
+        using var r = cmd.ExecuteReader(); while (r.Read()) d[(r.GetString(0), r.GetString(1))] = r.GetString(2);
+        return d;
+    }
     public static Dictionary<string, string> Dates()
     {
         var d = new Dictionary<string, string>();

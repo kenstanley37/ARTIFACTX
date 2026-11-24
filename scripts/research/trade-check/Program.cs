@@ -13,6 +13,9 @@ switch (args[0])
     case "stats": Stats.Run(); break;
     case "core": CoreCheck.Run(); break;
     case "diff": Diff.Run(); break;
+    case "outpost": Outpost.Run(); break;
+    case "posts": Posts.Run(); break;
+    case "post": Post.Run(args[1], double.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture), double.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture)); break;
     case "save": SaveCheck.Run(args[1], args.Length > 2 ? int.Parse(args[2]) : 0); break;
     case "check":
         float F(string s) => float.Parse(s, CultureInfo.InvariantCulture);
