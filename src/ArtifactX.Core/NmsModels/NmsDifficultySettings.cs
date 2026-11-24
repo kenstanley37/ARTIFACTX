@@ -60,6 +60,13 @@ public class NmsDifficultySettings
     /// Slot 8's station terminal left out exactly what the game's Normal list never sells (StationTradeStock).
     /// </summary>
     public static readonly string[] ItemShopAvailabilityPath = ["vLc", "6f=", "LyC", ":fe", "FB5", "TYf"];
+
+    /// <summary>
+    /// The save's Currency Cost setting ("Free", "Cheap", "Normal", "Expensive"): index 19 of the same block (tsk,
+    /// wrapping its enum as Ubk). "Normal" on Slot 1 and Slot 8 (2026-11-24); its TradeBuyPriceMarkupMod (1.5) is
+    /// the factor every non-trade-good buy price on Ialenn's terminals needed (TradePrices).
+    /// </summary>
+    public static readonly string[] CurrencyCostPath = ["vLc", "6f=", "LyC", ":fe", "tsk", "Ubk"];
 }
 
 /// <summary>

@@ -40,6 +40,7 @@ public static class NavigationService
         ["PlanetFinder"] = typeof(PlanetFinderPage),
         ["CreatureFinder"] = typeof(CreatureFinderPage),
         ["MultiToolFinder"] = typeof(MultiToolFinderPage),
+        ["TradeFinder"] = typeof(TradeFinderPage),
         ["Bases"] = typeof(BasesPage),
         ["BaseDetails"] = typeof(BaseDetailsPage),
         ["Finds"] = typeof(FindsPage),

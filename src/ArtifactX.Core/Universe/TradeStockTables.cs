@@ -18,6 +18,13 @@ namespace ArtifactX.Core.Universe;
 /// each Item Shop Availability setting ("High", "Normal", "Low"). Normal leaves out Oxygen, Sodium, Sodium Nitrate,
 /// Ion Batteries and Life Support Gel.</param>
 /// <param name="ClassSells">GcTradeCategory each GcTradingClass sells, in GcTradingClass order.</param>
+/// <param name="Prices">Price data of every item the trade lists and trade goods can stock, by id (catalog format
+/// 114; null before).</param>
+/// <param name="ClassPrices">Each GcTradingClass's buy and sell multiplier ranges, in GcTradingClass order.</param>
+/// <param name="MinTradingMultiplier">GcTradingClassTable.MinTradingMultiplier: the economy multiplier's floor.</param>
+/// <param name="MaxTradingMultiplier">GcTradingClassTable.MaxTradingMultiplier: its ceiling.</param>
+/// <param name="BuyMarkupBySetting">GcDifficultyConfig CurrencyCostOptionData TradeBuyPriceMarkupMod per Currency
+/// Cost setting ("Free", "Cheap", "Normal", "Expensive").</param>
 /// <param name="StandardTypeBTerminals">The standard TypeB station's Shop interactions per launch branch (same shape as
 /// the cabinet scenes; <see cref="StationEquipmentScene.Cabinets"/> holds the terminals).</param>
 public sealed record TradeStockTables(
@@ -29,7 +36,20 @@ public sealed record TradeStockTables(
     string[] NeverOffered,
     Dictionary<string, string[]> NeverSoldBySetting,
     int[] ClassSells,
-    StationEquipmentScene[] StandardTypeBTerminals);
+    StationEquipmentScene[] StandardTypeBTerminals,
+    Dictionary<string, TradePriceData>? Prices = null,
+    TradeClassPrices[]? ClassPrices = null,
+    float MinTradingMultiplier = 0f,
+    float MaxTradingMultiplier = 0f,
+    Dictionary<string, float>? BuyMarkupBySetting = null);
+
+/// <summary>An item's price fields (GcProductData / GcRealitySubstanceData: BaseValue, Cost, EconomyInfluenceMultiplier,
+/// TradeCategory as its GcTradeCategory value).</summary>
+public sealed record TradePriceData(int BaseValue, float BuyBaseMarkup, float BuyMarkupMod, float HighPriceMod, float LowPriceMod,
+    float SpaceStationMarkup, float EconomyInfluence, int TradeCategory);
+
+/// <summary>A GcTradingClassData's multiplier ranges.</summary>
+public sealed record TradeClassPrices(float MinBuying, float MaxBuying, float MinSelling, float MaxSelling);
 
 /// <summary>One GcTradeData: fixed and optional items, how many are for sale, and the trade goods count per wealth
 /// (GcWealthClass order: Poor, Average, Wealthy, Pirate).</summary>
@@ -42,7 +62,8 @@ public sealed record TradeListData(
     int MaxItems,
     float ProductShare,
     int[] MinTradeGoods,
-    int[] MaxTradeGoods);
+    int[] MaxTradeGoods,
+    float[]? PriceImprovements = null);
 
 /// <summary>An item of a trade list. <paramref name="Known"/>: the game's product or substance lookup finds it (an
 /// unknown id is passed over without a draw). <paramref name="BuildingPart"/>: product category BuildingPart, which

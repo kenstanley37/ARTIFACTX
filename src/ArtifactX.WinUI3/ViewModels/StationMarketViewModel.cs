@@ -25,7 +25,7 @@ public sealed record MarketCard(ImageSource? Icon, string Name, string Details)
 /// </summary>
 public sealed partial class StationMarketViewModel : ObservableObject
 {
-    private (ulong System, bool? Legacy, string Shops)? _shown;
+    private (ulong System, bool? Legacy, string Shops, string Currency)? _shown;
     private int _version;
 
     [ObservableProperty] public partial string Summary { get; private set; } = "";
@@ -49,20 +49,21 @@ public sealed partial class StationMarketViewModel : ObservableObject
             bool? legacy = stations is null ? null : NmsMultiToolGenerationPaths.ReadSavedLegacyStationRule(saveInputs, stations);
             // What shops never sell depends on the save's Item Shop Availability setting; "Normal" is the game's default.
             string shops = SaveSessionManager.GetValue(NmsDifficultySettings.ItemShopAvailabilityPath)?.Value<string>() ?? "Normal";
-            if (version != _version || _shown == (address, legacy, shops)) return;
+            string currency = SaveSessionManager.GetValue(NmsDifficultySettings.CurrencyCostPath)?.Value<string>() ?? "Normal";
+            if (version != _version || _shown == (address, legacy, shops, currency)) return;
 
             if (stations is null || trade is null)
             {
-                Show(address, legacy, shops, [], 0, "Rebuild the game data (Settings) to see what the station sells.");
+                Show(address, legacy, (shops, currency), [], 0, "Rebuild the game data (Settings) to see what the station sells.");
                 return;
             }
             var (code, galaxy) = UniverseInfo.Generator(address);
             var attributes = SystemGenerator.Attributes(code, galaxy);
-            var stock = await Task.Run(() => StationTradeStock.ForSystem(code, galaxy, legacy, shops, stations, trade));
+            var stock = await Task.Run(() => StationTradeStock.ForSystem(code, galaxy, legacy, shops, currency, stations, trade));
             if (version != _version) return;
             if (stock is null)
             {
-                Show(address, legacy, shops, [], 0, attributes.Uncharted || attributes.Abandoned ? "This system has no working space station."
+                Show(address, legacy, (shops, currency), [], 0, attributes.Uncharted || attributes.Abandoned ? "This system has no working space station."
                     : attributes.Pirate ? "What pirate stations sell isn't worked out yet."
                     : "Your save uses the older station layout, which isn't worked out yet.");
                 return;
@@ -78,13 +79,14 @@ public sealed partial class StationMarketViewModel : ObservableObject
                 {
                     var entry = CatalogService.TryGet(s.Id);
                     string name = entry?.DisplayName is { Length: > 0 } known ? known : $"Item {++unnamed}";
-                    string details = s.Kind == TradeStockKind.TradeGood ? "Trade good of this system's economy"
+                    string why = s.Kind == TradeStockKind.TradeGood ? "Trade good of this system's economy"
                         : s.Always ? "Every station sells it"
                         : "This station's pick";
+                    string details = s.BuyPrice is int price ? $"{price:N0} units · {why}" : why;
                     return new MarketCard(entry?.Icon, name, details);
                 })
                 .ToList();
-            Show(address, legacy, shops, cards, stock.Count(s => s.Kind == TradeStockKind.TradeGood), "");
+            Show(address, legacy, (shops, currency), cards, stock.Count(s => s.Kind == TradeStockKind.TradeGood), "");
         }
         catch (Exception error)
         {
@@ -92,9 +94,9 @@ public sealed partial class StationMarketViewModel : ObservableObject
         }
     }
 
-    private void Show(ulong system, bool? legacy, string shops, IReadOnlyList<MarketCard> cards, int goods, string message)
+    private void Show(ulong system, bool? legacy, (string Shops, string Currency) settings, IReadOnlyList<MarketCard> cards, int goods, string message)
     {
-        _shown = (system, legacy, shops);
+        _shown = (system, legacy, settings.Shops, settings.Currency);
         Message = message;
         Items = cards;
         Summary = cards.Count == 0 ? "" : $"{cards.Count} items" + (goods > 0 ? $" · {goods} trade good{(goods == 1 ? "" : "s")}" : "");

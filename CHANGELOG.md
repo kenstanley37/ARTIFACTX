@@ -5,7 +5,8 @@ What changed in each ArtifactX release, written for players. The newest release 
 ## Unreleased
 
 ### Added
-- Current System: **Sold at the station** lists what the system's space station trade terminal sells, worked out with the game's own rules, so you can see it before you fly there: the fixed items every station has, this station's own picks and the trade goods of the system's economy. Prices and pirate stations aren't included yet. Rebuild your game data once to see it.
+- **Trade Finder** (under Explore): pick an item and see which space stations around you sell it and for how much, cheapest or nearest first, with the portal glyphs to get there. Stock and prices are worked out with the game's own rules and your save's difficulty settings, for systems you haven't visited too. Rebuild your game data once to use it.
+- Current System: **Sold at the station** lists what the system's space station trade terminal sells, worked out with the game's own rules, so you can see it before you fly there: the fixed items every station has, this station's own picks and the trade goods of the system's economy. Each item shows its price. Pirate stations aren't included yet. Rebuild your game data once to see it.
 - Current System: put one of your own screenshots behind the top of the page. Use **Background** in the Current System bar to pick from your No Man's Sky screenshots in Steam or from any picture file, or to remove it. It's one picture for the page, kept as a copy, so it stays even if you delete the screenshot.
 - Current System: **Discover everything** (under System Data) marks every planet, creature, plant and mineral of the system your save is in as discovered, with the names the game gives them; it reads "Everything discovered" once nothing is left. They're added as discoveries you haven't uploaded yet, so you can still upload them in game from the Discoveries page. Update your game data once to include plants and minerals.
 

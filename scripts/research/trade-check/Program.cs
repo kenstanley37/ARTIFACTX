@@ -12,6 +12,7 @@ switch (args[0])
     case "sweep": Sweep.Run(new Vector3(-5.0109487f, 1.875f, -942.5f), int.Parse(args[1]), int.Parse(args[2])); break;
     case "stats": Stats.Run(); break;
     case "core": CoreCheck.Run(); break;
+    case "timing": CoreCheck.Timing(); break;
     case "diff": Diff.Run(); break;
     case "outpost": Outpost.Run(); break;
     case "posts": Posts.Run(); break;
