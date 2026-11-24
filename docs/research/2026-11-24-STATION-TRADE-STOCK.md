@@ -86,6 +86,31 @@ every later pick).
 The October/November trading-post captures can't confirm a site on their own: they don't record which post was read,
 and their few, mostly fixed items fit dozens of the ~1,800 Outpost sites per planet (`posts`).
 
+## Buy prices (solved 2026-11-24)
+
+What the terminal charges, `0x1408a0000` -> `0x140eec9e0` -> `0x140eecda0`. All 35 prices on the Ialenn station and
+Oodleibe Major trading post screenshots match to the unit (`price` mode).
+
+1. Item seed: the shop's seed plus the item ID's two 8-byte halves (u64 wrap). The shop's seed is the terminal's
+   raw interaction seed (position hash, not Mix64-ed) at a trading post, and the **system seed** (solar system data
+   +0x2480 = the packed system address, `SolarLayoutGeneration` layout address) at a space station
+   (`0x14088edc0`: the station flag picks the system seed). Start the stream from it (no mix), four words, `r` = the
+   mean of the four as floats (w2 + w1 + w3 + w4) * 0.25.
+2. Base = BaseValue * ((HighPriceMod - LowPriceMod) * r + LowPriceMod + 1) (`GcItemPriceModifiers` on products
+   and substances).
+3. Buying: markup = r * BuyMarkupMod + BuyBaseMarkup, times the save's Currency Cost
+   `GcDifficultyConfig.CurrencyCostOptionData[setting].TradeBuyPriceMarkupMod` (Normal 1.5; save key `tsk.Ubk`)
+   except for the system's own trade goods; price = (markup + 1) * base.
+4. Economy: for items of the trade category the system's trading class sells, M = lerp(MinSelling, MaxSelling, u) -
+   TradeProductsPriceImprovements[wealth] (the station or Shop list's), u = the first word of Start(Mix64(system
+   seed)) / 2^32, the same for every item in the system; other items M = 1. Then M = M + (1 - Economy Influence) *
+   (1 - M), clamped to the trading class table's 0.2..3.0. Price = (int)(price * M).
+5. `SpaceStationMarkup` is applied at stations only with a flag not identified yet; none of the screenshot items has a
+   nonzero markup, so it isn't confirmed either way.
+
+Selling prices (what a system pays) take the other branch (no markup; `MinBuying`/`MaxBuying` plus the improvement
+for the class's `Needs` category, two runtime globals for other cases) and are not confirmed yet.
+
 ## Open
 
 - Pirate stations (`SmugglerStation` + `PirateStationExtraProds`, gated by a string check at engine+0x57aa6e and
