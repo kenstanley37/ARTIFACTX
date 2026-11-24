@@ -7,14 +7,11 @@ using ArtifactX.WinUI3.ViewModels.ExploreViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using S = ArtifactX.Core.NmsModels.NmsSpaceStationPaths;
 
@@ -50,7 +47,7 @@ public sealed partial class UnmatchedBodyViewModel : ObservableObject
 }
 
 /// <summary>
-/// Current System: the system you're in (an orrery, or the game's own picture of it), what the
+/// Current System: the system you're in (an orrery), what the
 /// save, the game's generator and your notes say about it, what its station sells, and a card
 /// per known planet. Follows the game's saves without redrawing what didn't change: a new
 /// system rebuilds everything (SystemArrived), landing elsewhere rebuilds the cards, and new
@@ -67,9 +64,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     private Dictionary<string, (uint Count, float Largest)> _caught = new(StringComparer.OrdinalIgnoreCase);
     private PlanetVocabulary? _vocabulary;
     private bool _descriptorsLoaded;
-    private byte[]? _pictureBytes;
-    private ulong? _pictureSystem;
-    private int _pictureVersion;
 
     public CurrentSystemViewModel()
     {
@@ -114,10 +108,9 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<SystemDataRow> SystemData { get; private set; } = [];
     [ObservableProperty] public partial IReadOnlyList<UnmatchedBodyViewModel> Unmatched { get; private set; } = [];
     public ObservableCollection<PlanetTileViewModel> Tiles { get; } = new();
-    [ObservableProperty] public partial ImageSource? SystemPicture { get; private set; }
 
     /// <summary>Every planet and moon at its centre from the save, for the system map; empty when the save has none.</summary>
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasMap), nameof(HasPicture), nameof(ShowOrbits), nameof(FrameWidth))]
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasMap), nameof(ShowOrbits))]
     public partial IReadOnlyList<SystemMapBody> MapBodies { get; private set; } = [];
 
     /// <summary>The system's space station on the map; null for uncharted systems or when it can't be placed.</summary>
@@ -130,8 +123,8 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     [ObservableProperty] public partial string MapStarColour { get; private set; } = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CaptureLabel), nameof(CanCapture))]
-    public partial bool IsCapturing { get; private set; }
+    [NotifyPropertyChangedFor(nameof(ReadLabel), nameof(CanRead))]
+    public partial bool IsReading { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowFullDetails), nameof(CompactLabel), nameof(FrameHeight), nameof(FrameWidth), nameof(BodyPadding))]
@@ -143,15 +136,14 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
 
     public bool HelpHidden => !IsHelpVisible;
     public bool HasStation => Station.Length > 0;
-    /// <summary>The 3D system map (SystemMap) wins over the captured picture and the orbit drawing.</summary>
+    /// <summary>The 3D system map (SystemMap) from the save's planet positions wins over the generator-only orbit drawing.</summary>
     public bool HasMap => MapBodies.Count > 0;
-    public bool HasPicture => !HasMap && SystemPicture is not null;
-    public bool ShowOrbits => !HasMap && SystemPicture is null;
+    public bool ShowOrbits => !HasMap;
     public bool HasUnmatched => Unmatched.Count > 0;
     public bool NoPlanets => Tiles.Count == 0;
     public string PlanetSectionSummary => Tiles.Count == 0 ? "No planets yet" : $"{Tiles.Count} bodies";
-    public string CaptureLabel => IsCapturing ? "Capturing..." : "Capture system";
-    public bool CanCapture => !IsCapturing;
+    public string ReadLabel => IsReading ? "Reading..." : "Read game screen";
+    public bool CanRead => !IsReading;
 
     /// <summary>"Show less": a small picture, the name, the facts line and the glyphs - the System
     /// Data box, explanation and text code hidden - so the planet cards show without scrolling
@@ -159,19 +151,13 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     public bool ShowFullDetails => !IsCompact;
     public string CompactLabel => IsCompact ? "Show more" : "Show less";
 
-    /// <summary>Square for the orbit drawing, about 3:2 for the game's picture; smaller with "Show less".</summary>
+    /// <summary>The map's frame, about 3:2; smaller with "Show less".</summary>
     public double FrameHeight => IsCompact ? 150 : 360;
     public double FrameWidth => FrameHeight * 1.5;
     public Thickness BodyPadding => IsCompact ? new Thickness(20, 12, 20, 14) : new Thickness(20, 16, 20, 20);
 
     partial void OnStationChanged(string value) => OnPropertyChanged(nameof(HasStation));
     partial void OnUnmatchedChanged(IReadOnlyList<UnmatchedBodyViewModel> value) => OnPropertyChanged(nameof(HasUnmatched));
-    partial void OnSystemPictureChanged(ImageSource? value)
-    {
-        OnPropertyChanged(nameof(HasPicture));
-        OnPropertyChanged(nameof(ShowOrbits));
-        OnPropertyChanged(nameof(FrameWidth));
-    }
 
     /// <summary>Live follow saw a new system: "SYSTEM CHANGE DETECTED" and its name.</summary>
     public event Action<string>? SystemArrived;
@@ -251,7 +237,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         }
     }
 
-    /// <summary>Something recorded about the system or its planets changed (screen recording, the
+    /// <summary>Something recorded about the system or its planets changed (a screen read, the
     /// player's notes, a planet's page): show it, keeping anything half-typed in the notes.</summary>
     public void Refresh(bool notes)
     {
@@ -264,56 +250,13 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         if (SystemAddress is ulong system) Market.Show(system);
     }
 
-    public async Task RefreshPictureAsync()
+    /// <summary>Reads what the game shows now (GameScreenReader): what it fills in arrives through the readers' events.</summary>
+    public async Task<ScreenReadResult> ReadScreenAsync()
     {
-        int version = ++_pictureVersion;
-        if (SystemAddress is not ulong system)
-        {
-            _pictureSystem = null;
-            _pictureBytes = null;
-            SystemPicture = null;
-            return;
-        }
-        // Read off the UI thread, but retain the existing image when the bytes did not change. A picture being
-        // replaced right now can't be read: keep what's shown, SystemPictureSaved brings the new one.
-        byte[]? bytes;
-        try
-        {
-            bytes = await Task.Run(() => ScreenCaptureLogService.ReadSystemPicture(system));
-        }
-        catch (IOException)
-        {
-            return;
-        }
-        if (SystemAddress != system || version != _pictureVersion) return;
-        if (bytes is null)
-        {
-            _pictureSystem = system;
-            _pictureBytes = null;
-            SystemPicture = null;
-            return;
-        }
-        if (_pictureSystem == system && _pictureBytes is not null && bytes.AsSpan().SequenceEqual(_pictureBytes)) return;
-        var image = new BitmapImage();
-        using var stream = new MemoryStream(bytes);
-        await image.SetSourceAsync(stream.AsRandomAccessStream());
-        if (SystemAddress != system || version != _pictureVersion) return;
-        _pictureSystem = system;
-        _pictureBytes = bytes;
-        SystemPicture = image;
-    }
-
-    /// <summary>The game's Discoveries page picture of this system, taken now (screen recording's manual capture).</summary>
-    public async Task<CaptureResult> CaptureSystemAsync()
-    {
-        if (IsCapturing) return new CaptureResult(false, "A capture is already running.");
-        IsCapturing = true;
-        try { return await ScreenCaptureLogService.CaptureNowAsync(SystemAddress, forceSystemPicture: true); }
-        finally
-        {
-            IsCapturing = false;
-            await RefreshPictureAsync();
-        }
+        if (IsReading) return new ScreenReadResult(false, "Still reading the last screen.");
+        IsReading = true;
+        try { return await GameScreenReader.ReadNowAsync(); }
+        finally { IsReading = false; }
     }
 
     public void AssignUnmatched(UnmatchedBodyViewModel row)
@@ -383,10 +326,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
             SystemData = [];
             Unmatched = [];
             Tiles.Clear();
-            ++_pictureVersion;
-            _pictureBytes = null;
-            _pictureSystem = null;
-            SystemPicture = null;
             return;
         }
 
@@ -480,7 +419,6 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
                 await tile.LoadNotableAsync();
             }
         });
-        _ = RefreshPictureAsync();
     }
 
     /// <summary>

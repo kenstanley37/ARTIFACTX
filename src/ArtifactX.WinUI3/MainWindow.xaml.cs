@@ -135,8 +135,8 @@ public sealed partial class MainWindow : Window
         GameProcessMonitorService.Start(DispatcherQueue);
         // Where fish are caught is learned from each new save, on every page (FishCatchRecorder).
         FishCatchRecorder.Start(DispatcherQueue);
-        // Off unless turned on in Settings (GitHub #18, step 1).
-        ScreenCaptureLogService.Start();
+        // The screen readers (Current System's "Read game screen", GitHub #18); also clears what the old recorder kept.
+        GameScreenReader.Start();
         ViewModel.IsGameRunning = GameProcessMonitorService.IsGameRunning;
 
         _ = RunStartupUpdateCheckAsync();

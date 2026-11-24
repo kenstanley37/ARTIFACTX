@@ -11,7 +11,7 @@ namespace ArtifactX.WinUI3.Services;
 /// Whether each body in a system is a planet or a moon, and which planet a moon orbits.
 /// In order of trust (2026-10-17):
 /// 1. what the game showed - a body's pop-up says MARK MOON or MARK PLANET (read by
-///    game screen recording, kept in user.db table body_kinds, migration 15);
+///    "Read game screen" (GameScreenReader), kept in user.db table body_kinds, migration 15);
 /// 2. the system generator, which places moons body by body: a large planet takes up to
 ///    two moons right after it (SystemBodies.Hosts) - exact on Amogat-Aizu XIV and
 ///    Muraya-Risti against the game's own Discoveries views;

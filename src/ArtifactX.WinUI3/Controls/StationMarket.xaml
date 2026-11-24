@@ -14,7 +14,7 @@
         <Border Style="{StaticResource ThemeCardStyle}" Padding="16,12,16,14">
             <StackPanel Spacing="10">
                 <TextBlock Visibility="{x:Bind Market.IsEmpty, Mode=OneWay}" Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap"
-                           Text="Nothing recorded yet. With game screen recording on, open the station's trade terminal and scroll through its Buy list."/>
+                           Text="Nothing recorded yet. Open the station's trade terminal in game, then press Read game screen at the top of this page. Do it again for each screen of its Buy list."/>
 
                 <StackPanel Spacing="2" Margin="0,0,0,6" Visibility="{x:Bind Market.HasCompare, Mode=OneWay}">
                     <StackPanel Orientation="Horizontal" Spacing="24">

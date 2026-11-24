@@ -31,23 +31,6 @@ public static class GameScreenshotCache
         return await ToBitmapAsync(pixels, Width, Height);
     }
 
-    /// <summary>A picture file (the system pictures screen recording keeps), faded for a backdrop.</summary>
-    public static async Task<WriteableBitmap?> LoadFadedFileAsync(string path, double aspect = 0)
-    {
-        try
-        {
-            var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
-            using var stream = await file.OpenAsync(Windows.Storage.FileAccessMode.Read);
-            var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
-            using var soft = await decoder.GetSoftwareBitmapAsync(Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied);
-            var pixels = new byte[soft.PixelWidth * soft.PixelHeight * 4];
-            soft.CopyToBuffer(pixels.AsBuffer());
-            Fade(pixels, soft.PixelWidth, soft.PixelHeight, aspect);
-            return await ToBitmapAsync(pixels, soft.PixelWidth, soft.PixelHeight);
-        }
-        catch (Exception) { return null; }
-    }
-
     /// <summary>Fades a picture to transparent at its edges - most at the bottom, a little at the
     /// sides - so a backdrop melts into the page instead of ending in a hard line against the
     /// theme's gradient (2026-10-18). Pixels are BGRA, premultiplied, as WriteableBitmap wants.</summary>

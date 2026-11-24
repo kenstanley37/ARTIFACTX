@@ -75,23 +75,24 @@
                         <Grid>
                             <TextBlock Text="CURRENT SYSTEM" Style="{StaticResource ThemeBandTextStyle}" VerticalAlignment="Center"/>
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                                <Button x:Name="CaptureSystemBtn" Click="CaptureSystem_Click" Padding="8,3" VerticalAlignment="Center"
-                                        IsEnabled="{x:Bind ViewModel.CanCapture, Mode=OneWay}" AutomationProperties.Name="Capture this system now"
-                                        ToolTipService.ToolTip="Take the game's picture of this system now (open its Discoveries page in game first)">
+                                <!-- Reads the game screen once (GameScreenReader); nothing is kept from the screen itself. -->
+                                <Button x:Name="ReadScreenBtn" Click="ReadScreen_Click" Padding="8,3" VerticalAlignment="Center"
+                                        IsEnabled="{x:Bind ViewModel.CanRead, Mode=OneWay}" AutomationProperties.Name="Read the game screen now"
+                                        ToolTipService.ToolTip="Fills in what your save doesn't have from what No Man's Sky shows now. Open a planet or system in Discoveries, a trade terminal, or a planet's fauna list first.">
                                     <FlyoutBase.AttachedFlyout>
-                                        <Flyout x:Name="CaptureFlyout">
+                                        <Flyout x:Name="ReadFlyout">
                                             <StackPanel MaxWidth="320" Spacing="8">
                                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <FontIcon x:Name="CaptureFlyoutIcon" Glyph="&#xE73E;" FontSize="16"/>
-                                                    <TextBlock x:Name="CaptureFlyoutTitle" FontWeight="SemiBold" FontSize="13"/>
+                                                    <FontIcon x:Name="ReadFlyoutIcon" Glyph="&#xE73E;" FontSize="16"/>
+                                                    <TextBlock x:Name="ReadFlyoutTitle" FontWeight="SemiBold" FontSize="13"/>
                                                 </StackPanel>
-                                                <TextBlock x:Name="CaptureFlyoutDetails" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
+                                                <TextBlock x:Name="ReadFlyoutDetails" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource ThemeTextDimBrush}"/>
                                             </StackPanel>
                                         </Flyout>
                                     </FlyoutBase.AttachedFlyout>
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <FontIcon Glyph="&#xE722;" FontSize="12" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                        <TextBlock Text="{x:Bind ViewModel.CaptureLabel, Mode=OneWay}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{x:Bind ViewModel.ReadLabel, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
                                 <!-- Smaller card, so the planets show without scrolling (2026-10-18). -->
@@ -105,27 +106,15 @@
                                 <Border Width="{x:Bind ViewModel.FrameWidth, Mode=OneWay}" Height="{x:Bind ViewModel.FrameHeight, Mode=OneWay}"
                                         CornerRadius="{ThemeResource ThemeCardCornerRadius}" Background="{ThemeResource ThemeVoidBrush}">
                                     <Grid>
-                                        <!-- The same orrery from the generator's bodies when the save hasn't placed them and there's no picture. -->
+                                        <!-- The same orrery from the generator's bodies when the save hasn't placed them. -->
                                         <controls:SystemMap Bodies="{x:Bind ViewModel.OrbitBodies, Mode=OneWay}" StarColour="{x:Bind ViewModel.MapStarColour, Mode=OneWay}"
                                                             Visibility="{x:Bind ViewModel.ShowOrbits, Mode=OneWay}"
                                                             BodyClicked="Map_BodyClicked"/>
-                                        <!-- The system as an orrery (#65): every planet and moon the save places; wins over the picture and the drawing. -->
+                                        <!-- The system as an orrery (#65): every planet and moon the save places; wins over the drawing. -->
                                         <controls:SystemMap Bodies="{x:Bind ViewModel.MapBodies, Mode=OneWay}" Station="{x:Bind ViewModel.MapStation, Mode=OneWay}"
                                                             Player="{x:Bind ViewModel.MapPlayer, Mode=OneWay}" StarColour="{x:Bind ViewModel.MapStarColour, Mode=OneWay}"
                                                             Visibility="{x:Bind ViewModel.HasMap, Mode=OneWay}"
                                                             BodyClicked="Map_BodyClicked"/>
-                                        <!-- The game's own view of this system's planets, when screen recording caught its Discoveries page (2026-10-17). -->
-                                        <Image Source="{x:Bind ViewModel.SystemPicture, Mode=OneWay}" Stretch="UniformToFill" Visibility="{x:Bind ViewModel.HasPicture, Mode=OneWay}"
-                                               ToolTipService.ToolTip="How the game's Discoveries page shows this system's planets."/>
-                                        <Button Click="CaptureSystem_Click" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="6,4" CornerRadius="4"
-                                                IsEnabled="{x:Bind ViewModel.CanCapture, Mode=OneWay}" AutomationProperties.Name="Capture the game's picture of this system"
-                                                Background="{ThemeResource ThemePanelBrush}" BorderBrush="{ThemeResource ThemeLineBrush}" BorderThickness="1"
-                                                ToolTipService.ToolTip="Take the game's picture of this system now (open its Discoveries page in game first)">
-                                            <StackPanel Orientation="Horizontal" Spacing="5">
-                                                <FontIcon Glyph="&#xE722;" FontSize="11" Foreground="{ThemeResource ThemeAccentBrush}"/>
-                                                <TextBlock Text="Capture" FontSize="11" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Button>
                                     </Grid>
                                 </Border>
 
@@ -173,8 +162,8 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="11" TextWrapping="Wrap" MaxWidth="320"
-                                                   Text="Worked out the way the game does, or as the game showed it when you recorded it. The game words economy, wealth and conflict its own way (Mining may read &quot;Prospecting&quot;): open the system in the game's Discoveries or Galaxy Map with screen recording on to get its exact words."/>
+                                        <TextBlock Style="{StaticResource ThemeDimTextStyle}" FontSize="12" TextWrapping="Wrap" MaxWidth="320"
+                                                   Text="Worked out the way the game does, or as the game showed it when you read its screen. The game words economy, wealth and conflict its own way (Mining may read &quot;Prospecting&quot;): open the system in the game's Discoveries or Galaxy Map and press Read game screen to get its exact words."/>
                                     </StackPanel>
                                 </Border>
                                 <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Discoveries.IsVisible, Mode=OneWay}">

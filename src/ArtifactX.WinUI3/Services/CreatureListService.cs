@@ -2,15 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace ArtifactX.WinUI3.Services;
 
 /// <summary>One creature as the game's Discoveries fauna list showed it.</summary>
-public sealed record Creature(string Name, string Rarity, string Habitat, string Activity, string Gender, string Size, bool Picture, string SeenAt);
+public sealed record Creature(string Name, string Rarity, string Habitat, string Activity, string Gender, string Size, string SeenAt);
 
 /// <summary>
 /// Creatures on a planet, read off the game's Discoveries fauna list (2026-10-18). The save
@@ -36,9 +34,6 @@ public static class CreatureListService
     private static readonly HashSet<string> Words = new(StringComparer.Ordinal) { "Underwater", "Always Active", "Nocturnal", "Diurnal", "Mostly Diurnal", "Mostly Nocturnal" };
     // Where each creature was placed this session, so a frame whose notes don't name the planet still lands.
     private static readonly Dictionary<string, (ulong System, int Planet)> PlacedThisSession = new();
-    // The selected creature, and how many frames it has been selected - the picture waits for a settled one.
-    private static (string Key, int Frames) _selected;
-    private static string? _firstFramePicture;
 
     /// <summary>Raised (any thread) when a planet's creatures changed.</summary>
     public static event Action<ulong, int>? Changed;
@@ -48,9 +43,6 @@ public static class CreatureListService
 
     /// <summary>The name without its initial ("Zeronatonae" for "E. Zeronatonae") - the list sometimes loses the "E.".</summary>
     public static string NameKey(string name) => Regex.Replace(name.Trim(), @"^\p{Lu}\.\s*", "").ToUpperInvariant();
-
-    public static string PicturePath(ulong system, int planet, string name) =>
-        Path.Combine(LocalAppDataPaths.GetSubfolder("creature-pictures"), $"{Hex(system)}_{planet}_{Regex.Replace(NameKey(name), @"[^\p{L}\p{N}]+", "_")}_v2.jpg"); // v2: taller crop with the title (2026-10-18)
 
     /// <summary>The creatures recorded on a planet, by name.</summary>
     public static IReadOnlyList<Creature> On(ulong system, int planet)
@@ -87,7 +79,7 @@ public static class CreatureListService
         return false;
     }
 
-    /// <summary>Deletes a creature record from a planet, deletes any picture on disk, and marks it deleted so OCR will not resurrect it.</summary>
+    /// <summary>Deletes a creature record from a planet and marks it deleted so a later screen read won't bring it back.</summary>
     public static bool Delete(ulong system, int planet, string name)
     {
         string key = NameKey(name);
@@ -135,19 +127,6 @@ public static class CreatureListService
             Debug.WriteLine($"[CreatureListService] Delete DB error: {ex.Message}");
         }
 
-        try
-        {
-            string path = PicturePath(system, planet, name);
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[CreatureListService] Delete picture error: {ex.Message}");
-        }
-
         Changed?.Invoke(system, planet);
         return removed;
     }
@@ -166,92 +145,12 @@ public static class CreatureListService
     /// <summary>Whether a recorded creature on the planet lives underwater.</summary>
     public static bool AnyUnderwater(ulong system, int planet) => On(system, planet).Any(c => c.Habitat == "Underwater");
 
-    /// <summary>Extracts gender and size strings from the left column of a Discoveries fauna frame if visible.</summary>
-    public static (string Gender, string Size) ExtractGenderAndSize(IReadOnlyList<(string Text, double X, double Y)> placedX)
-    {
-        var left = placedX.Where(p => p.X < 0.5).ToList();
-        string gender = ValueBelow(left, "Gender");
-        string size = ValueBelow(left, "Weight / Height").Replace(" ", "").Replace("/", " / ");
-        if (!Regex.IsMatch(size, @"^[\d.]+\s*kg\s*/\s*[\d.]+\s*m$", RegexOptions.IgnoreCase)) size = "";
-        if (gender.Count(char.IsLetter) < 3 || gender.Contains('/')) gender = "";
-        return (gender, size);
-    }
-
-    /// <summary>Records that a picture was manually captured/saved for a creature, updating in-memory cache and database.</summary>
-    public static void RecordPictureSaved(ulong system, int planet, string name, string? gender = null, string? size = null)
-    {
-        string key = NameKey(name);
-        string planetKey = PlanetKey(system, planet);
-        string now = UserDatabase.Now();
-        Creature? updated = null;
-
-        lock (Lock)
-        {
-            if (!All.TryGetValue(planetKey, out var list)) All[planetKey] = list = new(StringComparer.Ordinal);
-            if (list.TryGetValue(key, out var old))
-            {
-                string g = !string.IsNullOrWhiteSpace(gender) ? gender : old.Gender;
-                string s = !string.IsNullOrWhiteSpace(size) ? size : old.Size;
-                updated = old with { Picture = true, Gender = g, Size = s, SeenAt = now };
-                list[key] = updated;
-            }
-            else
-            {
-                updated = new Creature(name, "", "", "", gender ?? "", size ?? "", true, now);
-                list[key] = updated;
-            }
-        }
-
-        try
-        {
-            using var connection = UserDatabase.Open();
-            using var cmd = connection.CreateCommand();
-            string build = FieldSources.GameBuild;
-            cmd.CommandText = @"
-                INSERT INTO planet_creatures (system_address, planet_index, name_key, name, rarity, habitat, activity, gender, size, picture,
-                                              seen_at, updated_at, source, game_build, synced_at, deleted, added_by)
-                VALUES ($s, $p, $k, $name, $rarity, $habitat, $activity, $gender, $size, 1, $now, $now, 'captured', $build, NULL, 0, $by)
-                ON CONFLICT(system_address, planet_index, name_key) DO UPDATE SET
-                    picture = 1,
-                    gender = CASE WHEN $gender != '' THEN $gender ELSE gender END,
-                    size = CASE WHEN $size != '' THEN $size ELSE size END,
-                    seen_at = $now,
-                    updated_at = $now,
-                    game_build = $build,
-                    synced_at = NULL,
-                    deleted = 0";
-            cmd.Parameters.AddWithValue("$s", Hex(system));
-            cmd.Parameters.AddWithValue("$p", planet);
-            cmd.Parameters.AddWithValue("$k", key);
-            cmd.Parameters.AddWithValue("$name", updated.Name);
-            cmd.Parameters.AddWithValue("$rarity", updated.Rarity);
-            cmd.Parameters.AddWithValue("$habitat", updated.Habitat);
-            cmd.Parameters.AddWithValue("$activity", updated.Activity);
-            cmd.Parameters.AddWithValue("$gender", updated.Gender);
-            cmd.Parameters.AddWithValue("$size", updated.Size);
-            cmd.Parameters.AddWithValue("$now", now);
-            cmd.Parameters.AddWithValue("$build", build);
-            cmd.Parameters.AddWithValue("$by", GameAccountsService.ActiveKey);
-            cmd.ExecuteNonQuery();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[CreatureListService] RecordPictureSaved DB error: {ex.Message}");
-        }
-
-        Changed?.Invoke(system, planet);
-    }
-
     /// <param name="placed">Each line with its left edge (share of the width) and height: the list
     /// is on the right, the selected creature's details on the left, at the same heights - by
     /// height alone the gender ("Prime") was taken for a creature (2026-10-18).</param>
-    /// <param name="savePicture">Saves the creature part of the frame to the given path.</param>
-    public static async Task<string?> TryReadAsync(
-        IReadOnlyList<(string Text, double X, double Y)> placed,
-        Func<string, Task<bool>>? savePicture = null,
-        bool force = false,
-        (ulong System, int Planet)? hintPlanet = null,
-        (ulong System, int Planet, string Name)? forceCreature = null)
+    /// <remarks>Each read is one press of "Read game screen", so a creature is kept from its first
+    /// reading (automatic recording waited for a second frame, see <see cref="Merge"/>).</remarks>
+    public static string? TryRead(IReadOnlyList<(string Text, double X, double Y)> placed)
     {
         // Above the list: "4/4 Species Discovered", or "Complete to Receive 2,000 Nanites" while
         // some are still undiscovered - then the count is the ring's "6/8" (Much E34, 2026-10-18).
@@ -260,8 +159,7 @@ public static class CreatureListService
         bool hasFaunaLabels = placed.Any(p => p.Text.Trim().Equals("Gender", StringComparison.OrdinalIgnoreCase))
             || placed.Any(p => p.Text.Contains("Weight / Height", StringComparison.OrdinalIgnoreCase));
 
-        if ((species.Text is null && !hasFaunaLabels && forceCreature is null)
-            || (!hasFaunaHeader && !hasFaunaLabels && !force && forceCreature is null))
+        if (species.Text is null && !hasFaunaLabels)
             return null;
 
         if (species.Text is not null && !Regex.IsMatch(species.Text, @"\d+\s*/\s*\d+")
@@ -294,7 +192,7 @@ public static class CreatureListService
             if (IsGarbageName(name)) continue;
             rows.Add((name, rarity, habitat, activity));
         }
-        if (rows.Count == 0 && forceCreature is null) return "fauna list: no creatures read";
+        if (rows.Count == 0) return "fauna list: no creatures read";
         // The whole list on screen ("7/7 Species Discovered" and 7 creatures besides the extinct
         // ones): anything recorded for the planet that isn't in it was a misreading.
         bool complete = species.Text is not null
@@ -325,16 +223,9 @@ public static class CreatureListService
         if (where is null && species.Text is not null && Regex.Match(species.Text, @"(\d+)\s*/\s*\d+") is { Success: true } seen && int.TryParse(seen.Groups[1].Value, out int seenCount))
             where = PlanetPageReader.PlanetWithFauna(seenCount);
 
-        where ??= hintPlanet ?? (forceCreature.HasValue ? (forceCreature.Value.System, forceCreature.Value.Planet) : null);
-
         if (where is not (ulong system, int planet)) return $"fauna list: {rows.Count} creatures, planet not named on screen";
 
-        string? selected = null;
-        if (forceCreature is { } fc && fc.System == system && fc.Planet == planet)
-        {
-            selected = fc.Name;
-        }
-        else
+        string? selected;
         {
             // The selected creature (left side): its name is the big title above "Discovered ... by".
             var by = left.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered|today\s+b|ago\s+b|\bby\s+\p{L}+", RegexOptions.IgnoreCase));
@@ -387,30 +278,12 @@ public static class CreatureListService
         if (!Regex.IsMatch(size, @"^[\d.]+\s*kg\s*/\s*[\d.]+\s*m$", RegexOptions.IgnoreCase)) size = "";
         if (gender.Count(char.IsLetter) < 3 || gender.Contains('/')) gender = "";
 
-        bool picture = false;
-        if (selected is not null)
-        {
-            string key = NameKey(selected);
-            lock (Lock) _selected = _selected.Key == key ? (key, _selected.Frames + 1) : (key, 1);
-            // Taken on the first frame (a list that doesn't scroll may give no second one - the
-            // recorder skips frames with the same text), then replaced by the second, when the
-            // model has finished appearing.
-            bool hasPicture = File.Exists(PicturePath(system, planet, selected));
-            bool retake;
-            lock (Lock) retake = _selected.Frames == 2 && _firstFramePicture == key;
-            if (savePicture is not null && (!hasPicture || retake || force || forceCreature is not null))
-            {
-                picture = await savePicture(PicturePath(system, planet, selected));
-                lock (Lock) _firstFramePicture = picture && _selected.Frames == 1 ? key : null;
-            }
-        }
-
-        var (added, changed) = Merge(system, planet, rows, selected, gender, size, picture, complete, force || forceCreature is not null);
+        var (added, changed) = Merge(system, planet, rows, selected, gender, size, complete);
         if (rows.Any(r => r.Habitat == "Underwater") && PlanetWaterService.Get(system, planet) is null)
             PlanetWaterService.Set(system, planet, true, source: "captured");
         if (changed > 0) Changed?.Invoke(system, planet);
         return $"fauna list {UniverseInfo.PlanetName(system, planet)}: {string.Join(", ", rows.Select(r => $"{r.Name} ({string.Join(" / ", new[] { r.Rarity, r.Habitat, r.Activity }.Where(s => s.Length > 0))})"))}"
-            + (selected is not null ? $"; selected {selected} {gender} {size}" : "") + (picture ? "; picture saved" : "") + (added > 0 ? $"; {added} new" : "");
+            + (selected is not null ? $"; selected {selected} {gender} {size}" : "") + (added > 0 ? $"; {added} new" : "");
     }
 
     /// <summary>The whole words on a details line, sorted into rarity / habitat / activity.</summary>
@@ -500,13 +373,13 @@ public static class CreatureListService
             {
                 using var connection = UserDatabase.Open();
                 using var cmd = connection.CreateCommand();
-                cmd.CommandText = "SELECT system_address, planet_index, name_key, name, rarity, habitat, activity, gender, size, picture, seen_at FROM planet_creatures WHERE deleted = 0";
+                cmd.CommandText = "SELECT system_address, planet_index, name_key, name, rarity, habitat, activity, gender, size, seen_at FROM planet_creatures WHERE deleted = 0";
                 using var r = cmd.ExecuteReader();
                 while (r.Read())
                 {
                     string key = $"{r.GetString(0)}|{r.GetInt32(1)}";
                     if (!_byPlanet.TryGetValue(key, out var list)) _byPlanet[key] = list = new(StringComparer.Ordinal);
-                    list[r.GetString(2)] = new Creature(r.GetString(3), r.GetString(4), r.GetString(5), r.GetString(6), r.GetString(7), r.GetString(8), r.GetInt32(9) != 0, r.GetString(10));
+                    list[r.GetString(2)] = new Creature(r.GetString(3), r.GetString(4), r.GetString(5), r.GetString(6), r.GetString(7), r.GetString(8), r.GetString(9));
                 }
 
                 using var delCmd = connection.CreateCommand();
@@ -525,7 +398,7 @@ public static class CreatureListService
     /// <summary>Fills what each reading has; never empties a field already known. Returns how many
     /// creatures are new and how many changed.</summary>
     private static (int Added, int Changed) Merge(ulong system, int planet, List<(string Name, string Rarity, string Habitat, string Activity)> rows,
-        string? selected, string gender, string size, bool picture, bool complete, bool force = false)
+        string? selected, string gender, string size, bool complete)
     {
         string now = UserDatabase.Now(), planetKey = PlanetKey(system, planet);
         var changed = new List<(string Key, Creature Creature)>();
@@ -549,10 +422,11 @@ public static class CreatureListService
                 string key = NameKey(row.Name);
                 string fullKey = $"{Hex(system)}|{planet}|{key}";
                 if (DeletedKeys.Contains(fullKey)) continue;
-                // Kept once read in two frames: a name caught mid-animation ("Alde" for Alderhukkeum)
-                // or another line taken for one ("Add Records") rarely comes back (2026-10-18).
+                // Kept from its first read: each read is a press of "Read game screen". (Automatic
+                // recording waited for a second frame - a name caught mid-animation, "Alde" for
+                // Alderhukkeum, rarely came back - 2026-10-18.) The count still guards the
+                // complete-list pruning above.
                 ReadCount[(planetKey, key)] = ReadCount.GetValueOrDefault((planetKey, key)) + 1;
-                if (!force && ReadCount[(planetKey, key)] < Confirmations && !list.ContainsKey(key)) continue;
                 // A piece of a longer name is that name, cut off; a longer name replaces a stored piece.
                 if (list.Keys.Concat(rows.Select(r => NameKey(r.Name))).Any(k => k != key && k.Length > key.Length && k.Contains(key, StringComparison.Ordinal)))
                     continue;
@@ -569,10 +443,7 @@ public static class CreatureListService
                 var next = new Creature(
                     VotedName(key, row.Name),
                     Keep(row.Rarity, old?.Rarity), Keep(row.Habitat, old?.Habitat), Keep(row.Activity, old?.Activity),
-                    isSelected ? Keep(gender, old?.Gender) : old?.Gender ?? "", isSelected ? Keep(size, old?.Size) : old?.Size ?? "",
-                    // The file decides: a picture taken on a frame before the creature was confirmed
-                    // (kept from its second reading) was never flagged (Z. Xenoexogum, 2026-10-18).
-                    (old?.Picture ?? false) || (isSelected && picture) || File.Exists(PicturePath(system, planet, row.Name)), now);
+                    isSelected ? Keep(gender, old?.Gender) : old?.Gender ?? "", isSelected ? Keep(size, old?.Size) : old?.Size ?? "", now);
                 if (old is not null && old with { SeenAt = now } == next) continue;
                 list[key] = next;
                 changed.Add((key, next));
@@ -602,9 +473,9 @@ public static class CreatureListService
                 cmd.CommandText = @"
                     INSERT INTO planet_creatures (system_address, planet_index, name_key, name, rarity, habitat, activity, gender, size, picture,
                                                   seen_at, updated_at, source, game_build, synced_at, deleted, added_by)
-                    VALUES ($s, $p, $k, $name, $rarity, $habitat, $activity, $gender, $size, $picture, $now, $now, 'captured', $build, NULL, 0, $by)
+                    VALUES ($s, $p, $k, $name, $rarity, $habitat, $activity, $gender, $size, 0, $now, $now, 'captured', $build, NULL, 0, $by)
                     ON CONFLICT(system_address, planet_index, name_key) DO UPDATE SET name = $name, rarity = $rarity, habitat = $habitat,
-                        activity = $activity, gender = $gender, size = $size, picture = $picture, seen_at = $now, updated_at = $now,
+                        activity = $activity, gender = $gender, size = $size, picture = 0, seen_at = $now, updated_at = $now,
                         game_build = $build, synced_at = NULL, deleted = 0";
                 cmd.Parameters.AddWithValue("$s", Hex(system));
                 cmd.Parameters.AddWithValue("$p", planet);
@@ -615,7 +486,6 @@ public static class CreatureListService
                 cmd.Parameters.AddWithValue("$activity", c.Activity);
                 cmd.Parameters.AddWithValue("$gender", c.Gender);
                 cmd.Parameters.AddWithValue("$size", c.Size);
-                cmd.Parameters.AddWithValue("$picture", c.Picture ? 1 : 0);
                 cmd.Parameters.AddWithValue("$now", now);
                 cmd.Parameters.AddWithValue("$build", build);
                 cmd.Parameters.AddWithValue("$by", GameAccountsService.ActiveKey);

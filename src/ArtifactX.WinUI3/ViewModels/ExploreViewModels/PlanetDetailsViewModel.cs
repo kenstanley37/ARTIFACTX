@@ -49,7 +49,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     [ObservableProperty] public partial string PortalCode { get; private set; } = "";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(SummaryDetails))] public partial bool IsHere { get; private set; }
     [ObservableProperty] public partial string HereLabel { get; private set; } = "";
-    [ObservableProperty] public partial ImageSource? SystemPicture { get; private set; }
 
     [ObservableProperty, NotifyPropertyChangedFor(nameof(SummaryDetails))] public partial IReadOnlyList<Fact> Conditions { get; private set; } = [];
 
@@ -154,7 +153,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         ShowFinds();
         await ShowCreaturesAsync();
         _ = Equipment.LoadAsync(planet, _snapshot);
-        _ = LoadSystemPictureAsync();
     }
 
     public Task GoPreviousAsync() => GoToSiblingAsync(-1);
@@ -311,7 +309,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 // Rarity and activity only when the discovery is this very creature (same seed), not a leftover slot.
                 bool same = pred is not null && saveDiscoveries[slot.Discovery].Seed == pred.Seed;
                 var creature = new Creature(Name: name, Rarity: same && rarity.Length > 0 ? rarity : "Discovered", Habitat: habitat,
-                    Activity: same ? activity : "", Gender: "", Size: "", Picture: false, SeenAt: "Discovered");
+                    Activity: same ? activity : "", Gender: "", Size: "", SeenAt: "Discovered");
                 var disc = saveDiscoveries[slot.Discovery];
                 allCards.Add(new CreatureCardViewModel(creature, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: true,
                     about: same ? CreatureTraitText.About(pred!, PlanetTypesService.CreatureTables) : "",
@@ -335,7 +333,7 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
                 Rarity: predictedName is null ? "Undiscovered" : rarity.Length > 0 ? $"Predicted · {rarity}" : "Predicted",
                 Habitat: habitat, Activity: predictedName is null ? "" : activity, Gender: "",
                 Size: predictedName is null ? "" : CreatureTraitText.Forms(pred, PlanetTypesService.CreatureTables),
-                Picture: false, SeenAt: "Unscanned");
+                SeenAt: "Unscanned");
             var (speciesSeed, genusSeed) = SpeciesNames.FaunaSeeds(pred.Seed, string.IsNullOrEmpty(pred.SpeciesId) ? pred.Id : pred.SpeciesId,
                 planet.Address, pred.CreatureType, pred.SizeClass);
             allCards.Add(new CreatureCardViewModel(unscanned, planet.SystemAddress, planet.PlanetIndex, rigId, isDiscovered: false,
@@ -383,15 +381,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
         UndiscoveredCreatures = [];
     }
 
-    private async Task LoadSystemPictureAsync()
-    {
-        if (Planet is not { } planet) return;
-        ulong system = planet.SystemAddress;
-        var picture = ScreenCaptureLogService.SystemPicture(system) is string path
-            ? await GameScreenshotCache.LoadFadedFileAsync(path, 3.0) : null;
-        if (Planet?.SystemAddress == system) SystemPicture = picture;
-    }
-
     // ---------------------------------------------------------------- Editing, fish, creatures
 
     public void ToggleEditor()
@@ -422,7 +411,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     {
         _dispatcher = dispatcher;
         CreatureListService.Changed += OnCreaturesChanged;
-        ScreenCaptureLogService.SystemPictureSaved += OnSystemPictureSaved;
         FishCatchRecorder.SnapshotSeen += OnSnapshotSeen;
         PlanetDetailsService.Captured += OnPlanetChanged;
         PlanetDetailsService.Changed += OnPlanetChanged;
@@ -438,7 +426,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     public void Detach()
     {
         CreatureListService.Changed -= OnCreaturesChanged;
-        ScreenCaptureLogService.SystemPictureSaved -= OnSystemPictureSaved;
         FishCatchRecorder.SnapshotSeen -= OnSnapshotSeen;
         PlanetDetailsService.Captured -= OnPlanetChanged;
         PlanetDetailsService.Changed -= OnPlanetChanged;
@@ -466,7 +453,6 @@ public sealed partial class PlanetDetailsViewModel : ObservableObject
     private void OnGameRunningChanged(object? sender, bool running) => OnUi(Equipment.RefreshMarkers);
     private void OnPendingEditsChanged(object? sender, EventArgs e) => OnUi(Equipment.RefreshMarkers);
     private void OnCreaturesChanged(ulong system, int planet) => OnUi(() => { if (IsThisPlanet(system, planet)) _ = ShowCreaturesAsync(); });
-    private void OnSystemPictureSaved(ulong system) => OnUi(() => { if (IsThisPlanet(system, -1)) _ = LoadSystemPictureAsync(); });
 
     private void OnSnapshotSeen(PlanetSnapshot snapshot) => OnUi(() =>
     {

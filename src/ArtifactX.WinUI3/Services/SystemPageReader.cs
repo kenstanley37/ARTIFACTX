@@ -9,7 +9,7 @@ namespace ArtifactX.WinUI3.Services;
 
 /// <summary>
 /// Fills in a system's notes (the Planets page's "Your notes on this system") from two
-/// game screens, as game screen recording reads them (GitHub #18, 2026-10-17):
+/// game screens, as "Read game screen" (GameScreenReader) reads them (GitHub #18, 2026-10-17):
 /// - the Discoveries system pop-up: "Celestial Bodies: 3 Planets // 3 Moons",
 ///   "Dominant Lifeform: Korvax", "Economy: High Tech // Prosperous", "Conflict level: Low";
 /// - the Galaxy Map card for the system you're in ("Amogat-Aizu XIV (Current Location)"):
@@ -235,102 +235,6 @@ public static class SystemPageReader
         Filled++;
         Captured?.Invoke(system);
         return $"system page {name}: saved ({what})";
-    }
-
-    /// <summary>The system shown when the screen is a system's own Discoveries view with no
-    /// pop-up over it ("3 PLANETS / 3 MOONS" under its name, its planets drawn on the right) -
-    /// the view the Planets page borrows a picture of. Null for anything else.</summary>
-    /// <summary>How many of the system's planet labels the frame shows - a settled view
-    /// shows them all; a frame caught mid-zoom (clicking a planet) shows few or none.</summary>
-    public static int LabelsShown(ulong system, IReadOnlyList<(string Text, double Y)> placed)
-    {
-        var f = UniverseInfo.For(system);
-        var names = Enumerable.Range(1, f.PlanetCount + f.MoonCount)
-            .SelectMany(b => new[] { UniverseInfo.PlanetName(system, b), UniverseInfo.GeneratedPlanetName(system, b) })
-            .Concat(UnmatchedBodiesService.For(system).Select(h => h.Name))
-            .Select(PlanetPageReader.Norm).Distinct().ToList();
-        var hits = names.Select(n => placed.Where(p => PlanetPageReader.Distance(PlanetPageReader.Norm(PlanetPageReader.Clean(p.Text)), n) <= Math.Max(1, n.Length / 5))
-            .Select(p => p.Y).ToList()).ToList();
-        // Labels on the picture, not the list on the left: a name read twice is on both; a name read
-        // once counts unless the system is unfolded in the list (folded, the bodies are only on the
-        // picture - Amazing Planet Biomes, 2026-10-18).
-        bool listOpen = ListRows(hits.SelectMany(h => h).ToList(), Math.Min(3, f.PlanetCount + f.MoonCount));
-        return hits.Count(h => h.Count >= 2 || h.Count == 1 && !listOpen);
-    }
-
-    /// <summary>The system is unfolded in the left list: some of its bodies' names sit in evenly
-    /// spaced rows (the list's rows), which the labels scattered over the picture never do.</summary>
-    private static bool ListRows(List<double> ys, int needed)
-    {
-        if (needed < 2) return false;
-        // Any chain y, y+step, y+2*step... (a label may fall between two rows, so not just neighbours).
-        foreach (double a in ys)
-            foreach (double b in ys)
-            {
-                double step = b - a;
-                if (step < 25 || step > 120) continue;
-                int chain = 2;
-                while (chain < needed && ys.Any(y => Math.Abs(y - (a + chain * step)) <= 4)) chain++;
-                if (chain >= needed) return true;
-            }
-        return false;
-    }
-
-    public static ulong? SystemView(IReadOnlyList<(string Text, double Y)> placed, ulong? hintSystem = null)
-    {
-        var lines = placed.Select(p => p.Text).ToList();
-        // A pop-up or a planet page covers the planets.
-        if (lines.Any(l => l.Contains("Galaxy:", StringComparison.OrdinalIgnoreCase) || l.Contains("RENAME AND UPLOAD", StringComparison.OrdinalIgnoreCase)
-            || l.Trim().Equals("Planet Data", StringComparison.OrdinalIgnoreCase)))
-            return null;
-
-        // Is this the system discoveries view?
-        bool isSystemView = lines.Any(l => Regex.IsMatch(l, @"\b(VISITED SYSTEMS|All Visited Systems|DISCOVERIES|PLANETS?)\b", RegexOptions.IgnoreCase))
-            || placed.Any(p => Regex.IsMatch(p.Text, @"\bDiscovered\b|\bby\b", RegexOptions.IgnoreCase));
-
-        if (!isSystemView) return null;
-
-        // If a hint system is provided (e.g. from the active page), check if its name or planets are on screen.
-        if (hintSystem is ulong hint && hint != 0)
-        {
-            string hName = UniverseInfo.SystemName(hint);
-            if (lines.Any(l => PlanetPageReader.Distance(PlanetPageReader.Norm(PlanetPageReader.Clean(Regex.Replace(l, @"^[@•\s\d]+", ""))), PlanetPageReader.Norm(hName)) <= Math.Max(1, hName.Length / 4)))
-                return hint;
-
-            var knownBodies = UnmatchedBodiesService.For(hint).Select(h => h.Name)
-                .Concat(Enumerable.Range(1, 6).Select(i => UniverseInfo.PlanetName(hint, i)))
-                .Where(n => !string.IsNullOrEmpty(n))
-                .Select(PlanetPageReader.Norm).ToList();
-            int bodyHits = knownBodies.Count(b => lines.Any(l => PlanetPageReader.Distance(PlanetPageReader.Norm(PlanetPageReader.Clean(l)), b) <= Math.Max(1, b.Length / 4)));
-            if (bodyHits >= 2) return hint;
-        }
-
-        // The name: the big title right above "Discovered <when> by <who>", by height on screen -
-        // in reading order the visited-systems list and other lines get in between (2026-10-17).
-        // The line can come apart: "Discovered" | "today by Neophyte" (Belezna, 2026-10-17).
-        var by = placed.FirstOrDefault(p => Regex.IsMatch(p.Text, @"Discovered\s.*\bby\b|^\s*Discovered\s*$|\b(today|yesterday|ago)\s+by\b|^\s*Discovered\s+(today|yesterday|.*\bago)\s*$", RegexOptions.IgnoreCase));
-        if (by.Text is not null)
-        {
-            var band = placed.Where(p => by.Y - p.Y > 5 && by.Y - p.Y < 160).OrderBy(p => by.Y - p.Y)
-                .Select(p => PlanetPageReader.Clean(p.Text)).Where(l => l.Count(char.IsLetter) >= 2).ToList();
-            foreach (var line in band)
-                if (line.Count(char.IsLetter) >= 3 && Match(line) is ulong found) return found;
-            // A long title can come apart: "Amazin" | "Dlanet Biomes" (2026-10-18). Try the pieces
-            // joined, in either order - the read gives no left-to-right position.
-            for (int i = 0; i < band.Count; i++)
-                for (int j = 0; j < band.Count; j++)
-                    if (i != j && Match(band[i] + " " + band[j]) is ulong joined) return joined;
-        }
-
-        // Fallback: check all placed text lines (stripping leading selection bullets/icons like @ or •)
-        foreach (var p in placed)
-        {
-            string clean = PlanetPageReader.Clean(Regex.Replace(p.Text, @"^[@•\s\d]+", ""));
-            if (clean.Length >= 3 && Match(clean) is ulong match)
-                return match;
-        }
-
-        return null;
     }
 
     /// <summary>A planet page listed "Dissonance detected": the system is dissonant.</summary>

@@ -15,7 +15,7 @@ public sealed record MarketItem(string ItemId, string Name, int Price, string Ch
 
 /// <summary>
 /// What each system's space station sells (GitHub #9, 2026-10-17), read off the trade
-/// terminal by game screen recording: the banner names the system ("System - Amogat-Aizu
+/// terminal by "Read game screen" (GameScreenReader): the banner names the system ("System - Amogat-Aizu
 /// XIV"), each row an item with its price change, and the right column "Buy for 42,847"
 /// and "1 / 96" in stock. The game reads the two columns separately, so rows are paired
 /// by height on screen, not by order. Only the Buy list counts ("Buy for"), and only
@@ -201,25 +201,15 @@ public static class SystemMarketService
 
     private static string Title(string s) => s.Any(char.IsLower) ? s : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(s.ToLowerInvariant());
 
-    // A price that differs from the one stored is only taken once read the same way twice -
-    // a single misread ("950" for 350) overwrote a good price once (2026-10-17).
-    private static readonly Dictionary<(string, string), int> PendingPrice = new();
-
+    // Each read is one press of "Read game screen", so a new price is taken at once. (Automatic
+    // recording waited for a changed price to be read twice - a single misread, "950" for 350,
+    // overwrote a good price once, 2026-10-17 - but a press is never repeated by itself; the
+    // player sees the prices read and can press again.)
     private static void Save(ulong system, string place, List<MarketItem> items)
     {
         string key = Key(system, place);
         lock (Lock)
         {
-            if (Markets.TryGetValue(key, out var known))
-                items = items.Where(item =>
-                {
-                    var old = known.FirstOrDefault(i => i.ItemId.Equals(item.ItemId, StringComparison.OrdinalIgnoreCase));
-                    if (old is null || old.Price == item.Price) { PendingPrice.Remove((key, item.ItemId)); return true; }
-                    if (PendingPrice.TryGetValue((key, item.ItemId), out int seen) && seen == item.Price) { PendingPrice.Remove((key, item.ItemId)); return true; }
-                    PendingPrice[(key, item.ItemId)] = item.Price;
-                    return false;
-                }).ToList();
-            if (items.Count == 0) return;
             if (!Markets.TryGetValue(key, out var list)) Markets[key] = list = new();
             for (int k = 0; k < items.Count; k++)
             {

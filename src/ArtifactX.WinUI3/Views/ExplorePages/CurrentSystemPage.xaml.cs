@@ -31,7 +31,6 @@ public sealed partial class CurrentSystemPage : Page
         BodyKindsService.Captured += OnSystemChanged;
         UnmatchedBodiesService.Changed += OnSystemChanged;
         SystemMarketService.Changed += OnMarketChanged;
-        ScreenCaptureLogService.SystemPictureSaved += OnPictureSaved;
         PlanetTypesService.Loaded += OnPlanetTypesLoaded;
         GameProcessMonitorService.RunningStateChanged += OnGameRunningChanged;
         SaveSessionManager.PendingEditsChanged += OnPendingEditsChanged;
@@ -49,7 +48,6 @@ public sealed partial class CurrentSystemPage : Page
             BodyKindsService.Captured -= OnSystemChanged;
             UnmatchedBodiesService.Changed -= OnSystemChanged;
             SystemMarketService.Changed -= OnMarketChanged;
-            ScreenCaptureLogService.SystemPictureSaved -= OnPictureSaved;
             PlanetTypesService.Loaded -= OnPlanetTypesLoaded;
             GameProcessMonitorService.RunningStateChanged -= OnGameRunningChanged;
             SaveSessionManager.PendingEditsChanged -= OnPendingEditsChanged;
@@ -101,7 +99,6 @@ public sealed partial class CurrentSystemPage : Page
     private void OnSystemChanged(ulong system) => DispatcherQueue.TryEnqueue(() => { if (IsThisSystem(system)) ViewModel.Refresh(notes: true); });
     private void OnFindsChanged() => DispatcherQueue.TryEnqueue(() => ViewModel.Refresh(notes: false));
     private void OnMarketChanged(ulong system) => DispatcherQueue.TryEnqueue(() => { if (IsThisSystem(system)) ViewModel.ShowMarket(); });
-    private void OnPictureSaved(ulong system) => DispatcherQueue.TryEnqueue(() => { if (IsThisSystem(system)) _ = ViewModel.RefreshPictureAsync(); });
 
     private void ShowHelp_Click(object sender, RoutedEventArgs e) => ViewModel.SetHelpVisible(true);
     private void HideHelp_Click(object sender, RoutedEventArgs e) => ViewModel.SetHelpVisible(false);
@@ -126,16 +123,17 @@ public sealed partial class CurrentSystemPage : Page
         if ((sender as FrameworkElement)?.Tag is UnmatchedBodyViewModel row) ViewModel.DismissUnmatched(row);
     }
 
-    private async void CaptureSystem_Click(object sender, RoutedEventArgs e)
+    private async void ReadScreen_Click(object sender, RoutedEventArgs e)
     {
-        CaptureResult result;
-        try { result = await ViewModel.CaptureSystemAsync(); }
-        catch (Exception ex) { result = new CaptureResult(false, ex.Message); }
-        CaptureFlyoutIcon.Glyph = result.Success ? "" : "";
-        CaptureFlyoutIcon.Foreground = ThemeResources.Brush(result.Success ? "ThemeAccentBrush" : "ThemeWarningBrush");
-        CaptureFlyoutTitle.Text = !result.Success ? "Couldn't read the screen" : result.ReadInfo is not null ? "System read" : "Picture taken";
-        CaptureFlyoutDetails.Text = result.Message;
-        CaptureFlyout.ShowAt(sender as FrameworkElement ?? CaptureSystemBtn);
+        ScreenReadResult result;
+        try { result = await ViewModel.ReadScreenAsync(); }
+        catch (Exception ex) { result = new ScreenReadResult(false, ex.Message); }
+        bool filled = result.Success && result.ReadInfo is not null;
+        ReadFlyoutIcon.Glyph = filled ? "" : "";
+        ReadFlyoutIcon.Foreground = ThemeResources.Brush(filled ? "ThemeAccentBrush" : "ThemeWarningBrush");
+        ReadFlyoutTitle.Text = !result.Success ? "Couldn't read the screen" : filled ? "Screen read" : "Nothing filled in";
+        ReadFlyoutDetails.Text = result.Message;
+        ReadFlyout.ShowAt(ReadScreenBtn);
     }
 
     /// <summary>A bold banner over the card for a few seconds after live follow sees a new

@@ -6,7 +6,7 @@ using System;
 
 namespace ArtifactX.WinUI3.Views.ExplorePages;
 
-/// <summary>Regions (RegionsViewModel), following the game's saves and screen recording.</summary>
+/// <summary>Regions (RegionsViewModel), following the game's saves and game screen reads.</summary>
 public sealed partial class RegionsPage : Page
 {
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _refresh;
@@ -16,7 +16,7 @@ public sealed partial class RegionsPage : Page
     public RegionsPage()
     {
         InitializeComponent();
-        // Screen recording can save a dozen readings in a few seconds: refresh once they settle.
+        // One screen read can save several readings at once (planet, system, market): refresh once they settle.
         _refresh = DispatcherQueue.CreateTimer();
         _refresh.Interval = TimeSpan.FromSeconds(1.5);
         _refresh.IsRepeating = false;
