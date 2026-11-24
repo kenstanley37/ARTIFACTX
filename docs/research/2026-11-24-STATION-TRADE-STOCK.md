@@ -1,7 +1,8 @@
 # Station trade terminal stock (issue #9)
 
-2026-11-24. What a space station's trade terminal sells is fully generated from the system address and game
-files. The port reproduces every captured item for 159 of 170 non-pirate stations; the other 11 captures
+2026-11-24. What a space station's trade terminal sells is fully generated from the system address, game
+files and the save's Item Shop Availability setting. **Confirmed in game the same day** on Ialenn (Slot 8, build
+185034): the 17 items on the terminal are exactly the 17 generated. The port reproduces every captured item for 159 of 170 non-pirate stations; the other 11 captures
 contain planet trading-post items, so those screen reads were misfiled (details below). No game or save writes.
 
 Harness: `scripts/research/trade-check` (read-only; ground truth = `market_items` in the pre-migration-22 user.db
@@ -44,9 +45,12 @@ economy draw, `GcTradingClass` order). Every "draw" is one RNG step; ranges are 
    class's `Sells` (and the same Category/never-sellable/offered checks). In practice the first N `TRA_*` goods.
 6. Optional substances: shuffle as in 4, then the first `substances` the same way as products.
 
-"Offered" (`0x140887450`): not in `NeverOfferedForSale`, not in the difficulty preset's shop ban list
-(`GcItemShopAvailabilityDifficultyOption`), and in expeditions not in a season list. The harness only checks
-`NeverOfferedForSale` (normal difficulty bans nothing that a station sells, as far as the captures show).
+"Offered" (`0x140887450`): not in `NeverOfferedForSale`, not in the save's Item Shop Availability list
+(`GcDifficultyConfig.ItemShopAvailabilityOptionData[setting].NeverSoldItems`; save key `vLc.6f=.LyC.:fe.FB5.TYf`,
+index 20 of GcDifficultySettingsData), and in expeditions not in a season list. Normal never sells OXYGEN,
+CATALYST1, CATALYST2, POWERCELL, PRODFUEL2: two of those are fixed station products, so they are not on sale when the
+trade-goods step runs and each draws there. Leaving the list out keeps the products right but shifts the substances
+(Ialenn showed Pyrite/Gold instead of Uranium/Phosphorus until it was applied).
 
 Step 5 draws once per product in all three tables. **The draw count depends on the game build's table sizes**, so
 the catalog must use the player's installed tables, never a fixed number.
@@ -55,12 +59,12 @@ the catalog must use the player's installed tables, never a fixed number.
 
 - With the right draw count, all 159 exact stations predict every captured item (always items, the optional
   product picks, the 1-5 trade goods, the optional substance picks).
-- The draw count fitted per station (`sweep`, `PER=1`) is exactly `entries - products already on sale`:
-  captures before 2026-10-28 fit 226 fewer entries (an update added 226 products); captures from 2026-10-29 to
-  2026-11-13 fit one more entry than the 185034 install has now. Every station of a build fits the same table size.
+- The draw count fitted per station (`sweep`, `PER=1`) is exactly `entries - products already on sale`. With the
+  Normal list applied (`core`, `OLD`/`NEW` offsets), captures before 2026-10-28 fit 228 fewer entries and captures
+  from 2026-10-29 to 2026-11-13 one fewer than the 185034 install: each game update added products. Ialenn on
+  185034 fits the installed tables with no offset (`save <decrypted save>`).
 - Not exact (11): the earliest captures (2026-10-17/18 and a few later) contain `LAUNCHFUEL`, `NAV_DATA` and other
   `Shop`-only items, which the station list can't sell: planet trading-post screens filed as the station.
-- The current build (185034) has no captures. First in-game test: any station terminal in Slot 8.
 
 ## Open
 

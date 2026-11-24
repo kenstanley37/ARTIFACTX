@@ -17,8 +17,10 @@ public sealed record TradeStockItem(string Id, TradeStockKind Kind, bool Always)
 /// </list>
 /// Checked against 170 station terminals read off the game's screen in October and November 2026: every captured item
 /// of 159 is generated; the other 11 captures carry planet trading-post items. Pirate stations (SmugglerStation plus
-/// PirateStationExtraProds) are not ported. The difficulty preset's shop ban list (0x140887450) isn't applied: none of
-/// the captures (normal difficulty) needed it.
+/// PirateStationExtraProds) are not ported. 0x140887450 also leaves out what the save's Item Shop Availability setting
+/// never sells (<see cref="TradeStockTables.NeverSoldBySetting"/>): confirmed 2026-11-24 on Ialenn (Slot 8, Normal),
+/// where the terminal had no Oxygen, Sodium, Ion Battery or Life Support Gel, and the two items those leave off sale
+/// shift the substance pick through the trade-goods step's draws.
 /// </summary>
 public static class StationTradeStock
 {
@@ -27,8 +29,9 @@ public static class StationTradeStock
     /// stations, the legacy station layout (<paramref name="useLegacyStation"/> must be false: the save's station
     /// rule), missing tables.
     /// </summary>
+    /// <param name="shopAvailability">The save's Item Shop Availability setting (NmsDifficultySettings.ItemShopAvailabilityPath).</param>
     public static IReadOnlyList<TradeStockItem>? ForSystem(ulong portalCode, int galaxy, bool? useLegacyStation,
-        StationEquipmentTables stations, TradeStockTables trade)
+        string shopAvailability, StationEquipmentTables stations, TradeStockTables trade)
     {
         var attributes = SystemGenerator.Attributes(portalCode, galaxy);
         if (attributes.Uncharted || attributes.Abandoned || attributes.Pirate || attributes.Wealth is < 1 or > 3
@@ -39,7 +42,7 @@ public static class StationTradeStock
         if (terminal is not { LocalPosition.Length: 3 }) return null;
         if (StationCabinetLocations.ToWorld(pose, terminal.LocalPosition) is not { } world) return null;
         ulong seed = DiscoveryKeys.Mix64(MultiToolSiteGeneration.SeedForPosition(world));
-        return Generate(trade, trade.SpaceStation, seed, attributes.Wealth - 1, SystemGenerator.TradingClass(attributes.Economy));
+        return Generate(trade, trade.SpaceStation, seed, attributes.Wealth - 1, SystemGenerator.TradingClass(attributes.Economy), shopAvailability);
     }
 
     /// <summary>
@@ -48,12 +51,13 @@ public static class StationTradeStock
     /// <paramref name="tradingClass"/> the GcTradingClass index.
     /// </summary>
     public static IReadOnlyList<TradeStockItem> Generate(TradeStockTables tables, TradeListData list, ulong seed,
-        int wealth, int tradingClass)
+        int wealth, int tradingClass, string shopAvailability)
     {
         var rng = new UniverseRandom(Start(seed));
         int Range(int min, int max) => (int)rng.Next((uint)(max - min + 1)) + min;
         var never = tables.NeverSellable.ToHashSet(StringComparer.Ordinal);
         var notOffered = tables.NeverOffered.ToHashSet(StringComparer.Ordinal);
+        if (tables.NeverSoldBySetting.TryGetValue(shopAvailability, out var setting)) notOffered.UnionWith(setting);
         bool Sellable(string id) => !never.Contains(id) && !notOffered.Contains(id);
         var stock = new List<TradeStockItem>();
         var onSale = new HashSet<string>(StringComparer.Ordinal);

@@ -3,6 +3,7 @@ using ArtifactX.Core.Universe;
 using ArtifactX.WinUI3.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Media;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,7 +25,7 @@ public sealed record MarketCard(ImageSource? Icon, string Name, string Details)
 /// </summary>
 public sealed partial class StationMarketViewModel : ObservableObject
 {
-    private (ulong System, bool? Legacy)? _shown;
+    private (ulong System, bool? Legacy, string Shops)? _shown;
     private int _version;
 
     [ObservableProperty] public partial string Summary { get; private set; } = "";
@@ -46,20 +47,22 @@ public sealed partial class StationMarketViewModel : ObservableObject
             var trade = tradeTask.Result;
             var saveInputs = snapshot.EquipmentSaveInputs ?? (await LiveSaveWatcher.GetLatestAsync()).EquipmentSaveInputs;
             bool? legacy = stations is null ? null : NmsMultiToolGenerationPaths.ReadSavedLegacyStationRule(saveInputs, stations);
-            if (version != _version || _shown == (address, legacy)) return;
+            // What shops never sell depends on the save's Item Shop Availability setting; "Normal" is the game's default.
+            string shops = SaveSessionManager.GetValue(NmsDifficultySettings.ItemShopAvailabilityPath)?.Value<string>() ?? "Normal";
+            if (version != _version || _shown == (address, legacy, shops)) return;
 
             if (stations is null || trade is null)
             {
-                Show(address, legacy, [], 0, "Rebuild the game data (Settings) to see what the station sells.");
+                Show(address, legacy, shops, [], 0, "Rebuild the game data (Settings) to see what the station sells.");
                 return;
             }
             var (code, galaxy) = UniverseInfo.Generator(address);
             var attributes = SystemGenerator.Attributes(code, galaxy);
-            var stock = await Task.Run(() => StationTradeStock.ForSystem(code, galaxy, legacy, stations, trade));
+            var stock = await Task.Run(() => StationTradeStock.ForSystem(code, galaxy, legacy, shops, stations, trade));
             if (version != _version) return;
             if (stock is null)
             {
-                Show(address, legacy, [], 0, attributes.Uncharted || attributes.Abandoned ? "This system has no working space station."
+                Show(address, legacy, shops, [], 0, attributes.Uncharted || attributes.Abandoned ? "This system has no working space station."
                     : attributes.Pirate ? "What pirate stations sell isn't worked out yet."
                     : "Your save uses the older station layout, which isn't worked out yet.");
                 return;
@@ -81,7 +84,7 @@ public sealed partial class StationMarketViewModel : ObservableObject
                     return new MarketCard(entry?.Icon, name, details);
                 })
                 .ToList();
-            Show(address, legacy, cards, stock.Count(s => s.Kind == TradeStockKind.TradeGood), "");
+            Show(address, legacy, shops, cards, stock.Count(s => s.Kind == TradeStockKind.TradeGood), "");
         }
         catch (Exception error)
         {
@@ -89,9 +92,9 @@ public sealed partial class StationMarketViewModel : ObservableObject
         }
     }
 
-    private void Show(ulong system, bool? legacy, IReadOnlyList<MarketCard> cards, int goods, string message)
+    private void Show(ulong system, bool? legacy, string shops, IReadOnlyList<MarketCard> cards, int goods, string message)
     {
-        _shown = (system, legacy);
+        _shown = (system, legacy, shops);
         Message = message;
         Items = cards;
         Summary = cards.Count == 0 ? "" : $"{cards.Count} items" + (goods > 0 ? $" · {goods} trade good{(goods == 1 ? "" : "s")}" : "");

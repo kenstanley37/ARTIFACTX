@@ -14,6 +14,9 @@ namespace ArtifactX.Core.Universe;
 /// <param name="TableProducts">The trade lists' products that are in the product tables (one draw fewer each when on sale).</param>
 /// <param name="NeverSellable">DefaultReality NeverSellableItems.</param>
 /// <param name="NeverOffered">DefaultReality NeverOfferedForSale.</param>
+/// <param name="NeverSoldBySetting">GcDifficultyConfig ItemShopAvailabilityOptionData: what shops never sell under
+/// each Item Shop Availability setting ("High", "Normal", "Low"). Normal leaves out Oxygen, Sodium, Sodium Nitrate,
+/// Ion Batteries and Life Support Gel.</param>
 /// <param name="ClassSells">GcTradeCategory each GcTradingClass sells, in GcTradingClass order.</param>
 /// <param name="StandardTypeBTerminals">The standard TypeB station's Shop interactions per launch branch (same shape as
 /// the cabinet scenes; <see cref="StationEquipmentScene.Cabinets"/> holds the terminals).</param>
@@ -24,6 +27,7 @@ public sealed record TradeStockTables(
     string[] TableProducts,
     string[] NeverSellable,
     string[] NeverOffered,
+    Dictionary<string, string[]> NeverSoldBySetting,
     int[] ClassSells,
     StationEquipmentScene[] StandardTypeBTerminals);
 

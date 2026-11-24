@@ -53,6 +53,13 @@ public class NmsDifficultySettings
     /// the owner's Slot 1 (Normal preset): kZ5.?SS = "High", and every stored slot MaxAmount fits the High sizes.
     /// </summary>
     public static readonly string[] InventoryStackLimitsPath = ["vLc", "6f=", "LyC", ":fe", "kZ5", "?SS"];
+
+    /// <summary>
+    /// The save's Item Shop Availability setting ("High", "Normal", "Low"): ItemShopAvailability is index 20 of the same
+    /// block (FB5, wrapping its enum as TYf), five keys after kZ5. Read 2026-11-24 on Slot 1 and Slot 8 (both "Normal");
+    /// Slot 8's station terminal left out exactly what the game's Normal list never sells (StationTradeStock).
+    /// </summary>
+    public static readonly string[] ItemShopAvailabilityPath = ["vLc", "6f=", "LyC", ":fe", "FB5", "TYf"];
 }
 
 /// <summary>

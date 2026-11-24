@@ -5,6 +5,8 @@ using libMBIN;
 // Captures from older game builds get that build's product table size (226 fewer before 2026-10-28, one more after).
 public static class CoreCheck
 {
+    static int OldOffset => int.Parse(Environment.GetEnvironmentVariable("OLD") ?? "-226");
+    static int NewOffset => int.Parse(Environment.GetEnvironmentVariable("NEW") ?? "1");
     public static void Run()
     {
         var step = typeof(ArtifactX.GameData.CatalogSteps).GetMethod("TradeStock", BindingFlags.NonPublic | BindingFlags.Static)!;
@@ -18,8 +20,8 @@ public static class CoreCheck
         {
             var (code, galaxy) = PortalPositions.Generator(Convert.ToUInt64(addrText, 16));
             bool old = string.CompareOrdinal(dates[addrText], "2026-10-28T12") < 0;
-            var stock = StationTradeStock.ForSystem(code, galaxy, false, stations,
-                trade with { ProductTableEntries = trade.ProductTableEntries + (old ? -226 : 1) });
+            var stock = StationTradeStock.ForSystem(code, galaxy, false, Environment.GetEnvironmentVariable("SHOPS") ?? "Normal", stations,
+                trade with { ProductTableEntries = trade.ProductTableEntries + (old ? OldOffset : NewOffset) });
             if (stock is null) continue;
             var ids = stock.Select(s => s.Id).ToHashSet();
             int h = seen.Count(ids.Contains);

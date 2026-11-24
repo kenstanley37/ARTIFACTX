@@ -13,7 +13,8 @@ public static partial class CatalogSteps
 
     /// <summary>
     /// What the station trade terminal can stock (Core StationTradeStock; docs/research/2026-11-24-STATION-TRADE-STOCK.md):
-    /// TradeSettings.SpaceStation, the three product tables' size and trade goods in table order, the never-sold lists,
+    /// TradeSettings.SpaceStation, the three product tables' size and trade goods in table order, the never-sold lists
+    /// (also per Item Shop Availability setting),
     /// what each trading class sells, and the standard TypeB station's Shop interaction per launch branch. Null when a
     /// file is missing or the station root isn't the verified TypeB scene.
     /// </summary>
@@ -22,7 +23,8 @@ public static partial class CatalogSteps
         if (decode(RealityFile) is not GcRealityManagerData reality
             || decode(NormalizeScenePath(reality.SubstanceTable.Value)) is not GcSubstanceTable substanceTable
             || decode(TradingClassFile) is not GcTradingClassTable classes
-            || decode(SimulationGlobalsFile) is not GcSimulationGlobals simulation)
+            || decode(SimulationGlobalsFile) is not GcSimulationGlobals simulation
+            || decode(DifficultyConfigFile) is not GcDifficultyConfig difficulty)
             return null;
 
         var products = new List<GcProductData>();
@@ -69,6 +71,9 @@ public static partial class CatalogSteps
         return new TradeStockTables(list, products.Count, goods, listed,
             reality.NeverSellableItems.Select(i => i.Value).ToArray(),
             reality.NeverOfferedForSale.Select(i => i.Value).ToArray(),
+            Enum.GetNames<GcItemShopAvailabilityDifficultyOption.ItemShopAvailabilityDifficultyEnum>()
+                .Zip(difficulty.ItemShopAvailabilityOptionData, (name, data) => (name, data))
+                .ToDictionary(o => o.name, o => o.data.NeverSoldItems.Select(i => i.Value).ToArray()),
             classes.TradingClassesData.Select(c => (int)c.Sells.TradeCategory).ToArray(),
             terminals);
     }
