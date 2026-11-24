@@ -26,7 +26,7 @@ public sealed record SystemDataRow(string Label, string Value)
 
 /// <summary>
 /// Current System: the system you're in (an orrery), what the
-/// save, the game's generator and your notes say about it, and a card
+/// save, the game's generator and your notes say about it, what its station sells, and a card
 /// per known planet. Follows the game's saves without redrawing what didn't change: a new
 /// system rebuilds everything (SystemArrived), landing elsewhere rebuilds the cards, and new
 /// discoveries only update their numbers.
@@ -60,6 +60,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
     }
 
     public StationMultiToolsViewModel StationTools { get; } = new();
+    public StationMarketViewModel Market { get; } = new();
     public SystemMultiToolsViewModel MultiTools { get; } = new();
     public SystemNotesViewModel Notes { get; } = new();
     public SystemStarshipsViewModel Starships { get; } = new();
@@ -200,6 +201,7 @@ public sealed partial class CurrentSystemViewModel : ObservableObject
         Discoveries.SetShownSystem(system);
         CurrentPlanet = planet;
         _ = StationTools.UpdateAsync(system, snapshot);
+        _ = Market.UpdateAsync(system, snapshot);
         _counts = NmsPlanets.CountDiscoveries(snapshot.Discoveries);
         // The name the save's "where you saved" line gives for where you are now.
         if (SystemNameLearner.Learn(system, planet, snapshot.Summary) && !systemChanged)

@@ -417,6 +417,21 @@ public static class SystemGenerator
     }
 
     /// <summary>Planet name from its 64-bit seed (as stored in the save's discovery records).</summary>
+    /// <summary>The game's GcTradingClass index (Mining, HighTech, Trading, Manufacturing, Fusion, Scientific,
+    /// PowerGeneration) of an economy: the raw draw <see cref="Attributes"/> maps to <see cref="SystemEconomy"/>.
+    /// Confirmed by the station trade goods: each economy's terminals sell that class's trade category (2026-11-24).</summary>
+    public static int TradingClass(SystemEconomy economy) => economy switch
+    {
+        SystemEconomy.Mining => 0,
+        SystemEconomy.Technology => 1,
+        SystemEconomy.Trading => 2,
+        SystemEconomy.Manufacturing => 3,
+        SystemEconomy.AdvancedMaterials => 4,
+        SystemEconomy.Scientific => 5,
+        SystemEconomy.PowerGeneration => 6,
+        _ => throw new ArgumentOutOfRangeException(nameof(economy), economy, "A system without an economy has no trading class."),
+    };
+
     public static string PlanetName(ulong planetSeed)
     {
         ulong low = planetSeed & 0xFFFFFFFF;

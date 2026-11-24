@@ -11,6 +11,7 @@ switch (args[0])
     case "scan": Scan.Run(args[1]); break;
     case "sweep": Sweep.Run(new Vector3(-5.0109487f, 1.875f, -942.5f), int.Parse(args[1]), int.Parse(args[2])); break;
     case "stats": Stats.Run(); break;
+    case "core": CoreCheck.Run(); break;
     case "check":
         float F(string s) => float.Parse(s, CultureInfo.InvariantCulture);
         Check.Run(new Vector3(F(args[1]), F(args[2]), F(args[3])), args.Length > 4 ? args[4] : "mix"); break;

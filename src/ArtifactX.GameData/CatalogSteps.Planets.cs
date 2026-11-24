@@ -48,6 +48,8 @@ public static partial class CatalogSteps
     ///   templates and the model scenes they place (locators, mesh boxes), what BuildingLayoutGenerator expands.
     /// - "STATIONEQUIPMENT": JSON in the shape of Core's StationEquipmentTables - solar layout
     ///   globals, station scene roots, and verified standard TypeB WeaponTerminal transforms.
+    /// - "TRADESTOCK": JSON in the shape of Core's TradeStockTables - the station trade terminal's lists, product
+    ///   table size and trade goods, and the TypeB Shop terminal per launch branch.
     /// - "EXTRACTIONTABLES": JSON in the shape of Core's ExtractionTables - hotspot placement,
     ///   biome gases, substance yields and resource-link settings from the installed tables.
     /// </summary>
@@ -133,6 +135,9 @@ public static partial class CatalogSteps
 
         if (StationEquipment(Decode) is { } stationEquipment)
             rows.Add(new CatalogItem { GameId = "STATIONEQUIPMENT", NameEnglish = "StationEquipmentTables", DescriptionEnglish = JsonSerializer.Serialize(stationEquipment) });
+        if (TradeStock(Decode) is { } tradeStock)
+            rows.Add(new CatalogItem { GameId = "TRADESTOCK", NameEnglish = "TradeStockTables", DescriptionEnglish = JsonSerializer.Serialize(tradeStock) });
+        else ConsoleStyle.Warning("Trade tables not found - station trade terminal stock left out.");
         if (MultiToolTechnology(Decode) is { } technology)
             rows.Add(new CatalogItem { GameId = "MULTITOOLTECHNOLOGY", NameEnglish = "MultiToolTechnologyTables", DescriptionEnglish = JsonSerializer.Serialize(technology) });
         if (MultiToolModel(Decode) is { } multiToolModel)

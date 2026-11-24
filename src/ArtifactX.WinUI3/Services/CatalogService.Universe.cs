@@ -70,6 +70,11 @@ public static partial class CatalogService
     public static Task<ArtifactX.Core.Universe.StationEquipmentTables?> GetStationEquipmentTablesAsync() =>
         GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.StationEquipmentTables>("STATIONEQUIPMENT");
 
+    /// <summary>What the station trade terminal can stock and where it stands (StationTradeStock); null on game data
+    /// built before catalog format 112.</summary>
+    public static Task<ArtifactX.Core.Universe.TradeStockTables?> GetTradeStockTablesAsync() =>
+        GetPlanetGenerationRowAsync<ArtifactX.Core.Universe.TradeStockTables>("TRADESTOCK");
+
     /// <summary>Each building class's density per level and planet restrictions (which grid sites hold which
     /// building); null on game data built before catalog format 49.</summary>
     public static Task<ArtifactX.Core.Universe.BuildingClassPlacement[]?> GetBuildingPlacementAsync() =>

@@ -223,6 +223,8 @@
                                 </StackPanel>
                             </controls:FoldingCard>
 
+                            <controls:StationMarket Market="{x:Bind ViewModel.Market}"/>
+
                             <controls:FoldingCard Title="CABINET MULTI-TOOLS" SettingKey="CurrentSystemCabinetMultiToolsCollapsed">
                                 <Border Style="{StaticResource ThemeCardStyle}">
                                     <Grid Padding="18,14,18,16" ColumnSpacing="16">
