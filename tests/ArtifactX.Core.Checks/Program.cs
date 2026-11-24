@@ -78,6 +78,7 @@ if (args.Length == 2 && args[0] == "--species-name-vectors")
     SpeciesNameChecks.FaunaSeeds();
     SpeciesNameChecks.FaunaSizeClass();
     DiscoveryKeyChecks.Check();
+    TradeStockChecks.Check();
     DiscoveryRecordChecks.Check();
     SquadronPilotFactChecks.Check();
     PlanetFaunaPairingChecks.Check();

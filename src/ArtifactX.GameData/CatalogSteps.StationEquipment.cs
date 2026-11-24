@@ -95,7 +95,11 @@ public static partial class CatalogSteps
             }).ToArray(),
         }).ToArray();
 
-    private static StationEquipmentScene? ExtractStationBranch(string rootScene, string launchReference, Func<string, NMSTemplate?> decode, string? rootDescriptorId = null)
+    /// <param name="interaction">The interactions to collect: the weapon cabinets by default, Shop for the trade
+    /// terminal (CatalogSteps.TradeStock).</param>
+    private static StationEquipmentScene? ExtractStationBranch(string rootScene, string launchReference, Func<string, NMSTemplate?> decode,
+        string? rootDescriptorId = null,
+        GcInteractionType.InteractionTypeEnum interaction = GcInteractionType.InteractionTypeEnum.WeaponTerminal)
     {
         bool pirate = rootDescriptorId is { Length: > 0 };
         bool SupportedScene(string path) => path.StartsWith(StationScenePrefix, StringComparison.OrdinalIgnoreCase)
@@ -135,7 +139,7 @@ public static partial class CatalogSteps
 
             string attachmentPath = Attribute(node, "ATTACHMENT");
             if (attachmentPath.Length > 0
-                && WeaponTerminal(attachmentPath, DecodeCached) is { } terminal)
+                && Interaction(attachmentPath, DecodeCached, interaction) is { } terminal)
             {
                 Vector3 position = Vector3.Transform(Vector3.Zero, localToStation);
                 string id = chain.Count > 0 ? LeafName(chain[^1].NodePath) : name;
@@ -149,7 +153,7 @@ public static partial class CatalogSteps
                     new[] { position.X, position.Y, position.Z },
                     MatrixValues(localToStation),
                     chain.ToArray(),
-                    StationWeaponPool(terminal),
+                    interaction == GcInteractionType.InteractionTypeEnum.WeaponTerminal ? StationWeaponPool(terminal) : null,
                     (terminal.InteractionSpecificData as GcWeaponTerminalInteractionData)?.RespawnPeriodInSeconds,
                     (terminal.InteractionSpecificData as GcWeaponTerminalInteractionData)?.UseSentinelWeapon));
             }
@@ -186,13 +190,14 @@ public static partial class CatalogSteps
             rootScene, exact, pirate ? null : launchReference, rootDescriptorId);
     }
 
-    private static GcInteractionComponentData? WeaponTerminal(string attachmentPath, Func<string, NMSTemplate?> decode)
+    private static GcInteractionComponentData? Interaction(string attachmentPath, Func<string, NMSTemplate?> decode,
+        GcInteractionType.InteractionTypeEnum interaction)
     {
         if (decode(NormalizeScenePath(attachmentPath)) is not TkAttachmentData attachment) return null;
         return (attachment.Components ?? new())
             .Select(c => c?.Template)
             .OfType<GcInteractionComponentData>()
-            .FirstOrDefault(c => c.InteractionType?.InteractionType == GcInteractionType.InteractionTypeEnum.WeaponTerminal);
+            .FirstOrDefault(c => c.InteractionType?.InteractionType == interaction);
     }
 
     /// <summary>

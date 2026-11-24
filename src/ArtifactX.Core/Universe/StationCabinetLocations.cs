@@ -37,24 +37,29 @@ public static class StationCabinetLocations
 
     private static IReadOnlyList<StationCabinetLocation> Transform(StationEquipmentScene? scene, StationPose pose)
     {
-        if (scene is null || !Finite(pose.Position) || !Finite(pose.Facing)
-            || pose.Facing.LengthSquared() < 1.52587890625e-05f) return [];
-        Vector3 forward = Vector3.Normalize(pose.Facing);
-        Vector3 cross = Vector3.Cross(Vector3.UnitY, forward);
-        if (cross.LengthSquared() < 1.52587890625e-05f) return [];
-        Vector3 right = Vector3.Normalize(cross);
-        Vector3 up = Vector3.Cross(forward, right);
+        if (scene is null) return [];
         var result = new List<StationCabinetLocation>();
         foreach (var cabinet in scene.Cabinets)
         {
-            if (cabinet.InteractionType != "WeaponTerminal" || cabinet.LocalPosition.Length != 3
-                || cabinet.LocalPosition.Any(v => !float.IsFinite(v))) return [];
-            var local = cabinet.LocalPosition;
-            Vector3 world = local[0] * right + local[1] * up + local[2] * forward + pose.Position;
-            if (!Finite(world)) return [];
+            if (cabinet.InteractionType != "WeaponTerminal" || ToWorld(pose, cabinet.LocalPosition) is not { } world) return [];
             result.Add(new StationCabinetLocation(cabinet, world, MultiToolSiteGeneration.SeedForPosition(world)));
         }
         return result;
+    }
+
+    /// <summary>A station-local interaction origin [x,y,z] in system space: the pose's right, up and forward axes
+    /// (forward = facing, right = up-axis x forward) plus its position. Null for invalid input.</summary>
+    public static Vector3? ToWorld(StationPose pose, float[] local)
+    {
+        if (!Finite(pose.Position) || !Finite(pose.Facing) || pose.Facing.LengthSquared() < 1.52587890625e-05f
+            || local.Length != 3 || local.Any(v => !float.IsFinite(v))) return null;
+        Vector3 forward = Vector3.Normalize(pose.Facing);
+        Vector3 cross = Vector3.Cross(Vector3.UnitY, forward);
+        if (cross.LengthSquared() < 1.52587890625e-05f) return null;
+        Vector3 right = Vector3.Normalize(cross);
+        Vector3 up = Vector3.Cross(forward, right);
+        Vector3 world = local[0] * right + local[1] * up + local[2] * forward + pose.Position;
+        return Finite(world) ? world : null;
     }
 
     private static bool Finite(Vector3 v) => float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
