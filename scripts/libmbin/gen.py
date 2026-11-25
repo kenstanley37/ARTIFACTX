@@ -151,7 +151,9 @@ def field_lines(m, name):
 
 
 def enum_block(m, name, va, count, flags, esize=4, cls=None):
-    vals = [(('@' + n if n in CS_KEYWORDS else n) if n else 'None', v) for n, v in m.enum_values(va, count)]
+    # A C# name can't start with a digit: libMBIN spells the game's "1", "4K" as _1, _4K.
+    vals = [(('@' + n if n in CS_KEYWORDS else '_' + n if n[:1].isdigit() else n) if n else 'None', v)
+            for n, v in m.enum_values(va, count)]
     prev = m.lib.get(cls, {}).get('text', '') if cls else ''
     if re.search(r'\[Flags\]\s*public enum ' + re.escape(name) + r'', prev): flags = True
     bits = [v for _, v in vals if v]
