@@ -14,7 +14,8 @@ public static partial class CatalogSteps
     /// <summary>
     /// What the station trade terminal can stock (Core StationTradeStock; docs/research/2026-11-24-STATION-TRADE-STOCK.md):
     /// TradeSettings.SpaceStation, the three product tables' size and trade goods in table order, the never-sold lists
-    /// (also per Item Shop Availability setting),
+    /// (also per Item Shop Availability setting), every stockable item's price fields, the trading classes' multiplier
+    /// ranges and the Currency Cost buy markups,
     /// what each trading class sells, and the standard TypeB station's Shop interaction per launch branch. Null when a
     /// file is missing or the station root isn't the verified TypeB scene.
     /// </summary>
@@ -48,7 +49,8 @@ public static partial class CatalogSteps
             station.OptionalProducts.Select(Product).ToArray(),
             station.OptionalSubstances.Select(Substance).ToArray(),
             station.MinItemsForSale, station.MaxItemsForSale, station.PercentageOfItemsAreProducts,
-            station.MinExtraSystemProducts.ToArray(), station.MaxExtraSystemProducts.ToArray());
+            station.MinExtraSystemProducts.ToArray(), station.MaxExtraSystemProducts.ToArray(),
+            station.TradeProductsPriceImprovements.ToArray());
 
         // Only the categories a trading class sells can be picked (None and SpecialShop never are), and the step
         // passes over building parts.
@@ -60,6 +62,23 @@ public static partial class CatalogSteps
             .ToArray();
         var listed = list.AlwaysProducts.Concat(list.OptionalProducts).Select(i => i.Id)
             .Where(productsById.ContainsKey).Distinct().ToArray();
+
+        // Price fields of everything the station and planet shop lists and the trade goods can stock (TradePrices).
+        var substancesById = substanceTable.Table.GroupBy(s => s.ID.Value, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var shop = reality.TradeSettings.Shop;
+        var priced = new[] { station, shop }
+            .SelectMany(d => d.AlwaysPresentProducts.Concat(d.OptionalProducts).Concat(d.AlwaysPresentSubstances).Concat(d.OptionalSubstances))
+            .Select(i => i.Value).Concat(goods.Select(g => g.Id)).ToHashSet(StringComparer.Ordinal);
+        var prices = new Dictionary<string, TradePriceData>(StringComparer.Ordinal);
+        foreach (string id in priced)
+        {
+            if (productsById.TryGetValue(id, out var p))
+                prices[id] = new TradePriceData(p.BaseValue, p.Cost.BuyBaseMarkup, p.Cost.BuyMarkupMod, p.Cost.HighPriceMod, p.Cost.LowPriceMod,
+                    p.Cost.SpaceStationMarkup, p.EconomyInfluenceMultiplier, (int)p.TradeCategory.TradeCategory);
+            else if (substancesById.TryGetValue(id, out var s))
+                prices[id] = new TradePriceData(s.BaseValue, s.Cost.BuyBaseMarkup, s.Cost.BuyMarkupMod, s.Cost.HighPriceMod, s.Cost.LowPriceMod,
+                    s.Cost.SpaceStationMarkup, s.EconomyInfluenceMultiplier, (int)s.TradeCategory.TradeCategory);
+        }
 
         string root = NormalizeScenePath(simulation.SpaceStationFile?.Value ?? "");
         if (!root.Equals(VerifiedStandardTypeBRoot, StringComparison.OrdinalIgnoreCase)) return null;
@@ -75,6 +94,14 @@ public static partial class CatalogSteps
                 .Zip(difficulty.ItemShopAvailabilityOptionData, (name, data) => (name, data))
                 .ToDictionary(o => o.name, o => o.data.NeverSoldItems.Select(i => i.Value).ToArray()),
             classes.TradingClassesData.Select(c => (int)c.Sells.TradeCategory).ToArray(),
-            terminals);
+            terminals,
+            prices,
+            classes.TradingClassesData.Select(c => new TradeClassPrices(c.MinBuyingPriceMultiplier, c.MaxBuyingPriceMultiplier,
+                c.MinSellingPriceMultiplier, c.MaxSellingPriceMultiplier)).ToArray(),
+            classes.MinTradingMultiplier,
+            classes.MaxTradingMultiplier,
+            Enum.GetNames<GcCurrencyCostDifficultyOption.CurrencyCostDifficultyEnum>()
+                .Zip(difficulty.CurrencyCostOptionData, (name, data) => (name, data.TradeBuyPriceMarkupMod))
+                .ToDictionary(o => o.name, o => o.TradeBuyPriceMarkupMod));
     }
 }

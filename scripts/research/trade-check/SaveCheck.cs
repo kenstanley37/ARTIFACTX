@@ -18,13 +18,13 @@ public static class SaveCheck
         var trade = (TradeStockTables)step.Invoke(null, [new Func<string, NMSTemplate>(Paks.Decode)])!;
         var stations = Check.Row<StationEquipmentTables>("STATIONEQUIPMENT");
         var (code, galaxy) = PortalPositions.Generator(address);
-        var stock = StationTradeStock.ForSystem(code, galaxy, false, shops, stations, trade with { ProductTableEntries = trade.ProductTableEntries + offset });
+        var stock = StationTradeStock.ForSystem(code, galaxy, false, shops, root.SelectToken("vLc.6f=.LyC.:fe.tsk.Ubk")?.Value<string>() ?? "Normal", stations, trade with { ProductTableEntries = trade.ProductTableEntries + offset });
         Console.WriteLine($"system {address:X} shops {shops} entries {trade.ProductTableEntries + offset}");
         using var c = new SqliteConnection($"Data Source={Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}/ArtifactX/GameData/nms_catalog.sqlite;Mode=ReadOnly"); c.Open();
         foreach (var s in stock ?? [])
         {
             var cmd = c.CreateCommand(); cmd.CommandText = "SELECT NameEnglish FROM Items WHERE GameId = $id LIMIT 1"; cmd.Parameters.AddWithValue("$id", s.Id);
-            Console.WriteLine($"  {s.Kind,-10} {(s.Always ? "always" : "      ")} {s.Id,-16} {cmd.ExecuteScalar()}");
+            Console.WriteLine($"  {s.Kind,-10} {(s.Always ? "always" : "      ")} {s.Id,-16} {s.BuyPrice,7} {cmd.ExecuteScalar()}");
         }
     }
 }

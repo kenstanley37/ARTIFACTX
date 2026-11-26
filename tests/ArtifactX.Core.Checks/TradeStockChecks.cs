@@ -30,6 +30,19 @@ internal static class TradeStockChecks
             Require(ids.SequenceEqual(StationTradeStock.Generate(tables, list, seed * 0x9E3779B97F4A7C15UL, 1, 0, "High").Select(s => s.Id)), "not repeatable");
         }
         Console.WriteLine("PASS: station trade stock rules (200 seeds).");
+
+        // Microprocessor (BaseValue 2,000, BuyBaseMarkup 8.5, no spread, no economy influence) cost 27,500 at both Ialenn
+        // terminals on Normal Currency Cost (x1.5), 2026-11-24: the same for any shop or system seed.
+        var priced = tables with
+        {
+            Prices = new() { ["MICROCHIP"] = new TradePriceData(2000, 8.5f, 0f, 0f, 0f, 0f, 0f, 7) },
+            ClassPrices = [new(0.8f, 1.2f, 0.6f, 0.9f), new(0.8f, 1.2f, 0.6f, 0.9f)],
+            MinTradingMultiplier = 0.2f, MaxTradingMultiplier = 3f,
+        };
+        for (ulong seed = 1; seed <= 50; seed++)
+            Require(TradePrices.Buy(priced, "MICROCHIP", seed * 7919, seed * 104729, 0, 0f, 1.5f, station: true) == 27500,
+                "Microprocessor isn't 27,500");
+        Console.WriteLine("PASS: trade buy price of an item without spread or economy influence.");
     }
 
     private static void Require(bool condition, string message)

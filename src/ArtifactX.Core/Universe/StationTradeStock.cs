@@ -3,8 +3,9 @@ namespace ArtifactX.Core.Universe;
 /// <summary>How an item got onto a trade terminal: the list's fixed items, its random pick, or the system's trade goods.</summary>
 public enum TradeStockKind { Product, Substance, TradeGood }
 
-/// <summary>One item a trade terminal sells.</summary>
-public sealed record TradeStockItem(string Id, TradeStockKind Kind, bool Always);
+/// <summary>One item a trade terminal sells and what it costs there (<see cref="TradePrices"/>; null on catalogs
+/// without price data).</summary>
+public sealed record TradeStockItem(string Id, TradeStockKind Kind, bool Always, int? BuyPrice = null);
 
 /// <summary>
 /// What a space station's trade terminal sells (issue #9), generated as the game does it. Traced in NMS build 184271
@@ -30,8 +31,9 @@ public static class StationTradeStock
     /// rule), missing tables.
     /// </summary>
     /// <param name="shopAvailability">The save's Item Shop Availability setting (NmsDifficultySettings.ItemShopAvailabilityPath).</param>
+    /// <param name="currencyCost">The save's Currency Cost setting (NmsDifficultySettings.CurrencyCostPath), for prices.</param>
     public static IReadOnlyList<TradeStockItem>? ForSystem(ulong portalCode, int galaxy, bool? useLegacyStation,
-        string shopAvailability, StationEquipmentTables stations, TradeStockTables trade)
+        string shopAvailability, string currencyCost, StationEquipmentTables stations, TradeStockTables trade)
     {
         var attributes = SystemGenerator.Attributes(portalCode, galaxy);
         if (attributes.Uncharted || attributes.Abandoned || attributes.Pirate || attributes.Wealth is < 1 or > 3
@@ -42,7 +44,18 @@ public static class StationTradeStock
         if (terminal is not { LocalPosition.Length: 3 }) return null;
         if (StationCabinetLocations.ToWorld(pose, terminal.LocalPosition) is not { } world) return null;
         ulong seed = DiscoveryKeys.Mix64(MultiToolSiteGeneration.SeedForPosition(world));
-        return Generate(trade, trade.SpaceStation, seed, attributes.Wealth - 1, SystemGenerator.TradingClass(attributes.Economy), shopAvailability);
+        int wealth = attributes.Wealth - 1, tradingClass = SystemGenerator.TradingClass(attributes.Economy);
+        var stock = Generate(trade, trade.SpaceStation, seed, wealth, tradingClass, shopAvailability);
+        // Prices at a station use the system seed (the packed address the solar layout is generated from) for every
+        // item's spread (0x14088edc0), not the terminal's.
+        if (trade.Prices is null || SolarLayoutGeneration.ForSystem(portalCode, galaxy, stations.SolarLayout, placeMoons: true) is not { } layout)
+            return stock;
+        float improvement = trade.SpaceStation.PriceImprovements is { } improvements && wealth < improvements.Length ? improvements[wealth] : 0f;
+        float markup = trade.BuyMarkupBySetting?.GetValueOrDefault(currencyCost) ?? 1f;
+        return stock.Select(s => s with
+        {
+            BuyPrice = TradePrices.Buy(trade, s.Id, layout.Address, layout.Address, tradingClass, improvement, markup, station: true),
+        }).ToList();
     }
 
     /// <summary>
@@ -53,7 +66,7 @@ public static class StationTradeStock
     public static IReadOnlyList<TradeStockItem> Generate(TradeStockTables tables, TradeListData list, ulong seed,
         int wealth, int tradingClass, string shopAvailability)
     {
-        var rng = new UniverseRandom(Start(seed));
+        var rng = new UniverseRandom(TradePrices.Start(seed));
         int Range(int min, int max) => (int)rng.Next((uint)(max - min + 1)) + min;
         var never = tables.NeverSellable.ToHashSet(StringComparer.Ordinal);
         var notOffered = tables.NeverOffered.ToHashSet(StringComparer.Ordinal);
@@ -128,13 +141,5 @@ public static class StationTradeStock
             (order[i], order[j]) = (order[j], order[i]);
         }
         return order.Take(Math.Max(count, 0)).Select(i => items[i]).ToList();
-    }
-
-    /// <summary>The stream's start for a 64-bit seed: low word (1 when zero), rol16(low) ^ high ^ low.</summary>
-    private static ulong Start(ulong seed)
-    {
-        uint low = (uint)seed;
-        uint carry = ((low >> 16) | (low << 16)) ^ (uint)(seed >> 32) ^ low;
-        return ((ulong)carry << 32) | (low == 0 ? 1u : low);
     }
 }

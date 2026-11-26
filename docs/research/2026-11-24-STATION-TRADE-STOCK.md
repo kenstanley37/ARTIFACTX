@@ -66,12 +66,55 @@ the catalog must use the player's installed tables, never a fixed number.
 - Not exact (11): the earliest captures (2026-10-17/18 and a few later) contain `LAUNCHFUEL`, `NAV_DATA` and other
   `Shop`-only items, which the station list can't sell: planet trading-post screens filed as the station.
 
+## Planet trading posts (solved 2026-11-24)
+
+A trading post is building class 6 (`Outpost`) of the planet building grid (`PlanetBuildingSites`). It has no
+L-system: PLANETBUILDINGTABLE gives one scene per race (`TRADINGPOST{TRADER,WARRIOR,SCIENTIFIC}.SCENE`, Gek/Vy'keen/
+Korvax), whose `Terminal_Tradingpost` reference holds the `Shop` interaction at scene-local (37.4, 17.795189, z) with
+z = -3.905937 / -3.287193 / -3.779248 (`outpost` mode). The building is not clustered, so its spawn point is the site
+point raised to the Far-region spawn height (`PlanetShopCabinetGenerator.SpawnHeight(site, site)`), with the shop
+cabinets' axes (up = site direction, forward from `BuildingClusterPlacement.Facing(site, key)`). Terminal world
+position -> `SeedForPosition` -> Mix64 -> the same generator with `TradeSettings.Shop` (Shop interaction outside a
+station: `0x14087ae50` falls through to Shop).
+
+Confirmed in game 2026-11-24 on Oodleibe Major (Ialenn planet 3, Slot 8): the site nearest the visor reading
+(+16.61, -152.18) is predicted at +16.60, -152.19, and its terminal (Repository IA7/S-BV1/I) sold exactly the 18
+generated items (`post <decrypted save> <lat> <lon>`). An id missing from this build's tables is passed over without a
+draw (Copper `YELLOW1` is on both lists but in neither table, so no station or post sells it; marking it known shifted
+every later pick).
+
+The October/November trading-post captures can't confirm a site on their own: they don't record which post was read,
+and their few, mostly fixed items fit dozens of the ~1,800 Outpost sites per planet (`posts`).
+
+## Buy prices (solved 2026-11-24)
+
+What the terminal charges, `0x1408a0000` -> `0x140eec9e0` -> `0x140eecda0`. All 35 prices on the Ialenn station and
+Oodleibe Major trading post screenshots match to the unit (`price` mode).
+
+1. Item seed: the shop's seed plus the item ID's two 8-byte halves (u64 wrap). The shop's seed is the terminal's
+   raw interaction seed (position hash, not Mix64-ed) at a trading post, and the **system seed** (solar system data
+   +0x2480 = the packed system address, `SolarLayoutGeneration` layout address) at a space station
+   (`0x14088edc0`: the station flag picks the system seed). Start the stream from it (no mix), four words, `r` = the
+   mean of the four as floats (w2 + w1 + w3 + w4) * 0.25.
+2. Base = BaseValue * ((HighPriceMod - LowPriceMod) * r + LowPriceMod + 1) (`GcItemPriceModifiers` on products
+   and substances).
+3. Buying: markup = r * BuyMarkupMod + BuyBaseMarkup, times the save's Currency Cost
+   `GcDifficultyConfig.CurrencyCostOptionData[setting].TradeBuyPriceMarkupMod` (Normal 1.5; save key `tsk.Ubk`)
+   except for the system's own trade goods; price = (markup + 1) * base.
+4. Economy: for items of the trade category the system's trading class sells, M = lerp(MinSelling, MaxSelling, u) -
+   TradeProductsPriceImprovements[wealth] (the station or Shop list's), u = the first word of Start(Mix64(system
+   seed)) / 2^32, the same for every item in the system; other items M = 1. Then M = M + (1 - Economy Influence) *
+   (1 - M), clamped to the trading class table's 0.2..3.0. Price = (int)(price * M).
+5. `SpaceStationMarkup` is applied at stations only with a flag not identified yet; none of the screenshot items has a
+   nonzero markup, so it isn't confirmed either way.
+
+Selling prices (what a system pays) take the other branch (no markup; `MinBuying`/`MaxBuying` plus the improvement
+for the class's `Needs` category, two runtime globals for other cases) and are not confirmed yet.
+
 ## Open
 
 - Pirate stations (`SmugglerStation` + `PirateStationExtraProds`, gated by a string check at engine+0x57aa6e and
   `DAT_146f8249c`). One capture, 1/7.
-- Planet trading posts (`Shop` list): the same generator; needs the trade terminal's world position on the planet
-  (building placement + terrain height), like the planetary cabinets.
 - Tech merchants (ship/suit/weapon/vehicle specialists, issue #9's real ask): NPC interactions (types 0 to 2 in
   `0x141032d20`), not placed in the station scene. Their positions (and so their seeds) still need tracing.
 - Prices: `0x140eec9e0`, seeded from the system seed (+0x2480, Mix64), the trading class's price multipliers and

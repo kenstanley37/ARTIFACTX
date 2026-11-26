@@ -312,6 +312,11 @@
                                 <FontIcon Glyph="&#xEDA3;" FontFamily="Segoe MDL2 Assets"/>
                             </NavigationViewItem.Icon>
                         </NavigationViewItem>
+                        <NavigationViewItem x:Name="TradeFinderNavItem" Visibility="{x:Bind ViewModel.IsSaveLoaded, Mode=OneWay}" Content="Trade Finder" Tag="TradeFinder">
+                            <NavigationViewItem.Icon>
+                                <FontIcon Glyph="&#xE719;" FontFamily="Segoe MDL2 Assets"/>
+                            </NavigationViewItem.Icon>
+                        </NavigationViewItem>
                         <NavigationViewItem Content="Finds" Tag="Finds">
                             <NavigationViewItem.Icon>
                                 <FontIcon Glyph="&#xE734;" FontFamily="Segoe MDL2 Assets"/>
