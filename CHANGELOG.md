@@ -19,6 +19,11 @@ What changed in each ArtifactX release, written for players. The newest release 
 ### Fixed
 - ArtifactX's icon could be missing from the taskbar and Alt-Tab. The window now sets it itself.
 
+## 1.2.2 — 2026-11-25
+
+### Fixed
+- Works with No Man's Sky Holiday Expeditions 2026 (7.15.1, build 186923): the game changed how it stores expedition data, base building parts and settlement colours, and ArtifactX couldn't read the expedition file any more. Update your game data once.
+
 ## 1.2.1 — 2026-11-18
 
 ### Changed
