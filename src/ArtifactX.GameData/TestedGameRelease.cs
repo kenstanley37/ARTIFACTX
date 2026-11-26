@@ -13,15 +13,16 @@ namespace ArtifactX.GameData;
 /// Forsaken 7.14, build 185034 (Steam 2026-11-09, nomanssky.com/2026/11/forsaken-7-14): five structures
 /// regenerated, among them GcBuildingGlobals (new MinNodesBufferFree moved MinRadius from +0xC8C to +0xC90);
 /// clean build 2026-11-10.
-/// Forsaken, build 186923 (Steam 2026-11-25): 28 structures regenerated (expedition GcSeasonalGameModeData /
-/// GcSeasonalMilestone failed to decode; base building parts, settlement colours, player state, graphics settings
-/// changed), GcDebugOptions' new GUID from upstream MBINCompiler v7.15.0-pre1, which matches every regenerated class
-/// checked; clean build 2026-11-25. Patch number not confirmed yet, so <see cref="Version"/> is empty.
+/// Holiday Expeditions 2026 7.15.1, build 186923 (Steam 2026-11-25; release name and patch number from the patch
+/// notes, read by the owner): 28 structures regenerated (expedition GcSeasonalGameModeData / GcSeasonalMilestone
+/// failed to decode; base building parts, settlement colours, player state, graphics settings changed),
+/// GcDebugOptions' new GUID from upstream MBINCompiler v7.15.0-pre1, which matches every regenerated class checked;
+/// clean build 2026-11-25, pages confirmed working by the owner the same day.
 /// </summary>
 public static class TestedGameRelease
 {
-    public const string Name = "Forsaken";
-    public const string Version = "";
+    public const string Name = "Holiday Expeditions 2026";
+    public const string Version = "7.15.1";
     public const string Build = "186923";
 
     /// <summary>The release name with its patch number when known: "Forsaken 7.10" or just "Forsaken".</summary>
